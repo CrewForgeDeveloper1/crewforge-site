@@ -1,0 +1,1238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rim-and-Face Shaft Alignment Simulator · CrewForge</title>
+<!--
+  CrewForge: Rim-and-Face Shaft Alignment Simulator (RSOS C-16, Levels 2–3).
+  Brand: charcoal #1F1D1A, off-white #F5F5F4, orange #F08A2B accents. Status: green OK, yellow #F2C230 close, red out.
+
+  PIPELINE CONTRACT:
+    window.sim.set(partialState, durationMs)   tween numeric values, set others instantly
+    window.sim.callout(targetId, text, {pos})   highlight an element with a label
+    window.sim.clear()                          remove all callouts
+    window.sim.advance(ms)                      advance the virtual clock (all motion runs off this)
+    window.sim.isIdle()                         always false: shafts, needles and arrows keep moving
+    window.sim.ready                            true once loaded
+    window.sim.calc()                           every number on screen (see calc())
+    window.sim.get()                            copy of the state
+    window.sim.challenge                        challenge/score state (for SCORM): {index,total,score,results,moves,complete}
+    window.sim.answer(value)                    submit an answer to the current challenge → {correct, attempts, answer}
+  ?capture=1 → no requestAnimationFrame; the pipeline drives time through advance().
+
+  METHOD (fixed, see NOTES.md): indicators clamped on the STATIONARY shaft (pump), plungers on the MOVABLE hub (motor):
+    rim plunger radial on the hub rim, face plunger axial on the hub face that looks toward the pump.
+    Both shafts turned together. Both dials zeroed at 12 o'clock. + = plunger pushed IN.
+    Clock positions viewed from behind the motor looking toward the pump (3 o'clock on your right).
+
+  STATE (sim.set keys). Readings-type values are thou (mils) in Imperial, mm in Metric. Lengths inches / mm.
+    mode       'readings' | 'calculate' | 'correct' | 'challenge'
+    plane      'vertical' | 'horizontal'
+    units      'imp' | 'met'   (changing units alone converts every value; the machine stays the same)
+    vOff,hOff  TRUE offset of the motor centreline at the rim-reading plane (+ = high / toward 3 o'clock)
+    vAng,hAng  TRUE slope of the motor centreline (+ = rising / swinging toward 3 o'clock going back to the motor's back feet)
+               thou per inch (Imperial) or mm per 100 mm (Metric)
+    dia        face reading diameter D (circle the face plunger travels)
+    distA      rim-reading plane to the motor's FRONT feet (A)
+    distB      front feet to back feet (B)
+    sag        rim bar sag: the 6 o'clock reading on a straight pipe (zero or negative)
+    rpm        600 | 900 | 1200 | 1800 | 3600 (tolerance row)
+    shF,shB    shims ADDED so far at front/back feet (+ add, − remove)        [corrections applied]
+    mvF,mvB    moves made so far at front/back feet (+ toward 3 o'clock)
+    planF,planB planned change for the next move (current plane)
+    dialPos    indicator position, degrees clockwise from 12 (both shafts turn with it)
+    taken      0–4 clock positions recorded (12, 3, 6, 9 in that order)
+    glitch     true → the 3 o'clock rim reading is misread by +6 thou (validity check fails)
+    mistakes   true → Calculate mode lists the common mistakes next to the right answer
+    predF,predB 'plus' | 'minus' | ''  learner's prediction before "apply calculated"
+    snap       true → needles, pose and overlays jump to rest (use in scene setups)
+    board      'auto' | 'instruments' | 'maths'  what the lower drawing shows. auto = maths pictures in Calculate mode
+               (and after a challenge answer), instruments otherwise. Changing mode resets it to auto.
+   ACTIONS (sim.set keys): sweep:true (take readings 12→3→6→9), apply:'planned'|'calculated', reset:true,
+                           randomize:<seed>, chIndex:<0–5> (load a challenge), chNew:true (new numbers)
+-->
+<style>
+:root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
+--accent:#F08A2B;--ok:#3ddc84;--warn:#F2C230;--bad:#ff4d4d;--steel:#9fb0bc}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+#app{display:grid;grid-template-columns:1fr 600px;height:100vh}
+#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--line)}
+.brandbar{display:flex;align-items:center;gap:14px;padding:12px 26px;border-bottom:1px solid var(--line)}
+.brandbar .logo{height:44px;width:auto;display:block}
+.brandbar .t1{font-size:13px;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.brandbar .t2{font-size:26px;font-weight:700}
+#svgwrap{flex:1;min-height:0;position:relative}
+#svg{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px)}
+#formula{margin:0 22px 14px;padding:12px 20px;background:var(--panel);border:1px solid var(--line);
+border-left:5px solid var(--accent);border-radius:8px;font-size:23px;font-variant-numeric:tabular-nums;
+font-family:"SF Mono",Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel{background:var(--panel);padding:12px 20px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+.sec h3{margin:0 0 6px;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button,.btn{flex:1;min-width:60px;padding:7px 6px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);
+color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--accent);color:#141414;border-color:var(--accent)}
+.btn.primary{background:#C05A00;border-color:#C05A00;color:#fff}
+button:focus-visible,input:focus-visible{outline:3px solid #F5F5F4;outline-offset:2px}
+.row2{display:flex;gap:8px;margin-top:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}
+.ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:0;gap:6px}
+.ctl label b{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+input[type=range]{width:100%;accent-color:var(--accent);margin:1px 0 4px}
+.btnrow{display:flex;gap:6px;margin-top:4px}
+abbr{text-decoration:none;border-bottom:1px dotted var(--muted);cursor:help}
+table.rd{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:4px;font-variant-numeric:tabular-nums}
+table.rd th:first-child{width:58px}table.rd th:last-child{width:150px}
+table.rd th{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-align:center}
+table.rd th.rl{text-align:left}
+table.rd td{background:var(--panel2);border:1px solid var(--line);border-radius:6px;text-align:center;font-size:21px;font-weight:700;padding:4px 2px;white-space:nowrap}
+table.rd td.rl{background:none;border:0;text-align:left;font-size:14px;color:var(--muted);font-weight:700}
+table.rd td.chk{font-size:15px}
+.ro{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ro div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+.ro span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.ro b{font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ro i{display:block;font-style:normal;font-size:13px;color:var(--muted);white-space:nowrap;font-weight:600}
+#wb{background:#191714;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:"SF Mono",Menlo,Consolas,monospace;
+font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums;white-space:pre-wrap}
+#wb .h{color:var(--muted)} #wb .k{color:var(--accent);font-weight:700}
+/* term colours: the same symbol has the same colour in the formula bar, the maths board, the result boxes and the maths pictures */
+.cT{color:#9fd2ff;font-weight:700}.cO{color:#59b7ff;font-weight:700}.cF{color:#dcc4ff;font-weight:700}.cS{color:#b98cff;font-weight:700}.cL{color:#ff8fb1;font-weight:700}.cC{color:#F08A2B;font-weight:700}
+#ro-offset{color:#59b7ff}#ro-slope{color:#b98cff}#ro-front,#ro-back{color:#F08A2B}
+#ro-offset-box{border-left:4px solid #59b7ff}#ro-slope-box{border-left:4px solid #b98cff}#ro-front-box,#ro-back-box{border-left:4px solid #F08A2B}
+#c-board{margin-left:auto;flex:0 0 auto}#c-board button{flex:0 0 auto;padding:8px 14px;font-size:15px}
+#c-board button:disabled{opacity:.4;cursor:not-allowed} #wb .g{color:var(--ok)} #wb .r{color:var(--bad)} #wb .y{color:var(--warn)}
+#mist{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:6px}
+#mist td{padding:4px 6px;border-bottom:1px solid var(--line)} #mist td.v{text-align:right;font-weight:700;white-space:nowrap}
+#status{padding:9px;border-radius:8px;font-weight:800;font-size:17px;text-align:center;letter-spacing:.02em;line-height:1.3}
+#status small{display:block;font-weight:600;font-size:13px;opacity:.9}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.card .ti{font-size:18px;font-weight:800;margin-bottom:4px}
+.card .pr{font-size:15px;line-height:1.4;color:#e7e3dd}
+.card input[type=number]{width:130px;font-size:20px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:#191714;color:var(--text);font-variant-numeric:tabular-nums}
+.fb{font-size:15px;font-weight:700;margin-top:6px;min-height:20px}
+.hint{font-size:14px;color:var(--warn);margin-top:4px;line-height:1.35}
+.small{font-size:13px;color:var(--muted);line-height:1.35}
+.hide{display:none!important}
+#co{position:fixed;inset:0;pointer-events:none;z-index:10}
+.ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
+.clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
+line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+@media (max-width:1000px){
+  #app{grid-template-columns:minmax(0,1fr);height:auto}
+  #panel{min-width:0}
+  #stage{border-right:0}
+  .brandbar{padding:10px 12px;flex-wrap:wrap;row-gap:8px}.brandbar .logo{height:34px}
+  #c-board{margin-left:0;width:100%}#c-board button{flex:1;padding:8px 4px}
+  .brandbar .t1{font-size:10px}.brandbar .t2{font-size:19px}
+  #svgwrap{flex:none;height:136vw;min-height:300px}
+  #formula{font-size:13px;white-space:normal;margin:0 10px 10px;padding:10px 12px}
+  #panel{overflow:visible;padding:12px}
+  .grid2{grid-template-columns:1fr}
+  .seg button,.btn{font-size:14px;padding:9px 4px;min-width:0}
+  table.rd{border-spacing:3px}table.rd td{font-size:13.5px;padding:4px 0}table.rd td.chk{font-size:11px}table.rd th:first-child{width:40px}table.rd th:last-child{width:92px}table.rd th{font-size:11px}
+  .ro span,.ro i{white-space:normal}
+  .ro b{font-size:18px}
+  #wb{font-size:12.5px}
+  .clabel{font-size:15px;max-width:240px;padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Rim-and-Face Shaft Alignment</div></div>
+      <div class="seg" id="c-board" role="group" aria-label="Drawing under the machine"><button data-v="instruments" title="End view, dial indicators and centrelines">Instruments</button><button data-v="maths" title="Each formula drawn as a picture of its terms">Maths pictures</button></div></div>
+    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pump and motor with dial indicators"></svg></div>
+    <div id="formula" aria-live="polite"></div>
+  </section>
+  <aside id="panel">
+    <div class="sec"><h3>MODE</h3>
+      <div class="seg" id="c-mode"><button data-v="readings" title="Set the hidden misalignment and take dial readings">Readings</button><button data-v="calculate" title="Work the maths step by step">Calculate</button><button data-v="correct" title="Shim and move the motor, watch it align">Correct</button><button data-v="challenge" title="Graded tasks with hints">Challenge</button></div>
+      <div class="row2"><div class="seg" id="c-plane" style="flex:3"><button data-v="vertical" title="Side view: shims under the feet">Vertical · shims</button><button data-v="horizontal" title="Plan view: jack bolts move the feet sideways">Horizontal · moves</button></div>
+        <div class="seg" id="c-units" style="flex:2"><button data-v="imp" title="thou (0.001 in) and inches">Imperial</button><button data-v="met" title="millimetres">Metric</button></div></div>
+    </div>
+
+    <div class="sec" id="sec-setup"><h3>HIDDEN MISALIGNMENT (TRUE) AND SETUP</h3>
+      <div class="grid2">
+        <div class="ctl"><label><abbr title="How far the motor centreline sits above (+) or below (−) the pump centreline, measured at the rim-reading plane">Vertical offset</abbr> <b id="l-vOff"></b></label><input id="c-vOff" type="range" aria-label="Vertical offset"></div>
+        <div class="ctl"><label><abbr title="Angularity: slope of the motor centreline. + = rising toward the back feet">Vertical slope</abbr> <b id="l-vAng"></b></label><input id="c-vAng" type="range" aria-label="Vertical slope"></div>
+        <div class="ctl"><label><abbr title="+ = motor sits toward the 3 o'clock side (your right, standing behind the motor facing the pump)">Horizontal offset</abbr> <b id="l-hOff"></b></label><input id="c-hOff" type="range" aria-label="Horizontal offset"></div>
+        <div class="ctl"><label><abbr title="+ = the motor's back end swings toward 3 o'clock">Horizontal slope</abbr> <b id="l-hAng"></b></label><input id="c-hAng" type="range" aria-label="Horizontal slope"></div>
+        <div class="ctl"><label><abbr title="Diameter of the circle the face plunger travels on the hub face">Face diameter D</abbr> <b id="l-dia"></b></label><input id="c-dia" type="range" aria-label="Face diameter"></div>
+        <div class="ctl"><label><abbr title="Indicator bar sag: the 6 o'clock rim reading on a straight pipe, zeroed at 12. Always zero or negative">Rim bar sag</abbr> <b id="l-sag"></b></label><input id="c-sag" type="range" aria-label="Bar sag"></div>
+        <div class="ctl"><label><abbr title="Rim-reading plane to the centre of the motor's front feet bolts">A: rim to front feet</abbr> <b id="l-distA"></b></label><input id="c-distA" type="range" aria-label="Distance A"></div>
+        <div class="ctl"><label><abbr title="Front feet to back feet, bolt centre to bolt centre">B: front to back feet</abbr> <b id="l-distB"></b></label><input id="c-distB" type="range" aria-label="Distance B"></div>
+      </div>
+      <div class="ctl"><label><abbr title="Running speed selects the tolerance row (Pruftechnik short flexible coupling table)">Speed (tolerance row)</abbr></label>
+        <div class="seg" id="c-rpm"><button data-v="600">600</button><button data-v="900">900</button><button data-v="1200">1200</button><button data-v="1800">1800</button><button data-v="3600">3600 RPM</button></div></div>
+      <div class="btnrow"><button class="btn primary" id="b-sweep" title="Turn both shafts and record 12, 3, 6, 9">Take readings</button><button class="btn" id="b-rand" title="New hidden misalignment">Randomize</button><button class="btn" id="b-glitch" title="Misread the 3 o'clock rim reading to see the validity check fail">Bad reading</button></div>
+    </div>
+
+    <div class="sec" id="sec-read"><h3>DIAL READINGS · ZEROED AT 12 · <abbr title="Plus = plunger pushed in; minus = plunger out">+ = PLUNGER IN</abbr></h3>
+      <table class="rd" id="ro-table"><tr><th class="rl"></th><th>12</th><th>3</th><th>6</th><th>9</th><th title="Validity rule: 12 + 6 = 3 + 9">12+6 = 3+9</th></tr>
+        <tr><td class="rl"><abbr title="Rim: radial plunger on the motor hub rim. Reads offset (twice the offset)">RIM</abbr></td><td id="ro-r12"></td><td id="ro-r3"></td><td id="ro-r6"></td><td id="ro-r9"></td><td class="chk" id="ro-rvalid"></td></tr>
+        <tr><td class="rl"><abbr title="Face: axial plunger on the motor hub face. Reads angularity over diameter D">FACE</abbr></td><td id="ro-f12"></td><td id="ro-f3"></td><td id="ro-f6"></td><td id="ro-f9"></td><td class="chk" id="ro-fvalid"></td></tr></table>
+    </div>
+
+    <div class="sec hide" id="sec-chal"><h3>CHALLENGE <span id="ro-chnum"></span> · SCORE <b id="ro-score" style="color:var(--text)"></b></h3>
+      <div class="card"><div class="ti" id="ch-title"></div><div class="pr" id="ch-prompt"></div>
+        <div class="row2" id="ch-ansrow"><input type="number" step="any" id="ch-input" aria-label="Your answer"><span class="small" id="ch-unit" style="align-self:center"></span><button class="btn primary" id="b-check" style="flex:0 0 110px">Check</button></div>
+        <div class="row2 hide" id="ch-moverow"><input type="number" step="any" id="ch-mF" aria-label="Front feet shim change" placeholder="front"><input type="number" step="any" id="ch-mB" aria-label="Back feet shim change" placeholder="back"><button class="btn primary" id="b-chmove" style="flex:0 0 110px">Apply move</button></div>
+        <div class="fb" id="ch-fb" aria-live="polite"></div><div class="hint" id="ch-hint"></div></div>
+      <div class="btnrow"><button class="btn" id="b-prev">◀ Prev</button><button class="btn" id="b-new" title="Same task, new numbers">New numbers</button><button class="btn" id="b-next">Next ▶</button></div>
+    </div>
+
+    <div class="sec hide" id="sec-math"><h3>SHOW THE MATHS · <span id="wb-plane"></span></h3>
+      <div id="wb"></div>
+      <div class="btnrow"><button class="btn" id="b-mist" title="Show what the usual mistakes would give">Common mistakes</button></div>
+      <table id="mist" class="hide"></table>
+    </div>
+
+    <div class="sec hide" id="sec-correct"><h3>CORRECT THE MOTOR · <span id="cor-plane"></span></h3>
+      <div class="card"><div class="small" style="margin-bottom:4px"><b style="color:var(--text)">Predict first:</b> which way does each foot go?</div>
+        <div class="row2" style="margin-top:0"><span class="small" style="width:52px;align-self:center">Front</span><div class="seg" id="c-predF" style="flex:1"><button data-v="plus" id="pf-plus"></button><button data-v="minus" id="pf-minus"></button></div></div>
+        <div class="row2"><span class="small" style="width:52px;align-self:center">Back</span><div class="seg" id="c-predB" style="flex:1"><button data-v="plus" id="pb-plus"></button><button data-v="minus" id="pb-minus"></button></div></div>
+        <div class="fb" id="ro-pred"></div></div>
+      <div class="grid2" style="margin-top:6px">
+        <div class="ctl"><label id="lab-planF">Front feet <b id="l-planF"></b></label><input id="c-planF" type="range" aria-label="Planned front foot change"></div>
+        <div class="ctl"><label id="lab-planB">Back feet <b id="l-planB"></b></label><input id="c-planB" type="range" aria-label="Planned back foot change"></div>
+      </div>
+      <div class="btnrow"><button class="btn primary" id="b-calc" title="Fill in the calculated correction and apply it">Apply calculated</button><button class="btn" id="b-apply" title="Apply the slider amounts">Apply sliders</button><button class="btn" id="b-reset" title="Put the motor back where it started">Reset</button></div>
+    </div>
+
+
+    <div class="sec" id="sec-res"><h3>RESULT · <span id="res-plane"></span></h3>
+      <div class="ro">
+        <div id="ro-offset-box"><span>Offset at coupling</span><b id="ro-offset"></b><i id="ro-offset-x"></i></div>
+        <div id="ro-slope-box"><span>Angularity (slope)</span><b id="ro-slope"></b><i id="ro-slope-x"></i></div>
+        <div id="ro-front-box"><span id="ro-front-l">Front feet</span><b id="ro-front"></b><i id="ro-front-x"></i></div>
+        <div id="ro-back-box"><span id="ro-back-l">Back feet</span><b id="ro-back"></b><i id="ro-back-x"></i></div>
+      </div>
+    </div>
+    <div id="status"></div>
+  </aside>
+</div>
+<div id="co"></div>
+<script>
+(()=>{
+const CAPTURE=new URLSearchParams(location.search).has('capture');
+const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',ACCD='#C05A00',MUTED='#A39B90',STEEL='#9fb0bc',TEXT='#F5F5F4';
+const MM_PER_IN=25.4, MM_PER_THOU=0.0254;
+const $=id=>document.getElementById(id);
+const rad=d=>d*Math.PI/180, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+
+/* Default machine: Imperial. Readings it gives: rim 0 / −15 / −18 / −3, face 0 / −5 / −8 / −3 (see NOTES.md case 1). */
+const S={mode:'readings',plane:'vertical',units:'imp',vOff:9,vAng:2,hOff:-6,hAng:-0.5,dia:4,distA:10,distB:20,sag:0,rpm:1800,
+  shF:0,shB:0,mvF:0,mvB:0,planF:0,planB:0,dialPos:0,taken:4,glitch:false,mistakes:false,predF:'',predB:'',moves:0,seed:1,board:'auto'};
+const NUMERIC=['vOff','vAng','hOff','hAng','dia','distA','distB','sag','shF','shB','mvF','mvB','planF','planB','dialPos'];
+const R_KEYS=['vOff','hOff','sag','shF','shB','mvF','mvB','planF','planB'], L_KEYS=['dia','distA','distB'], A_KEYS=['vAng','hAng'];
+
+/* =====================================================================
+   ALIGNMENT MATHS: every number on screen comes from calc().
+   Coordinates: z along the shafts from the rim-reading plane toward the motor's back feet.
+   Motor centreline relative to the pump centreline (extended):
+       vertical    y(z) = V + mV·z      (+ = motor high)
+       horizontal  x(z) = H + mH·z      (+ = toward 3 o'clock)
+   Indicators on the PUMP shaft, plungers on the MOTOR hub, zeroed at 12, + = plunger in, shafts turned together.
+   Rim plunger at clock angle θ (clockwise from 12) reads the motor hub's radial position along that direction:
+       rim(θ)  = V·cosθ + H·sinθ − V   (minus V = zeroed at 12)
+       → R12 = 0, R3 = H − V, R6 = −2V, R9 = −H − V
+   Face plunger points from the pump side onto the motor hub face at radius r = D/2. A rising motor (mV > 0) tips the
+   top of its hub face toward the pump, pushing the plunger in at 12:
+       face(θ) = r·(mV·cosθ + mH·sinθ) − r·mV
+       → F12 = 0, F3 = r(mH − mV), F6 = −2r·mV, F9 = r(−mH − mV)
+   Bar sag Sg (6 o'clock reading on a straight pipe, ≤ 0) adds Sg·(1 − cosθ)/2: Sg at 6, Sg/2 at 3 and 9.
+   Readings are rounded to dial resolution (½ thou, or 0.01 mm) as a millwright would write them down,
+   and EVERYTHING after that is worked from the written readings, exactly as by hand:
+       sag-corrected:  R6c = R6 − Sg,  R3c = R3 − Sg/2,  R9c = R9 − Sg/2
+       offset    V = (R12 − R6c) ÷ 2          H = (R3c − R9c) ÷ 2          (rim TIR ÷ 2)
+       slope     mV = (F12 − F6) ÷ D          mH = (F3 − F9) ÷ D           (face TIR ÷ D)
+       position of the motor at a foot z:  y(z) = V + mV·z
+       correction = −position:
+       shim front = −(V + mV·A)      shim back = −(V + mV·(A + B))    + = ADD shims, − = REMOVE
+       move front = −(H + mH·A)      move back = −(H + mH·(A + B))    + = toward 3 o'clock, − = toward 9
+   Same result as Pruftechnik's  Shim = (F6 − F0)·s/dia − (R0 − R6)/2,  Move = (F9 − F3)·s/dia − (R3 − R9)/2.
+   Validity rule: R12 + R6 = R3 + R9 and F12 + F6 = F3 + F9 (within two dial resolutions for rounding).
+   Corrections already made (shims shF/shB, moves mvF/mvB) shift the motor rigidly: a change s(z) that is shF at
+   z = A and shB at z = A + B is a straight line, so V gains shF − (shB − shF)·A/B and mV gains (shB − shF)/B.
+   Tolerance (Pruftechnik, short flexible couplings): offset and angularity (gap per 10 in ÷ 10 = thou/in) vs RPM.
+     green ≤ acceptable (EXCELLENT if ≤ excellent too) · yellow ≤ 2 × acceptable (close) · red beyond.
+   ===================================================================== */
+const TOL={600:[5.0,9.0,10.0,15.0],900:[3.0,6.0,7.0,10.0],1200:[2.5,4.0,5.0,8.0],1800:[2.0,3.0,3.0,5.0],3600:[1.0,1.5,2.0,3.0]};
+//          rpm: [offset excellent, offset acceptable (thou), gap per 10 in excellent, acceptable (thou)]
+function calc(st=S){
+  const imp=st.units==='imp', res=imp?0.5:0.01, k=imp?1:0.01;      // k: stored slope → reading units per length unit
+  const rnd=v=>{const r=Math.round(v/res)*res;return Math.abs(r)<res/2?0:+r.toFixed(imp?1:2)};
+  // measurements as written down: lengths to 0.01 in / 1 mm (tape), sag to the dial resolution
+  const rl=v=>imp?Math.round(v*100)/100:Math.round(v);
+  const D=rl(st.dia), r=D/2, A=rl(st.distA), B=rl(st.distB), Sg=rnd(st.sag);
+  // true (hidden) motor position, including corrections already made
+  const dV=(st.shB-st.shF)/B, dH=(st.mvB-st.mvF)/B;
+  const V=st.vOff+st.shF-dV*A, mV=st.vAng*k+dV;
+  const H=st.hOff+st.mvF-dH*A, mH=st.hAng*k+dH;
+  // readings as written down (zeroed at 12, + = plunger in, sag included, rounded to the dial)
+  const g=st.glitch?(imp?6:0.15):0;
+  const R={12:0, 3:rnd(H-V+Sg/2+g), 6:rnd(-2*V+Sg), 9:rnd(-H-V+Sg/2)};
+  const F={12:0, 3:rnd(r*(mH-mV)), 6:rnd(-2*r*mV), 9:rnd(r*(-mH-mV))};
+  const tolV=2*res+1e-9;
+  const rValid=Math.abs((R[12]+R[6])-(R[3]+R[9]))<=tolV, fValid=Math.abs((F[12]+F[6])-(F[3]+F[9]))<=tolV;
+  // worked from the readings
+  const R6c=R[6]-Sg, R3c=R[3]-Sg/2, R9c=R[9]-Sg/2;
+  const Voff=(R[12]-R6c)/2, Hoff=(R3c-R9c)/2;
+  const Vs=(F[12]-F[6])/D, Hs=(F[3]-F[9])/D;
+  const vF=-(Voff+Vs*A), vB=-(Voff+Vs*(A+B)), hF=-(Hoff+Hs*A), hB=-(Hoff+Hs*(A+B));
+  // tolerance, in thou and thou/in whatever the display units
+  const t=TOL[st.rpm]||TOL[1800], toThou=imp?1:1/MM_PER_THOU, toTpi=imp?1:1000;
+  const lev=(off,s)=>{const o=Math.abs(off)*toThou, a=Math.abs(s)*toTpi, m=Math.max(o/t[1],a/(t[3]/10));
+    return {o,a,m,exc:o<=t[0]+1e-9&&a<=t[2]/10+1e-9,level:m<=1+1e-9?'ok':m<=2?'warn':'bad'}};
+  const lv=lev(Voff,Vs), lh=lev(Hoff,Hs);
+  const rank={ok:0,warn:1,bad:2}, level=rank[lv.level]>=rank[lh.level]?lv.level:lh.level;
+  // true live readings at any angle (needles)
+  const rimAt=th=>{const c=Math.cos(rad(th)),s=Math.sin(rad(th));return V*c+H*s-V+Sg*(1-c)/2+g*Math.exp(-Math.pow(((th%360)-90)/22,2))};
+  const faceAt=th=>{const c=Math.cos(rad(th)),s=Math.sin(rad(th));return r*(mV*c+mH*s)-r*mV};
+  // the same plane's numbers, picked for the current plane
+  const P=st.plane==='vertical'?{off:Voff,s:Vs,f:vF,b:vB,l:lv}:{off:Hoff,s:Hs,f:hF,b:hB,l:lh};
+  return {imp,res,k,D,r,A,B,Sg,V,mV,H,mH,R,F,rValid,fValid,R6c,R3c,R9c,Voff,Hoff,Vs,Hs,vF,vB,hF,hB,tol:t,lv,lh,level,rimAt,faceAt,P};
+}
+
+/* ---------- formatting ---------- */
+const MINUS='−';
+const sgn=(v,d)=>{const x=+v.toFixed(d);return (x>0?'+':x<0?MINUS:'')+Math.abs(x).toFixed(d)};
+const unsigned=(v,d)=>Math.abs(+v.toFixed(d)).toFixed(d);
+const rdD=()=>S.units==='imp'?1:2;                       // decimals for readings / corrections
+const RU=()=>S.units==='imp'?'thou':'mm';
+const LU=()=>S.units==='imp'?'in':'mm';
+const rd=v=>sgn(v,rdD());                                 // signed reading
+const rdu=v=>sgn(v,rdD())+' '+RU();
+const lenf=v=>S.units==='imp'?v.toFixed(2)+' in':Math.round(v)+' mm';
+const slopeShow=s=>S.units==='imp'?sgn(s,3)+' thou/in':sgn(s*100,3)+' mm/100 mm';   // s = reading units per length unit
+const slopeNum=s=>S.units==='imp'?sgn(s,3):sgn(s*100,3);
+const slopeStored=v=>S.units==='imp'?sgn(v,2)+' thou/in':sgn(v,3)+' mm/100';
+const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
+const PL=()=>S.plane==='vertical';
+const actWord=(v,vert)=>{const z=Math.abs(v)<(S.units==='imp'?0.05:0.005);
+  if(z)return 'no change';return vert?(v>0?'ADD':'REMOVE'):(v>0?'toward 3 o’clock':'toward 9 o’clock')};
+const corrText=(v,vert)=>{const w=actWord(v,vert);return w==='no change'?w:(vert?w+' '+unsigned(v,rdD())+' '+RU():'move '+unsigned(v,rdD())+' '+RU()+' '+w)};
+
+/* ---------- animation state (virtual clock only) ---------- */
+let T=0, tweens=[], callouts=[];
+const A={needleR:0,vR:0,needleF:0,vF:0,spin:0,shake:0,poseMix:1,scM:null,scC:null,sweepT:-1,slides:[],jackF:0,jackB:0,
+  lastMvF:0,lastMvB:0,jackDirF:0,jackDirB:0,jackHoldF:0,jackHoldB:0,predShown:null,flash:0,lastShF:0,lastShB:0,
+  mT:0,mU:0,ms1:null,ms2:null,ms3:null,v4:{},dt:0};
+
+/* ---------- SVG helpers ---------- */
+function defs(){
+  return `<defs>
+  <linearGradient id="gSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a535b"/><stop offset=".28" stop-color="#e9eef2"/><stop offset=".45" stop-color="#9aa6af"/><stop offset=".8" stop-color="#5a646c"/><stop offset="1" stop-color="#2f363c"/></linearGradient>
+  <linearGradient id="gHub" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b4248"/><stop offset=".25" stop-color="#c9d2d8"/><stop offset=".5" stop-color="#7d8992"/><stop offset="1" stop-color="#262c31"/></linearGradient>
+  <linearGradient id="gMotor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d5466"/><stop offset=".22" stop-color="#7f9db3"/><stop offset=".5" stop-color="#4c677c"/><stop offset="1" stop-color="#1d2a35"/></linearGradient>
+  <linearGradient id="gMotorEnd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34495a"/><stop offset=".25" stop-color="#6c8aa0"/><stop offset="1" stop-color="#18232c"/></linearGradient>
+  <linearGradient id="gPump" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4e5b56"/><stop offset=".25" stop-color="#8fa29a"/><stop offset=".55" stop-color="#55655f"/><stop offset="1" stop-color="#232b28"/></linearGradient>
+  <radialGradient id="gVolute" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#9db0a8"/><stop offset=".5" stop-color="#5b6b65"/><stop offset="1" stop-color="#232b28"/></radialGradient>
+  <linearGradient id="gBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#57514a"/><stop offset=".12" stop-color="#3d3833"/><stop offset="1" stop-color="#25221f"/></linearGradient>
+  <linearGradient id="gBasePlan" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a3530"/><stop offset="1" stop-color="#272420"/></linearGradient>
+  <linearGradient id="gShim" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f9aa2"/><stop offset=".45" stop-color="#f1f5f8"/><stop offset=".6" stop-color="#c4cdd3"/><stop offset="1" stop-color="#7c878f"/></linearGradient>
+  <radialGradient id="gHubEnd" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#dfe6ea"/><stop offset=".45" stop-color="#8a96a0"/><stop offset="1" stop-color="#2c3338"/></radialGradient>
+  <radialGradient id="gDial" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#fbfaf7"/><stop offset=".85" stop-color="#e6e2da"/><stop offset="1" stop-color="#c9c3b8"/></radialGradient>
+  <linearGradient id="gBezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f5"/><stop offset=".4" stop-color="#8d989f"/><stop offset=".7" stop-color="#d5dce0"/><stop offset="1" stop-color="#4b545a"/></linearGradient>
+  <radialGradient id="gVig" cx=".5" cy=".45" r=".75"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".5"/></radialGradient>
+  <filter id="fShadow" filterUnits="userSpaceOnUse" x="-500" y="-500" width="2400" height="2400"><feGaussianBlur stdDeviation="9"/></filter>
+  <filter id="fGlow" filterUnits="userSpaceOnUse" x="-500" y="-500" width="2400" height="2400"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+}
+function arrow(id,x1,y1,x2,y2,col,w=5,h=16){
+  const a=Math.atan2(y2-y1,x2-x1);
+  return `<g id="${id}"><line x1="${x1}" y1="${y1}" x2="${x2-Math.cos(a)*h*.6}" y2="${y2-Math.sin(a)*h*.6}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
+  <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.45)},${y2-h*Math.sin(a-.45)} ${x2-h*Math.cos(a+.45)},${y2-h*Math.sin(a+.45)}" fill="${col}"/></g>`;
+}
+function pill(id,x,y,text,col,fs=21){const w=text.length*fs*.6+26;
+  return `<g id="${id}"><rect x="${x-w/2}" y="${y-fs*.95}" width="${w}" height="${fs*1.9}" rx="${fs*.95}" fill="#1F1D1A" stroke="${col}" stroke-width="3"/>
+  <text x="${x}" y="${y+fs*.36}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${col}">${text}</text></g>`;}
+const panelBox=(x,y,w,h,title)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="#24211E" stroke="#45403A"/>
+  <text x="${x+16}" y="${y+28}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.6">${title}</text>`;
+
+/* ---------- layout: landscape (1920×1080) or portrait (phone) ---------- */
+function layout(){
+  const portrait=innerWidth<=1000;
+  const mb=boardNow()==='maths';
+  if(portrait&&mb)return {vb:'0 0 440 1690',maths:true,mp:[[10,10],[10,430],[10,850],[10,1270]],mw:[420,420,420,420]};   // phone: pictures stacked, full width
+  return portrait?{vb:'0 0 800 1110',mach:[10,8,.627],end:[4,300,.95],dials:[392,300,.86],cl:[210,690,1],maths:false}
+                 :{vb:'0 0 1300 900',mach:[20,6,1],end:[10,480,1],dials:[425,480,1],cl:[905,480,1],maths:mb,mp:[[5,480],[315,480],[625,480],[1055,480]],mw:[300,300,420,240]};
+}
+
+/* ---------- machine: side elevation (vertical) or plan view (horizontal), local 1260 × 450 ----------
+   Pump on the left (stationary), motor on the right (movable). Motor pose = exaggerated, rigid:
+   feet heights from the true position at each foot, scaled by a factor fixed per scenario. */
+const CL=180, XF=740, XB=1020, XDIAL=567;
+function machine(c,col){
+  const vert=PL();
+  const yF=(vert?c.V+c.mV*c.A:c.H+c.mH*c.A), yB=(vert?c.V+c.mV*(c.A+c.B):c.H+c.mH*(c.A+c.B));
+  const pF=clamp(yF*A.scM*A.poseMix,-27,27), pB=clamp(yB*A.scM*A.poseMix,-27,27);
+  const ang=Math.atan2(-(pB-pF),XB-XF)*180/Math.PI;
+  const sh=A.shake;
+  const rot=S.mode==='correct'?A.spin:S.dialPos;   // readings: both shafts turned by hand with the indicator; correct: running
+  let s=`<g id="machine">`;
+  // base plate + shadow
+  if(vert){
+    s+=`<ellipse cx="640" cy="${CL+190}" rx="600" ry="16" fill="#000" opacity=".55" filter="url(#fShadow)"/>
+    <rect id="baseplate" x="30" y="352" width="1200" height="28" rx="3" fill="url(#gBase)"/><line x1="30" y1="353" x2="1230" y2="353" stroke="#7a7268" stroke-width="2"/>`;
+    for(const bx of [90,330,700,1060,1200])s+=`<circle cx="${bx}" cy="366" r="5" fill="#1a1816" stroke="#6b645b"/>`;
+  } else {
+    s+=`<rect x="34" y="${CL-168}" width="1200" height="346" rx="8" fill="#000" opacity=".5" filter="url(#fShadow)"/>
+    <rect id="baseplate" x="30" y="${CL-175}" width="1200" height="350" rx="8" fill="url(#gBasePlan)" stroke="#57514a" stroke-width="2"/>`;
+    for(let gx=60;gx<1230;gx+=60)s+=`<line x1="${gx}" y1="${CL-170}" x2="${gx-20}" y2="${CL+170}" stroke="#2f2b27" stroke-width="2"/>`;
+    s+=`<text x="44" y="${CL-150}" font-size="17" font-weight="800" fill="${ACC}">▲ 3 O’CLOCK SIDE</text>
+        <text x="44" y="${CL+166}" font-size="17" font-weight="800" fill="${ACC}">▼ 9 O’CLOCK SIDE</text>`;
+  }
+  // ---- pump (stationary)
+  s+=`<g id="pump">`;
+  if(vert){
+    s+=`<path d="M110 352 L130 290 L320 290 L340 352 Z" fill="url(#gPump)" stroke="#2a3230"/>
+      <rect x="40" y="${CL-26}" width="44" height="52" fill="url(#gPump)" stroke="#2a3230"/><rect x="30" y="${CL-36}" width="14" height="72" rx="3" fill="#6f817a"/>
+      <circle cx="190" cy="${CL}" r="118" fill="url(#gVolute)" stroke="#2a3230" stroke-width="3"/>
+      <path d="M100 ${CL-70} A118 118 0 0 1 270 ${CL-90}" stroke="#c7d5cf" stroke-width="3" fill="none" opacity=".5"/>
+      <rect x="160" y="${CL-150}" width="56" height="44" fill="url(#gPump)" stroke="#2a3230"/><rect x="150" y="${CL-160}" width="76" height="13" rx="3" fill="#6f817a"/>
+      <rect x="290" y="${CL-48}" width="140" height="96" rx="10" fill="url(#gPump)" stroke="#2a3230"/>
+      <line x1="300" y1="${CL-30}" x2="420" y2="${CL-30}" stroke="#a9bab3" opacity=".5"/>`;
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;s+=`<circle cx="${190+100*Math.cos(a)}" cy="${CL+100*Math.sin(a)}" r="5" fill="#333d39" stroke="#9aaba4"/>`;}
+    s+=`<text x="190" y="${CL+8}" text-anchor="middle" font-size="22" font-weight="800" fill="#e8efec" opacity=".85">PUMP</text>
+      <text x="190" y="${CL+32}" text-anchor="middle" font-size="14" font-weight="700" fill="#cfdad5" opacity=".75">STATIONARY</text>`;
+  } else {
+    s+=`<rect x="60" y="${CL-110}" width="250" height="220" rx="40" fill="url(#gPump)" stroke="#2a3230" stroke-width="3"/>
+      <rect x="30" y="${CL-30}" width="40" height="60" fill="url(#gPump)"/><rect x="290" y="${CL-48}" width="140" height="96" rx="10" fill="url(#gPump)" stroke="#2a3230"/>
+      <circle cx="188" cy="${CL}" r="34" fill="#6f817a" stroke="#2a3230" stroke-width="3"/><circle cx="188" cy="${CL}" r="22" fill="#2a3230"/>
+      <text x="185" y="${CL+82}" text-anchor="middle" font-size="22" font-weight="800" fill="#e8efec" opacity=".85">PUMP</text>`;
+  }
+  s+=`</g>`;
+  // pump shaft + hub (fixed)
+  s+=shaft(420,470,16,rot)+hub('hub-pump',470,515,52,rot,false);
+  // ---- motor (movable): rigid group, pose about the front foot
+  s+=`<g id="motor" transform="translate(${sh.toFixed(2)} ${(-pF+sh*.4).toFixed(2)}) rotate(${ang.toFixed(3)} ${XF} ${CL})">`;
+  s+=hub('hub-motor',545,590,52,rot,true)+shaft(590,650,18,rot);
+  s+=`<path d="M650 ${CL-92} Q650 ${CL-104} 668 ${CL-104} L700 ${CL-110} L700 ${CL+110} L668 ${CL+104} Q650 ${CL+104} 650 ${CL+92} Z" fill="url(#gMotorEnd)" stroke="#141c22" stroke-width="2"/>`;
+  s+=`<rect x="700" y="${CL-114}" width="350" height="228" rx="6" fill="url(#gMotor)" stroke="#141c22" stroke-width="2"/>`;
+  for(let fy=CL-100;fy<=CL+100;fy+=15)s+=`<line x1="704" y1="${fy}" x2="1046" y2="${fy}" stroke="#0f171d" stroke-width="3" opacity=".55"/><line x1="704" y1="${fy+2.5}" x2="1046" y2="${fy+2.5}" stroke="#a9c2d4" stroke-width="1" opacity=".28"/>`;
+  s+=`<path d="M1050 ${CL-110} L1080 ${CL-102} L1080 ${CL+102} L1050 ${CL+110} Z" fill="url(#gMotorEnd)" stroke="#141c22"/>
+    <rect x="1080" y="${CL-96}" width="92" height="192" rx="18" fill="url(#gMotorEnd)" stroke="#141c22" stroke-width="2"/>`;
+  for(let vy=CL-78;vy<=CL+78;vy+=13)s+=`<line x1="1100" y1="${vy}" x2="1158" y2="${vy}" stroke="#0c1216" stroke-width="5" stroke-linecap="round"/>`;
+  if(vert){
+    s+=`<rect x="820" y="${CL-160}" width="110" height="48" rx="6" fill="url(#gMotorEnd)" stroke="#141c22"/><circle cx="875" cy="${CL-136}" r="7" fill="#20303c"/>
+      <path d="M965 ${CL-114} q0 -30 22 -30 q22 0 22 30" stroke="${STEEL}" stroke-width="7" fill="none"/>`;
+    // feet (front and back) under the body
+    s+=`<path id="foot-front" d="M${XF-46} ${CL+108} L${XF+46} ${CL+108} L${XF+40} ${CL+142} L${XF-40} ${CL+142} Z" fill="#26353f" stroke="#0f171d" stroke-width="2"/>
+      <path id="foot-back" d="M${XB-46} ${CL+108} L${XB+46} ${CL+108} L${XB+40} ${CL+142} L${XB-40} ${CL+142} Z" fill="#26353f" stroke="#0f171d" stroke-width="2"/>
+      <rect x="${XF-8}" y="${CL+96}" width="16" height="18" fill="#9aa6af"/><rect x="${XB-8}" y="${CL+96}" width="16" height="18" fill="#9aa6af"/>`;
+  } else {
+    s+=`<rect x="830" y="${CL-40}" width="90" height="80" rx="6" fill="url(#gMotorEnd)" stroke="#141c22"/>`;
+    for(const [fx,fid] of [[XF,'foot-front'],[XB,'foot-back']]){
+      s+=`<g id="${fid}"><rect x="${fx-42}" y="${CL-142}" width="84" height="32" rx="5" fill="#26353f" stroke="#0f171d" stroke-width="2"/><rect x="${fx-42}" y="${CL+110}" width="84" height="32" rx="5" fill="#26353f" stroke="#0f171d" stroke-width="2"/>
+        <circle cx="${fx}" cy="${CL-126}" r="8" fill="#9aa6af" stroke="#222"/><circle cx="${fx}" cy="${CL+126}" r="8" fill="#9aa6af" stroke="#222"/></g>`;
+    }
+  }
+  s+=`<text x="875" y="${CL+(vert?16:72)}" text-anchor="middle" font-size="24" font-weight="800" fill="#eaf2f8" opacity=".9">MOTOR</text>
+     <text x="875" y="${CL+(vert?40:96)}" text-anchor="middle" font-size="14" font-weight="700" fill="#cfe0ec" opacity=".75">MOVABLE</text>`;
+  s+=`</g>`;
+  // ---- shims (vertical) or jack bolts (horizontal), fixed to the base
+  if(vert){
+    const pack=(id,fx,p)=>{const top=322-p, h=352-top;let g=`<g id="${id}"><rect x="${fx-40}" y="${top}" width="80" height="${h}" fill="url(#gShim)" stroke="#5d676e"/>`;
+      for(let ly=top+5;ly<352;ly+=5)g+=`<line x1="${fx-40}" y1="${ly}" x2="${fx+40}" y2="${ly}" stroke="#6c777f" stroke-width="1"/>`;
+      return g+`<rect x="${fx-40}" y="${top}" width="80" height="2" fill="#fff" opacity="${.35+.25*Math.sin(T/300+fx)}"/></g>`;};
+    s+=pack('shim-front',XF,pF+sh*.4)+pack('shim-back',XB,pB+sh*.4);
+    // a single shim sliding in (add) or out (remove)
+    A.slides.forEach(sl=>{const fx=sl.foot==='F'?XF:XB, p=sl.foot==='F'?pF:pB, u=ease(clamp(sl.t/2400,0,1));
+      const off=sl.dir>0?(1-u)*150:u*150, op=sl.dir>0?Math.min(1,sl.t/200)*(1-smooth(.8,1,u)):1-u;
+      s+=`<g opacity="${op.toFixed(2)}"><rect x="${fx-40+off}" y="${322-p-6}" width="96" height="6" rx="1" fill="url(#gShim)" stroke="#e8eef2" stroke-width="1"/>
+        <rect x="${fx+46+off}" y="${322-p-9}" width="22" height="12" rx="3" fill="#b9c3ca"/></g>`;
+      s+=`<text x="${fx+60}" y="${322-p-16}" font-size="18" font-weight="800" fill="${sl.dir>0?OK:WARN}" opacity="${(1-u).toFixed(2)}">${sl.dir>0?'+ shim':'− shim'}</text>`;});
+  } else {
+    // jack bolts: brackets on the base, bolts push on the foot pads; threads run and hex flats turn while a foot moves
+    const jack=(id,fx,p,rotA,dir)=>{let g=`<g id="${id}">`;
+      for(const side of [-1,1]){            // −1 = 3 o'clock side (top), +1 = 9 o'clock side (bottom)
+        const by=CL+side*160, padEdge=CL+side*142-p, active=dir!==0&&((dir>0&&side>0)||(dir<0&&side<0));
+        g+=`<rect x="${fx-30}" y="${by-12}" width="60" height="24" rx="4" fill="#4a443e" stroke="#6b645b"/>`;
+        const y1=by-side*12, y2=padEdge; const ln=Math.abs(y2-y1);
+        g+=`<rect x="${fx-7}" y="${Math.min(y1,y2)}" width="14" height="${ln}" fill="url(#gSteel)"/>
+            <line x1="${fx}" y1="${y1}" x2="${fx}" y2="${y2}" stroke="#3b4247" stroke-width="14" stroke-dasharray="2 3" stroke-dashoffset="${(rotA*side*.08).toFixed(2)}" opacity=".6"/>`;
+        // hex head (outside the bracket) seen side-on: three flats whose widths change as it turns
+        const hy=by+side*21, w=[0,1,2].map(i=>Math.abs(Math.cos(rad(rotA+i*60))));const tot=w[0]+w[1]+w[2];let hx=fx-18;
+        for(let i=0;i<3;i++){const ww=36*w[i]/tot;g+=`<rect x="${hx}" y="${hy-9}" width="${ww}" height="18" fill="${['#cfd8de','#8f9aa2','#5d676e'][i]}"/>`;hx+=ww;}
+        g+=`<rect x="${fx-18}" y="${hy-9}" width="36" height="18" fill="none" stroke="${active?ACC:'#2a2f33'}" stroke-width="${active?3:1}"/>`;
+        if(active)g+=`<path d="M${fx+26} ${hy-12} a14 14 0 1 1 0 24" fill="none" stroke="${ACC}" stroke-width="3"/>`;
+      }
+      return g+`</g>`;};
+    s+=jack('jack-front',XF,pF+sh*.4,A.jackF,A.jackHoldF>0?A.jackDirF:0)+jack('jack-back',XB,pB+sh*.4,A.jackB,A.jackHoldB>0?A.jackDirB:0);
+  }
+  // ---- indicator bracket on the pump shaft, swinging round with the shafts
+  if(S.mode!=='correct')s+=bracket(S.dialPos,vert);   // indicators come off before the test run
+  // dimensions (not to scale)
+  const dy=vert?412:CL+212;
+  s+=`<g id="dim-a"><line x1="${XDIAL}" y1="${dy}" x2="${XF}" y2="${dy}" stroke="${TEXT}" stroke-width="2"/><line x1="${XDIAL}" y1="${dy-10}" x2="${XDIAL}" y2="${dy+10}" stroke="${TEXT}" stroke-width="2"/><line x1="${XF}" y1="${dy-10}" x2="${XF}" y2="${dy+10}" stroke="${TEXT}" stroke-width="2"/>
+     <text x="${(XDIAL+XF)/2}" y="${dy+30}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}">A = ${lenf(c.A)}</text></g>
+     <g id="dim-b"><line x1="${XF}" y1="${dy}" x2="${XB}" y2="${dy}" stroke="${TEXT}" stroke-width="2"/><line x1="${XB}" y1="${dy-10}" x2="${XB}" y2="${dy+10}" stroke="${TEXT}" stroke-width="2"/>
+     <text x="${(XF+XB)/2}" y="${dy+30}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}">B = ${lenf(c.B)}</text></g>
+     <text x="1230" y="${dy+30}" text-anchor="end" font-size="14" fill="${MUTED}">not to scale</text>`;
+  s+=`<text x="40" y="${dy+(vert?30:-2)}" font-size="15" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${vert?'SIDE VIEW · VERTICAL PLANE':'PLAN VIEW FROM ABOVE'}</text>
+     <text x="40" y="${dy+(vert?50:18)}" font-size="14" font-weight="700" fill="${ACC}" letter-spacing="1.2">MISALIGNMENT EXAGGERATED</text>`;
+  // live foot correction tags (Correct mode)
+  if(S.mode==='correct'||S.mode==='calculate'){
+    const tag=(id,fx,v,p)=>{const z=actWord(v,vert)==='no change';const t=z?'✓ 0':(vert?(v>0?'+':MINUS)+unsigned(v,rdD()):(v>0?'→3 ':'→9 ')+unsigned(v,rdD()));
+      return pill(id,fx+(vert?108:0),vert?CL+150:CL-60,t,z?OK:col,19)};
+    s+=tag('tag-front',XF,vert?c.vF:c.hF,pF)+tag('tag-back',XB,vert?c.vB:c.hB,pB);
+  }
+  return s+`</g>`;
+}
+function shaft(x0,x1,R,rot){
+  let s=`<rect x="${x0}" y="${CL-R}" width="${x1-x0}" height="${2*R}" fill="url(#gSteel)" stroke="#262c31"/>`;
+  // keyway: a dark slot that rides round the shaft (visible on the near side only)
+  const a=rad(rot), vis=Math.cos(a);
+  if(vis>-.2){const ky=CL-R*Math.sin(a)*.82;s+=`<rect x="${x0+6}" y="${ky-3}" width="${x1-x0-12}" height="6" rx="2" fill="#1d2226" opacity="${clamp(vis+.2,0,1)*.85}"/>`;}
+  // machining marks: fine lines whose spacing slides with rotation (reads as turning steel)
+  for(let i=0;i<5;i++){const ph=((rot/40+i/5)%1+1)%1, yy=CL-R*Math.cos(ph*Math.PI);s+=`<line x1="${x0+2}" y1="${yy}" x2="${x1-2}" y2="${yy}" stroke="#fff" stroke-width="1" opacity="${(.18*Math.sin(ph*Math.PI)).toFixed(2)}"/>`;}
+  return s;
+}
+function hub(id,x0,x1,R,rot,movable){
+  let s=`<g id="${id}"><rect x="${x0}" y="${CL-R}" width="${x1-x0}" height="${2*R}" rx="4" fill="url(#gHub)" stroke="#20262a" stroke-width="2"/>
+    <rect x="${x0+2}" y="${CL-R+6}" width="${x1-x0-4}" height="4" fill="#fff" opacity=".35"/>`;
+  // flange bolts riding round (projected): visible on the near side
+  for(let i=0;i<6;i++){const a=rad(rot+i*60), z=Math.cos(a);if(z<0)continue;const by=CL-(R-12)*Math.sin(a);
+    s+=`<rect x="${movable?x0+4:x1-14}" y="${by-5}" width="10" height="10" rx="2" fill="#2e353a" stroke="#c4ccd2" stroke-width="1" opacity="${(.4+.6*z).toFixed(2)}"/>`;}
+  // painted match mark
+  const mz=Math.cos(rad(rot));if(mz>0)s+=`<rect x="${x0+12}" y="${CL-R*Math.sin(rad(rot))-2}" width="${x1-x0-24}" height="4" fill="${ACC}" opacity="${mz.toFixed(2)}"/>`;
+  return s+`</g>`;
+}
+function bracket(rot,vert){
+  // radial distance of the indicator arm projected into the view: side view sees the vertical component (cos), plan the 3 o'clock component (sin)
+  const a=rad(rot), proj=vert?Math.cos(a):Math.sin(a), depth=vert?Math.sin(a):Math.cos(a);
+  const yArm=CL-88*proj, op=(.55+.45*Math.abs(depth<0?.6:1)).toFixed(2);
+  const yRim=CL-52*proj, yFace=CL-38*proj;
+  let s=`<g id="indicator" opacity="${op}">`;
+  s+=`<rect x="430" y="${CL-24}" width="26" height="48" rx="4" fill="#3a3631" stroke="${ACC}" stroke-width="2"/>`;   // clamp on pump shaft
+  s+=`<line x1="443" y1="${CL}" x2="443" y2="${yArm}" stroke="#c9d2d8" stroke-width="7" stroke-linecap="round"/>
+      <line x1="443" y1="${yArm}" x2="572" y2="${yArm}" stroke="#c9d2d8" stroke-width="7" stroke-linecap="round"/>`;
+  // rim indicator: stem down to the motor hub rim
+  s+=`<line x1="567" y1="${yArm}" x2="567" y2="${yRim}" stroke="#e8eef2" stroke-width="3"/>
+      <circle cx="567" cy="${yArm}" r="13" fill="#f3f1ec" stroke="${ACC}" stroke-width="3"/>`;
+  // face indicator: stem axial to the motor hub face
+  s+=`<line x1="508" y1="${yArm}" x2="508" y2="${yFace}" stroke="#c9d2d8" stroke-width="4"/>
+      <line x1="508" y1="${yFace}" x2="545" y2="${yFace}" stroke="#e8eef2" stroke-width="3"/><circle cx="508" cy="${yFace}" r="9" fill="#f3f1ec" stroke="${ACC}" stroke-width="2.5"/>`;
+  return s+`</g>`;
+}
+
+/* ---------- end view: the indicator sweeping round the coupling (local 400 × 410) ---------- */
+function endView(c){
+  const cx=205,cy=218, th=S.dialPos, rot=S.mode==='correct'?A.spin:S.dialPos;
+  let s=panelBox(0,0,405,410,'END VIEW · MOTOR TOWARD PUMP');
+  s+=`<circle cx="${cx+6}" cy="${cy+10}" r="102" fill="#000" opacity=".45" filter="url(#fShadow)"/>
+    <circle id="end-hub" cx="${cx}" cy="${cy}" r="95" fill="url(#gHubEnd)" stroke="#1b2024" stroke-width="3"/>
+    <circle cx="${cx}" cy="${cy}" r="${clamp(95*c.D/(c.D+(S.units==='imp'?2:50)),45,84)}" fill="none" stroke="${ACC}" stroke-width="2" stroke-dasharray="6 6" id="dim-d"/>`;
+  for(let i=0;i<6;i++){const a=rad(rot+i*60);s+=`<circle cx="${cx+74*Math.sin(a)}" cy="${cy-74*Math.cos(a)}" r="7" fill="#2a3035" stroke="#d6dde2" stroke-width="2"/>`;}
+  s+=`<circle cx="${cx}" cy="${cy}" r="30" fill="#59636b" stroke="#1b2024" stroke-width="2"/>
+    <rect x="${cx-6}" y="${cy-34}" width="12" height="12" fill="#1b2024" transform="rotate(${rot} ${cx} ${cy})"/>`;
+  // swept arc trail
+  if(S.taken>0&&S.taken<4||A.sweepT>=0){const a1=rad(clamp(th,0,359.9));
+    s+=`<path d="M${cx} ${cy-125} A125 125 0 ${th>180?1:0} 1 ${cx+125*Math.sin(a1)} ${cy-125*Math.cos(a1)}" fill="none" stroke="${ACC}" stroke-width="4" opacity=".55"/>`;}
+  // clock positions
+  [[0,'12'],[90,'3'],[180,'6'],[270,'9']].forEach(([a,l],i)=>{const done=S.taken>i, x=cx+156*Math.sin(rad(a)), y=cy-148*Math.cos(rad(a));
+    s+=`<g id="clock-${l}"><circle cx="${x}" cy="${y}" r="20" fill="${done?'#1f3a2b':'#2c2925'}" stroke="${done?OK:'#5a534b'}" stroke-width="2.5"/>
+      <text x="${x}" y="${y+7}" text-anchor="middle" font-size="20" font-weight="800" fill="${done?OK:TEXT}">${l}</text></g>`;});
+  // the indicator on its arm
+  const a=rad(th), ix=cx+122*Math.sin(a), iy=cy-122*Math.cos(a);
+  if(S.mode!=='correct')s+=`<g id="end-indicator"><line x1="${cx}" y1="${cy}" x2="${ix}" y2="${iy}" stroke="#c9d2d8" stroke-width="8" stroke-linecap="round" opacity=".9"/>
+    <line x1="${cx+95*Math.sin(a)}" y1="${cy-95*Math.cos(a)}" x2="${ix}" y2="${iy}" stroke="#fff" stroke-width="3"/>
+    <circle cx="${ix}" cy="${iy}" r="21" fill="url(#gDial)" stroke="url(#gBezel)" stroke-width="5"/>
+    <line x1="${ix}" y1="${iy}" x2="${ix+15*Math.sin(rad(A.needleR/perRev()*360))}" y2="${iy-15*Math.cos(rad(A.needleR/perRev()*360))}" stroke="#1F1D1A" stroke-width="2.5"/>
+    <circle cx="${ix}" cy="${iy}" r="3" fill="${ACC}"/></g>`;
+  s+=S.mode==='correct'?`<text x="${cx}" y="398" text-anchor="middle" font-size="15" font-weight="700" fill="${MUTED}">running · readings re-taken after every move</text>`
+    :`<text x="${cx}" y="398" text-anchor="middle" font-size="15" fill="${MUTED}">dashed ring = face reading circle, D = ${lenf(c.D)}</text>`;
+  return s;
+}
+const perRev=()=>S.units==='imp'?100:1.00;   // 0.001 in/div × 100 = 0.100 in per rev; 0.01 mm/div × 100 = 1 mm
+
+/* ---------- the two dial indicators (local 470 × 410) ---------- */
+function dial(id,cx,cy,R,val,live,label,col){
+  const pr=perRev(), turns=val/pr, na=turns*360;     // + = plunger in = clockwise
+  let s=`<g id="${id}"><circle cx="${cx+5}" cy="${cy+8}" r="${R+12}" fill="#000" opacity=".5" filter="url(#fShadow)"/>
+    <rect x="${cx-12}" y="${cy+R+4}" width="24" height="34" fill="url(#gSteel)"/><rect x="${cx-4}" y="${cy+R+36}" width="8" height="18" fill="#cfd8de"/>
+    <circle cx="${cx}" cy="${cy}" r="${R+12}" fill="url(#gBezel)" stroke="#1b2024" stroke-width="2"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#gDial)" stroke="#6b7177" stroke-width="1.5"/>`;
+  for(let i=0;i<100;i++){const a=rad(i*3.6), L=i%10===0?16:i%5===0?11:6;
+    s+=`<line x1="${cx+(R-3)*Math.sin(a)}" y1="${cy-(R-3)*Math.cos(a)}" x2="${cx+(R-3-L)*Math.sin(a)}" y2="${cy-(R-3-L)*Math.cos(a)}" stroke="#1F1D1A" stroke-width="${i%10===0?2.2:1}"/>`;}
+  for(let i=0;i<10;i++){const a=rad(i*36), n=i<=5?i*10:(10-i)*10;
+    s+=`<text x="${cx+(R-30)*Math.sin(a)}" y="${cy-(R-30)*Math.cos(a)+6}" text-anchor="middle" font-size="15" font-weight="700" fill="#1F1D1A">${n}</text>`;}
+  s+=`<text x="${cx-R*.42}" y="${cy+R*.05}" text-anchor="middle" font-size="13" font-weight="800" fill="#b3261e">−</text><text x="${cx+R*.42}" y="${cy+R*.05}" text-anchor="middle" font-size="13" font-weight="800" fill="#1F1D1A">+</text>
+    <text x="${cx}" y="${cy+R*.5}" text-anchor="middle" font-size="11" font-weight="700" fill="#57534e">${S.units==='imp'?'0.001 in':'0.01 mm'}</text>`;
+  // revolution counter (1 division per turn of the big hand)
+  const rcx=cx, rcy=cy-R*.38, rr=R*.2, ra=rad(turns*36);
+  s+=`<circle cx="${rcx}" cy="${rcy}" r="${rr}" fill="#f6f4ef" stroke="#8a8f94"/>`;
+  for(let i=0;i<10;i++){const a=rad(i*36);s+=`<line x1="${rcx+rr*.7*Math.sin(a)}" y1="${rcy-rr*.7*Math.cos(a)}" x2="${rcx+rr*Math.sin(a)}" y2="${rcy-rr*Math.cos(a)}" stroke="#444" stroke-width="1"/>`;}
+  s+=`<line x1="${rcx}" y1="${rcy}" x2="${rcx+rr*.8*Math.sin(ra)}" y2="${rcy-rr*.8*Math.cos(ra)}" stroke="#b3261e" stroke-width="2"/>`;
+  // needle with counterweight
+  const a=rad(na);
+  s+=`<line x1="${cx-18*Math.sin(a)}" y1="${cy+18*Math.cos(a)}" x2="${cx+(R-8)*Math.sin(a)}" y2="${cy-(R-8)*Math.cos(a)}" stroke="#1F1D1A" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="8" fill="${ACCD}" stroke="#1F1D1A" stroke-width="2"/>`;
+  // glass glint (fixed light, top-left)
+  s+=`<path d="M${cx-R*.8} ${cy-R*.25} A${R*.85} ${R*.85} 0 0 1 ${cx+R*.15} ${cy-R*.83}" stroke="#fff" stroke-width="7" fill="none" opacity=".35" stroke-linecap="round"/>`;
+  s+=`<text x="${cx}" y="${cy+R+80}" text-anchor="middle" font-size="18" font-weight="800" fill="${MUTED}" letter-spacing="2">${label}</text>
+    <text id="${id}-val" x="${cx}" y="${cy+R+112}" text-anchor="middle" font-size="30" font-weight="800" fill="${col}" font-family="SF Mono,Menlo,Consolas,monospace">${rdu(live)}</text></g>`;
+  return s;
+}
+function dials(c){
+  let s=panelBox(0,0,470,410,'DIAL INDICATORS · LIVE');
+  const th=((S.dialPos%360)+360)%360;
+  const liveR=c.rimAt(th), liveF=c.faceAt(th);
+  const resRound=v=>Math.round(v/c.res)*c.res;
+  s+=dial('dial-rim',118,150,92,A.needleR,resRound(liveR),'RIM',TEXT)+dial('dial-face',352,150,92,A.needleF,resRound(liveF),'FACE',TEXT);
+  return s;
+}
+
+/* ---------- exaggerated centrelines (local 380 × 410) ---------- */
+function clInset(c,col){
+  const vert=PL();
+  const x0=20,xc=125,xf=235,xb=355,my=215;
+  const yc=vert?c.V:c.H, sl=vert?c.mV:c.mH;
+  const yF=yc+sl*c.A, yB=yc+sl*(c.A+c.B);
+  const sc=A.scC*A.poseMix, P=v=>my-clamp(v*sc,-150,150);
+  if(S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move')col=MUTED;   // no colour hint before the answer
+  let s=panelBox(0,0,380,410,'CENTRELINES · EXAGGERATED');
+  s+=`<text x="16" y="50" font-size="14" fill="${MUTED}">${vert?'side view: up = motor high':'plan view: up = toward 3 o’clock'}</text>`;
+  s+=`<line x1="${x0}" y1="${my}" x2="${xc}" y2="${my}" stroke="${STEEL}" stroke-width="5" filter="url(#fGlow)"/>
+    <line x1="${xc}" y1="${my}" x2="${xb+10}" y2="${my}" stroke="${STEEL}" stroke-width="2" stroke-dasharray="8 7"/>
+    <text x="${x0}" y="${my+26}" font-size="14" font-weight="700" fill="${STEEL}">pump</text>
+    <line x1="${xc}" y1="70" x2="${xc}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/>
+    <text x="${xc}" y="368" text-anchor="middle" font-size="13" fill="${MUTED}">rim plane</text>
+    <line x1="${xf}" y1="70" x2="${xf}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/><text x="${xf}" y="368" text-anchor="middle" font-size="13" fill="${MUTED}">front</text>
+    <line x1="${xb}" y1="70" x2="${xb}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/><text x="${xb}" y="368" text-anchor="end" font-size="13" fill="${MUTED}">back</text>`;
+  s+=`<line id="cl-motor" x1="${xc}" y1="${P(yc)}" x2="${xb}" y2="${P(yB)}" stroke="${col}" stroke-width="5" filter="url(#fGlow)" stroke-linecap="round"/>
+    <circle cx="${xc}" cy="${P(yc)}" r="6" fill="${col}"/><circle cx="${xf}" cy="${P(yF)}" r="6" fill="${col}"/><circle cx="${xb}" cy="${P(yB)}" r="6" fill="${col}"/>`;
+  // required correction arrows at the feet (pulse)
+  const pulse=.6+.4*Math.sin(T/260);
+  const arr=(id,x,y,v)=>{const yy=P(y);if(Math.abs(yy-my)<10)return `<text id="${id}" x="${x-6}" y="${my-12}" text-anchor="end" font-size="16" font-weight="800" fill="${OK}">✓</text>`;
+    const lbl=hidden?'':`<text x="${id==='cl-front-arrow'?x+4:x-24}" y="${(yy+my)/2+6}" text-anchor="${id==='cl-front-arrow'?'start':'end'}" font-size="16" font-weight="800" fill="${ACC}">${rd(v)}</text>`;
+    return `<g opacity="${pulse.toFixed(2)}">`+arrow(id,x-14,yy,x-14,my+(yy<my?-4:4),ACC,4,13)+`</g>`+lbl};
+  const hidden=S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move';
+  const fv=vert?c.vF:c.hF, bv=vert?c.vB:c.hB;
+  if(A.poseMix>.05)s+=arr('cl-front-arrow',xf,yF,fv)+arr('cl-back-arrow',xb,yB,bv);
+  s+=hidden?`<text x="16" y="395" font-size="15" font-weight="700" fill="${MUTED}">hidden until you answer</text>`
+           :`<text x="16" y="395" font-size="15" font-weight="700" fill="${col}">from readings: ${rdu(c.P.off)} · ${slopeShow(c.P.s)}</text>`;
+  return s;
+}
+
+
+/* =====================================================================
+   MATHS PICTURES (Blair, 2026-11-07): every formula drawn as a live picture of its terms.
+   All numbers come from calc() (the written readings); the drawings only scale them (exaggerated).
+   Term colours match the formula bar, the maths board and the result boxes:
+     rim TIR light blue · offset blue · face TIR light violet · slope violet · lengths (D, A, A + B) pink · corrections orange
+   Motion: A.mU (sweep 12→6 or 3→9 and back) and T, both on the virtual clock.
+   ===================================================================== */
+const C_TIR='#9fd2ff', C_OFF='#59b7ff', C_FTIR='#dcc4ff', C_SLO='#b98cff', C_LEN='#ff8fb1', C_COR=ACC;
+const tx=(x,y,str,col,fs=15,anc='start',wt=700,id='')=>`<text${id?` id="${id}"`:''} x="${x}" y="${y}" font-size="${fs}" font-weight="${wt}" fill="${col}" text-anchor="${anc}" stroke="#24211E" stroke-width="3" paint-order="stroke">${str}</text>`;
+const ts=(col,str)=>`<tspan fill="${col}">${str}</tspan>`;
+const par=v=>v<0?'('+rd(v)+')':rd(v);
+const fits=(str,w,fs=14)=>str.length*fs*.56<w-28;   // plain-text width estimate: drop the extra words on narrow panels
+// eased drawing value (px) so bars slide to new numbers instead of jumping (virtual clock: A.dt)
+function ez(key,target){const v=A.v4[key];if(v==null||!isFinite(v)){A.v4[key]=target;return target;}
+  const n=v+(target-v)*Math.min(1,A.dt*6);A.v4[key]=n;return n;}
+const slopeTerm=sl=>S.units==='imp'?sgn(sl,3):sgn(sl*100,3)+'/100';          // slope as written in the feet formula
+const lenNum=v=>S.units==='imp'?v.toFixed(2):String(Math.round(v));
+function dimH(x1,x2,y,col,label,id){
+  return `<g id="${id}"><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="2.5"/>
+    <line x1="${x1}" y1="${y-8}" x2="${x1}" y2="${y+8}" stroke="${col}" stroke-width="2.5"/><line x1="${x2}" y1="${y-8}" x2="${x2}" y2="${y+8}" stroke="${col}" stroke-width="2.5"/>
+    ${tx((x1+x2)/2,y-6,label,col,14,'middle',800)}</g>`;
+}
+
+/* 1 · OFFSET = RIM TIR ÷ 2. End view. The dashed circle is where an aligned hub would sit; the real hub sits off by the
+   offset. The plunger rides the hub surface: it gains the offset at one side and loses it at the other, so it travels
+   2 × offset (the TIR) while the centre is only one offset away. Two bars: TIR, and offset exactly half of it. */
+function mOffset(c,w){
+  const vert=PL(), u=A.mU, d=rdD(), ru=RU();
+  const R0=vert?c.R[12]:c.R3c, R1=vert?c.R6c:c.R9c, tir=R0-R1, off=c.P.off;   // off = tir ÷ 2 (calc)
+  const nS=vert?'12':'3', nE=vert?'6':'9';
+  let s=`<g id="m-offset">`+panelBox(0,0,w,410,'OFFSET = RIM TIR ÷ 2');
+  s+=tx(16,52,(vert?'top gap + bottom gap = TIR':'3-side gap + 9-side gap = TIR')+(vert&&c.Sg!==0?' · sag out of R6':''),MUTED,13,'start',600);
+  const cx=w/2, cy=168, Rh=44, Ra=68;
+  const op=clamp(off*A.ms1,-30,30), hx=vert?0:op, hy=vert?-op:0;     // + offset = up (high) or right (toward 3)
+  const dir=t=>[Math.sin(rad(t)),-Math.cos(rad(t))];
+  const hit=t=>{const [ex,ey]=dir(t),eo=ex*hx+ey*hy,oo=hx*hx+hy*hy;return eo+Math.sqrt(Math.max(0,eo*eo-oo+Rh*Rh))};
+  const th0=vert?0:90, th=th0+180*u;
+  s+=`<circle cx="${cx+hx}" cy="${cy+hy}" r="${Rh}" fill="url(#gHubEnd)" stroke="#1b2024" stroke-width="2"/>
+    <circle cx="${cx}" cy="${cy}" r="${Rh}" fill="none" stroke="${STEEL}" stroke-width="2" stroke-dasharray="5 5"/>`;
+  // the two gaps (each one offset long): together they are the TIR
+  for(const t of [th0,th0+180]){const [ex,ey]=dir(t),r1=hit(t);
+    if(Math.abs(r1-Rh)>1.5)s+=`<line id="m-gap-${t===th0?nS:nE}" x1="${cx+ex*Rh}" y1="${cy+ey*Rh}" x2="${cx+ex*r1}" y2="${cy+ey*r1}" stroke="${C_TIR}" stroke-width="7" stroke-linecap="butt"/>`;
+    s+=tx(cx+ex*(Ra+48)+(vert?26:0),cy+ey*(Ra+26)+6,t===th0?nS:nE,TEXT,17,'middle',800);}
+  // centres: pump (cross) and motor (dot), with the offset arrow between them
+  s+=`<line x1="${cx-9}" y1="${cy}" x2="${cx+9}" y2="${cy}" stroke="${STEEL}" stroke-width="2.5"/><line x1="${cx}" y1="${cy-9}" x2="${cx}" y2="${cy+9}" stroke="${STEEL}" stroke-width="2.5"/>`;
+  if(Math.abs(op)>9)s+=arrow('m-off-arrow',cx,cy,cx+hx,cy+hy,C_OFF,3.5,11);
+  s+=`<circle cx="${cx+hx}" cy="${cy+hy}" r="5" fill="${C_OFF}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+  // indicator on its arm (clamped on the pump shaft), plunger riding the motor hub
+  const [ex,ey]=dir(th), rt=hit(th);
+  s+=`<g id="m-indicator"><line x1="${cx}" y1="${cy}" x2="${cx+ex*(Ra+12)}" y2="${cy+ey*(Ra+12)}" stroke="#c9d2d8" stroke-width="5" opacity=".45" stroke-linecap="round"/>
+    <line x1="${cx+ex*Ra}" y1="${cy+ey*Ra}" x2="${cx+ex*rt}" y2="${cy+ey*rt}" stroke="#fff" stroke-width="3"/>
+    <circle cx="${cx+ex*rt}" cy="${cy+ey*rt}" r="4" fill="${C_TIR}"/>
+    <circle cx="${cx+ex*(Ra+12)}" cy="${cy+ey*(Ra+12)}" r="13" fill="url(#gDial)" stroke="url(#gBezel)" stroke-width="4"/></g>`;
+  // bars: plunger travel (fills to the TIR as the bracket sweeps) and centre offset (always exactly half)
+  const frac=(1-Math.cos(Math.PI*u))/2, trav=Math.abs(tir)*frac;
+  const Lt=ez('m1L',Math.min(w-40,Math.abs(tir)*A.ms1*(w-40)/64)), x0=20;
+  s+=tx(x0,290,'plunger travel = rim TIR',C_TIR,14)+tx(w-20,290,unsigned(trav,d)+' '+ru,C_TIR,14,'end',800);
+  s+=`<rect x="${x0}" y="297" width="${Math.max(Lt,1)}" height="16" rx="3" fill="none" stroke="${C_TIR}" stroke-width="1.5" opacity=".6"/>
+    <rect id="m-tir-bar" x="${x0}" y="297" width="${Lt*frac}" height="16" rx="3" fill="${C_TIR}"/>`;
+  s+=tx(x0,338,'centre offset = TIR ÷ 2',C_OFF,14)+tx(w-20,338,unsigned(trav/2,d)+' '+ru,C_OFF,14,'end',800);
+  s+=`<rect x="${x0}" y="345" width="${Math.max(Lt/2,1)}" height="16" rx="3" fill="none" stroke="${C_OFF}" stroke-width="1.5" opacity=".6"/>
+    <rect id="m-off-bar" x="${x0}" y="345" width="${Lt/2*frac}" height="16" rx="3" fill="${C_OFF}"/>`;
+  if(Lt>6)s+=`<line x1="${x0+Lt/2}" y1="293" x2="${x0+Lt/2}" y2="365" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="3 3" opacity=".8"/>`;
+  s+=`<text x="${x0}" y="384" font-size="14" font-weight="700" fill="${MUTED}">${ts(C_TIR,'TIR')} = R${nS} − R${nE} = ${ts(C_TIR,rd(R0)+' − '+par(R1)+' = '+unsigned(tir,d))}</text>`;
+  const word=Math.abs(off)<c.res/2?'on centre':vert?(off>0?'motor high':'motor low'):(off>0?'toward 3':'toward 9');
+  s+=`<text x="${x0}" y="403" font-size="14" font-weight="700" fill="${MUTED}">${ts(C_OFF,'offset')} = ${ts(C_TIR,unsigned(tir,d))} ÷ 2 = ${ts(C_OFF,rd(off)+' '+ru)}${fits(`offset = ${unsigned(tir,d)} ÷ 2 = ${rd(off)} ${ru} · ${word}`,w)?' · '+word:''}</text>`;
+  return s+`</g>`;
+}
+
+/* 2 · SLOPE = FACE TIR ÷ D. Side (or plan) view of the coupling gap. The motor hub face is tipped (exaggerated):
+   the gap differs by the face TIR from one end of D to the other. Rise ÷ run triangle drawn to the same shape. */
+function mSlope(c,w){
+  const vert=PL(), u=A.mU, d=rdD(), ru=RU();
+  const F0=vert?c.F[12]:c.F[3], F1=vert?c.F[6]:c.F[9], tir=F0-F1, sl=c.P.s;
+  const nS=vert?'12':'3', nE=vert?'6':'9';
+  let s=`<g id="m-slope">`+panelBox(0,0,w,410,'SLOPE = FACE TIR ÷ D');
+  s+=tx(16,52,'gap changes '+unsigned(tir,d)+' '+ru+' across D',MUTED,14,'start',600);
+  const yT=86, yB=212, Dp=yB-yT, ym=(yT+yB)/2, xP=Math.round(w*.42), g0=30;
+  const tilt=ez('m2t',clamp(tir*A.ms2,-34,34));            // + = the 12 (or 3) side of the motor face closer to the pump
+  const xT=xP+g0-tilt/2, xB=xP+g0+tilt/2, fl=Math.hypot(xB-xT,Dp), ax=[Dp/fl,-(xB-xT)/fl];
+  const pt=t=>[xT+(xB-xT)*t,yT+Dp*t], dep=62;
+  // pump hub (stationary, square to its shaft)
+  s+=`<rect x="10" y="${ym-11}" width="${xP-66}" height="22" fill="url(#gSteel)"/><rect x="${xP-56}" y="${yT-14}" width="56" height="${Dp+28}" rx="3" fill="url(#gHub)" stroke="#20262a" stroke-width="2"/>
+    <line x1="6" y1="${ym}" x2="${w-6}" y2="${ym}" stroke="${STEEL}" stroke-width="1.5" stroke-dasharray="7 6"/>`;
+  // motor hub (tipped), its shaft and its centreline (slope colour)
+  const q=[pt(-.11),pt(1.11)], q2=q.map(p=>[p[0]+ax[0]*dep,p[1]+ax[1]*dep]);
+  const m0=pt(.5), L=(w-12-m0[0])/ax[0];
+  s+=`<polygon points="${m0[0]+ax[0]*dep+11*ax[1]},${m0[1]+ax[1]*dep-11*ax[0]} ${m0[0]+ax[0]*L+11*ax[1]},${m0[1]+ax[1]*L-11*ax[0]} ${m0[0]+ax[0]*L-11*ax[1]},${m0[1]+ax[1]*L+11*ax[0]} ${m0[0]+ax[0]*dep-11*ax[1]},${m0[1]+ax[1]*dep+11*ax[0]}" fill="url(#gSteel)"/>
+    <polygon id="m-face" points="${q[0]} ${q[1]} ${q2[1]} ${q2[0]}" fill="url(#gMotor)" stroke="#141c22" stroke-width="2"/>
+    <line x1="${m0[0]}" y1="${m0[1]}" x2="${m0[0]+ax[0]*L}" y2="${m0[1]+ax[1]*L}" stroke="${C_SLO}" stroke-width="2" stroke-dasharray="7 6"/>`;
+  // D measured along the face, from the 12 (3) reading point to the 6 (9) reading point
+  const p0=pt(0),p1=pt(1), ix=ax[0]*7, iy=ax[1]*7;
+  s+=`<g id="m-dia"><line x1="${p0[0]+ix}" y1="${p0[1]+iy}" x2="${p1[0]+ix}" y2="${p1[1]+iy}" stroke="${C_LEN}" stroke-width="3"/>
+    <line x1="${p0[0]+ix-8*ax[0]}" y1="${p0[1]+iy-8*ax[1]}" x2="${p0[0]+ix+8*ax[0]}" y2="${p0[1]+iy+8*ax[1]}" stroke="${C_LEN}" stroke-width="3"/>
+    <line x1="${p1[0]+ix-8*ax[0]}" y1="${p1[1]+iy-8*ax[1]}" x2="${p1[0]+ix+8*ax[0]}" y2="${p1[1]+iy+8*ax[1]}" stroke="${C_LEN}" stroke-width="3"/>
+    ${(()=>{const m=pt(.2);return tx(m[0]+ax[0]*40,m[1]+ax[1]*40+2,'D',C_LEN,17,'middle',800)+tx(m[0]+ax[0]*40,m[1]+ax[1]*40+19,lenf(c.D),C_LEN,13,'middle',800)})()}</g>`;
+  // the gap at each end of D (face readings), and the face plunger riding from one end to the other
+  s+=`<line x1="${xP}" y1="${yT}" x2="${xT}" y2="${yT}" stroke="${C_FTIR}" stroke-width="5"/><line x1="${xP}" y1="${yB}" x2="${xB}" y2="${yB}" stroke="${C_FTIR}" stroke-width="5"/>`;
+  s+=tx(xP-62,yT+5,nS+': '+rd(F0),C_FTIR,14,'end',800)+tx(xP-62,yB+5,nE+': '+rd(F1),C_FTIR,14,'end',800);
+  const yy=ym-(Dp/2)*Math.cos(Math.PI*u), fx=xT+(xB-xT)*(yy-yT)/Dp;
+  s+=`<g id="m-face-plunger"><line x1="${xP}" y1="${yy}" x2="${fx}" y2="${yy}" stroke="#fff" stroke-width="2.5"/><circle cx="${fx}" cy="${yy}" r="4" fill="${C_FTIR}"/></g>`;
+  // rise ÷ run triangle (same shape as the face triangle above: run = D, rise = face TIR); up when the slope is +
+  const x0=22, run=Math.min(150,w-150), yb=300, up=tilt>=0, rp=(up?-1:1)*Math.abs(tilt)*run/Dp;
+  s+=`<g id="m-tri"><polygon points="${x0},${yb} ${x0+run},${yb} ${x0+run},${yb+rp}" fill="${C_SLO}" opacity=".18"/>
+    <line x1="${x0}" y1="${yb}" x2="${x0+run}" y2="${yb}" stroke="${C_LEN}" stroke-width="4"/>
+    <line x1="${x0+run}" y1="${yb}" x2="${x0+run}" y2="${yb+rp}" stroke="${C_FTIR}" stroke-width="4"/>
+    <line x1="${x0}" y1="${yb}" x2="${x0+run}" y2="${yb+rp}" stroke="${C_SLO}" stroke-width="3"/>
+    ${Math.abs(rp)>10?`<rect x="${x0+run-9}" y="${up?yb-9:yb}" width="9" height="9" fill="none" stroke="${MUTED}" stroke-width="1.2"/>`:''}
+    ${tx(x0+run/2,up?yb+20:yb-8,'run = D = '+lenf(c.D),C_LEN,14,'middle',800)}
+    ${tx(x0+run+8,yb+rp/2-3,'rise',C_FTIR,13,'start',700)}${tx(x0+run+8,yb+rp/2+13,unsigned(tir,d)+' '+ru,C_FTIR,14,'start',800)}</g>`;
+  s+=`<text x="${x0}" y="384" font-size="14" font-weight="700" fill="${MUTED}">${ts(C_SLO,'slope')} = ${ts(C_FTIR,'rise')} ÷ ${ts(C_LEN,'run')} = ${ts(C_FTIR,unsigned(tir,d))} ÷ ${ts(C_LEN,lenf(c.D))}</text>`;
+  const wd=Math.abs(sl)<1e-9?'level':vert?(sl>0?'rising to back':'falling to back'):(sl>0?'back end toward 3':'back end toward 9');
+  s+=`<text x="${x0}" y="403" font-size="14" font-weight="700" fill="${MUTED}">= ${ts(C_SLO,slopeShow(sl))}${fits('= '+slopeShow(sl)+' · '+wd,w)?' · '+wd:''}</text>`;
+  return s+`</g>`;
+}
+
+/* 3 · FEET = −(OFFSET + SLOPE × DISTANCE). Distances drawn to scale (A against A + B), heights exaggerated.
+   The motor centreline starts one offset off the pump line and climbs slope × distance: two similar triangles,
+   one to the front feet (A) and one to the back feet (A + B). Each correction arrow (and shim stack) is the
+   whole height at that foot, pointing back to the pump line. */
+function mFeet(c,w){
+  const vert=PL(), ru=RU(), off=c.P.off, sl=c.P.s, fv=c.P.f, bv=c.P.b, La=c.A, Lab=c.A+c.B;
+  let s=`<g id="m-feet">`+panelBox(0,0,w,410,'FEET = OFFSET + SLOPE × DISTANCE');
+  s+=tx(16,52,vert?'side view · up = motor high · correct the other way':'plan view · up = toward 3 o’clock · move the other way',MUTED,13,'start',600);
+  const xr=64, xb=w-118, k=(xb-xr)/Lab, xf=xr+La*k, y0=184, sc=A.ms3;
+  const yR=y0-clamp(ez('m3r',off*sc),-104,104), yF=y0-clamp(ez('m3f',(off+sl*La)*sc),-104,104), yB=y0-clamp(ez('m3b',(off+sl*Lab)*sc),-104,104);
+  for(const [x,l] of [[xr,'rim'],[xf,'front'],[xb,'back']])
+    s+=`<line x1="${x}" y1="74" x2="${x}" y2="296" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/>`+tx(x,72,l,MUTED,12,'middle',700);
+  // pump centreline, extended
+  s+=`<line x1="10" y1="${y0}" x2="${xr}" y2="${y0}" stroke="${STEEL}" stroke-width="5"/><line x1="${xr}" y1="${y0}" x2="${xb+60}" y2="${y0}" stroke="${STEEL}" stroke-width="2" stroke-dasharray="8 7"/>`
+    +tx(12,y0+(off>=0?20:-10),'pump',STEEL,12,'start',700);
+  // similar triangles: slope × A (front) inside slope × (A + B) (back)
+  s+=`<polygon id="m-sim-back" points="${xr},${yR} ${xb},${yR} ${xb},${yB}" fill="${C_SLO}" opacity=".13"/>
+    <polygon id="m-sim-front" points="${xr},${yR} ${xf},${yR} ${xf},${yF}" fill="${C_SLO}" opacity=".22"/>
+    <line x1="${xr}" y1="${yR}" x2="${xb}" y2="${yR}" stroke="${C_OFF}" stroke-width="1.5" stroke-dasharray="5 5" opacity=".8"/>`;
+  s+=`<line id="m-rise-front" x1="${xf}" y1="${yR}" x2="${xf}" y2="${yF}" stroke="${C_SLO}" stroke-width="4"/><line id="m-rise-back" x1="${xb}" y1="${yR}" x2="${xb}" y2="${yB}" stroke="${C_SLO}" stroke-width="4"/>`;
+  const riseLbl=(x,y1,y2,v)=>{if(Math.abs(y2-y1)<16)return '';
+    if(x-xr>110)return tx(x-7,(y1+y2)/2+5,rd(v),C_SLO,14,'end',800);
+    return tx(x-8,y2+(y2<y1?-10:20),rd(v),C_SLO,14,'end',800);};
+  s+=riseLbl(xf,yR,yF,sl*La)+riseLbl(xb,yR,yB,sl*Lab);
+  // offset at the rim plane
+  s+=`<line id="m-feet-off" x1="${xr}" y1="${y0}" x2="${xr}" y2="${yR}" stroke="${C_OFF}" stroke-width="5"/>`;
+  if(Math.abs(yR-y0)>=12)s+=tx(xr-7,(y0+yR)/2+5,rd(off),C_OFF,14,'end',800);
+  // motor centreline, with a dot running out along it (the slope projected to the feet)
+  const ph=(T/2600)%1;
+  s+=`<line id="m-motor-cl" x1="${xr}" y1="${yR}" x2="${xb}" y2="${yB}" stroke="${TEXT}" stroke-width="3"/>
+    <circle cx="${xr+(xb-xr)*ph}" cy="${yR+(yB-yR)*ph}" r="4.5" fill="${TEXT}" opacity="${(1-ph*.6).toFixed(2)}"/>
+    <circle cx="${xf}" cy="${yF}" r="5" fill="${TEXT}"/><circle cx="${xb}" cy="${yB}" r="5" fill="${TEXT}"/>`;
+  // corrections: arrow from the motor line back to the pump line, with the shim stack (vertical) the same height
+  const pulse=.7+.3*Math.sin(T/260);
+  const corr=(id,x,yy,v)=>{const ax=x+16, h=y0-yy;let g='';
+    if(Math.abs(h)<7)return tx(ax+4,y0-8,'✓ 0',OK,15,'start',800);
+    if(vert){const top=Math.min(yy,y0), hh=Math.abs(h), add=v>0;
+      g+=`<g id="${id}-shims" opacity="${add?1:.75}"><rect x="${ax+8}" y="${top}" width="20" height="${hh}" fill="${add?'url(#gShim)':'none'}" stroke="${add?'#5d676e':C_COR}" stroke-width="${add?1:1.5}" ${add?'':'stroke-dasharray="4 3"'}/>`;
+      for(let ly=top+5;ly<top+hh;ly+=5)g+=`<line x1="${ax+8}" y1="${ly}" x2="${ax+28}" y2="${ly}" stroke="${add?'#6c777f':C_COR}" stroke-width="1" opacity="${add?1:.5}"/>`;
+      g+=`</g>`;}
+    g+=`<g opacity="${pulse.toFixed(2)}">`+arrow(id,ax,yy,ax,y0+(h>0?-3:3),C_COR,4,12)+`</g>`;
+    const ly=(yy+y0)/2, lx=ax+(vert?34:10);
+    g+=tx(lx,ly-2,rd(v),C_COR,15,'start',800)+tx(lx,ly+14,vert?(v>0?'add':'remove'):(v>0?'move → 3':'move → 9'),C_COR,12,'start',700);
+    return g;};
+  s+=corr('m-arrow-front',xf,yF,fv)+corr('m-arrow-back',xb,yB,bv);
+  // distances, to scale with each other
+  s+=dimH(xr,xf,322,C_LEN,'A = '+lenf(La),'m-dim-a')+dimH(xr,xb,350,C_LEN,'A + B = '+lenf(Lab),'m-dim-ab');
+  const eq=(nm,dist,v)=>`<text x="16" y="${nm==='front'?382:402}" font-size="14" font-weight="700" fill="${MUTED}">${nm} −(${ts(C_OFF,rd(off))} + ${ts(C_SLO,slopeTerm(sl))} × ${ts(C_LEN,lenNum(dist))}) = ${ts(C_COR,rd(v)+' '+ru)}</text>`;
+  s+=eq('front',La,fv)+eq('back',Lab,bv);
+  return s+`</g>`;
+}
+
+/* 4 · VALIDITY 12 + 6 = 3 + 9. Two bars per indicator, built from the readings end to end from zero:
+   the 12 + 6 bar and the 3 + 9 bar must end at the same place. A bad reading shows as a red gap. */
+function mValid(c,w){
+  const d=rdD();
+  let s=`<g id="m-valid">`+panelBox(0,0,w,410,'CHECK 12 + 6 = 3 + 9');
+  s+=tx(16,52,'the two bars must end together',MUTED,14,'start',600);
+  const xz=w/2, half=w/2-20;
+  [['RIM',c.R,c.rValid,C_TIR,'rim',74],['FACE',c.F,c.fValid,C_FTIR,'face',236]].forEach(([nm,R,ok,col,key,y])=>{
+    const mx=Math.max(Math.abs(R[6]),Math.abs(R[3]),Math.abs(R[3]+R[9]),Math.abs(R[9]),S.units==='imp'?2:0.05);
+    const P=v=>xz+v*half/mx;
+    const a=ez(key+'a',P(R[12]+R[6])), b1=ez(key+'b1',P(R[3])), b2=ez(key+'b2',P(R[3]+R[9]));
+    const diff=(R[12]+R[6])-(R[3]+R[9]), exact=Math.abs(diff)<1e-9;
+    s+=`<g id="m-valid-${key}">`+tx(16,y,nm,col,15,'start',800);
+    s+=tx(16,y+22,'12 + 6 = '+rd(R[12])+' + '+par(R[6])+' = '+rd(R[12]+R[6]),TEXT,13,'start',700);
+    s+=`<rect x="${Math.min(xz,a)}" y="${y+29}" width="${Math.abs(a-xz)}" height="16" rx="2" fill="${col}"/>`;
+    s+=tx(16,y+66,'3 + 9 = '+rd(R[3])+' + '+par(R[9])+' = '+rd(R[3]+R[9]),TEXT,13,'start',700);
+    s+=`<rect x="${Math.min(xz,b1)}" y="${y+73}" width="${Math.abs(b1-xz)}" height="16" rx="2" fill="${col}" opacity=".95"/>
+      <rect x="${Math.min(b1,b2)}" y="${y+73}" width="${Math.abs(b2-b1)}" height="16" rx="2" fill="${col}" opacity=".55"/>
+      <line x1="${b1}" y1="${y+73}" x2="${b1}" y2="${y+89}" stroke="#24211E" stroke-width="2"/>`;
+    s+=`<line x1="${xz}" y1="${y+26}" x2="${xz}" y2="${y+48}" stroke="${MUTED}" stroke-width="2"/><line x1="${xz}" y1="${y+70}" x2="${xz}" y2="${y+95}" stroke="${MUTED}" stroke-width="2"/>`+tx(xz,y+108,'0',MUTED,12,'middle',700);
+    s+=`<line x1="${a}" y1="${y+26}" x2="${a}" y2="${y+48}" stroke="${ok?OK:BAD}" stroke-width="2" stroke-dasharray="4 3"/><line x1="${a}" y1="${y+70}" x2="${a}" y2="${y+92}" stroke="${ok?OK:BAD}" stroke-width="2" stroke-dasharray="4 3"/>`;
+    if(!ok){const pl=.55+.45*Math.sin(T/200);
+      s+=`<rect id="m-valid-${key}-gap" x="${Math.min(a,b2)-2}" y="${y+69}" width="${Math.abs(b2-a)+4}" height="24" rx="3" fill="none" stroke="${BAD}" stroke-width="3" opacity="${pl.toFixed(2)}"/>`;}
+    s+=tx(16,y+126,ok?(exact?'✓ bars line up: valid':'✓ within dial rounding: valid'):'✗ off by '+unsigned(diff,d)+' '+RU()+': re-take',ok?OK:BAD,13,'start',800);
+    s+=`</g>`;});
+  s+=tx(16,398,'zeroed at 12, so 12 adds nothing',MUTED,12,'start',600);
+  return s+`</g>`;
+}
+function boardNow(){
+  if(S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move')return 'instruments';   // no answers shown before you try
+  if(S.board==='maths'||S.board==='instruments')return S.board;
+  return S.mode==='calculate'||(S.mode==='challenge'&&CS.solved)?'maths':'instruments';
+}
+
+/* ---------- draw everything ---------- */
+let LAY=null;
+function draw(c){
+  const L=layout(); if(!LAY||LAY.vb!==L.vb){$('svg').setAttribute('viewBox',L.vb);} LAY=L;
+  const [W,H]=L.vb.split(' ').slice(2).map(Number);
+  const col=levelCol(c.level);
+  let s=defs();
+  for(let gx=0;gx<=W;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="${H}" stroke="#25221E"/>`;
+  for(let gy=0;gy<=H;gy+=50)s+=`<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="#25221E"/>`;
+  const g=(xy,inner)=>`<g transform="translate(${xy[0]} ${xy[1]}) scale(${xy[2]})">${inner}</g>`;
+  const portrait=innerWidth<=1000;
+  $('svgwrap').style.height=portrait&&L.maths?(H/W*100).toFixed(1)+'vw':'';
+  if(!(portrait&&L.maths))s+=g(L.mach,machine(c,col));
+  if(L.maths){
+    s+=`<g id="maths-board">`+[mOffset,mSlope,mFeet,mValid].map((f,i)=>`<g transform="translate(${L.mp[i][0]} ${L.mp[i][1]})">${f(c,L.mw[i])}</g>`).join('');
+    if(S.taken<4){const x0=L.mp[0][0],y0=L.mp[0][1],x1=L.mp[3][0]+L.mw[3],y1=L.mp[3][1]+410;
+      s+=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" rx="12" fill="#1F1D1A" opacity=".82"/>
+        <text x="${(x0+x1)/2}" y="${y0+120}" text-anchor="middle" font-size="26" font-weight="800" fill="${TEXT}">Finish the readings to see the maths</text>`;}
+    s+=`</g>`;
+  } else {
+    s+=g(L.end,endView(c));
+    s+=g(L.dials,dials(c));
+    s+=g(L.cl,clInset(c,col));
+  }
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="url(#gVig)" pointer-events="none"/>`;
+  $('svg').innerHTML=s;
+}
+
+/* ---------- show the maths (whiteboard) ---------- */
+function whiteboard(c){
+  const vert=PL(), d=rdD(), ru=RU(), lu=LU();
+  const R=c.R,F=c.F, p=v=>v<0?'('+rd(v)+')':rd(v);
+  const ln=[];
+  const ok=b=>b?'<span class="g">✓ valid</span>':'<span class="r">✗ re-take readings</span>';
+  ln.push(`<span class="h">1 · Validity: 12 + 6 = 3 + 9</span>`);
+  ln.push(` rim  ${rd(R[12])} + ${p(R[6])} = ${rd(R[12]+R[6])}   ${rd(R[3])} + ${p(R[9])} = ${rd(R[3]+R[9])}  ${ok(c.rValid)}`);
+  ln.push(` face ${rd(F[12])} + ${p(F[6])} = ${rd(F[12]+F[6])}   ${rd(F[3])} + ${p(F[9])} = ${rd(F[3]+F[9])}  ${ok(c.fValid)}`);
+  if(vert){
+    if(c.Sg!==0)ln.push(`<span class="h">2 · Bar sag: R6 − sag = ${rd(R[6])} − ${p(c.Sg)} = </span><span class="cT">${rd(c.R6c)}</span>`);
+    else ln.push(`<span class="h">2 · Bar sag: none entered</span>`);
+    ln.push(`<span class="h">3 · <span class="cO">Offset</span> = (R12 − R6) ÷ 2</span> = <span class="cT">(${rd(R[12])} − ${p(c.R6c)})</span> ÷ 2 = <span class="cO">${rdu(c.Voff)}</span> ${c.Voff>0?'(motor HIGH)':c.Voff<0?'(motor LOW)':''}`);
+    ln.push(`<span class="h">4 · <span class="cS">Slope</span> = (F12 − F6) ÷ <span class="cL">D</span></span> = <span class="cF">(${rd(F[12])} − ${p(F[6])})</span> ÷ <span class="cL">${lenf(c.D)}</span> = <span class="cS">${slopeShow(c.Vs)}</span>`);
+  } else {
+    ln.push(`<span class="h">2 · Sag cancels side to side (both sides read sag ÷ 2)</span>`);
+    ln.push(`<span class="h">3 · <span class="cO">Offset</span> = (R3 − R9) ÷ 2</span> = <span class="cT">(${rd(R[3])} − ${p(R[9])})</span> ÷ 2 = <span class="cO">${rdu(c.Hoff)}</span> ${c.Hoff>0?'(toward 3)':c.Hoff<0?'(toward 9)':''}`);
+    ln.push(`<span class="h">4 · <span class="cS">Slope</span> = (F3 − F9) ÷ <span class="cL">D</span></span> = <span class="cF">(${rd(F[3])} − ${p(F[9])})</span> ÷ <span class="cL">${lenf(c.D)}</span> = <span class="cS">${slopeShow(c.Hs)}</span>`);
+  }
+  const off=vert?c.Voff:c.Hoff, sl=vert?c.Vs:c.Hs, fv=vert?c.vF:c.hF, bv=vert?c.vB:c.hB;
+  const sN=S.units==='imp'?sgn(sl,3):sgn(sl*100,3)+'/100';
+  const Ls=S.units==='imp'?c.A.toFixed(2):Math.round(c.A)+'', LBs=S.units==='imp'?(c.A+c.B).toFixed(2):Math.round(c.A+c.B)+'';
+  ln.push(`<span class="h">5 · <span class="cC">Front</span> = −(<span class="cO">offset</span> + <span class="cS">slope</span> × <span class="cL">A</span>)</span> = −(<span class="cO">${rd(off)}</span> + <span class="cS">${sN}</span> × <span class="cL">${Ls}</span>) = <span class="cC">${rd(fv)}</span> → ${corrText(fv,vert)}`);
+  ln.push(`<span class="h">6 · <span class="cC">Back</span> = −(<span class="cO">offset</span> + <span class="cS">slope</span> × <span class="cL">(A + B)</span>)</span> = −(<span class="cO">${rd(off)}</span> + <span class="cS">${sN}</span> × <span class="cL">${LBs}</span>) = <span class="cC">${rd(bv)}</span> → ${corrText(bv,vert)}`);
+  ln.push(`<span class="h">${vert?'+ = add shims, − = remove':'+ = move toward 3 o’clock, − = toward 9'} · all in ${ru}, lengths in ${lu}</span>`);
+  return ln.join('\n');
+}
+function mistakes(c){
+  const vert=PL(), off=vert?c.Voff:c.Hoff, sl=vert?c.Vs:c.Hs, A1=c.A, AB=c.A+c.B, ok=vert?c.vB:c.hB;
+  const rows=[['Correct: −(offset + slope × (A + B))',ok,true],
+    ['Sign reversed (added where you should remove)',-ok],
+    ['Forgot to halve the rim TIR',-(2*off+sl*AB)],
+    ['Used B alone (front-to-back) instead of A + B',-(off+sl*c.B)],
+    ['Forgot to divide the face TIR by D',-(off+sl*c.D*AB)]];
+  return `<tr><td class="small" colspan="3">BACK FEET · what each mistake would tell you to do</td></tr>`+rows.map(r=>{const err=r[1]-ok;
+    return `<tr><td>${r[2]?'<b style="color:var(--ok)">'+r[0]+'</b>':r[0]}</td><td class="v">${rdu(r[1])}</td><td class="v" style="color:${r[2]?OK:Math.abs(err)<1e-9?MUTED:BAD}">${r[2]?'✓':'off by '+unsigned(err,rdD())}</td></tr>`}).join('');
+}
+
+/* ---------- challenges ---------- */
+/* Each preset gives Imperial and Metric numbers chosen so the readings are exact on the dial. */
+const CH=[
+ {id:'offset',title:'Read the offset',ask:'Vertical plane. Readings are on the board. Enter the vertical OFFSET of the motor at the coupling (+ = motor high, − = low).',
+  plane:'vertical',key:c=>c.Voff,kind:'r',hint:'Offset = (R12 − R6) ÷ 2. A negative bottom reading means the motor hub pushed away from the plunger at 6: the motor is HIGH.',
+  imp:{vOff:7,vAng:0,hOff:0,hAng:0,dia:4,distA:8,distB:16,sag:0},met:{vOff:0.18,vAng:0,hOff:0,hAng:0,dia:100,distA:200,distB:400,sag:0}},
+ {id:'slope',title:'Read the angularity',ask:'Vertical plane. Enter the SLOPE of the motor (+ = rising toward the back feet).',
+  plane:'vertical',key:c=>S.units==='imp'?c.Vs:c.Vs*100,kind:'s',hint:'Slope = (F12 − F6) ÷ D. Use the face reading diameter D, not the hub size. Metric answer in mm per 100 mm.',
+  imp:{vOff:0,vAng:-1.5,hOff:0,hAng:0,dia:6,distA:8,distB:16,sag:0},met:{vOff:0,vAng:-0.15,hOff:0,hAng:0,dia:100,distA:200,distB:400,sag:0}},
+ {id:'front',title:'Shim the front feet',ask:'Enter the shim change at the FRONT feet (+ = add, − = remove).',
+  plane:'vertical',key:c=>c.vF,kind:'r',hint:'Front = −(offset + slope × A). Work out offset and slope first, then project to the front feet with A only.',
+  imp:{vOff:-5,vAng:1,hOff:0,hAng:0,dia:4,distA:10,distB:24,sag:0},met:{vOff:-0.12,vAng:0.10,hOff:0,hAng:0,dia:100,distA:250,distB:600,sag:0}},
+ {id:'back-sag',title:'Back feet, with bar sag',ask:'The indicator bar sags (value below). Enter the shim change at the BACK feet (+ = add, − = remove).',
+  plane:'vertical',key:c=>c.vB,kind:'r',hint:'Correct the bottom rim reading first: R6 − sag. Then back = −(offset + slope × (A + B)).',
+  imp:{vOff:4,vAng:-0.5,hOff:0,hAng:0,dia:8,distA:12,distB:20,sag:-6},met:{vOff:0.10,vAng:-0.05,hOff:0,hAng:0,dia:200,distA:300,distB:500,sag:-0.15}},
+ {id:'h-back',title:'Horizontal move, back feet',ask:'Horizontal plane. Enter the MOVE at the BACK feet (+ = toward 3 o’clock, − = toward 9).',
+  plane:'horizontal',key:c=>c.hB,kind:'r',hint:'Use the side readings: offset = (R3 − R9) ÷ 2, slope = (F3 − F9) ÷ D, then −(offset + slope × (A + B)).',
+  imp:{vOff:3,vAng:0,hOff:6,hAng:0.75,dia:4,distA:10,distB:20,sag:0},met:{vOff:0.08,vAng:0,hOff:0.15,hAng:0.08,dia:100,distA:250,distB:500,sag:0}},
+ {id:'align',title:'Align it in 3 moves',ask:'Vertical plane, 1800 RPM. Type the shim change for the front and back feet and apply. Get the motor within tolerance (green) in 3 moves or fewer.',
+  plane:'vertical',kind:'move',hint:'Work it like the board: offset, slope, then front and back. Remove = negative.',
+  imp:{vOff:8,vAng:1.5,hOff:0,hAng:0,dia:4,distA:10,distB:20,sag:0},met:{vOff:0.20,vAng:0.15,hOff:0,hAng:0,dia:100,distA:200,distB:500,sag:0}}
+];
+const CS={index:0,score:0,results:CH.map(c=>({id:c.id,correct:false,attempts:0,revealed:false})),moves:0,complete:false,seedN:0,fb:'',fbCol:TEXT,hint:'',solved:false};
+let rng=1;const rand=()=>{rng=(rng*16807)%2147483647;return (rng-1)/2147483646};
+const pick=a=>a[Math.floor(rand()*a.length)];
+function chPreset(i,newNums){
+  const ch=CH[i];let p={...ch[S.units]};
+  if(newNums){rng=1000+CS.seedN*7919+i*131;rand();const imp=S.units==='imp';
+    const off=imp?pick([-12,-9,-7,-5,-4,4,5,6,8,10,13]):pick([-0.30,-0.22,-0.15,-0.10,0.08,0.12,0.18,0.25,0.33]);
+    const sl=imp?pick([-2,-1.5,-1,-0.75,-0.5,0.5,0.75,1,1.25,2]):pick([-0.20,-0.15,-0.10,-0.05,0.05,0.10,0.15,0.20]);
+    p.dia=imp?pick([4,8]):pick([100,200]); p.distA=imp?pick([8,10,12]):pick([200,250,300]); p.distB=imp?pick([16,20,24]):pick([400,500,600]);
+    if(ch.id==='offset'){p.vOff=off;p.vAng=0;}
+    else if(ch.id==='slope'){p.vOff=0;p.vAng=sl;}
+    else if(ch.id==='h-back'){p.hOff=off;p.hAng=sl;p.vOff=imp?pick([-3,0,3]):pick([-0.08,0,0.08]);p.vAng=0;}
+    else {p.vOff=off;p.vAng=sl;p.hOff=0;p.hAng=0;}
+    p.sag=ch.id==='back-sag'?(imp?pick([-2,-4,-6,-8]):pick([-0.05,-0.10,-0.15,-0.20])):0;}
+  return p;
+}
+function loadChallenge(i,newNums=false){
+  CS.index=clamp(i,0,CH.length-1);const ch=CH[CS.index];
+  if(newNums)CS.seedN++;
+  tweens=[];
+  Object.assign(S,chPreset(CS.index,newNums),{plane:ch.plane,shF:0,shB:0,mvF:0,mvB:0,planF:0,planB:0,taken:4,glitch:false,dialPos:0,rpm:ch.id==='align'?1800:S.rpm});
+  CS.fb='';CS.hint='';CS.solved=false;CS.moves=0;CS.attempts=0;CS.tries=0;
+  A.poseMix=0; A.slides=[]; A.scM=A.scC=null;
+  $('ch-input').value='';$('ch-mF').value='';$('ch-mB').value='';
+}
+function chCorrect(){const ch=CH[CS.index];return ch.kind==='move'?null:ch.key(calc())}
+function answer(v){
+  const ch=CH[CS.index], r=CS.results[CS.index];
+  if(ch.kind==='move'||CS.solved)return {correct:CS.solved,attempts:r.attempts,answer:chCorrect()};
+  v=+v; if(!isFinite(v))return {correct:false,attempts:r.attempts};
+  const ans=chCorrect(), imp=S.units==='imp', tol=ch.kind==='s'?(imp?0.05:0.005):(imp?0.5:0.01);
+  r.attempts++; CS.tries++;
+  const good=Math.abs(v-ans)<=tol+1e-9;
+  const unit=ch.kind==='s'?(imp?'thou/in':'mm/100 mm'):RU(), dd=ch.kind==='s'?3:rdD();
+  if(good){CS.solved=true;if(!r.revealed&&!r.correct){r.correct=true;}CS.fb='✓ Correct: '+sgn(ans,dd)+' '+unit;CS.fbCol=OK;CS.hint='';A.poseTarget=1;}
+  else{
+    const signFlip=Math.abs(v+ans)<=tol+1e-9&&Math.abs(ans)>tol;
+    CS.fb='✗ Not quite'+(signFlip?': right size, wrong sign.':'.');CS.fbCol=BAD;
+    if(CS.tries>=2)CS.hint='Hint: '+ch.hint;
+    if(CS.tries>=3){r.revealed=true;CS.solved=true;CS.fb='Answer: '+sgn(ans,dd)+' '+unit+'. Work through the board below.';CS.fbCol=WARN;A.poseTarget=1;}
+  }
+  CS.score=CS.results.filter(x=>x.correct).length; CS.complete=CS.results.every(x=>x.correct||x.revealed);
+  if(!CAPTURE)frame(0);
+  return {correct:good,attempts:r.attempts,answer:ans};
+}
+function chMove(f,b){
+  const ch=CH[CS.index]; if(ch.kind!=='move'||CS.solved)return;
+  f=+f||0;b=+b||0; CS.moves++;
+  applyDelta(f,b,'vertical');
+  CS.pendingCheck=true;
+}
+
+/* ---------- applying corrections ---------- */
+function applyDelta(dF,dB,plane){
+  const vert=plane==='vertical', kF=vert?'shF':'mvF', kB=vert?'shB':'mvB', dur=2600;
+  tweens=tweens.filter(t=>t.key!==kF&&t.key!==kB);
+  if(Math.abs(dF)>1e-9){tweens.push({key:kF,from:S[kF],to:S[kF]+dF,t:0,dur});if(vert)A.slides.push({foot:'F',dir:Math.sign(dF),t:0});else{A.jackDirF=Math.sign(dF);A.jackHoldF=dur;}}
+  if(Math.abs(dB)>1e-9){tweens.push({key:kB,from:S[kB],to:S[kB]+dB,t:0,dur});if(vert)A.slides.push({foot:'B',dir:Math.sign(dB),t:0});else{A.jackDirB=Math.sign(dB);A.jackHoldB=dur;}}
+  S.moves++;
+}
+function applyCalculated(){
+  const c=calc(), vert=PL(), f=vert?c.vF:c.hF, b=vert?c.vB:c.hB;
+  if(S.predF||S.predB){const sF=f>0?'plus':'minus', sB=b>0?'plus':'minus';
+    A.predShown={F:S.predF?S.predF===sF:null,B:S.predB?S.predB===sB:null,f,b,vert};}
+  S.planF=f;S.planB=b;
+  applyDelta(f,b,S.plane);
+}
+
+/* ---------- panel ---------- */
+const RANGES={imp:{vOff:[-40,40,.5],hOff:[-40,40,.5],vAng:[-4,4,.05],hAng:[-4,4,.05],dia:[2,12,.25],distA:[3,30,.5],distB:[6,48,.5],sag:[-10,0,.5],planF:[-250,250,.5],planB:[-250,250,.5]},
+              met:{vOff:[-1,1,.01],hOff:[-1,1,.01],vAng:[-.4,.4,.005],hAng:[-.4,.4,.005],dia:[50,300,5],distA:[75,750,5],distB:[150,1200,5],sag:[-.25,0,.01],planF:[-6,6,.01],planB:[-6,6,.01]}};
+function panel(c){
+  const vert=PL(), m=S.mode, col=levelCol(c.level), d=rdD();
+  $('sec-setup').classList.toggle('hide',m!=='readings');
+  $('sec-math').classList.toggle('hide',!(m==='calculate'||(m==='challenge'&&CS.solved)));
+  $('sec-correct').classList.toggle('hide',m!=='correct');
+  $('sec-chal').classList.toggle('hide',m!=='challenge');
+  $('sec-res').classList.toggle('hide',m==='challenge');   // challenge: the maths board shows the results once answered (keeps the panel unclipped)
+  // readings table
+  const pos=[12,3,6,9];
+  pos.forEach((p,i)=>{const sh=S.taken>i;
+    $('ro-r'+p).textContent=sh?rd(c.R[p]):'—'; $('ro-f'+p).textContent=sh?rd(c.F[p]):'—';});
+  const full=S.taken>=4;
+  const vtxt=(ok,sum1,sum2)=>full?`<span style="color:${ok?OK:BAD}">${ok?'✓':'✗'} ${rd(sum1)} / ${rd(sum2)}</span>`:'<span style="color:#A39B90">…</span>';
+  $('ro-rvalid').innerHTML=vtxt(c.rValid,c.R[12]+c.R[6],c.R[3]+c.R[9]);
+  $('ro-fvalid').innerHTML=vtxt(c.fValid,c.F[12]+c.F[6],c.F[3]+c.F[9]);
+  // results
+  const off=c.P.off, sl=c.P.s;
+  $('res-plane').textContent=(vert?'VERTICAL · SHIMS':'HORIZONTAL · MOVES')+' · from the readings';
+  const show=full;
+  $('ro-offset').textContent=show?rdu(off):'—';
+  $('ro-offset-x').textContent=show?(Math.abs(off)<c.res/2?'on centre':vert?(off>0?'motor high':'motor low'):(off>0?'toward 3 o’clock':'toward 9 o’clock')):'take readings';
+  $('ro-slope').textContent=show?slopeShow(sl):'—';
+  $('ro-slope-x').textContent=show?(S.units==='imp'?'gap ≈ '+unsigned(sl*10,2)+' thou per 10 in dia':'gap ≈ '+unsigned(sl*100,3)+' mm per 100 mm dia'):'';
+  $('ro-front-l').textContent=vert?'Front feet · shims':'Front feet · move';
+  $('ro-back-l').textContent=vert?'Back feet · shims':'Back feet · move';
+  $('ro-front').textContent=show?rdu(c.P.f):'—'; $('ro-back').textContent=show?rdu(c.P.b):'—';
+  $('ro-front-x').textContent=show?corrText(c.P.f,vert):''; $('ro-back-x').textContent=show?corrText(c.P.b,vert):'';
+  // status
+  const st=$('status'), t=c.tol, tu=S.units==='imp';
+  const offTol=tu?t[1].toFixed(1)+' thou':(t[1]*MM_PER_THOU).toFixed(2)+' mm', angTol=tu?(t[3]/10).toFixed(2)+' thou/in':(t[3]/100).toFixed(3)+' mm/100 mm';
+  const word=l=>l.level==='ok'?(l.exc?'EXCELLENT':'ACCEPTABLE'):l.level==='warn'?'CLOSE':'OUT';
+  if(!full||m==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move'){st.style.background='#34302B';st.style.color=TEXT;st.innerHTML=full?'Work it out, then check':'Taking readings…';}
+  else if(!c.rValid||!c.fValid){st.style.background=BAD;st.style.color='#fff';st.innerHTML='READINGS FAIL THE VALIDITY CHECK<small>12 + 6 must equal 3 + 9. Re-take before you move anything.</small>';}
+  else{st.style.background=col;st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
+    st.innerHTML=(c.level==='ok'?'WITHIN TOLERANCE':c.level==='warn'?'CLOSE: NOT YET IN TOLERANCE':'OUT OF TOLERANCE')+
+      ` · V ${word(c.lv)} · H ${word(c.lh)}<small>${S.rpm} RPM short coupling: offset ≤ ${offTol}, angularity ≤ ${angTol} (acceptable)</small>`;}
+  // setup controls
+  const Rg=RANGES[S.units];
+  ['vOff','hOff','vAng','hAng','dia','distA','distB','sag','planF','planB'].forEach(k=>{const e=$('c-'+k);[e.min,e.max,e.step]=Rg[k];if(document.activeElement!==e)e.value=S[k];});
+  $('l-vOff').textContent=rdu(S.vOff);$('l-hOff').textContent=rdu(S.hOff);$('l-vAng').textContent=slopeStored(S.vAng);$('l-hAng').textContent=slopeStored(S.hAng);
+  $('l-dia').textContent=lenf(S.dia);$('l-distA').textContent=lenf(S.distA);$('l-distB').textContent=lenf(S.distB);$('l-sag').textContent=rdu(S.sag);
+  $('b-glitch').classList.toggle('on',S.glitch);$('b-glitch').style.background=S.glitch?BAD:'';
+  segSync('c-board',boardNow());$('c-board').querySelector('[data-v=maths]').disabled=S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move';
+  segSync('c-mode',S.mode);segSync('c-plane',S.plane);segSync('c-units',S.units);segSync('c-rpm',String(S.rpm));
+  // maths
+  if(!$('sec-math').classList.contains('hide')){$('wb').innerHTML=whiteboard(c);$('wb-plane').textContent=vert?'VERTICAL':'HORIZONTAL';
+    $('mist').classList.toggle('hide',!S.mistakes);if(S.mistakes)$('mist').innerHTML=mistakes(c);$('b-mist').classList.toggle('on',S.mistakes);
+    $('b-mist').style.background=S.mistakes?ACC:'';$('b-mist').style.color=S.mistakes?'#141414':'';
+    $('b-mist').classList.toggle('hide',m==='challenge');}
+  // correct
+  if(m==='correct'){
+    $('cor-plane').textContent=vert?'SHIMS UNDER THE FEET':'JACK BOLTS SIDEWAYS';
+    const lp=vert?['+ Add','− Remove']:['→ 3 o’clock','→ 9 o’clock'];
+    $('pf-plus').textContent=lp[0];$('pf-minus').textContent=lp[1];$('pb-plus').textContent=lp[0];$('pb-minus').textContent=lp[1];
+    segSync('c-predF',S.predF);segSync('c-predB',S.predB);
+    $('lab-planF').firstChild.textContent=(vert?'Front feet shims ':'Front feet move ');$('lab-planB').firstChild.textContent=(vert?'Back feet shims ':'Back feet move ');
+    $('l-planF').textContent=rdu(S.planF);$('l-planB').textContent=rdu(S.planB);
+    const ps=A.predShown;let pt='';
+    if(ps){const f=(ok,v,n)=>ok===null?'':`<span style="color:${ok?OK:BAD}">${n}: ${ok?'✓':'✗'} ${corrText(v,ps.vert)}</span>`;pt=[f(ps.F,ps.f,'Front'),f(ps.B,ps.b,'Back')].filter(Boolean).join(' &nbsp; ');}
+    $('ro-pred').innerHTML=pt||`<span class="small">Moves made: ${S.moves}</span>`;
+  }
+  // challenge
+  if(m==='challenge'){
+    const ch=CH[CS.index];
+    $('ro-chnum').textContent=(CS.index+1)+' OF '+CH.length;$('ro-score').textContent=CS.score+' / '+CH.length;
+    $('ch-title').textContent=ch.title;
+    $('ch-prompt').textContent=ch.ask+(ch.id==='back-sag'?' Bar sag = '+rdu(S.sag)+'.':'')+' D = '+lenf(S.dia)+', A = '+lenf(S.distA)+', B = '+lenf(S.distB)+'.';
+    $('ch-ansrow').classList.toggle('hide',ch.kind==='move');$('ch-moverow').classList.toggle('hide',ch.kind!=='move');
+    $('ch-unit').textContent=ch.kind==='s'?(S.units==='imp'?'thou/in':'mm/100 mm'):RU();
+    let fb=CS.fb;if(ch.kind==='move'&&!CS.fb)fb=`Moves: ${CS.moves} of 3`;
+    $('ch-fb').textContent=fb;$('ch-fb').style.color=CS.fbCol;$('ch-hint').textContent=CS.hint;
+    $('b-prev').disabled=CS.index===0;$('b-next').disabled=CS.index===CH.length-1;
+  }
+}
+function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)})}
+
+function formula(c){
+  const vert=PL();
+  if(S.taken<4)return `Taking readings: zero at 12, then 3, 6, 9 · + = plunger in`;
+  if(S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move')return `Indicators on the pump, zeroed at 12, + = plunger in · check 12 + 6 = 3 + 9 first`;
+  const off=c.P.off, sl=c.P.s, bv=c.P.b;
+  const sN=S.units==='imp'?sgn(sl,3):sgn(sl*100,3)+'/100', LB=S.units==='imp'?(c.A+c.B).toFixed(2):Math.round(c.A+c.B);
+  return `<span class="cC">Back</span> = −(<span class="cO">${rd(off)}</span> + <span class="cS">${sN}</span> × <span class="cL">${LB}</span>) = <span class="cC">${rdu(bv)}</span> → ${corrText(bv,vert)}`;
+}
+
+/* ---------- callouts (pulse + fade on the virtual clock) ---------- */
+function renderCallouts(){
+  const host=$('co'); host.innerHTML='';
+  callouts.forEach(co=>{
+    const el=$(co.target); if(!el)return;
+    const r=el.getBoundingClientRect(), pad=10, op=Math.min(1,co.age/300);
+    const pulse=co.age<1800?1+0.04*Math.sin(co.age/110):1;
+    const w=(r.width+2*pad)*pulse,h=(r.height+2*pad)*pulse;
+    const ring=document.createElement('div'); ring.className='ring';
+    Object.assign(ring.style,{left:(r.left+r.width/2-w/2)+'px',top:(r.top+r.height/2-h/2)+'px',width:w+'px',height:h+'px',opacity:op});
+    host.appendChild(ring);
+    if(co.text){const lb=document.createElement('div');lb.className='clabel';lb.textContent=co.text;lb.style.opacity=op;host.appendChild(lb);
+      const lw=lb.offsetWidth,lh=lb.offsetHeight,vw=innerWidth,vh=innerHeight, slide=(1-op)*14;
+      const pos=co.pos||(r.left>vw*0.55?'left':'right'); let x,y;
+      const inPanel=$('panel').contains(el)&&innerWidth>1000, edge=inPanel?$('panel').getBoundingClientRect().left:r.left;
+      if(pos==='left'){x=edge-pad-lw-18-slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='right'){x=r.right+pad+18+slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='top'){x=r.left+r.width/2-lw/2;y=r.top-pad-lh-18-slide}
+      else {x=r.left+r.width/2-lw/2;y=r.bottom+pad+18+slide}
+      lb.style.left=clamp(x,12,vw-lw-12)+'px'; lb.style.top=clamp(y,12,vh-lh-12)+'px';}
+  });
+}
+
+/* ---------- exaggeration scale: fixed per scenario (from the UNCORRECTED machine), eased when it changes ---------- */
+function scaleTargets(){
+  const base={...S,shF:0,shB:0,mvF:0,mvB:0}, c=calc(base), vert=PL();
+  const yc=vert?c.V:c.H, sl=vert?c.mV:c.mH;
+  const mx=Math.max(Math.abs(yc),Math.abs(yc+sl*c.A),Math.abs(yc+sl*(c.A+c.B)),S.units==='imp'?10:0.25);
+  // maths pictures, from the readings of the uncorrected machine: offset px, face-tilt px and feet-height px per unit
+  const imp=S.units==='imp', o=c.P.off, s=c.P.s;
+  const m3=Math.max(Math.abs(o),Math.abs(o+s*c.A),Math.abs(o+s*(c.A+c.B)),Math.abs(s*(c.A+c.B)),imp?10:0.25);
+  return {m:26/mx,c:120/mx,m1:30/Math.max(Math.abs(o),imp?10:0.25),m2:34/Math.max(Math.abs(s*c.D),imp?4:0.1),m3:100/m3};
+}
+
+/* ---------- virtual clock: ALL motion advances here ---------- */
+function step(ms){
+  const dt=ms/1000; T+=ms;
+  tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
+  tweens=tweens.filter(t=>t.t<t.dur);
+  // reading sweep: 12 (zero) → 3 → 6 → 9, both shafts turned by hand together, needle settles at each stop
+  if(A.sweepT>=0){
+    A.sweepT+=ms; const seg=2300, mv=1400, i=Math.floor(A.sweepT/seg), u=A.sweepT-i*seg;
+    if(i<3){S.dialPos=(i+ease(clamp(u/mv,0,1)))*90; if(u>=mv+500)S.taken=Math.max(S.taken,i+2);}
+    else if(i===3){S.dialPos=270;}
+    else if(i===4){S.dialPos=270+90*ease(clamp(u/mv,0,1));}     // back round to 12 to finish
+    else {S.dialPos=0;A.sweepT=-1;}
+  }
+  const c=calc();
+  // needles: spring-damper toward the live readings (ω ≈ 14 rad/s, ζ ≈ 0.45: a little overshoot, settles in < 1 s)
+  const th=((S.dialPos%360)+360)%360, tR=c.rimAt(th), tF=c.faceAt(th), wn=14, z=.45;
+  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){
+      A.vR+=(wn*wn*(tR-A.needleR)-2*z*wn*A.vR)*h;A.needleR+=A.vR*h;A.vF+=(wn*wn*(tF-A.needleF)-2*z*wn*A.vF)*h;A.needleF+=A.vF*h;}}
+  else if(ms>=200){A.needleR=tR;A.needleF=tF;A.vR=A.vF=0;}
+  // shafts run in Correct mode; misalignment shows as shake (bigger when further out)
+  if(S.mode==='correct'){A.spin+=ms*.25;const sev={ok:.15,warn:.9,bad:2.4}[c.level];A.shake=sev*Math.sin(T/21)*Math.sin(T/57+1);}
+  else A.shake=0;
+  // pose reveal (challenge) and exaggeration scale (eased)
+  const goal=S.mode==='challenge'?(CS.solved||CH[CS.index].kind==='move'?1:0):1;
+  A.poseMix+=clamp(goal-A.poseMix,-dt*.9,dt*.9);
+  const sc=scaleTargets(); if(A.scM==null){A.scM=sc.m;A.scC=sc.c;} else {const f=Math.min(1,dt*3);A.scM+=(sc.m-A.scM)*f;A.scC+=(sc.c-A.scC)*f;}
+  if(A.ms1==null){A.ms1=sc.m1;A.ms2=sc.m2;A.ms3=sc.m3;} else {const f=Math.min(1,dt*3);A.ms1+=(sc.m1-A.ms1)*f;A.ms2+=(sc.m2-A.ms2)*f;A.ms3+=(sc.m3-A.ms3)*f;}
+  // maths pictures: the bracket sweeps 12 → 6 (or 3 → 9), holds, sweeps back, holds (5.2 s loop)
+  A.dt=dt; A.mT+=ms; {const t=A.mT%5200; A.mU=t<1600?ease(t/1600):t<3000?1:t<4600?1-ease((t-3000)/1600):0;}
+  // shim slides and jack bolts
+  A.slides.forEach(s=>s.t+=ms); A.slides=A.slides.filter(s=>s.t<2500);
+  A.jackF+=(S.mvF-A.lastMvF)*(S.units==='imp'?14:550); A.jackB+=(S.mvB-A.lastMvB)*(S.units==='imp'?14:550);
+  A.lastMvF=S.mvF;A.lastMvB=S.mvB; A.jackHoldF=Math.max(0,A.jackHoldF-ms);A.jackHoldB=Math.max(0,A.jackHoldB-ms);
+  // challenge 6: check after the move has settled
+  if(CS.pendingCheck&&!tweens.length){CS.pendingCheck=false;const r=CS.results[CS.index];r.attempts=CS.moves;
+    if(c.level==='ok'){CS.solved=true;r.correct=true;CS.fb=`✓ In tolerance in ${CS.moves} move${CS.moves>1?'s':''}.`;CS.fbCol=OK;}
+    else if(CS.moves>=3){CS.solved=true;r.revealed=true;const k=calc();CS.fb=`3 moves used. Still ${c.level==='warn'?'close':'out'}: next move would be front ${rd(k.vF)}, back ${rd(k.vB)} ${RU()}.`;CS.fbCol=WARN;}
+    else {CS.fb=`Move ${CS.moves}: ${c.level==='warn'?'close, not yet':'still out'}. Readings updated. Moves left: ${3-CS.moves}.`;CS.fbCol=c.level==='warn'?WARN:BAD;if(CS.moves>=2)CS.hint='Hint: '+CH[CS.index].hint;}
+    CS.score=CS.results.filter(x=>x.correct).length;CS.complete=CS.results.every(x=>x.correct||x.revealed);}
+  return c;
+}
+function frame(ms){
+  const c=step(ms);
+  draw(c); panel(c);
+  $('formula').innerHTML=formula(c);
+  callouts.forEach(co=>co.age+=ms);
+  renderCallouts();
+}
+function convertUnits(to){
+  const toMet=to==='met', fR=toMet?MM_PER_THOU:1/MM_PER_THOU, fL=toMet?MM_PER_IN:1/MM_PER_IN, fA=toMet?0.1:10;
+  tweens=[];
+  R_KEYS.forEach(k=>S[k]*=fR); L_KEYS.forEach(k=>S[k]*=fL); A_KEYS.forEach(k=>S[k]*=fA);
+  A.lastMvF=S.mvF;A.lastMvB=S.mvB;
+  S.units=to;
+}
+function randomize(seed){
+  rng=Math.max(1,Math.floor(seed*7919)%2147483646);rand();rand();const imp=S.units==='imp';
+  const r=(a,b,st)=>Math.round((a+rand()*(b-a))/st)*st;
+  Object.assign(S,imp?{vOff:r(-25,25,1),vAng:r(-2.5,2.5,.25),hOff:r(-25,25,1),hAng:r(-2.5,2.5,.25),dia:pick([4,5,6,8]),distA:pick([8,10,12,14]),distB:pick([16,20,24,30])}
+                     :{vOff:r(-.6,.6,.01),vAng:r(-.25,.25,.01),hOff:r(-.6,.6,.01),hAng:r(-.25,.25,.01),dia:pick([100,150,200]),distA:pick([200,250,300,350]),distB:pick([400,500,600,750])});
+  S.shF=S.shB=S.mvF=S.mvB=S.planF=S.planB=0;S.moves=0;A.predShown=null;
+}
+function set(p,dur=0){
+  p={...p};
+  if(p.units&&p.units!==S.units){
+    const inCh=(p.mode||S.mode)==='challenge'; convertUnits(p.units); delete p.units;
+    if(inCh&&!('chIndex' in p))p.chIndex=CS.index;
+  }
+  delete p.units;
+  const snap=p.snap; delete p.snap;
+  const act={sweep:p.sweep,apply:p.apply,reset:p.reset,randomize:p.randomize,chIndex:p.chIndex,chNew:p.chNew};
+  ['sweep','apply','reset','randomize','chIndex','chNew'].forEach(k=>delete p[k]);
+  if(p.mode&&p.mode!==S.mode){
+    if(p.mode==='challenge'&&act.chIndex===undefined)act.chIndex=CS.index;
+    if(S.mode==='challenge'&&p.mode!=='challenge'){S.shF=S.shB=S.mvF=S.mvB=0;}
+    if(p.mode!=='readings'){S.taken=4;A.sweepT=-1;}
+    if(!('board' in p))S.board='auto';
+    A.predShown=null;
+  }
+  for(const [k,v] of Object.entries(p)){
+    tweens=tweens.filter(t=>t.key!==k);
+    if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
+    else S[k]=v;
+  }
+  if(act.randomize!==undefined&&act.randomize!==false)randomize(+act.randomize||1);
+  if(act.chIndex!==undefined){S.mode='challenge';loadChallenge(+act.chIndex,false);}
+  if(act.chNew)loadChallenge(CS.index,true);
+  if(act.reset){tweens=tweens.filter(t=>!['shF','shB','mvF','mvB'].includes(t.key));
+    const dF=-(PL()?S.shF:S.mvF), dB=-(PL()?S.shB:S.mvB);S.shF=S.shB=S.mvF=S.mvB=0;S.moves=0;A.predShown=null;S.predF=S.predB='';A.lastMvF=A.lastMvB=0;}
+  if(act.sweep){S.mode=S.mode==='readings'?S.mode:'readings';S.taken=1;S.dialPos=0;A.sweepT=0;}
+  if(act.apply==='calculated')applyCalculated();
+  else if(act.apply==='planned')applyDelta(S.planF,S.planB,S.plane);
+  if(snap){const c=calc();const th=((S.dialPos%360)+360)%360;A.needleR=c.rimAt(th);A.needleF=c.faceAt(th);A.vR=A.vF=0;A.scM=A.scC=null;A.ms1=A.ms2=A.ms3=null;A.v4={};A.mT=0;
+    A.poseMix=S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move'?0:1;
+    tweens.forEach(t=>S[t.key]=t.to);tweens=[];A.slides=[];A.lastMvF=S.mvF;A.lastMvB=S.mvB;}
+  if(!CAPTURE)frame(0);
+}
+function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
+function clear(){callouts=[];if(!CAPTURE)frame(0);}
+
+/* ---------- user controls (mouse, touch and keyboard: native buttons and sliders) ---------- */
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
+  ({'c-mode':()=>set({mode:v}),'c-plane':()=>{set({plane:v});if(S.mode==='challenge')loadChallenge(CS.index)},'c-units':()=>set({units:v}),
+    'c-rpm':()=>set({rpm:+v}),'c-board':()=>set({board:v}),'c-predF':()=>set({predF:v}),'c-predB':()=>set({predB:v})})[seg.id]?.();
+}));
+['vOff','hOff','vAng','hAng','dia','distA','distB','sag'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value,shF:0,shB:0,mvF:0,mvB:0})));
+['planF','planB'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
+$('b-sweep').onclick=()=>set({sweep:true});
+$('b-rand').onclick=()=>{S.seed++;set({randomize:S.seed});};
+$('b-glitch').onclick=()=>set({glitch:!S.glitch});
+$('b-mist').onclick=()=>set({mistakes:!S.mistakes});
+$('b-calc').onclick=()=>set({apply:'calculated'});
+$('b-apply').onclick=()=>set({apply:'planned'});
+$('b-reset').onclick=()=>set({reset:true});
+$('b-check').onclick=()=>answer($('ch-input').value);
+$('ch-input').addEventListener('keydown',e=>{if(e.key==='Enter')answer($('ch-input').value)});
+$('b-chmove').onclick=()=>chMove($('ch-mF').value,$('ch-mB').value);
+$('b-next').onclick=()=>set({chIndex:CS.index+1});
+$('b-prev').onclick=()=>set({chIndex:CS.index-1});
+$('b-new').onclick=()=>set({chNew:true});
+addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
+
+frame(0);
+if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>{const c=calc();delete c.rimAt;delete c.faceAt;return c;},get:()=>({...S}),answer,chMove,
+  get challenge(){return {index:CS.index,total:CH.length,id:CH[CS.index].id,score:CS.score,attempts:CS.results[CS.index].attempts,results:CS.results.map(r=>({...r})),moves:CS.moves,solved:CS.solved,complete:CS.complete}},
+  ready:true};
+})();
+</script>
+</body>
+</html>

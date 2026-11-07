@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pump Curves and Affinity Laws · CrewForge</title>
+<!--
+  CrewForge: Centrifugal Pump Curves and Affinity Laws simulator (Level 3, RSOS D-19).
+  Brand: CrewForge charcoal #1F1D1A, off-white #F5F5F4, orange #F08A2B. Status: green OK, yellow #F2C230 caution, red bad.
+  PIPELINE CONTRACT:
+    window.sim.set(partialState, durationMs)   tween numeric values, set others instantly
+    window.sim.callout(targetId, text, {pos})   highlight an element with a label
+    window.sim.clear()                          remove all callouts
+    window.sim.advance(ms)                      advance the virtual clock (all motion runs off this)
+    window.sim.isIdle()                         always false: impeller turns and water flows continuously
+    window.sim.ready                            true once loaded
+    window.sim.calc(state?)                     the numbers (base units: US gpm, ft, hp) + display values
+    window.sim.challenge                        guided-challenge state {index,total,score,results[]} (for SCORM scoring)
+    window.sim.predict                          predict-then-reveal state
+    window.sim.check()                          check the current challenge (same as the Check button)
+  ?capture=1 → no requestAnimationFrame; the pipeline drives time through advance().
+
+  STATE (sim.set keys)
+    speed     pump speed, rpm (700–1780). Rated speed N1 = 1750 rpm.
+    dia       impeller diameter, in current units: in (9.00–10.00) or mm (229–254). Max 10.00 in = 254 mm. Trim limit 10 %.
+    valve     discharge valve opening, fraction 0.05–1 (5–100 %)
+    hst       static head, in current units: ft (0–120) or m (0–36.5)
+    units     'imperial' (US gpm, ft, hp, psi) | 'metric' (m³/h, m, kW, kPa). Changing units alone converts dia and hst.
+    mistake   true → show the common-mistake overlay (affinity laws along a system curve; power ∝ N² trap)
+    tab       'maths' | 'predict' | 'challenge'
+    question  predict-question index (0–3): loads its starting state
+    answer    predict answer index (0–2): runs the demonstration then reveals
+    challenge challenge index (0–4): loads its starting state
+    snap      true → needle, dot and meters jump to rest (use in scene setups)
+-->
+<style>
+:root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
+--accent:#F08A2B;--ok:#3ddc84;--warn:#F2C230;--bad:#ff4d4d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+#app{display:grid;grid-template-columns:1fr 600px;height:100vh}
+#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--line);
+background:radial-gradient(ellipse at 35% 30%,#2a2622 0%,#1F1D1A 55%,#151311 100%)}
+.brandbar{display:flex;align-items:center;gap:14px;padding:12px 26px;border-bottom:1px solid var(--line)}
+.brandbar .logo{height:44px;width:auto;display:block}
+.brandbar .t1{font-size:13px;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.brandbar .t2{font-size:26px;font-weight:700}
+#schemwrap{flex:34 1 0;min-height:0;position:relative}
+#chartwrap{flex:56 1 0;min-height:0;position:relative;display:flex}
+#schem{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px)}
+#chart{flex:1 1 0;min-width:0;height:100%}
+#pics{flex:none;height:100%;aspect-ratio:420/560;border-left:1px solid var(--line);background:rgba(0,0,0,.12)}
+/* term colours: each symbol in the formula text matches the drawn element */
+.ks{color:#ff8fc8}.kq{color:#3fd6e6}.kh{color:#59b7ff}.kst{color:#e0b071}.kf{color:#c9d1d6}.ke{color:#b48af0}.kp{color:#F08A2B}
+.ks,.kq,.kh,.kst,.kf,.ke,.kp{font-weight:700}
+#formula{margin:0 22px 14px;padding:12px 20px;background:var(--panel);border:1px solid var(--line);
+border-left:5px solid var(--accent);border-radius:8px;font-size:22px;font-variant-numeric:tabular-nums;
+font-family:"SF Mono",Menlo,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel{background:var(--panel);padding:12px 20px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+.sec h3{margin:0 0 6px;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button,.btn{flex:1;min-width:70px;padding:7px 6px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);
+color:var(--text);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+.seg button.on,.btn.on{background:var(--accent);color:#141414;border-color:var(--accent)}
+button:focus-visible,input:focus-visible,[data-tip]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.ctl{margin-top:4px}
+.ctl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:1px}
+.ctl label b{color:var(--text);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.ro{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.ro div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.ro>div>span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.ro b{font-size:21px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#status{margin-top:7px;padding:8px;border-radius:8px;font-weight:800;font-size:17px;text-align:center;letter-spacing:.03em;min-height:38px}
+[data-tip]{text-decoration:underline dotted var(--muted);text-underline-offset:3px;cursor:help}
+#tabsec{flex:1;min-height:0;display:flex;flex-direction:column}
+#tabbody{flex:1;min-height:0;margin-top:8px;background:#24211E;border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow:hidden}
+.step{margin-bottom:7px}
+.step .st{font-size:13px;letter-spacing:.02em;color:var(--muted);font-weight:700}
+.nt{text-transform:none;font-family:"SF Mono",Menlo,Consolas,monospace;letter-spacing:0}
+.step .eq{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:15px;font-variant-numeric:tabular-nums;line-height:1.35}
+.step .eq em{font-style:normal;color:var(--accent);font-weight:700}
+.wrong{color:var(--bad);font-weight:700}.right{color:var(--ok);font-weight:700}
+.q{font-size:17px;font-weight:700;line-height:1.35;margin:4px 0 10px}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opts .btn{text-align:left;padding:9px 12px}
+.opts .btn.good{background:#1f5c3d;border-color:var(--ok)}.opts .btn.badc{background:#5c1f1f;border-color:var(--bad)}
+.rev{margin-top:10px;font-size:15px;line-height:1.4}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);letter-spacing:.05em}
+.meta b{color:var(--text)}.meta span:last-child{white-space:nowrap;margin-left:8px}
+.dots{display:flex;gap:6px;margin:6px 0}
+.dots i{flex:1;height:7px;border-radius:4px;background:var(--line)}
+.dots i.pass{background:var(--ok)}.dots i.cur{outline:2px solid var(--accent)}
+.goal{font-size:16px;font-weight:700;line-height:1.35;margin:6px 0 8px}
+.live{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:8px;min-height:20px}
+.fb{font-size:15px;line-height:1.4;min-height:22px;margin-top:8px}
+.hint{font-size:14px;line-height:1.4;color:var(--text);background:var(--panel2);border-left:4px solid var(--accent);padding:6px 10px;margin-top:6px;border-radius:4px}
+.brow{display:flex;gap:8px}
+.chlist{display:flex;flex-direction:column;gap:5px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.chlist .btn{text-align:left;padding:6px 10px;font-size:14px}.chlist small{color:var(--muted);font-weight:500}.chlist .btn.on small{color:#3a2a12}
+#co{position:fixed;inset:0;pointer-events:none;z-index:10}
+.ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
+.clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
+line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+#tipbox{position:fixed;z-index:20;max-width:320px;background:#F5F5F4;color:#1F1D1A;font-size:14px;line-height:1.35;padding:8px 11px;
+border-radius:7px;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:none;display:none}
+@media (max-width:1000px){
+  #app{grid-template-columns:1fr;height:auto}
+  #stage{border-right:0;overflow:visible}
+  #schemwrap{height:27vw;min-height:100px;flex:none}
+  #chartwrap{height:auto;flex:none;flex-direction:column}
+  #chart{height:64vw;min-height:170px;width:100%;flex:none}
+  #pics{width:100%;height:auto;border-left:0;border-top:1px solid var(--line)}
+  #formula{font-size:13px;white-space:normal;margin:0 10px 10px}
+  #panel{overflow:visible;padding:12px}
+  #tabbody{overflow:visible}
+  .brandbar{padding:10px 12px}.brandbar .t2{font-size:19px}.brandbar .logo{height:36px}
+  .ro b{font-size:16px}.ro span{font-size:10px;letter-spacing:.03em}
+  .step .eq{font-size:13px}
+  .clabel{font-size:15px;max-width:240px;padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Pump Curves and Affinity Laws</div></div></div>
+    <div id="schemwrap"><svg id="schem" viewBox="0 0 1300 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pumping system: suction tank, centrifugal pump and motor, discharge pipe with pressure gauge and throttling valve, elevated discharge tank"><defs id="defs1"></defs><g id="schem-dyn"></g></svg></div>
+    <div id="chartwrap"><svg id="chart" viewBox="0 0 880 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Head–flow chart with pump curve, system curve, efficiency curve, best efficiency point and operating point"><g id="chart-dyn"></g></svg>
+      <svg id="pics" viewBox="0 0 420 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The maths as pictures: affinity laws as a line, a square and a cube; brake power as a rectangle of flow times head"><g id="pics-dyn"></g></svg></div>
+    <div id="formula"></div>
+  </section>
+  <aside id="panel">
+    <div class="sec"><h3>CONTROLS</h3>
+      <div class="ctl"><label for="c-speed"><span>Pump speed (<span data-tip="N: shaft speed. Changed with a variable frequency drive (VFD). Rated speed here is 1750 rpm (4-pole motor)." tabindex="0">N</span>)</span><b id="l-speed"></b></label><input id="c-speed" type="range" min="700" max="1780" step="10"></div>
+      <div class="ctl"><label for="c-dia"><span>Impeller diameter (<span data-tip="D: impeller diameter. Trimming (machining down) the impeller lowers the pump curve. Keep trims small: about 10 % or less for the affinity laws to predict well. Check the maker's trim curves." tabindex="0">D</span>) · trim limit 10 %</span><b id="l-dia"></b></label><input id="c-dia" type="range"></div>
+      <div class="ctl"><label for="c-valve"><span><span data-tip="Throttling valve on the discharge. Closing it adds friction loss, which makes the system curve steeper. The pump curve does not change." tabindex="0">Discharge valve opening</span></span><b id="l-valve"></b></label><input id="c-valve" type="range" min="5" max="100" step="1"></div>
+      <div class="ctl"><label for="c-hst"><span><span data-tip="Static head: the vertical lift from the suction liquid level to the discharge liquid level. The pump must supply it before any water moves. It does not change with flow." tabindex="0">Static head</span> (<span class="kst">H<sub>st</sub></span>)</span><b id="l-hst"></b></label><input id="c-hst" type="range"></div>
+      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units" style="flex:1"><button data-v="imperial">Imperial</button><button data-v="metric">Metric</button></div>
+        <button class="btn" id="c-mistake" style="flex:1" aria-pressed="false">Show common mistakes</button></div>
+    </div>
+    <div class="sec"><h3>OPERATING POINT</h3>
+      <div class="ro">
+        <div id="ro-flow-box"><span>Flow (<span class="kq">Q</span>)</span><b id="ro-flow"></b></div>
+        <div id="ro-head-box"><span><span data-tip="Head: the energy the pump adds, expressed as a height of the liquid column. Head does not depend on the liquid's density; pressure does." tabindex="0">Head</span> (<span class="kh">H</span>)</span><b id="ro-head"></b></div>
+        <div id="ro-pct-box"><span>% of <span data-tip="BEP: best efficiency point. The flow where the pump is most efficient and the hydraulic loads on the impeller and bearings are lowest." tabindex="0">BEP</span> flow</span><b id="ro-pct"></b></div>
+        <div id="ro-eff-box"><span><span data-tip="Pump efficiency η = water power ÷ shaft power. Highest at the BEP, zero at shutoff." tabindex="0">Efficiency</span> (<span class="nt ke">η</span>)</span><b id="ro-eff"></b></div>
+        <div id="ro-power-box"><span><span data-tip="Brake power: shaft power into the pump. Imperial: BHP = Q × H × SG ÷ (3960 × η). Metric: P = ρ g Q H ÷ η. Water, SG 1.0." tabindex="0"><span class="kp">Brake power</span></span></span><b id="ro-power"></b></div>
+        <div id="ro-dp-box"><span><span data-tip="Pressure rise across the pump for water: 1 ft of head = 0.433 psi; 1 m = 9.81 kPa. Gauge on the discharge reads this when the suction is at 0 gauge." tabindex="0">Pump ΔP</span></span><b id="ro-dp"></b></div>
+        <div id="ro-bep-box"><span>BEP flow</span><b id="ro-bep"></b></div>
+        <div id="ro-bephead-box"><span>BEP head</span><b id="ro-bephead"></b></div>
+        <div id="ro-shutoff-box"><span><span data-tip="Shutoff head: the head the pump makes at zero flow (valve closed). Scales with N² and D²." tabindex="0">Shutoff head</span></span><b id="ro-shutoff"></b></div>
+      </div>
+      <div id="status" role="status"></div>
+    </div>
+    <div class="sec" id="tabsec">
+      <div class="seg" id="c-tab" role="tablist"><button data-v="maths" role="tab">Show the maths</button><button data-v="predict" role="tab">Predict</button><button data-v="challenge" role="tab">Challenges</button></div>
+      <div id="tabbody"><div id="t-maths"></div><div id="t-predict"></div><div id="t-challenge"></div></div>
+    </div>
+  </aside>
+</div>
+<div id="co"></div>
+<div id="tipbox"></div>
+<script>
+(()=>{
+const CAPTURE=new URLSearchParams(location.search).has('capture');
+const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',TEXT='#F5F5F4',SYS='#59b7ff',EFF='#b48af0';
+/* term colours (match the .k* CSS classes): s speed ratio, Q flow, H head, H_st static head, h_f friction head, η, power */
+const KS='#ff8fc8',KQ_='#3fd6e6',KH='#59b7ff',KST='#e0b071',KF='#c9d1d6',KE=EFF,KP=ACC;
+const tm=(cls,t)=>`<span class="k${cls}">${t}</span>`;
+const tsp=(col,t)=>`<tspan fill="${col}">${t}</tspan>`;
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+/* =====================================================================
+   PUMP MODEL AND MATHS: every number on screen comes from calc().
+   Base units inside calc(): US gpm, ft of water, hp, in, rpm. Water, SG = 1.0.
+
+   Rated pump (N1 = 1750 rpm, D1 = 10.00 in), a typical end-suction curve shape:
+     Pump curve        H_p(Q) = H0 − a·Q²            H0 = 150 ft shutoff, a = 0.000120 ft/gpm²
+     BEP               Q_BEP = 500 gpm, H_BEP = 150 − 0.00012·500² = 120 ft, η_max = 80 %
+     Efficiency        η(Q) = η_max · x · (2 − x),  x = Q ÷ Q_BEP   (parabola: 0 at shutoff, peak at BEP)
+     End of curve      1.30 × Q_BEP (drawn solid to here, dashed beyond = runout)
+
+   Affinity laws (same pump; speed ratio N2/N1, small trims D2/D1 at constant speed):
+     s = (N2/N1) × (D2/D1)
+     Q2 = Q1·s     H2 = H1·s²     P2 = P1·s³     (corresponding points: same efficiency)
+     → new pump curve: H = H0·s² − a·Q²,  new BEP at (500·s gpm, 120·s² ft), η_max unchanged
+     (Diameter trim limited to 10 %: beyond that real pumps lose efficiency and the laws over-predict.)
+
+   System curve       H_s(Q) = H_st + k·Q²
+     k = k_pipe + k_valve ÷ x_v²       x_v = valve opening (0.05–1), k_pipe = 0.000150, k_valve = 0.000030 ft/gpm²
+     (valve flow coefficient taken as proportional to opening: a teaching simplification)
+
+   Operating point: H0·s² − a·Q² = H_st + k·Q²
+     Q = √((H0·s² − H_st) ÷ (a + k))   if H0·s² > H_st, else Q = 0 (pump cannot lift the static head: no flow)
+     H = H_st + k·Q²   (at no flow the pump sits at its shutoff head H0·s²)
+
+   Brake power
+     Imperial  BHP = Q·H·SG ÷ (3960·η)
+     Metric    P[kW] = ρ·g·Q·H ÷ (1000·η),  ρ = 1000 kg/m³, g = 9.81 m/s², Q in m³/s
+     With the parabola, Q ÷ η = s·Q_BEP ÷ (η_max·(2 − x)), so power stays finite at shutoff (η → 0).
+   Pump ΔP: 0.433 psi per ft of water; 9.81 kPa per m.
+
+   Status (distance from BEP, x = Q ÷ Q_BEP at the current speed/trim):
+     green  0.70 ≤ x ≤ 1.20  preferred operating region (POR, ANSI/HI 9.6.3 typical)
+     yellow 0.40–0.70 or 1.20–1.30  outside the POR
+     red    x < 0.40 (far below BEP), x > 1.30 (runout, past end of curve), or no flow (shutoff)
+   ===================================================================== */
+const P0={N1:1750,D1:10.0,H0:150,a:1.2e-4,Qb:500,etaMax:0.80,kPipe:1.5e-4,kValve:0.3e-4,end:1.30};
+const GPM_M3H=0.2271247, FT_M=0.3048, IN_MM=25.4, HP_KW=0.7457, PSI_FT=0.433, RHO=1000, G=9.81;
+const S={speed:1750,dia:10,valve:.5,hst:40,units:'imperial',mistake:false,tab:'maths'};
+const NUMERIC=['speed','dia','valve','hst'];
+
+function calc(st=S){
+  const met=st.units==='metric';
+  const N=st.speed;
+  const D=clamp(met?st.dia/IN_MM:st.dia, 0.9*P0.D1, P0.D1);          // inches; trim limit 10 %
+  const Hst=Math.max(0,met?st.hst/FT_M:st.hst);                      // ft
+  const xv=clamp(st.valve,.05,1);
+  const rN=N/P0.N1, rD=D/P0.D1, s=rN*rD;                              // affinity ratio
+  const Hshut=P0.H0*s*s;                                             // shutoff head, ft
+  const k=P0.kPipe+P0.kValve/(xv*xv), kv=P0.kValve/(xv*xv);          // system resistance, ft/gpm²
+  const noFlow=Hshut<=Hst;
+  const Q=noFlow?0:Math.sqrt((Hshut-Hst)/(P0.a+k));                  // gpm
+  const H=noFlow?Hshut:Hst+k*Q*Q;                                    // ft
+  const Qbep=P0.Qb*s, Hbep=Hshut-P0.a*Qbep*Qbep;                     // BEP moves with s and s²
+  const x=Q/Qbep;                                                     // fraction of BEP flow
+  const eta=P0.etaMax*x*(2-x);
+  const bhp=H*s*P0.Qb/(3960*P0.etaMax*(2-x));                        // = Q·H/(3960·η), finite at shutoff
+  const bhpBep=Qbep*Hbep/(3960*P0.etaMax);
+  // metric, computed with the SI formula from converted Q and H (not by converting hp)
+  const Qm=Q*GPM_M3H, Hm=H*FT_M, Qbm=Qbep*GPM_M3H, Hbm=Hbep*FT_M;
+  const kW=RHO*G*Hm*(s*P0.Qb*GPM_M3H/3600)/(1000*P0.etaMax*(2-x));    // = ρgQH/(1000η)
+  const kWBep=RHO*G*(Qbm/3600)*Hbm/(1000*P0.etaMax);
+  const hv=kv*Q*Q;                                                    // head burned across the valve, ft
+  let level='ok',why='por';
+  if(noFlow){level='bad';why='shutoff';}
+  else if(x<.40){level='bad';why='low';}
+  else if(x>P0.end){level='bad';why='runout';}
+  else if(x<.70||x>1.20){level='warn';why=x<.7?'below':'above';}
+  return {met,N,D,Hst,xv,rN,rD,s,Hshut,k,kv,hv,noFlow,Q,H,Qbep,Hbep,x,eta,bhp,bhpBep,Qm,Hm,kW,kWBep,
+          psi:H*PSI_FT,kPa:Hm*G,level,why};
+}
+
+/* ---------- units & formatting ---------- */
+const nf=(v,d=0)=>v.toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});
+const met=()=>S.units==='metric';
+const fQ=q=>met()?q*GPM_M3H:q;                  // gpm → display number
+const fH=h=>met()?h*FT_M:h;                     // ft → display number
+const uQ=()=>met()?'m³/h':'US gpm', uH=()=>met()?'m':'ft', uP=()=>met()?'kW':'hp';
+const flow=q=>met()?nf(q*GPM_M3H,1)+' m³/h':nf(q)+' gpm';
+const head=h=>met()?nf(h*FT_M,1)+' m':nf(h,1)+' ft';
+const power=c=>met()?nf(c.kW,1)+' kW':nf(c.bhp,1)+' hp';
+const pbep=c=>met()?nf(c.kWBep,2)+' kW':nf(c.bhpBep,2)+' hp';
+const press=c=>met()?nf(c.kPa)+' kPa':nf(c.psi,1)+' psi';
+const diam=d=>met()?nf(d*IN_MM)+' mm':nf(d,2)+' in';
+const pct=v=>nf(v*100)+'%', pct1=v=>nf(v*100,1)+'%';
+const small=v=>v.toFixed(Math.max(0,2-Math.floor(Math.log10(v))));   // 0.000270 style
+const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
+// unit-system constants for the maths panel
+const KQ=()=>met()?FT_M/(GPM_M3H*GPM_M3H):1;     // ft/gpm² → m/(m³/h)²
+
+/* ---------- animation state (virtual clock only) ---------- */
+let T=0, tweens=[], callouts=[];
+const A={imp:0,flowS:0,flowD:0,needle:0,needleV:0,dq:null,dh:null,mEta:0,mP:0,valveTurn:0,pulse:0,demo:null};
+
+/* ---------- static SVG defs (gradients, filters): built once ---------- */
+$('defs1').innerHTML=`
+<linearGradient id="pipeH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dfe6ea"/><stop offset=".35" stop-color="#9aa8b2"/><stop offset=".8" stop-color="#55606a"/><stop offset="1" stop-color="#2e353b"/></linearGradient>
+<linearGradient id="pipeV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#dfe6ea"/><stop offset=".35" stop-color="#9aa8b2"/><stop offset=".8" stop-color="#55606a"/><stop offset="1" stop-color="#2e353b"/></linearGradient>
+<radialGradient id="cast" cx=".32" cy=".28" r=".85"><stop offset="0" stop-color="#8a96a0"/><stop offset=".45" stop-color="#55616b"/><stop offset="1" stop-color="#262c31"/></radialGradient>
+<radialGradient id="cavity" cx=".5" cy=".5" r=".55"><stop offset="0" stop-color="#1b3a57"/><stop offset="1" stop-color="#0c1824"/></radialGradient>
+<radialGradient id="impG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e8c58a"/><stop offset=".6" stop-color="#b0813d"/><stop offset="1" stop-color="#6b4b1f"/></radialGradient>
+<linearGradient id="motorG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c6b88"/><stop offset=".3" stop-color="#355068"/><stop offset="1" stop-color="#18242f"/></linearGradient>
+<linearGradient id="valveG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8890"/><stop offset=".5" stop-color="#4a535a"/><stop offset="1" stop-color="#22282c"/></linearGradient>
+<linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f78b8" stop-opacity=".95"/><stop offset="1" stop-color="#123150" stop-opacity=".95"/></linearGradient>
+<linearGradient id="tankG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#58636c"/><stop offset=".25" stop-color="#8d99a2"/><stop offset="1" stop-color="#2c3338"/></linearGradient>
+<radialGradient id="face" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9d6d0"/></radialGradient>
+<linearGradient id="bezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9edf0"/><stop offset=".5" stop-color="#7d8890"/><stop offset="1" stop-color="#2e353b"/></linearGradient>
+<linearGradient id="glint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<filter id="shadow" x="-20%" y="-20%" width="150%" height="160%"><feDropShadow dx="5" dy="8" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+$('chart').insertAdjacentHTML('afterbegin',`<defs>
+<filter id="cglow" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="dotglow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="cshadow" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="3" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".5"/></filter>
+<linearGradient id="effFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${EFF}" stop-opacity=".30"/><stop offset="1" stop-color="${EFF}" stop-opacity="0"/></linearGradient>
+<linearGradient id="barEff" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5e3f99"/><stop offset="1" stop-color="${EFF}"/></linearGradient>
+<linearGradient id="barP" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#a24f0c"/><stop offset="1" stop-color="${ACC}"/></linearGradient>
+<linearGradient id="plotBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26231f"/><stop offset="1" stop-color="#1c1a17"/></linearGradient>
+<clipPath id="plotClip"><rect x="110" y="56" width="690" height="424"/></clipPath></defs>`);
+
+/* ---------- schematic geometry ---------- */
+const PUMP={x:462,y:252,r:72}, SUCT_Y=286, DIS_Y=132, DIS_X=478, VALVE_X=850, GAUGE_X=650, RISER_X=1012, SUMP_LVL=196;
+const narrow=()=>innerWidth<700;
+
+function polyLen(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);return L;}
+function polyAt(pts,d){for(let i=1;i<pts.length;i++){const l=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+  if(d<=l){const t=d/l;return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*t,pts[i-1][1]+(pts[i][1]-pts[i-1][1])*t];}d-=l;}return pts[pts.length-1];}
+/* metal pipe along an axis-aligned polyline: shaded wall, cut-away bore coloured by pressure, flanges at joints */
+function pipe(pts,w,bore,boreCol){
+  let s='';
+  for(let i=1;i<pts.length;i++){const [x1,y1]=pts[i-1],[x2,y2]=pts[i];
+    if(y1===y2){const xa=Math.min(x1,x2)-w/2,xb=Math.max(x1,x2)+w/2;s+=`<rect x="${xa}" y="${y1-w/2}" width="${xb-xa}" height="${w}" fill="url(#pipeH)"/>`;}
+    else{const ya=Math.min(y1,y2)-w/2,yb=Math.max(y1,y2)+w/2;s+=`<rect x="${x1-w/2}" y="${ya}" width="${w}" height="${yb-ya}" fill="url(#pipeV)"/>`;}}
+  for(let i=1;i<pts.length;i++){const [x1,y1]=pts[i-1],[x2,y2]=pts[i];
+    if(y1===y2){const xa=Math.min(x1,x2)-bore/2,xb=Math.max(x1,x2)+bore/2;s+=`<rect x="${xa}" y="${y1-bore/2}" width="${xb-xa}" height="${bore}" fill="${boreCol}"/>`;}
+    else{const ya=Math.min(y1,y2)-bore/2,yb=Math.max(y1,y2)+bore/2;s+=`<rect x="${x1-bore/2}" y="${ya}" width="${bore}" height="${yb-ya}" fill="${boreCol}"/>`;}}
+  return s;
+}
+function flange(x,y,vert,w){const f=w+14;return vert?`<rect x="${x-f/2}" y="${y-5}" width="${f}" height="10" rx="2" fill="url(#pipeH)" stroke="#2a3035"/>`
+  :`<rect x="${x-5}" y="${y-f/2}" width="10" height="${f}" rx="2" fill="url(#pipeV)" stroke="#2a3035"/>`;}
+function particles(pts,offset,gap,r,col){
+  const L=polyLen(pts);let s='';
+  for(let d=((offset%gap)+gap)%gap;d<L;d+=gap){const [x,y]=polyAt(pts,d);s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${col}"/>`;}
+  return s;
+}
+/* pressure → bore colour (dark = low, bright blue = high) */
+function boreColour(hft){const t=clamp(hft/160,0,1);const r=Math.round(16+30*t),g=Math.round(40+80*t),b=Math.round(64+150*t);return `rgb(${r},${g},${b})`;}
+
+function drawSchematic(c){
+  const F=narrow()?1.6:1;
+  const lvl=SUMP_LVL-c.Hst*1.12;                         // discharge tank liquid level (1.12 px per ft)
+  const tankX=1070,tankW=200,inletY=lvl+48;
+  const suction=[[208,SUCT_Y],[PUMP.x-PUMP.r+6,SUCT_Y]];
+  const disch=[[DIS_X,PUMP.y-PUMP.r+8],[DIS_X,DIS_Y],[RISER_X,DIS_Y],[RISER_X,inletY],[tankX+6,inletY]];
+  const hAfter=Math.max(c.Hst,c.H-c.hv);                 // head left after the valve
+  let s='';
+  // floor
+  s+=`<rect x="0" y="322" width="1300" height="18" fill="#171512"/><line x1="0" y1="322" x2="1300" y2="322" stroke="#3a3530" stroke-width="2"/>`;
+  // suction sump (open tank), ripple on the surface
+  const rip=(x0,x1,y,amp)=>{let p=`M${x0} ${y}`;for(let x=x0;x<=x1;x+=10)p+=` L${x} ${(y+amp*Math.sin(x/17+T/380)).toFixed(1)}`;return p;};
+  s+=`<g id="sump" filter="url(#shadow)"><rect x="18" y="150" width="194" height="172" fill="url(#tankG)" rx="4"/>
+    <path d="${rip(26,204,SUMP_LVL,1.6)} L204 314 L26 314 Z" fill="url(#water)"/><rect x="26" y="150" width="178" height="${SUMP_LVL-150}" fill="#1a1815" opacity=".55"/></g>`;
+  s+=`<text x="115" y="176" text-anchor="middle" font-size="${16*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.5">SUCTION</text>`;
+  // discharge tank on a stand: rises and falls with static head
+  s+=`<g id="tank-hi" filter="url(#shadow)">
+    <rect x="${tankX+20}" y="${lvl+80}" width="10" height="${Math.max(0,322-lvl-80)}" fill="#3d4449"/><rect x="${tankX+tankW-30}" y="${lvl+80}" width="10" height="${Math.max(0,322-lvl-80)}" fill="#3d4449"/>
+    <rect x="${tankX}" y="${lvl-34}" width="${tankW}" height="114" rx="4" fill="url(#tankG)"/>
+    <path d="${rip(tankX+8,tankX+tankW-8,lvl,1.6)} L${tankX+tankW-8} ${lvl+74} L${tankX+8} ${lvl+74} Z" fill="url(#water)"/></g>`;
+  // static head dimension: suction level → discharge level
+  const dx=tankX+tankW-44;
+  s+=`<g id="hst-dim"><line x1="212" y1="${SUMP_LVL}" x2="${dx+18}" y2="${SUMP_LVL}" stroke="${TEXT}" stroke-width="1.2" stroke-dasharray="5 6" opacity=".55"/>`;
+  if(c.Hst>2)s+=`<line x1="${dx}" y1="${SUMP_LVL}" x2="${dx}" y2="${lvl}" stroke="${KST}" stroke-width="3"/><polygon points="${dx},${lvl} ${dx-6},${lvl+11} ${dx+6},${lvl+11}" fill="${KST}"/><polygon points="${dx},${SUMP_LVL} ${dx-6},${SUMP_LVL-11} ${dx+6},${SUMP_LVL-11}" fill="${KST}"/>`;
+  s+=`<text x="${c.Hst>20?dx-10:tankX+tankW/2}" y="${c.Hst>20?(SUMP_LVL+lvl)/2+6:lvl-44}" text-anchor="${c.Hst>20?'end':'middle'}" font-size="${19*F}" font-weight="800" fill="${KST}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">H<tspan font-size="${13*F}" dy="4">st</tspan><tspan dy="-4"> ${head(c.Hst)}</tspan></text></g>`;
+  // pipes (bore colour: suction low, pump→valve high, after valve lower: the valve burns head)
+  s+=`<g filter="url(#shadow)">`+pipe(suction,40,26,boreColour(8))+pipe(disch.slice(0,3).concat([[VALVE_X,DIS_Y]]),32,20,boreColour(c.H))
+     +pipe([[VALVE_X,DIS_Y],...disch.slice(2)],32,20,boreColour(hAfter))+`</g>`;
+  s+=flange(300,SUCT_Y,false,40)+flange(DIS_X,PUMP.y-PUMP.r-22,true,32)+flange(760,DIS_Y,false,32)+flange(940,DIS_Y,false,32);
+  // flow particles: speed ∝ velocity = Q ÷ pipe area (8 in suction, 6 in discharge → 1.78× faster)
+  if(c.Q>0){const n=Math.min(1,c.Q/700);
+    s+=`<g filter="url(#glow)" opacity="${.5+.5*n}">`+particles(suction,A.flowS,34,4,'#bfe3ff')
+      +particles(disch.slice(0,3).concat([[VALVE_X-24,DIS_Y]]),A.flowD,30,3.4,'#e8f6ff')+particles([[VALVE_X+24,DIS_Y],...disch.slice(2)],A.flowD,30,3.4,'#cfe9ff')+`</g>`;}
+  s+=flowBlock(c,F);
+  // pump: shaded cast volute with a cut-away window onto the impeller
+  const {x:px,y:py,r:pr}=PUMP;
+  s+=`<g id="pump" filter="url(#shadow)">
+    <path d="${volute(px,py,pr)}" fill="url(#cast)" stroke="#20262a" stroke-width="2"/>
+    <rect x="${px-48}" y="${py+pr-8}" width="96" height="${322-py-pr+8}" fill="url(#cast)"/>
+    <circle cx="${px}" cy="${py}" r="${pr-14}" fill="url(#cavity)" stroke="#11171c" stroke-width="3"/></g>`;
+  s+=impeller(px,py,pr-20,c);
+  s+=`<text x="${px}" y="${py+pr+40}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">IMPELLER ${diam(c.D)}</text>`;
+  // shaft + coupling (stripes run with rotation) + finned motor
+  const mx=575,mw=190, stripe=((A.imp*12)%12+12)%12;
+  s+=`<rect x="${px+pr-6}" y="${py-9}" width="${mx-px-pr+10}" height="18" fill="url(#pipeH)"/>
+    <g id="coupling"><rect x="${px+pr+8}" y="${py-20}" width="30" height="40" rx="4" fill="url(#pipeH)" stroke="#2a3035"/>`;
+  for(let k=0;k<3;k++){const yy=py-20+((stripe+k*12)%36)+2;s+=`<line x1="${px+pr+10}" y1="${yy}" x2="${px+pr+36}" y2="${yy}" stroke="#2a3035" stroke-width="3" opacity="${.3+.5*Math.sin(Math.PI*(yy-py+20)/40)}"/>`;}
+  s+=`</g><g id="motor" filter="url(#shadow)"><rect x="${mx}" y="${py-44}" width="${mw}" height="88" rx="10" fill="url(#motorG)"/>`;
+  for(let fx=mx+18;fx<mx+mw-24;fx+=12)s+=`<rect x="${fx}" y="${py-44}" width="4" height="88" fill="#203040" opacity=".7"/>`;
+  s+=`<rect x="${mx+mw-6}" y="${py-36}" width="24" height="72" rx="8" fill="url(#motorG)"/><rect x="${mx+40}" y="${py+44}" width="110" height="${322-py-44}" fill="#2b2f33"/>
+    <rect x="${mx+56}" y="${py-14}" width="78" height="28" rx="3" fill="#cfd5da"/><text x="${mx+95}" y="${py+6}" text-anchor="middle" font-size="16" font-weight="800" fill="#1F1D1A">${nf(c.N)} rpm</text></g>`;
+  // pressure gauge on the discharge: glass face, glint, spring-damped needle
+  s+=gauge(GAUGE_X,62,c,F);
+  s+=headColumn(c,F);
+  // throttling valve: rising stem and turning handwheel
+  s+=valve(VALVE_X,DIS_Y,c,F);
+  $('schem-dyn').innerHTML=s;
+}
+/* Displayed head split: static + friction, rounded so the two shown parts add to the shown total. */
+const r1=v=>Math.round(v*10)/10;
+function headParts(H,Hst){const Hd=r1(fH(H)), sd=r1(fH(Math.min(Hst,H)));return {Hd,sd,fd:Math.max(0,r1(Hd-sd))};}
+/* Head as a liquid column beside the pump, drawn from the suction level at the same 1.12 px/ft as the tank lift:
+   bottom part = static head (reaches exactly the discharge tank level), top part = friction head k·Q².
+   The column top maps to the gauge: psi = ft × 0.433 × SG (kPa = m × 9.81 × SG). */
+const COL_X=300, PXFT=1.12;
+function headColumn(c,F){
+  const H=Math.max(0,A.dh), base=SUMP_LVL, top=base-H*PXFT, stTop=base-Math.min(c.Hst,H)*PXFT, w=24;
+  const sw=Math.sin(T/260)*1.4;  // the surface sways a little: it is liquid, not a bar
+  let s=`<g id="head-col"><rect x="${COL_X-w/2-3}" y="${base-150*PXFT*1.04}" width="${w+6}" height="${150*PXFT*1.04+3}" rx="6" fill="#0e1418" opacity=".55" stroke="#56636c" stroke-width="1.5"/>`;
+  const step=met()?10/FT_M:20;   // tick every 20 ft (10 m)
+  for(let h=step;h<=150;h+=step)s+=`<line x1="${COL_X+w/2+3}" y1="${base-h*PXFT}" x2="${COL_X+w/2+9}" y2="${base-h*PXFT}" stroke="#7b868e" stroke-width="1.2"/>`;
+  s+=`<rect id="head-col-st" x="${COL_X-w/2}" y="${stTop}" width="${w}" height="${base-stTop}" fill="${KST}" opacity=".9"/>`;
+  if(top<stTop-.5)s+=`<path id="head-col-f" d="M${COL_X-w/2} ${stTop} L${COL_X-w/2} ${top+sw} L${COL_X+w/2} ${top-sw} L${COL_X+w/2} ${stTop} Z" fill="${KF}" opacity=".85"/>`;
+  s+=`<line x1="${COL_X-w/2-6}" y1="${top}" x2="${COL_X+w/2+6}" y2="${top}" stroke="${KH}" stroke-width="3"/></g>`;
+  if(F>1)return s;
+  const hp=headParts(c.H,c.Hst), u=uH(), ly=Math.min(top+6,140);
+  const lab=(x,y,col,t,anchor='start')=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="15" font-weight="800" fill="${col}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">${t}</text>`;
+  s+=lab(COL_X-w/2-10,ly,KH,`H ${nf(hp.Hd,1)} ${u}`,'end');
+  s+=`<text x="${COL_X-w/2-10}" y="${ly+17}" text-anchor="end" font-size="12" font-weight="700" fill="${MUTED}">pump head</text>`;
+  let yf=(top+stTop)/2+5, ys=(stTop+base)/2+5;      // part labels, kept at least 18 px apart
+  if(c.Hst>0&&hp.fd>0&&ys-yf<18){const m=(ys+yf)/2;yf=m-9;ys=m+9;}
+  if(hp.fd>0)s+=lab(COL_X+w/2+14,yf,KF,`friction ${nf(hp.fd,1)}`);
+  if(hp.sd>0)s+=lab(COL_X+w/2+14,ys,KST,`static ${nf(hp.sd,1)}${c.noFlow?` of ${nf(r1(fH(c.Hst)),1)}`:''}`);
+  if(c.noFlow)s+=lab(COL_X+w/2+14,Math.max(top-26,30),BAD,`${head(c.Hst-c.H)} short`);
+  // column top → gauge: the same head read as pressure
+  const gx=GAUGE_X-60, gy=62;
+  s+=`<line x1="${COL_X+w/2+6}" y1="${top}" x2="${gx}" y2="${gy}" stroke="${KH}" stroke-width="1.6" stroke-dasharray="3 5" opacity=".75"/>
+    <circle cx="${gx}" cy="${gy}" r="3.5" fill="${KH}"/>`;
+  const pr=met()?`${tsp(KH,nf(hp.Hd,1)+' m')} × 9.81 kPa/m × SG 1.0 = ${nf(c.kPa)} kPa`:`${tsp(KH,nf(hp.Hd,1)+' ft')} × 0.433 psi/ft × SG 1.0 = ${nf(c.psi,1)} psi`;
+  s+=`<text id="psi-map" x="${GAUGE_X-66}" y="22" text-anchor="end" font-size="14" font-weight="700" fill="${TEXT}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">${pr}</text>`;
+  return s;
+}
+/* Flow as volume per second: a block in the discharge pipe holding one second of flow. It moves at the
+   particle speed, so it travels its own length every second; the cross lines mark each US gallon (each 5 L). */
+const BLK_X0=DIS_X+18, BLK_X1=RISER_X-18, PX_PER_GPM_S=0.14*64/36;
+function flowBlock(c,F){
+  if(c.Q<=0)return F>1?'':`<text id="flow-block-lab" x="700" y="${DIS_Y+42}" text-anchor="middle" font-size="16" font-weight="800" fill="${BAD}">Q = 0 · no water moving</text>`;
+  const L=c.Q*PX_PER_GPM_S, span=BLK_X1-BLK_X0, cyc=span+L, front=BLK_X0+((A.flowD%cyc)+cyc)%cyc;
+  const xa=Math.max(BLK_X0,front-L), xb=Math.min(BLK_X1,front);
+  const pxUnit=met()?5*L/(c.Qm/3.6):L/(c.Q/60);     // px per 5 L, or per US gallon
+  let s=`<g id="flow-block">`;
+  if(xb>xa){s+=`<rect x="${xa}" y="${DIS_Y-10}" width="${xb-xa}" height="20" fill="${KQ_}" opacity=".45"/>`;
+    for(let x=front-pxUnit;x>front-L+.5;x-=pxUnit)if(x>xa&&x<xb)s+=`<line x1="${x}" y1="${DIS_Y-10}" x2="${x}" y2="${DIS_Y+10}" stroke="#e8fbff" stroke-width="1.2" opacity=".8"/>`;
+    [front,front-L].forEach(e=>{if(e>BLK_X0&&e<BLK_X1)s+=`<line x1="${e}" y1="${DIS_Y-12}" x2="${e}" y2="${DIS_Y+12}" stroke="${KQ_}" stroke-width="3"/>`;});}
+  s+=`</g>`;
+  if(F>1)return s;
+  const v=met()?`${nf(c.Qm/3.6,1)} L every second`:`${nf(c.Q/60,2)} US gal every second`;
+  s+=`<g id="flow-block-lab"><text x="700" y="${DIS_Y+42}" text-anchor="middle" font-size="16" font-weight="800" fill="${KQ_}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">Q = ${v}</text>
+    <text x="700" y="${DIS_Y+60}" text-anchor="middle" font-size="12" font-weight="700" fill="${MUTED}">block = one second of flow · lines = ${met()?'5 L each':'1 gal each'}</text></g>`;
+  return s;
+}
+/* spiral volute (radius grows 0.80 → 1.0 R clockwise from the tongue), discharge nozzle straight up at the top */
+function volute(px,py,pr){
+  const f0=-Math.PI/3, f1=1.5*Math.PI; let d='';
+  for(let i=0;i<=48;i++){const f=f0+(f1-f0)*i/48, r=pr*(.80+.20*i/48);d+=(i?'L':'M')+(px+r*Math.cos(f)).toFixed(1)+' '+(py+r*Math.sin(f)).toFixed(1);}
+  const nx0=px, nx1=px+.45*pr, top=py-pr-16;
+  return d+` L${nx0} ${top} L${nx1} ${top} L${nx1} ${py-.80*pr*Math.sin(Math.PI/3)} Z`;
+}
+/* impeller: shrouded disc, six backward-curved vanes, faint trailing images for motion */
+function impeller(cx,cy,R,c){
+  let s=`<g id="impeller">`;
+  const vanes=(ang,op)=>{let v='';for(let i=0;i<6;i++){const a=ang+i*Math.PI/3;
+    const p=t=>{const rr=R*(.25+.72*t),aa=a+1.1*t;return [cx+rr*Math.cos(aa),cy-rr*Math.sin(aa)];};
+    const [x0,y0]=p(0),[x1,y1]=p(.5),[x2,y2]=p(1);
+    v+=`<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} Q${x1.toFixed(1)} ${y1.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="#f0d9a8" stroke-width="6" fill="none" stroke-linecap="round" opacity="${op}"/>`;}return v;};
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#impG)" opacity=".92"/>`;
+  const sp=c.rN;  // trailing ghosts grow with speed
+  s+=vanes(-A.imp+.10*sp,.18)+vanes(-A.imp+.05*sp,.3)+vanes(-A.imp,1);
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R*.25}" fill="#3a2a12" stroke="#f0d9a8" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="5" fill="${ACC}"/>
+    <ellipse cx="${cx-R*.35}" cy="${cy-R*.45}" rx="${R*.35}" ry="${R*.14}" fill="#fff" opacity=".12" transform="rotate(-30 ${cx-R*.35} ${cy-R*.45})"/></g>`;
+  return s;
+}
+function gauge(cx,cy,c,F){
+  const R=50, max=met()?600:80, ang=v=>Math.PI*(1.25-1.5*clamp(v/max,0,1.04));
+  let s=`<g id="gauge"><rect x="${cx-6}" y="${cy+R-2}" width="12" height="${DIS_Y-16-cy-R+2}" fill="url(#pipeV)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R+7}" fill="url(#bezel)" filter="url(#shadow)"/><circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#face)"/>`;
+  const step=met()?200:20;
+  for(let v=0;v<=max;v+=step/2){const a=ang(v),maj=v%step===0;
+    s+=`<line x1="${cx+(R-4)*Math.cos(a)}" y1="${cy-(R-4)*Math.sin(a)}" x2="${cx+(R-(maj?12:8))*Math.cos(a)}" y2="${cy-(R-(maj?12:8))*Math.sin(a)}" stroke="#1F1D1A" stroke-width="${maj?2.2:1.2}"/>`;
+    if(maj)s+=`<text x="${cx+(R-22)*Math.cos(a)}" y="${cy-(R-22)*Math.sin(a)+4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1F1D1A">${v}</text>`;}
+  const an=ang(A.needle);
+  s+=`<text x="${cx}" y="${cy+20}" text-anchor="middle" font-size="10" font-weight="800" fill="#555">${met()?'kPa':'psi'}</text>
+    <line x1="${cx-8*Math.cos(an)}" y1="${cy+8*Math.sin(an)}" x2="${cx+(R-8)*Math.cos(an)}" y2="${cy-(R-8)*Math.sin(an)}" stroke="#c0392b" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="5" fill="#1F1D1A"/>
+    <path d="M${cx-R+6} ${cy-6} A${R-6} ${R-6} 0 0 1 ${cx+R*.55} ${cy-R*.72} Q${cx} ${cy-R*.35} ${cx-R+6} ${cy-6} Z" fill="url(#glint)"/></g>
+ ${F>1?'':`<text x="${cx+R+16}" y="${cy-8}" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">PUMP ΔP</text>
+    <text x="${cx+R+16}" y="${cy+18}" font-size="${22*F}" font-weight="800" fill="${TEXT}">${press(c)}</text>`}`;
+  return s;
+}
+function valve(x,y,c,F){
+  const open=c.xv, stemTop=y-60-42*open;                    // rising stem: higher = more open
+  let s=`<g id="valve" filter="url(#shadow)">
+    <path d="M${x-30} ${y-24} L${x} ${y} L${x-30} ${y+24} Z M${x+30} ${y-24} L${x} ${y} L${x+30} ${y+24} Z" fill="url(#valveG)" stroke="#1d2226" stroke-width="2"/>
+    <circle cx="${x}" cy="${y}" r="17" fill="url(#valveG)" stroke="#1d2226" stroke-width="2"/>
+    <rect x="${x-12}" y="${y-48}" width="24" height="32" rx="3" fill="url(#valveG)"/>
+    <rect x="${x-3}" y="${stemTop}" width="6" height="${y-48-stemTop}" fill="#d6dde2"/>`;
+  // handwheel in perspective: rim ellipse + spokes rotating with the stem travel
+  const hw=34,hh=10, a0=A.valveTurn;
+  s+=`<ellipse cx="${x}" cy="${stemTop}" rx="${hw}" ry="${hh}" fill="none" stroke="#b33" stroke-width="7"/>`;
+  for(let i=0;i<4;i++){const a=a0+i*Math.PI/2;s+=`<line x1="${x}" y1="${stemTop}" x2="${x+hw*Math.cos(a)}" y2="${stemTop+hh*Math.sin(a)}" stroke="#d44" stroke-width="4"/>`;}
+  s+=`<ellipse cx="${x}" cy="${stemTop-2}" rx="${hw}" ry="${hh}" fill="none" stroke="#e66" stroke-width="2" opacity=".6"/></g>
+    ${F>1?'':`<text x="${x+46}" y="${y-58}" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">VALVE</text>
+    <text x="${x+46}" y="${y-34}" font-size="${22*F}" font-weight="800" fill="${TEXT}">${Math.round(open*100)}% open</text>`}`;
+  return s;
+}
+
+/* ---------- chart ---------- */
+const PX0=110,PX1=800,PY0=56,PY1=480;
+function axes(){return met()?{qmax:180,qstep:20,hmax:55,hstep:10}:{qmax:800,qstep:100,hmax:180,hstep:20};}
+function drawChart(c){
+  const F=narrow()?1.5:1, ax=axes();
+  const X=q=>PX0+fQ(q)/ax.qmax*(PX1-PX0), Y=h=>PY1-fH(h)/ax.hmax*(PY1-PY0), YE=e=>PY1-e*(PY1-PY0);
+  const qEnd=ax.qmax/(met()?GPM_M3H:1);                    // axis max in gpm
+  let s=`<rect x="${PX0}" y="${PY0}" width="${PX1-PX0}" height="${PY1-PY0}" fill="url(#plotBg)" stroke="#3a3530"/>`;
+  for(let q=0;q<=ax.qmax;q+=ax.qstep){const x=PX0+q/ax.qmax*(PX1-PX0);
+    s+=`<line x1="${x}" y1="${PY0}" x2="${x}" y2="${PY1}" stroke="#2f2b27"/>`;
+    if(!narrow()||q%(ax.qstep*(met()?3:2))===0)s+=`<text x="${x}" y="${PY1+24*F}" text-anchor="middle" font-size="${16*F}" fill="${MUTED}" font-variant-numeric="tabular-nums">${q}</text>`;}
+  for(let h=0;h<=ax.hmax;h+=ax.hstep){const y=PY1-h/ax.hmax*(PY1-PY0);
+    s+=`<line x1="${PX0}" y1="${y}" x2="${PX1}" y2="${y}" stroke="#2f2b27"/>`;if(!narrow()||(h/ax.hstep)%2===0)s+=`<text x="${PX0-10}" y="${y+5*F}" text-anchor="end" font-size="${16*F}" fill="${MUTED}">${h}</text>`;}
+  for(let e=0;e<=1.001;e+=narrow()?.5:.2){const y=YE(e);s+=`<text x="${PX1+10}" y="${y+5*F}" font-size="${14*F}" fill="${EFF}" opacity=".85">${Math.round(e*100)}</text>`;}
+  if(narrow())s+=`<text x="${PX1}" y="${PY1-12}" text-anchor="end" font-size="${15*F}" font-weight="700" fill="${MUTED}">H ${uH()} · Q ${uQ()} · η %</text>`;
+  else
+  s+=`<text x="${(PX0+PX1)/2}" y="${PY1+52*F}" text-anchor="middle" font-size="${17*F}" font-weight="700" fill="${MUTED}">FLOW Q (${uQ()})</text>
+    <text x="${narrow()?30:40}" y="${(PY0+PY1)/2}" text-anchor="middle" font-size="${17*F}" font-weight="700" fill="${MUTED}" transform="rotate(-90 ${narrow()?30:40} ${(PY0+PY1)/2})">HEAD H (${uH()})</text>
+    <text x="${PX1+44*F}" y="${(PY0+PY1)/2}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${EFF}" transform="rotate(90 ${PX1+44*F} ${(PY0+PY1)/2})">EFFICIENCY η (%)</text>`;
+  s+=`<g clip-path="url(#plotClip)">`;
+  // POR band 70–120 % of BEP flow at the current speed/trim
+  const xa=X(.7*c.Qbep), xb=X(1.2*c.Qbep);
+  s+=`<g id="por-band"><rect x="${xa}" y="${PY0}" width="${xb-xa}" height="${PY1-PY0}" fill="${OK}" opacity=".07"/>
+    <line x1="${xa}" y1="${PY0}" x2="${xa}" y2="${PY1}" stroke="${OK}" stroke-width="1.5" stroke-dasharray="4 6" opacity=".55"/><line x1="${xb}" y1="${PY0}" x2="${xb}" y2="${PY1}" stroke="${OK}" stroke-width="1.5" stroke-dasharray="4 6" opacity=".55"/>
+    <text x="${(xa+xb)/2}" y="${PY0+22*F}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${OK}" opacity=".9">POR 70–120% BEP</text></g>`;
+  // efficiency curve (right axis) with gradient fill
+  let pe='';const qe=2*c.Qbep;
+  for(let i=0;i<=80;i++){const q=qe*i/80, xx=q/c.Qbep;pe+=(i?'L':'M')+X(q).toFixed(1)+' '+YE(P0.etaMax*xx*(2-xx)).toFixed(1);}
+  s+=`<g id="eff-curve"><path d="${pe} L${X(qe)} ${PY1} L${X(0)} ${PY1} Z" fill="url(#effFill)"/><path d="${pe}" fill="none" stroke="${EFF}" stroke-width="2.5" stroke-dasharray="9 6"/></g>`;
+  // rated pump curve ghost (1750 rpm, 10 in) when the curve has moved
+  const curve=(sc,q0,q1)=>{let p='';for(let i=0;i<=60;i++){const q=q0+(q1-q0)*i/60;p+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(P0.H0*sc*sc-P0.a*q*q).toFixed(1);}return p;};
+  if(Math.abs(c.s-1)>.004)s+=`<path id="rated-curve" d="${curve(1,0,P0.end*P0.Qb)}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-dasharray="3 7" opacity=".45"/>
+    <text x="${X(P0.end*P0.Qb)+8}" y="${Y(P0.H0-P0.a*Math.pow(P0.end*P0.Qb,2))+5}" font-size="${14*F}" fill="${TEXT}" opacity=".6">rated</text>`;
+  // system curve
+  let ps='';for(let i=0;i<=80;i++){const q=qEnd*i/80;ps+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(c.Hst+c.k*q*q).toFixed(1);}
+  s+=`<path id="sys-curve" d="${ps}" fill="none" stroke="${SYS}" stroke-width="4" filter="url(#cglow)"/>`;
+  // pump curve: solid to end of curve, dashed beyond (runout)
+  s+=`<path id="pump-curve" d="${curve(c.s,0,P0.end*c.Qbep)}" fill="none" stroke="${ACC}" stroke-width="5" filter="url(#cglow)" stroke-linecap="round"/>
+    <path d="${curve(c.s,P0.end*c.Qbep,1.5*c.Qbep)}" fill="none" stroke="${ACC}" stroke-width="3" stroke-dasharray="6 8" opacity=".7"/>`;
+  // mistake overlay: affinity parabola through the rated operating point, and the WRONG predicted point
+  if(S.mistake){const c1=calc({...S,speed:P0.N1,dia:met()?P0.D1*IN_MM:P0.D1});
+    if(c1.Q>0){const K=c1.H/(c1.Q*c1.Q);let pa='';for(let i=0;i<=60;i++){const q=qEnd*i/60;pa+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(K*q*q).toFixed(1);}
+      const qw=c1.Q*c.s,hw=c1.H*c.s*c.s;
+      s+=`<g id="mistake-overlay"><path d="${pa}" fill="none" stroke="${BAD}" stroke-width="2.5" stroke-dasharray="10 7" opacity=".85"/>
+        <g id="mistake-dot" transform="translate(${X(qw)} ${Y(hw)})"><line x1="-11" y1="-11" x2="11" y2="11" stroke="${BAD}" stroke-width="5"/><line x1="-11" y1="11" x2="11" y2="-11" stroke="${BAD}" stroke-width="5"/></g>
+        <circle cx="${X(c1.Q)}" cy="${Y(c1.H)}" r="7" fill="none" stroke="${TEXT}" stroke-width="2.5" opacity=".7"/></g>`;
+      A.mistakeXY=[X(qw),Y(hw)];}}
+  // BEP marker
+  const bx=X(c.Qbep), by=Y(c.Hbep);
+  s+=`<g id="bep-mark"><polygon points="${bx},${by-13} ${bx+13},${by} ${bx},${by+13} ${bx-13},${by}" fill="#1F1D1A" stroke="${TEXT}" stroke-width="3"/>
+    <text x="${bx}" y="${by+34*F}" text-anchor="middle" font-size="${16*F}" font-weight="800" fill="${TEXT}">BEP</text></g>`;
+  s+=`</g>`;
+  // operating point (smoothed position glides along the curves), pulsing glow, drop lines
+  const ox=X(A.dq), oy=Y(A.dh), col=levelCol(c.level), pr=9+2.5*Math.sin(A.pulse);
+  // the system asks for static + friction head: stacked at the operating flow (tan static, grey friction k·Q²)
+  const hp=headParts(c.H,c.Hst), ys=Y(Math.min(c.Hst,A.dh)), bw=14;
+  s+=`<g id="op-stack"><rect x="${ox-bw/2}" y="${ys}" width="${bw}" height="${PY1-ys}" fill="${KST}" opacity=".75"/>`;
+  if(oy<ys-.5)s+=`<rect x="${ox-bw/2}" y="${oy}" width="${bw}" height="${ys-oy}" fill="${KF}" opacity=".7"/>`;
+  s+=`</g>`;
+  s+=`<g id="op-point"><line x1="${PX0}" y1="${oy}" x2="${ox}" y2="${oy}" stroke="${col}" stroke-width="2" stroke-dasharray="5 5" opacity=".8"/>
+    <circle cx="${ox}" cy="${oy}" r="${pr+10}" fill="${col}" opacity=".45" filter="url(#dotglow)"/>
+    <circle id="op-dot" cx="${ox}" cy="${oy}" r="${pr}" fill="${col}" stroke="#1F1D1A" stroke-width="3"/></g>`;
+  // op label pill, kept inside the plot and away from the dot
+  const lab=narrow()?flow(c.Q):`${flow(c.Q)} · ${head(c.H)}`, lw=lab.length*10.6*F+26;
+  // a callout on the dot takes one side; the pill moves to the other so the numbers stay visible
+  const co=callouts.find(k=>k.target==='op-dot'||k.target==='op-point');
+  let right=ox>=bx, above=true;
+  if(co){const p=co.pos||'right';right=p==='left';above=p!=='top';}
+  let lx=clamp(right?ox+18:ox-18-lw,PX0+8,PX1-lw-8), ly=(above&&oy-46*F>=PY0+6)||oy+18+32*F>PY1?oy-46*F:oy+18;
+  if(c.noFlow&&!co){lx=(PX0+PX1)/2-lw/2;ly=PY0+84*F;}      // no flow: the pill sits under the banner, clear of the axis labels
+  s+=`<g id="op-label" filter="url(#cshadow)"><rect x="${lx}" y="${ly}" width="${lw}" height="${32*F}" rx="${16*F}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
+    <text x="${lx+lw/2}" y="${ly+22*F}" text-anchor="middle" font-size="${18*F}" font-weight="800" fill="${col}">${lab}</text></g>`;
+  if(c.noFlow){const fl=.7+.3*Math.sin(T/160), bx0=(PX0+PX1)/2;
+    s+=`<g id="noflow-banner" opacity="${fl}"><rect x="${bx0-200}" y="${PY0+34*F}" width="400" height="${40*F}" rx="8" fill="${BAD}"/><text x="${bx0}" y="${PY0+61*F}" text-anchor="middle" font-size="${20*F}" font-weight="800" fill="#fff">NO FLOW · CHURNING AT SHUTOFF</text></g>`;}
+  // word labels: static / friction on the stack, "pump can give" on the pump curve, "system asks for" on the
+  // system curve. Each tries a list of spots and takes the first that stays in the plot and clear of the others.
+  if(!narrow()){
+    const boxes=[[lx,ly,lw,32*F],[bx-26,by-15,52,15+40*F],[(xa+xb)/2-90,PY0+4,180,26],[ox-16,oy-16,32,32],[ox-bw/2-2,oy,bw+4,PY1-oy]];
+    if(c.noFlow)boxes.push([(PX0+PX1)/2-200,PY0+34,400,40]);
+    if(Math.abs(c.s-1)>.004)boxes.push([X(P0.end*P0.Qb)+6,Y(P0.H0-P0.a*Math.pow(P0.end*P0.Qb,2))-12,50,20]);
+    if(S.mistake&&A.mistakeXY)boxes.push([A.mistakeXY[0]-14,A.mistakeXY[1]-14,28,28]);
+    const hit=b=>boxes.some(o=>b[0]<o[0]+o[2]&&b[0]+b[2]>o[0]&&b[1]<o[1]+o[3]&&b[1]+b[3]>o[1]);
+    const inPlot=b=>b[0]>=PX0+4&&b[0]+b[2]<=PX1-4&&b[1]>=PY0+4&&b[1]+b[3]<=PY1-4;
+    const place=(cands,t,colr)=>{const w=t.length*8.3+6;for(const [x,y,an] of cands){const b=[an==='end'?x-w:x,y-15,w,20];
+      if(inPlot(b)&&!hit(b)){boxes.push(b);return `<text x="${x}" y="${y}" text-anchor="${an}" font-size="15" font-weight="800" fill="${colr}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">${t}</text>`;}}return '';};
+    const sideR=bx<ox;                                     // put stack labels on the side away from the BEP marker
+    const sides=y=>sideR?[[ox+bw/2+8,y,'start'],[ox-bw/2-8,y,'end']]:[[ox-bw/2-8,y,'end'],[ox+bw/2+8,y,'start']];
+    if(!c.noFlow){
+      if(hp.fd>0&&ys-oy>16)s+=place(sides((oy+ys)/2+5),`friction ${nf(hp.fd,1)}`,KF);
+      if(hp.sd>0&&PY1-ys>16)s+=place(sides((ys+PY1)/2+5),`static ${nf(hp.sd,1)}`,KST);}
+    const hmaxFt=ax.hmax/(met()?FT_M:1), pumpH=q=>P0.H0*c.s*c.s-P0.a*q*q;
+    const pc=[];[.04,.2,.4,.6,.85,1.1].forEach(f=>{const q=f*qEnd;if(q<=P0.end*c.Qbep)pc.push([X(q),Y(pumpH(q))-12,'start'],[X(q),Y(pumpH(q))+26,'start']);});
+    const sc=[];[.62,.5,.75,.4,.85,.3].forEach(f=>{const h=f*hmaxFt;if(h<=c.Hst)return;const q=Math.sqrt((h-c.Hst)/c.k);if(q<qEnd)sc.push([X(q)+14,Y(h)+5,'start'],[X(q)-14,Y(h)+5,'end']);});
+    const s0=[[PX0+24,Y(c.Hst)-12,'start'],[PX0+24,Y(c.Hst)+26,'start']], p0=[[PX0+24,Y(c.Hshut)+26,'start'],[PX0+24,Y(c.Hshut)-12,'start']];
+    if(c.noFlow){s+=place(s0.concat(sc),`system asks for ${head(c.Hst)}`,SYS)+place(p0.concat(pc),`pump can give ${head(c.Hshut)}`,ACC);}
+    else{s+=place(pc,'what the pump can give',ACC)+place(sc.concat(s0),'what the system asks for',SYS);}
+  }
+  // legend
+  {const lg=narrow()?[[ACC,'Pump',''],[SYS,'System',''],[EFF,'η','9 6']]:[[ACC,'Pump curve',''],[SYS,'System curve',''],[EFF,'Efficiency','9 6']];
+    if(Math.abs(c.s-1)>.004&&!narrow())lg.push([TEXT,'Rated','3 7']);if(S.mistake)lg.push([BAD,narrow()?'Wrong':'Wrong method','10 7']);
+    let lx=PX0;lg.forEach(l=>{const yy=28;s+=`<line x1="${lx}" y1="${yy}" x2="${lx+34}" y2="${yy}" stroke="${l[0]}" stroke-width="4" ${l[2]?`stroke-dasharray="${l[2]}"`:''}/><text x="${lx+42}" y="${yy+6*F}" font-size="${16*F}" fill="${TEXT}">${l[1]}</text>`;lx+=60+l[1].length*8.6*F;});}
+  $('chart-dyn').innerHTML=s;
+}
+
+/* ---------- the maths as pictures (right of the chart) ----------
+   Top: affinity laws as shapes. The side of each shape is s. A line (Q ∝ s), a square (H ∝ s², area) and a
+   cube (P ∝ s³, volume) shrink inside the dashed rated outline. Halve the speed: the line is half, the square
+   is a quarter, the cube is an eighth. Mistake mode: wrong (affinity along the system curve) vs right, as bars.
+   Bottom: brake power as a rectangle. Width = Q, height = H, so its area is the water power (Q × H ÷ 3960).
+   The outer box is the brake power; η is the filled fraction, the rest is lost inside the pump. */
+const T_=(x,y,t,o={})=>`<text x="${x}" y="${y}" text-anchor="${o.a||'start'}" font-size="${o.s||14}" font-weight="${o.w||700}" fill="${o.c||TEXT}"${o.ls?` letter-spacing="${o.ls}"`:''}>${t}</text>`;
+function ratedCalc(){return calc({...S,speed:P0.N1,dia:met()?P0.D1*IN_MM:P0.D1});}
+function affinityPic(c){
+  const c0=ratedCalc(), s3=c.s**3, y0=176;
+  const pb0=met()?c0.kWBep:c0.bhpBep, pb=met()?c.kWBep:c.bhpBep;
+  let g=`<g id="pic-affinity">`+T_(14,24,'AFFINITY LAWS (AT BEP)',{c:MUTED,s:13,ls:1.2})+T_(406,25,`s = ${c.s.toFixed(3)}`,{a:'end',c:KS,s:18,w:800});
+  g+=T_(14,46,`s = (${tsp(TEXT,nf(c.N))} ÷ 1,750 rpm) × (${tsp(TEXT,diam(c.D))} ÷ ${diam(P0.D1)})`,{c:MUTED,s:13,w:600});
+  // line: Q ∝ s
+  const L=112, lx=14;
+  g+=`<g id="pic-line">`+T_(lx,76,`${tsp(KQ_,'Q')} <tspan font-family="Menlo,Consolas,monospace" font-size="18">∝</tspan> ${tsp(KS,'s')}`,{s:15,w:800})+`<line x1="${lx}" y1="${y0-40}" x2="${lx+L}" y2="${y0-40}" stroke="${TEXT}" stroke-width="12" stroke-dasharray="4 4" opacity=".28"/>
+    <line x1="${lx}" y1="${y0-40}" x2="${lx+L*c.s}" y2="${y0-40}" stroke="${KQ_}" stroke-width="12"/>
+    <line x1="${lx}" y1="${y0-28}" x2="${lx+L*c.s}" y2="${y0-28}" stroke="${KS}" stroke-width="3"/>`+T_(lx+L*c.s/2,y0-12,'s',{a:'middle',c:KS,s:13,w:800})+`</g>`;
+  // square: H ∝ s²
+  const E=92, sx=152, se=E*c.s;
+  g+=`<g id="pic-square">`+T_(sx,76,`${tsp(KH,'H')} <tspan font-family="Menlo,Consolas,monospace" font-size="18">∝</tspan> ${tsp(KS,'s²')}`,{s:15,w:800})+`<rect x="${sx}" y="${y0-E}" width="${E}" height="${E}" fill="none" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".45"/>
+    <rect x="${sx}" y="${y0-se}" width="${se}" height="${se}" fill="${KH}" opacity=".85"/>
+    <line x1="${sx}" y1="${y0+3}" x2="${sx+se}" y2="${y0+3}" stroke="${KS}" stroke-width="3"/><line x1="${sx-3}" y1="${y0}" x2="${sx-3}" y2="${y0-se}" stroke="${KS}" stroke-width="3"/></g>`;
+  // cube: P ∝ s³ (oblique view; the small cube sits in the front-bottom-left corner of the rated cube)
+  const C=64, cx0=288, cube=(e,fillF,fillT,fillS,dash)=>{const d=.5*e, dy=.62*d, x=cx0, y=y0, st=dash?`fill="none" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".45"`:'';
+    return `<polygon points="${x},${y-e} ${x+d},${y-e-dy} ${x+e+d},${y-e-dy} ${x+e},${y-e}" ${dash?st:`fill="${fillT}"`}/>
+      <polygon points="${x+e},${y-e} ${x+e+d},${y-e-dy} ${x+e+d},${y-dy} ${x+e},${y}" ${dash?st:`fill="${fillS}"`}/>
+      <rect x="${x}" y="${y-e}" width="${e}" height="${e}" ${dash?st:`fill="${fillF}"`}/>`;};
+  g+=`<g id="pic-cube">`+T_(cx0,76,`${tsp(KP,'P')} <tspan font-family="Menlo,Consolas,monospace" font-size="18">∝</tspan> ${tsp(KS,'s³')}`,{s:15,w:800})+cube(C,0,0,0,true)+cube(C*c.s,KP,'#f7b36d','#a24f0c',false)
+    +`<line x1="${cx0}" y1="${y0+3}" x2="${cx0+C*c.s}" y2="${y0+3}" stroke="${KS}" stroke-width="3"/></g>`;
+  // multipliers and old → new numbers
+  const col=(x,colr,mult,old,now,what)=>T_(x,y0+26,mult,{c:colr,s:16,w:800})+T_(x,y0+46,`${old} → ${now}`,{c:colr,s:13,w:700})+T_(x,y0+64,what,{c:MUTED,s:12,w:600});
+  g+=col(lx,KQ_,`× ${c.s.toFixed(3)}`,met()?nf(c0.Qbep*GPM_M3H,1):nf(c0.Qbep),flow(c.Qbep),'flow');
+  g+=col(sx,KH,`× ${(c.s*c.s).toFixed(3)}`,met()?nf(c0.Hbep*FT_M,1):nf(c0.Hbep,1),head(c.Hbep),'head');
+  g+=col(cx0,KP,`× ${s3.toFixed(3)}`,nf(pb0,2),`${nf(pb,2)} ${uP()}`,'power');
+  const half=Math.abs(c.s-.5)<.02;
+  const what=AT_RATED(c)&&!AT_MAX(c)?`Trim to ${pct(c.rD)} diameter`:!AT_RATED(c)&&AT_MAX(c)?`${pct(c.rN)} of rated speed`:`s = ${pct(c.s)}`;
+  g+=T_(210,y0+88,half?'Half the speed: ½ the flow, ¼ the head, ⅛ the power':Math.abs(c.s-1)<.004?'Rated pump: nothing scales (s = 1)':`${what}: ${pct(c.s)} flow, ${pct(c.s*c.s)} head, ${pct(s3)} power`,{a:'middle',c:TEXT,s:13,w:700});
+  return g+`</g>`;
+}
+function mistakePic(c){
+  const c1=ratedCalc(), pb0=met()?c1.kWBep:c1.bhpBep, y0=184, Hm=112;
+  let g=`<g id="pic-mistake">`+T_(14,24,'COMMON MISTAKE vs RIGHT',{c:MUTED,s:13,ls:1.2})+T_(406,25,`s = ${c.s.toFixed(3)}`,{a:'end',c:KS,s:18,w:800});
+  g+=T_(14,46,'bars as % of the rated pump (dashed = 100 %)',{c:MUTED,s:12,w:600});
+  const grp=(cx,name,rated,wrong,right,fmt,colr)=>{let t='';
+    const bar=(x,v,cl,ok)=>{const h=Hm*clamp(v/rated,0,1.05);return `<rect x="${x}" y="${y0-h}" width="34" height="${h}" fill="${cl}" opacity="${ok?.9:.55}"/>`+(ok?'':`<rect x="${x}" y="${y0-h}" width="34" height="${h}" fill="none" stroke="${BAD}" stroke-width="2" stroke-dasharray="5 4"/>`)
+      +T_(x+17,y0-h-6,fmt(v),{a:'middle',c:ok?OK:BAD,s:12,w:800});};
+    t+=`<rect x="${cx-40}" y="${y0-Hm}" width="80" height="${Hm}" fill="none" stroke="${TEXT}" stroke-dasharray="4 4" opacity=".35"/>`;
+    t+=bar(cx-39,wrong,BAD,false)+bar(cx+5,right,OK,true);
+    t+=T_(cx-22,y0+17,'✗',{a:'middle',c:BAD,s:15,w:800})+T_(cx+22,y0+17,'✓',{a:'middle',c:OK,s:15,w:800})+T_(cx,y0+36,name,{a:'middle',c:colr,s:13,w:800});
+    return t;};
+  g+=grp(72,`flow (${uQ()})`,c1.Q,c1.Q*c.s,c.Q,v=>met()?nf(v*GPM_M3H,1):nf(v),KQ_);
+  g+=grp(210,`head (${uH()})`,c1.H,c1.H*c.s*c.s,c.H,v=>nf(fH(v),1),KH);
+  g+=grp(348,`BEP power (${uP()})`,pb0,pb0*c.s*c.s,pb0*c.s**3,v=>nf(v,2),KP);
+  g+=T_(210,y0+58,'✗ flow × s, head × s² along the system curve; power × s²',{a:'middle',c:BAD,s:12,w:700});
+  g+=T_(210,y0+76,c.Hst>0?`✓ new pump curve meets the same system curve; power × s³`:'✓ zero static head: both methods agree for flow and head',{a:'middle',c:OK,s:12,w:700});
+  return g+`</g>`;
+}
+function powerPic(c){
+  const x0=56, y0=494, wq=.3, hf=1.1;             // 0.3 px per gpm, 1.1 px per ft (fixed scales: size = amount)
+  const q=Math.max(0,A.dq), h=Math.max(0,A.dh), xx=clamp(q/c.Qbep,0,1.6), qOut=Math.max(q,c.s*P0.Qb/(P0.etaMax*(2-xx)));  // smoothed values glide; clamp keeps the box sane mid-glide // Q ÷ η (finite at shutoff)
+  const wi=q*wq, wo=qOut*wq, hh=h*hf;
+  const pv=met()?c.kW:c.bhp, water=r1(pv*c.eta), lost=Math.max(0,r1(r1(pv)-water)), u=uP();   // shown parts add to the shown total
+  let g=`<g id="meter-power"><line x1="8" y1="268" x2="412" y2="268" stroke="#45403A"/>`+T_(14,292,'BRAKE POWER',{c:MUTED,s:13,ls:1.2});
+  g+=T_(14,314,met()?`${tsp(KP,'P')} = ρ g ${tsp(KQ_,'Q')} ${tsp(KH,'H')} ÷ ${tsp(KE,'η')}`:`${tsp(KP,'BHP')} = ${tsp(KQ_,'Q')} × ${tsp(KH,'H')} × SG ÷ (3960 × ${tsp(KE,'η')})`,{s:15,w:800});
+  g+=T_(406,292,`${tsp(KP,nf(pv,1)+' '+u)}`,{a:'end',s:18,w:800});
+  // outer box = brake power (orange outline), inner = water power Q × H; the strip between is lost in the pump
+  const stripes=[];for(let k=-hh;k<wo;k+=12){const o=((A.flowD*.25)%12+12)%12;stripes.push(`<line x1="${x0+wi+k+o}" y1="${y0}" x2="${x0+wi+k+o+hh}" y2="${y0-hh}"/>`);}
+  g+=`<clipPath id="lostClip"><rect x="${x0+wi}" y="${y0-hh}" width="${Math.max(0,wo-wi)}" height="${hh}"/></clipPath>
+    <g clip-path="url(#lostClip)" stroke="${MUTED}" stroke-width="2" opacity=".45">${stripes.join('')}</g>
+    <rect x="${x0}" y="${y0-hh}" width="${wo}" height="${hh}" fill="none" stroke="${KP}" stroke-width="3"/>`;
+  if(Math.abs(c.s-1)>.004){const c0=ratedCalc(), w0=c0.s*P0.Qb/(P0.etaMax*(2-c0.x))*wq, h0=c0.H*hf;   // the same system at rated speed and size
+    g+=`<rect id="pic-rated-box" x="${x0}" y="${y0-h0}" width="${w0}" height="${h0}" fill="none" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 5" opacity=".45"/>`
+      +T_(x0+w0-4,y0-h0+15,`rated ${nf(met()?c0.kW:c0.bhp,1)} ${u}`,{a:'end',c:MUTED,s:12,w:700});}
+  if(wi>0)g+=`<rect id="pic-water" x="${x0}" y="${y0-hh}" width="${wi}" height="${hh}" fill="${KH}" opacity=".55"/>`;
+  // edges: width is Q, height is H
+  g+=`<line x1="${x0}" y1="${y0+6}" x2="${x0+wi}" y2="${y0+6}" stroke="${KQ_}" stroke-width="4"/><line x1="${x0-6}" y1="${y0}" x2="${x0-6}" y2="${y0-hh}" stroke="${KH}" stroke-width="4"/>`;
+  g+=T_(x0,y0+24,`${tsp(KQ_,'Q '+flow(c.Q))}`,{s:14,w:800});
+  const hy=Math.min(y0-hh/2,y0-40);
+  g+=`<text x="${x0-14}" y="${hy}" text-anchor="middle" font-size="14" font-weight="800" fill="${KH}" transform="rotate(-90 ${x0-14} ${hy})">H ${head(c.H)}</text>`;
+  // η as the filled share of the box
+  const ein=x0+wo+84<=414;
+  g+=`<g id="meter-eff">`+(ein?T_(x0+wo+8,Math.min(y0-hh+16,y0-22),`${tsp(KE,'η '+pct1(c.eta))}`,{s:14,w:800})+T_(x0+wo+8,Math.min(y0-hh+32,y0-6),'filled',{c:MUTED,s:12,w:600})
+    :T_(x0+wo,y0-hh-8,`${tsp(KE,'η '+pct1(c.eta))} filled`,{a:'end',s:14,w:800}))+`</g>`;
+  g+=`<rect x="14" y="${y0+36}" width="12" height="12" fill="${KH}" opacity=".7"/>`+T_(32,y0+47,`water ${nf(water,1)} ${u}`,{s:13})
+    +`<rect x="152" y="${y0+36}" width="12" height="12" fill="none" stroke="${MUTED}" stroke-width="2"/>`+T_(170,y0+47,`lost in pump ${nf(lost,1)} ${u}`,{s:13,c:MUTED})
+    +`<rect x="318" y="${y0+36}" width="12" height="12" fill="none" stroke="${KP}" stroke-width="2.5"/>`+T_(336,y0+47,`total`,{s:13,c:KP});
+  return g+`</g>`;
+}
+function drawPics(c){$('pics-dyn').innerHTML=(S.mistake?mistakePic(c):affinityPic(c))+powerPic(c);}
+
+/* ---------- formula strip ---------- */
+function formula(c){
+  if(c.noFlow)return `Shutoff head ${tm('h',head(c.Hshut))} ≤ static head ${tm('st',head(c.Hst))} → the pump cannot lift the water: ${tm('q','Q = 0')}`;
+  const hp=headParts(c.H,c.Hst);
+  return `${tm('q','Q '+flow(c.Q))} · ${tm('h','H')} = ${tm('st',nf(hp.sd,1)+' static')} + ${tm('f',nf(hp.fd,1)+' friction')} = ${tm('h',head(c.H))} · ${tm('e','η '+pct1(c.eta))} · ${tm('p',power(c))} · ${pct(c.x)} BEP`;
+}
+
+/* ---------- "Show the maths": instructor's whiteboard with live numbers ---------- */
+function mathsHTML(c){
+  const kq=KQ(), a=small(P0.a*kq), k=small(c.k*kq), H0=fH(P0.H0), st=(t,e)=>`<div class="step"><div class="st">${t.replace(/∝/g,'<span class="nt">∝</span>')}</div><div class="eq">${e}</div></div>`;
+  const d1=met()?nf(P0.D1*IN_MM):nf(P0.D1,2), d2=met()?nf(c.D*IN_MM):nf(c.D,2);
+  let h='';
+  if(S.mistake){
+    const c1=calc({...S,speed:P0.N1,dia:met()?P0.D1*IN_MM:P0.D1});
+    h+=st('Rated point (1750 rpm, '+diam(P0.D1)+'), same valve and static head',`Q₁ = ${flow(c1.Q)}, H₁ = ${head(c1.H)}, P₁ = ${power(c1)}`);
+    h+=st(`<span class="wrong">✗ Wrong: affinity laws applied along the system curve</span>`,`Q₂ = Q₁ × s = ${fQ(c1.Q).toFixed(1)} × ${c.s.toFixed(3)} = <span class="wrong">${flow(c1.Q*c.s)}</span><br>H₂ = H₁ × s² = <span class="wrong">${head(c1.H*c.s*c.s)}</span>`);
+    h+=st(`<span class="right">✓ Right: intersect the NEW pump curve with the SAME system curve</span>`,`Q₂ = <span class="right">${flow(c.Q)}</span>, H₂ = <span class="right">${head(c.H)}</span>  ${c.Hst>0?`(static head ${head(c.Hst)} does not scale)`:'(zero static head: here both methods agree)'}`);
+    const pb0=met()?c1.kWBep:c1.bhpBep, u=uP();
+    h+=st(`<span class="wrong">✗ Wrong: power ∝ N²</span> vs <span class="right">✓ power ∝ N³</span> (at BEP)`,`${nf(pb0,2)} × ${c.s.toFixed(3)}² = <span class="wrong">${nf(pb0*c.s*c.s,2)} ${u}</span><br>${nf(pb0,2)} × ${c.s.toFixed(3)}³ = <span class="right">${nf(pb0*c.s**3,2)} ${u}</span>`);
+    h+=st('Only when static head = 0','the system curve is an affinity parabola through the origin, and Q ∝ N holds at the operating point.');
+    return h;
+  }
+  const sv=tm('s',c.s.toFixed(3)), hp=headParts(c.H,c.Hst);
+  h+=st(`1 · Affinity ratio ${tm('s','s')} (line, square, cube)`,`${tm('s','s')} = (N₂ ÷ N₁)(D₂ ÷ D₁) = (${nf(c.N)} ÷ 1,750)(${d2} ÷ ${d1}) = ${sv}`);
+  h+=st(`2 · New pump curve (${tm('h','H')} ∝ ${tm('s','s²')}, ${tm('q','Q')} ∝ ${tm('s','s')})`,`${tm('h','H')} = ${nf(H0,1)} × ${sv}² − ${a}·${tm('q','Q')}² → shutoff ${tm('h',head(c.Hshut))}`);
+  h+=st(`3 · System curve: ${tm('st','static')} + ${tm('f','friction')}`,`${tm('h','H')} = ${tm('st','H_st')} + ${tm('f','k·Q²')} = ${tm('st',nf(fH(c.Hst),1))} + ${tm('f',k+'·Q²')}`);
+  if(c.noFlow)h+=st('4 · Operating point',`shutoff ${tm('h',head(c.Hshut))} ≤ static ${tm('st',head(c.Hst))} → <span class="wrong">no flow</span>`);
+  else h+=st('4 · Operating point: pump gives = system asks',`${tm('q','Q')} = √((${nf(fH(c.Hshut),1)} − ${tm('st',nf(fH(c.Hst),1))}) ÷ (${a} + ${k})) = ${tm('q',flow(c.Q))}<br>${tm('h','H')} = ${tm('st',nf(hp.sd,1))} + ${tm('f',nf(hp.fd,1))} = ${tm('h',head(c.H))} → ${met()?`× 9.81 = ${nf(c.kPa)} kPa`:`× 0.433 = ${nf(c.psi,1)} psi`}`);
+  h+=st(`5 · Efficiency ${tm('e','η')} (x = Q ÷ Q_BEP)`,`Q_BEP = ${met()?nf(P0.Qb*GPM_M3H,1):'500'} × ${sv} = ${flow(c.Qbep)}; x = ${c.x.toFixed(3)}<br>${tm('e','η')} = 0.80 × x × (2 − x) = ${tm('e',pct1(c.eta))}`);
+  if(c.noFlow)h+=st('6 · Brake power at shutoff',`${tm('e','η')} → 0 but Q ÷ η stays finite: ${tm('p',power(c))} turns into heat in the casing`);
+  else if(met())h+=st(`6 · Brake power ${tm('p','P')} (rectangle)`,`${tm('p','P')} = ρg${tm('q','Q')}${tm('h','H')} ÷ ${tm('e','η')} = 1000 × 9.81 × (${tm('q',nf(c.Qm,1))} ÷ 3600) × ${tm('h',nf(c.Hm,1))} ÷ ${tm('e',c.eta.toFixed(3))} = ${tm('p',nf(c.kW,1)+' kW')}`);
+  else h+=st(`6 · Brake power ${tm('p','BHP')} (rectangle)`,`${tm('p','BHP')} = ${tm('q','Q')}·${tm('h','H')}·SG ÷ (3960·${tm('e','η')}) = ${tm('q',nf(c.Q))} × ${tm('h',nf(c.H,1))} × 1.0 ÷ (3960 × ${tm('e',c.eta.toFixed(3))}) = ${tm('p',nf(c.bhp,1)+' hp')}`);
+  return h;
+}
+
+/* ---------- Predict, then reveal ---------- */
+const PRED=[
+  {q:()=>`Zero static head, valve 40 % open. Speed drops from 1,750 to 875 rpm (half). Brake power becomes…`,
+   opts:()=>['½ of before','¼ of before','⅛ of before'], ok:2,
+   before:{speed:1750,dia:10,valve:.4,hst:0}, after:{speed:875},
+   rev:(b,a)=>`Power ∝ N³: (875 ÷ 1,750)³ = 0.125. ${power(b)} → ${power(a)}. With no static head the system curve passes through zero, so the operating point slides along an affinity parabola: here the laws hold at the operating point too.`},
+  {q:()=>`Close the discharge valve from 100 % to 25 %. Flow drops. What does the pump head do?`,
+   opts:()=>['Rises: it climbs its own curve','Falls with the flow','Stays the same'], ok:0,
+   before:{speed:1750,dia:10,valve:1,hst:40}, after:{valve:.25},
+   rev:(b,a)=>`Head ${head(b.H)} → ${head(a.H)}. Throttling steepens the system curve; the pump can only run on its own curve, so it climbs toward shutoff. The extra head (${head(a.hv)}) is burned across the valve.`},
+  {q:()=>`Static head ${head(40)}. Speed halves, 1,750 → 875 rpm. The flow…`,
+   opts:()=>['Halves, as the affinity law says','Drops by more than half','Drops by less than half'], ok:1,
+   before:{speed:1750,dia:10,valve:.5,hst:40}, after:{speed:875},
+   rev:(b,a)=>`Shutoff head = ${head(150)} × 0.5² = ${head(37.5)}, below the ${head(40)} static head: flow ${flow(b.Q)} → ${flow(a.Q)}. Affinity laws move the pump curve; they do not move the operating point along a system curve that has static head.`},
+  {q:()=>`The impeller is trimmed from ${diam(10)} to ${diam(9)} (10 %, the usual limit). Shutoff head becomes…`,
+   opts:()=>[`about 90 % (${head(135)})`,`about 81 % (${head(121.5)})`,`about 73 % (${head(109.35)})`], ok:1,
+   before:{speed:1750,dia:10,valve:.5,hst:40}, after:{dia:9},
+   rev:(b,a)=>`H ∝ D²: 0.9² = 0.81. Shutoff ${head(b.Hshut)} → ${head(a.Hshut)}. Flow at BEP scales by 0.9 and power by 0.9³ = 0.73. Real trims usually need a little less cut than the law predicts: check the maker's trim curves.`}
+];
+const PS={index:0,choice:null,revealed:false,correct:0,answered:[]};
+
+/* ---------- Guided challenges (automatic check, hint on second miss) ---------- */
+const AT_MAX=c=>Math.abs(c.D-P0.D1)<1e-3, AT_RATED=c=>Math.abs(c.N-P0.N1)<1;
+const CH=[
+  {title:'Throttle to BEP', setup:{speed:1750,dia:10,valve:1,hst:40},
+   goal:()=>`Throttle the discharge valve until the pump runs at its BEP (within ±3 % of BEP flow). Leave speed and impeller alone.`,
+   live:c=>`Now: ${flow(c.Q)} = ${pct(c.x)} of BEP`, check:c=>Math.abs(c.x-1)<=.03&&AT_MAX(c)&&AT_RATED(c),
+   miss:c=>!AT_MAX(c)||!AT_RATED(c)?'Use the valve only: reset speed to 1,750 rpm and the impeller to full size.':c.x>1?`Still ${pct(c.x)} of BEP: close the valve more.`:`Only ${pct(c.x)} of BEP: open the valve a little.`,
+   hint:()=>`BEP flow here is ${flow(500)}. Closing the valve steepens the system curve and the dot climbs the pump curve toward the BEP diamond. Try about 42 % open.`},
+  {title:'Speed for a flow', setup:{speed:1750,dia:10,valve:1,hst:40},
+   goal:()=>`Valve wide open. Find the pump speed that delivers ${flow(400)} (±2 %).`,
+   live:c=>`Now: ${flow(c.Q)} at ${nf(c.N)} rpm`, check:c=>Math.abs(c.Q-400)<=8&&c.xv>=.99&&AT_MAX(c),
+   miss:c=>c.xv<.99?'Keep the valve 100 % open: change speed only.':c.Q>400?'Too much flow: slow the pump down.':'Not enough flow: speed it up.',
+   hint:()=>`At ${flow(400)} the system needs ${head(40)} + ${head(28.8)} = ${head(68.8)}. Set the pump curve equal: ${head(150)} × s² − ${head(19.2)} = ${head(68.8)} → s = 0.766 → about 1,340 rpm.`},
+  {title:'Trim for a head', setup:{speed:1750,dia:10,valve:.5,hst:40},
+   goal:()=>`Keep 1,750 rpm. Trim the impeller so the BEP head is ${head(110)} (±${head(1)}).`,
+   live:c=>`Now: BEP head ${head(c.Hbep)} with ${diam(c.D)}`, check:c=>Math.abs(c.Hbep-110)<=1&&AT_RATED(c),
+   miss:c=>!AT_RATED(c)?'Speed must stay at 1,750 rpm: use the impeller diameter.':c.Hbep>110?'BEP head too high: trim more.':'Trimmed too far: increase the diameter.',
+   hint:()=>`Head ∝ D². 110 ÷ 120 = 0.917, √0.917 = 0.957 → D = ${diam(9.574)} (a 4.3 % trim).`},
+  {title:'Find the shutoff speed', setup:{speed:1750,dia:10,valve:1,hst:100},
+   goal:()=>`Static head is ${head(100)}. Slow the pump until it JUST stops delivering (within 50 rpm of where flow stops).`,
+   live:c=>`Now: ${c.noFlow?'no flow':flow(c.Q)} · shutoff head ${head(c.Hshut)}`,
+   check:c=>{const Ns=P0.N1*Math.sqrt(c.Hst/P0.H0)/c.rD;return c.noFlow&&c.N>=Ns-50;},
+   miss:c=>!c.noFlow?'Still pumping: slow down more.':'Flow stopped, but you went too far below the stall speed. Come back up.',
+   hint:()=>`Flow stops when shutoff head = static head: ${head(150)} × (N ÷ 1,750)² = ${head(100)} → N = 1,429 rpm. Set just below it.`},
+  {title:'Half the power', setup:{speed:1750,dia:10,valve:.5,hst:40},
+   goal:()=>`Using speed only, cut the pump's BEP power to one half (±3 %).`,
+   live:c=>`Now: BEP power ${pbep(c)} = ${pct(c.s**3)} of rated`, check:c=>Math.abs(c.s**3-.5)<=.015&&AT_MAX(c),
+   miss:c=>!AT_MAX(c)?'Speed only: put the impeller back to full size.':c.s**3>.5?'Still above half: slow down.':'Below half: speed up.',
+   hint:()=>`Power ∝ N³, not N². (N ÷ 1,750)³ = 0.5 → N = 1,750 × 0.794 = 1,389 rpm. (Using N² would give 1,237 rpm: wrong.)`}
+];
+const CS={index:0,results:CH.map(()=>({passed:false,attempts:0})),feedback:'',hintOn:false};
+const challengeState=()=>({index:CS.index,total:CH.length,score:CS.results.filter(r=>r.passed).length,
+  results:CS.results.map((r,i)=>({title:CH[i].title,passed:r.passed,attempts:r.attempts})),feedback:CS.feedback});
+
+let tabDirty=true;
+function renderTabs(){
+  segSync('c-tab',S.tab);
+  ['maths','predict','challenge'].forEach(t=>$('t-'+t).style.display=S.tab===t?'block':'none');
+  if(!tabDirty)return; tabDirty=false;
+  // predict card
+  const P=PRED[PS.index];
+  let p=`<div class="meta"><span>PREDICT, THEN WATCH · Question <b>${PS.index+1}</b> of ${PRED.length}</span><span>Right: <b>${PS.correct}</b></span></div><div class="q">${P.q()}</div><div class="opts">`;
+  P.opts().forEach((o,i)=>{const cls=PS.revealed?(i===P.ok?' good':i===PS.choice?' badc':''):(i===PS.choice?' on':'');
+    p+=`<button class="btn${cls}" data-act="ans" data-i="${i}" ${PS.choice!=null?'disabled':''}>${String.fromCharCode(65+i)}. ${o}</button>`;});
+  p+=`</div><div class="rev" id="pred-rev">${PS.choice!=null&&!PS.revealed?'Watch the pump…':PS.revealed?(PS.choice===P.ok?'<span class="right">✓ Right.</span> ':'<span class="wrong">✗ Not quite.</span> ')+P.rev(PS.b,PS.a):'Pick an answer. The simulator then runs it so you can see why.'}</div>`;
+  p+=`<div class="brow" style="margin-top:10px"><button class="btn" data-act="pnext">${PS.index<PRED.length-1?'Next question →':'Start again ↺'}</button></div>`;
+  $('t-predict').innerHTML=p;
+  // challenge card
+  const C=CH[CS.index], st=challengeState();
+  let h=`<div class="meta"><span>CHALLENGE <b>${CS.index+1}</b> of ${CH.length} · ${C.title}</span><span>Score: <b id="ch-score">${st.score} / ${CH.length}</b></span></div>
+    <div class="dots">${CS.results.map((r,i)=>`<i class="${r.passed?'pass':''}${i===CS.index?' cur':''}"></i>`).join('')}</div>
+    <div class="goal">${C.goal()}</div><div class="live" id="ch-live"></div>
+    <div class="brow"><button class="btn" data-act="check">Check</button><button class="btn" data-act="reset">Reset</button><button class="btn" data-act="cnext">Next →</button></div>
+    <div class="fb" id="ch-fb">${CS.feedback}</div>${CS.hintOn?`<div class="hint">Hint: ${C.hint()}</div>`:''}`;
+  h+=`<div class="chlist">${CH.map((x,i)=>`<button class="btn${i===CS.index?' on':''}" data-act="goto" data-i="${i}">${CS.results[i].passed?'✓':(i+1)+'.'} ${x.title}${CS.results[i].attempts&&!CS.results[i].passed?` <small>(${CS.results[i].attempts} ${CS.results[i].attempts===1?'try':'tries'})</small>`:''}</button>`).join('')}</div>`;
+  $('t-challenge').innerHTML=h;
+}
+function loadQuestion(i){PS.index=(i+PRED.length)%PRED.length;PS.choice=null;PS.revealed=false;A.demo=null;applySetup(PRED[PS.index].before,1200);tabDirty=true;}
+function answer(i){
+  if(PS.choice!=null)return; const P=PRED[PS.index];PS.choice=i;
+  PS.b=calc(stateWith(P.before)); PS.a=calc(stateWith({...P.before,...P.after}));
+  applySetup(P.before,0); applySetup(P.after,3000); A.demo={t:0,dur:3400}; tabDirty=true;
+}
+function loadChallenge(i){CS.index=(i+CH.length)%CH.length;CS.feedback='';CS.hintOn=CS.results[CS.index].attempts>=2&&!CS.results[CS.index].passed;applySetup(CH[CS.index].setup,1200);tabDirty=true;}
+function check(){
+  const C=CH[CS.index], r=CS.results[CS.index], c=calc();
+  if(C.check(c)){r.passed=true;CS.feedback=`<span class="right">✓ Got it.</span> ${C.live(c)}.`;CS.hintOn=false;}
+  else{r.attempts++;CS.feedback=`<span class="wrong">✗ Not yet.</span> ${C.miss(c)}`;if(r.attempts>=2)CS.hintOn=true;}
+  tabDirty=true; if(!CAPTURE)frame(0); return C.check(c);
+}
+/* setups are written in imperial base units; convert to the current display units */
+function toUnits(o){o={...o};if(met()){if('dia' in o)o.dia*=IN_MM;if('hst' in o)o.hst*=FT_M;}return o;}
+function stateWith(base){return {...S,...toUnits(base)};}
+function applySetup(base,dur){set(toUnits(base),dur,true);}
+
+/* ---------- panel ---------- */
+const RANGES={imperial:{dia:[9,10,.05],hst:[0,120,1]},metric:{dia:[229,254,1],hst:[0,36.5,.5]}};
+function panel(c){
+  const set=(id,v)=>{$(id).textContent=v};
+  set('ro-flow',flow(c.Q)); set('ro-head',head(c.H)); set('ro-pct',pct(c.x)); set('ro-eff',pct1(c.eta));
+  set('ro-power',power(c)); set('ro-dp',press(c)); set('ro-bep',flow(c.Qbep)); set('ro-bephead',head(c.Hbep)); set('ro-shutoff',head(c.Hshut));
+  $('ro-pct-box').style.borderColor=levelCol(c.level);
+  const col=levelCol(c.level), st=$('status');
+  st.style.background=col; st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
+  st.textContent={por:'IN PREFERRED OPERATING REGION (70–120% BEP)',below:'BELOW PREFERRED RANGE: CHECK MINIMUM FLOW',above:'ABOVE PREFERRED RANGE: TOWARD RUNOUT',
+    low:'FAR BELOW BEP: RECIRCULATION AND HEAT RISK',runout:'RUNOUT: PAST THE END OF THE CURVE',shutoff:'NO FLOW: SHUTOFF HEAD BELOW STATIC HEAD'}[c.why];
+  $('l-speed').textContent=nf(S.speed)+' rpm'+(Math.abs(S.speed-1750)<1?' (rated)':'');
+  $('l-dia').textContent=diam(c.D)+(AT_MAX(c)?' (full)':` (${nf((1-c.rD)*100,1)} % trim)`);
+  $('l-valve').textContent=Math.round(c.xv*100)+'%'; $('l-hst').textContent=head(c.Hst);
+  segSync('c-units',S.units); $('c-mistake').classList.toggle('on',!!S.mistake); $('c-mistake').setAttribute('aria-pressed',String(!!S.mistake));
+  const R=RANGES[S.units];
+  ['dia','hst'].forEach(k=>{const e=$('c-'+k);[e.min,e.max,e.step]=R[k];if(document.activeElement!==e)e.value=S[k];});
+  if(document.activeElement!==$('c-speed'))$('c-speed').value=S.speed;
+  if(document.activeElement!==$('c-valve'))$('c-valve').value=Math.round(S.valve*100);
+  if(S.tab==='maths')$('t-maths').innerHTML=mathsHTML(c);
+  renderTabs();
+  if(S.tab==='challenge'&&$('ch-live'))$('ch-live').textContent=CH[CS.index].live(c);
+}
+function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('on',on);if(b.getAttribute('role')==='tab')b.setAttribute('aria-selected',String(on));});}
+
+/* ---------- callouts (pulse + fade on the virtual clock) ---------- */
+function renderCallouts(){
+  const host=$('co'); host.innerHTML='';
+  callouts.forEach(co=>{
+    const el=$(co.target); if(!el)return;
+    const r=el.getBoundingClientRect(), pad=10, op=Math.min(1,co.age/300);
+    const pulse=co.age<1800?1+0.04*Math.sin(co.age/110):1;
+    const w=(r.width+2*pad)*pulse,h=(r.height+2*pad)*pulse;
+    const ring=document.createElement('div'); ring.className='ring';
+    Object.assign(ring.style,{left:(r.left+r.width/2-w/2)+'px',top:(r.top+r.height/2-h/2)+'px',width:w+'px',height:h+'px',opacity:op});
+    host.appendChild(ring);
+    if(co.text){const lb=document.createElement('div');lb.className='clabel';lb.textContent=co.text;lb.style.opacity=op;host.appendChild(lb);
+      const lw=lb.offsetWidth,lh=lb.offsetHeight,vw=innerWidth,vh=innerHeight, slide=(1-op)*14;
+      const pos=co.pos||(r.left>vw*0.55?'left':'right'); let x,y;
+      const inPanel=$('panel').contains(el)&&innerWidth>1000, edge=inPanel?$('panel').getBoundingClientRect().left:r.left;
+      if(pos==='left'){x=edge-pad-lw-18-slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='right'){x=r.right+pad+18+slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='top'){x=r.left+r.width/2-lw/2;y=r.top-pad-lh-18-slide}
+      else {x=r.left+r.width/2-lw/2;y=r.bottom+pad+18+slide}
+      lb.style.left=clamp(x,12,vw-lw-12)+'px'; lb.style.top=clamp(y,12,vh-lh-12)+'px';}
+  });
+}
+
+/* ---------- virtual clock: ALL motion advances here ---------- */
+let lastValve=S.valve;
+function step(ms){
+  const dt=ms/1000; T+=ms;
+  tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
+  tweens=tweens.filter(t=>t.t<t.dur);
+  const c=calc();
+  // impeller: 1.2 rev/s on screen at 1750 rpm (slowed for the eye), proportional to speed
+  A.imp+=dt*2*Math.PI*1.2*(c.N/P0.N1);
+  // particles: px/s ∝ velocity = Q ÷ area (suction 8 in, discharge 6 in)
+  A.flowS+=dt*c.Q*0.14; A.flowD+=dt*c.Q*0.14*(64/36);
+  // valve handwheel: 6 turns from closed to open
+  A.valveTurn+=(c.xv-lastValve)*6*2*Math.PI; lastValve=c.xv;
+  // gauge needle: spring-damper toward pump ΔP (ωn ≈ 7 rad/s, ζ ≈ 0.35 → visible overshoot, settles ~1.5 s)
+  const target=met()?c.kPa:c.psi, wn=7, z=.35;
+  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(target-A.needle)-2*z*wn*A.needleV;A.needleV+=acc*h;A.needle+=A.needleV*h;}}
+  else if(ms>=200){A.needle=target;A.needleV=0;}
+  // operating-point dot glides (first-order lag, τ ≈ 0.18 s) so it slides along the curves on any change
+  if(A.dq==null||ms>=200){A.dq=c.Q;A.dh=c.H;}else{const f=1-Math.exp(-dt/.18);A.dq+=(c.Q-A.dq)*f;A.dh+=(c.H-A.dh)*f;}
+  // bar meters ease toward their values
+  const fm=ms>=200?1:1-Math.exp(-dt/.3);A.mEta+=(c.eta-A.mEta)*fm;A.mP+=((met()?c.kW:c.bhp)-A.mP)*fm;
+  A.pulse+=dt*4;
+  // predict demo: reveal once the demonstration tween has played
+  if(A.demo){A.demo.t+=ms;if(A.demo.t>=A.demo.dur){A.demo=null;PS.revealed=true;PS.answered[PS.index]=PS.choice;
+    PS.correct=PRED.reduce((n,P,i)=>n+(PS.answered[i]===P.ok?1:0),0);tabDirty=true;}}
+  return c;
+}
+function frame(ms){
+  const c=step(ms);
+  drawSchematic(c); drawChart(c); drawPics(c); panel(c);
+  $('formula').innerHTML=formula(c);
+  callouts.forEach(co=>co.age+=ms);
+  renderCallouts();
+}
+function snapAnim(){const c=calc();A.needle=met()?c.kPa:c.psi;A.needleV=0;A.dq=c.Q;A.dh=c.H;A.mEta=c.eta;A.mP=met()?c.kW:c.bhp;lastValve=c.xv;}
+function set(p,dur=0,internal=false){
+  p={...p};
+  // switching units on its own converts dia and static head so the physical pump stays the same
+  if(p.units&&p.units!==S.units){
+    const toM=p.units==='metric';
+    tweens=tweens.filter(t=>!['dia','hst'].includes(t.key));
+    if(!('dia' in p))S.dia=toM?S.dia*IN_MM:S.dia/IN_MM;
+    if(!('hst' in p))S.hst=toM?S.hst*FT_M:S.hst/FT_M;
+    S.units=p.units; delete p.units; tabDirty=true;
+    A.needle=toM?A.needle/PSI_FT*FT_M*G:A.needle/(FT_M*G)*PSI_FT; A.mP=toM?A.mP*HP_KW:A.mP/HP_KW;
+  }
+  const snap=p.snap; delete p.snap;
+  const special={};['question','answer','challenge'].forEach(k=>{if(k in p){special[k]=p[k];delete p[k];}});
+  for(const [k,v] of Object.entries(p)){
+    tweens=tweens.filter(t=>t.key!==k);
+    if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
+    else S[k]=v;
+    if(k==='tab'||k==='units')tabDirty=true;
+  }
+  if('question' in special){S.tab='predict';loadQuestion(special.question);}
+  if('challenge' in special){S.tab='challenge';loadChallenge(special.challenge);}
+  if('answer' in special){S.tab='predict';answer(special.answer);}
+  if(snap)snapAnim();
+  if(!CAPTURE&&!internal)frame(0);
+}
+function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
+function clear(){callouts=[];if(!CAPTURE)frame(0);}
+
+/* ---------- user controls ---------- */
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
+  // entering a tab loads its starting state (a fresh question, or the current challenge's setup)
+  ({'c-units':()=>set({units:v}),'c-tab':()=>{if(v===S.tab)return;
+    if(v==='challenge')set({challenge:CS.index});else if(v==='predict'&&PS.choice==null)set({question:PS.index});else set({tab:v});}})[seg.id]?.();
+}));
+$('c-mistake').addEventListener('click',()=>set({mistake:!S.mistake}));
+$('c-speed').addEventListener('input',e=>set({speed:+e.target.value}));
+$('c-dia').addEventListener('input',e=>set({dia:+e.target.value}));
+$('c-valve').addEventListener('input',e=>set({valve:+e.target.value/100}));
+$('c-hst').addEventListener('input',e=>set({hst:+e.target.value}));
+$('tabbody').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const a=b.dataset.act;
+  if(a==='ans')set({answer:+b.dataset.i});
+  else if(a==='pnext')set({question:PS.index+1});
+  else if(a==='check')check();
+  else if(a==='reset')set({challenge:CS.index});
+  else if(a==='cnext')set({challenge:CS.index+1});
+  else if(a==='goto')set({challenge:+b.dataset.i});
+});
+// tooltips for terms (hover or keyboard focus); fixed position so the panel never clips them
+const tip=$('tipbox');
+const showTip=el=>{tip.textContent=el.dataset.tip;tip.style.display='block';const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  tip.style.left=clamp(r.left,8,innerWidth-w-8)+'px';tip.style.top=(r.bottom+8+h>innerHeight?r.top-h-8:r.bottom+8)+'px';};
+document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-tip]');if(el)showTip(el);else tip.style.display='none';});
+document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');if(el)showTip(el);});
+document.addEventListener('focusout',()=>{tip.style.display='none';});
+addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
+
+snapAnim(); frame(0);
+if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S}),check,
+  get challenge(){return challengeState();},get predict(){return {index:PS.index,choice:PS.choice,revealed:PS.revealed,correct:PS.correct,total:PRED.length};},ready:true};
+})();
+</script>
+</body>
+</html>
