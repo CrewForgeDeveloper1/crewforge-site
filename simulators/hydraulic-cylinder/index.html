@@ -20,7 +20,8 @@
 
   STATE (sim.set keys)
     units     'imp' | 'met'   (switching units alone converts every value, so the machine stays the same)
-    mode      'extend' | 'retract' | 'regen' | 'neutral'   (neutral = tandem centre: P→T, A and B blocked)
+    mode      'extend' | 'neutral' | 'retract'   (4-way, 3-position DCV; neutral = tandem centre: P→T, A and B blocked)
+              'regen' was removed 2026-11-07 and now falls back to 'extend'
     bore      piston bore D  (in | mm)        rod     rod diameter d (in | mm), limited to 80 % of bore
     stroke    stroke length (in | mm)         flow    pump flow Q (gpm | L/min)
     relief    relief valve setting (psi | bar) load   load force opposing the rod's motion (lbf | kN)
@@ -28,7 +29,7 @@
     pos       rod position 0 (retracted) … 1 (extended), snaps the rod
     trap      true → show the common exam trap for the current mode beside the correct result
     predict   true → mode buttons ask for a prediction before switching (live use)
-    tab       'readouts' | 'maths' | 'challenges'     challenge  index of the active challenge (0-5)
+    tab       'readouts' | 'maths' | 'challenges'     challenge  index of the active challenge (0-4)
     snap      true → needle, spool, relief poppet jump to rest (use in scene setups)
 -->
 <style>
@@ -74,13 +75,15 @@ color:var(--muted);font-size:14px;font-weight:700;letter-spacing:.06em;cursor:po
 #tabbody{flex:1;min-height:0;position:relative;overflow:hidden}
 .tab{position:absolute;inset:0;display:none}
 .tab.on{display:block}
-.ro{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ro{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.ro div{grid-column:span 2}
 .ro div{background:linear-gradient(180deg,#38332e,#312d29);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
 box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 -6px 12px rgba(0,0,0,.15)}
 .ro span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
 .ro b{font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ro i{display:block;font-style:normal;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.ro .big{grid-column:span 2}
+.ro div.big{grid-column:span 4}
+.ro div.half{grid-column:span 3}
 .ro .big b{font-size:28px}
 .ro div.act{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .ro div.na b{color:var(--muted)}
@@ -140,7 +143,7 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
   #formula div{white-space:normal}
   #panel{overflow:visible;padding:12px}
   .brandbar{padding:10px 12px}.brandbar .logo{height:34px}.brandbar .t2{font-size:19px}.brandbar .t1{font-size:10px}
-  .ro{grid-template-columns:1fr 1fr 1fr;gap:5px}
+  .ro{gap:5px}
   .ro div{padding:4px 6px}
   .ro span{font-size:9.5px;white-space:normal;letter-spacing:.04em;line-height:1.15}
   .ro b{font-size:15px}.ro .big b{font-size:22px}.ro i{font-size:10.5px}
@@ -191,7 +194,7 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
   </section>
   <aside id="panel">
     <div class="sec"><h3>VALVE POSITION</h3>
-      <div class="seg" id="c-mode"><button data-v="extend" data-tip="Spool shifted: P→A (cap end), B→T. Rod extends.">Extend</button><button data-v="retract" data-tip="Spool shifted: P→B (rod end), A→T. Rod retracts.">Retract</button><button data-v="regen" data-tip="Regenerative extend: rod-end oil is sent back into the cap end and joins pump flow. Faster, but force only acts on the rod area.">Regen extend</button><button data-v="neutral" data-tip="Tandem centre: P→T so the pump unloads at low pressure; A and B blocked so the cylinder is held.">Neutral</button></div>
+      <div class="seg" id="c-mode"><button data-v="extend" data-tip="Left solenoid on: spool shifts to the extend box. P→A (cap end), B→T. Rod extends.">Extend</button><button data-v="neutral" data-tip="Both solenoids off: springs centre the spool. Tandem centre: P→T so the pump unloads at low pressure; A and B blocked so the cylinder is held.">Centre</button><button data-v="retract" data-tip="Right solenoid on: spool shifts to the retract box (crossed arrows). P→B (rod end), A→T. Rod retracts.">Retract</button></div>
     </div>
     <div class="row">
       <div class="seg" id="c-units" style="flex:1"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div>
@@ -212,21 +215,19 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
         <div class="ro">
           <div id="ro-acap-box"><span class="tip" data-tip="Cap-end (full bore) area: A = π × D² ÷ 4. Oil pushes on this to extend.">Cap area</span><b id="ro-acap"></b></div>
           <div id="ro-aann-box"><span class="tip" data-tip="Rod-end (annulus) area: A = π × (D² − d²) ÷ 4. Oil pushes on this to retract.">Rod-end area</span><b id="ro-aann"></b></div>
-          <div id="ro-arod-box"><span class="tip" data-tip="Rod area: A = π × d² ÷ 4. In regen, the net push acts on this area only.">Rod area</span><b id="ro-arod"></b></div>
+          <div id="ro-arod-box"><span class="tip" data-tip="Rod area: A = π × d² ÷ 4. On retract the rod covers this much of the piston, so oil cannot push on it.">Rod area</span><b id="ro-arod"></b></div>
           <div id="ro-fext-box"><span>Extend force max</span><b id="ro-fext"></b><i>at relief setting</i></div>
           <div id="ro-fret-box"><span>Retract force max</span><b id="ro-fret"></b><i>at relief setting</i></div>
-          <div id="ro-fregen-box"><span>Regen force max</span><b id="ro-fregen"></b><i>at relief setting</i></div>
+          <div id="ro-ratio-box"><span class="tip" data-tip="Area ratio = cap area ÷ rod-end area. Extend force and retract speed are both bigger by this ratio.">Area ratio</span><b id="ro-ratio"></b><i>cap ÷ rod end</i></div>
           <div id="ro-vext-box"><span>Extend speed</span><b id="ro-vext"></b><i id="ro-vext2"></i></div>
           <div id="ro-vret-box"><span>Retract speed</span><b id="ro-vret"></b><i id="ro-vret2"></i></div>
-          <div id="ro-vregen-box"><span>Regen speed</span><b id="ro-vregen"></b><i id="ro-vregen2"></i></div>
+          <div id="ro-time-box"><span>Stroke time</span><b id="ro-time"></b></div>
           <div class="big" id="ro-pwork-box"><span class="tip" data-tip="Working pressure: what the gauge reads. It is set by the load (P = F ÷ A), capped by the relief valve.">Working pressure</span><b id="ro-pwork"></b></div>
           <div id="ro-pneed-box"><span>Load needs</span><b id="ro-pneed"></b></div>
-          <div id="ro-ratio-box"><span class="tip" data-tip="Area ratio = cap area ÷ rod-end area. Extend force and retract speed are both bigger by this ratio.">Area ratio</span><b id="ro-ratio"></b></div>
-          <div id="ro-power-box"><span class="tip" data-tip="Hydraulic power = pressure × flow ÷ 1714 (HP) or bar × L/min ÷ 600 (kW).">Hydraulic power</span><b id="ro-power"></b></div>
-          <div id="ro-heat-box"><span class="tip" data-tip="Power going over the relief valve. It does no work: it all becomes heat in the oil.">Heat over relief</span><b id="ro-heat"></b></div>
-          <div id="ro-qin-box"><span>Oil into cylinder</span><b id="ro-qin"></b></div>
-          <div id="ro-qout-box"><span>Oil out of cylinder</span><b id="ro-qout"></b></div>
-          <div id="ro-time-box"><span>Stroke time</span><b id="ro-time"></b></div>
+          <div class="half" id="ro-power-box"><span class="tip" data-tip="Hydraulic power = pressure × flow ÷ 1714 (HP) or bar × L/min ÷ 600 (kW).">Hydraulic power</span><b id="ro-power"></b></div>
+          <div class="half" id="ro-heat-box"><span class="tip" data-tip="Power going over the relief valve. It does no work: it all becomes heat in the oil.">Heat over relief</span><b id="ro-heat"></b></div>
+          <div class="half" id="ro-qin-box"><span>Oil into cylinder</span><b id="ro-qin"></b></div>
+          <div class="half" id="ro-qout-box"><span>Oil out of cylinder</span><b id="ro-qout"></b></div>
         </div>
       </div>
       <div class="tab" id="tab-maths" role="tabpanel"></div>
@@ -258,7 +259,8 @@ const NUMERIC=['bore','rod','stroke','flow','relief','load'];
 const RANGES={imp:{bore:[1,8,.25],rod:[.5,6,.125],stroke:[4,60,1],flow:[1,50,.5],relief:[500,5000,50],load:[0,250000,250]},
               met:{bore:[25,200,5],rod:[12,160,1],stroke:[100,1500,10],flow:[4,190,1],relief:[35,345,5],load:[0,1100,.5]}};
 const ROD_MAX=0.8;                                     // rod limited to 80 % of bore (real cylinders stay well under this)
-const MODES=['regen','extend','neutral','retract'];    // valve envelope order, left to right
+const MODES=['extend','neutral','retract'];            // 3-position valve: envelope order, left to right
+const modeOf=m=>m==='regen'?'extend':m;                // regen circuit removed 2026-11-07: old cue files fall back to extend
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -276,8 +278,7 @@ const rnd=(v,n)=>Math.round(v*10**n)/10**n;
      v [in/min]= 231 × Q [gpm] ÷ A [in²]        v [m/min]= 10 × Q [L/min] ÷ A [cm²]  (1 L = 1000 cm³)
      v [in/s]  = v [in/min] ÷ 60                v [mm/s] = v [m/min] × 1000 ÷ 60
      HP        = P [psi] × Q [gpm] ÷ 1714       kW       = P [bar] × Q [L/min] ÷ 600
-   Active area: extend → A_cap · retract → A_ann · regen extend → A_r (both ends at pump pressure,
-     rod-end oil joins pump flow: net push = P × A_r, speed = Q ÷ A_r).
+   Active area: extend → A_cap · retract → A_ann. (A_r is shown because the rod covers it on retract.)
    Load-induced pressure  P_need = F_load ÷ A_active.  Load always opposes the motion.
    P_need > relief → STALL: rod stops, all pump flow crosses the relief valve, power = heat.
    Working pressure = min(P_need, relief). Utilisation = P_need ÷ relief; > 85 % caution.
@@ -286,7 +287,7 @@ const rnd=(v,n)=>Math.round(v*10**n)/10**n;
    ===================================================================== */
 function calc(st=S){
   const imp=st.units==='imp', ad=imp?3:2, k=imp?1:1/100;            // k: mm² → cm²
-  const D=st.bore, d=Math.min(st.rod,ROD_MAX*D), Q=st.flow, Prel=st.relief, F=st.load, mode=st.mode;
+  const D=st.bore, d=Math.min(st.rod,ROD_MAX*D), Q=st.flow, Prel=st.relief, F=st.load, mode=modeOf(st.mode);
   const Acap=rnd(Math.PI*D*D/4*k,ad), Aann=rnd(Math.PI*(D*D-d*d)/4*k,ad), Ar=rnd(Math.PI*d*d/4*k,ad);
   const force=(P,A)=>imp?P*A:P*A/100;
   const presFor=(F,A)=>imp?F/A:F*100/A;
@@ -294,11 +295,11 @@ function calc(st=S){
   const spd=(Q,A)=>imp?spd2(Q,A)/60:spd2(Q,A)*1000/60;  // in/s   | mm/s
   const power=(P,Q)=>imp?P*Q/1714:P*Q/600;              // HP     | kW
   const c={imp,D,d,rodLimited:st.rod>ROD_MAX*D+1e-9,Q,Prel,F,mode,Acap,Aann,Ar,
-    ratio:Acap/Aann, Fext:force(Prel,Acap), Fret:force(Prel,Aann), Fregen:force(Prel,Ar),
-    vext:spd(Q,Acap), vret:spd(Q,Aann), vregen:spd(Q,Ar), vext2:spd2(Q,Acap), vret2:spd2(Q,Aann), vregen2:spd2(Q,Ar)};
+    ratio:Acap/Aann, Fext:force(Prel,Acap), Fret:force(Prel,Aann),
+    vext:spd(Q,Acap), vret:spd(Q,Aann), vext2:spd2(Q,Acap), vret2:spd2(Q,Aann)};
   c.Din=imp?D:D/IN;
   c.active=mode!=='neutral';
-  c.Aact=mode==='extend'?Acap:mode==='retract'?Aann:mode==='regen'?Ar:0;
+  c.Aact=mode==='extend'?Acap:mode==='retract'?Aann:0;
   c.Pneed=c.active?presFor(F,c.Aact):0;
   c.stall=c.active&&c.Pneed>Prel;
   c.Pwork=c.active?Math.min(c.Pneed,Prel):0;
@@ -306,13 +307,12 @@ function calc(st=S){
   c.moving=c.active&&!c.stall;
   c.v=c.moving?spd(Q,c.Aact):0; c.v2=c.moving?spd2(Q,c.Aact):0;
   c.vFree=c.active?spd(Q,c.Aact):0;                                     // speed if not stalled (for predictions)
-  c.Fmax=mode==='extend'?c.Fext:mode==='retract'?c.Fret:mode==='regen'?c.Fregen:0;
+  c.Fmax=mode==='extend'?c.Fext:mode==='retract'?c.Fret:0;
   // oil flows at the cylinder ports (same units as Q)
   c.qin=0;c.qout=0;
   if(c.moving){
     if(mode==='extend'){c.qin=Q;c.qout=Q*Aann/Acap;}
-    else if(mode==='retract'){c.qin=Q;c.qout=Q*Acap/Aann;}
-    else {c.qin=Q*Acap/Ar;c.qout=Q*Aann/Ar;}                            // regen: rod-end oil goes to the cap end
+    else {c.qin=Q;c.qout=Q*Acap/Aann;}                                  // retract: more oil leaves the cap end than the pump sends
   }
   c.qRelief=c.stall?Q:0;
   c.power=power(c.Pwork,Q);
@@ -337,7 +337,7 @@ const fT=v=>isFinite(v)?nf(v,1)+' s':'—';
 const L=()=>U().L;
 const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:l==='idle'?BLUE:OK;
 const presCol=(P,rel)=>P<=rel*.005?BLUE:P>=rel*.999?BAD:P>rel*.85?WARN:OK;
-const MODE_NAME={extend:'EXTEND',retract:'RETRACT',regen:'REGEN EXTEND',neutral:'NEUTRAL (TANDEM CENTRE)'};
+const MODE_NAME={extend:'EXTEND',retract:'RETRACT',neutral:'NEUTRAL (TANDEM CENTRE)'};
 
 /* ---------- animation state (virtual clock only) ---------- */
 let T=0, tweens=[], callouts=[], seed=1;
@@ -365,44 +365,52 @@ function spring(x,y,len,amp,n,vertical){let p=`M${x} ${y}`;for(let i=1;i<=n;i++)
   p+=vertical?` L${x+o} ${y+len*t}`:` L${x+len*t} ${y+o}`;}return `<path d="${p}" stroke="${TEXT}" stroke-width="2.5" fill="none"/>`;}
 
 // Geometry (SVG units, viewBox 1300 × 900)
-const VX=560, VY=520, BW=100, BH=96, VT=VY-BH/2, VB=VY+BH/2;   // valve: active envelope centred on VX
+// Valve port B sits straight under the cylinder's rod-end port (x 615), so line B is one straight run;
+// line A goes up, across to the cap-end port (x 240) and up. P and T drop straight down to the pump and tank.
+const VX=587, VY=480, BW=100, BH=96, VT=VY-BH/2, VB=VY+BH/2;   // valve: active envelope centred on VX
 const PA=VX-28, PB=VX+28;                                     // port x positions: A/P left, B/T right
+const YAB=360, YREL=660;                                      // y of line A's cross run · y of the relief tee
 const CYL={x0:200,x1:650,cy:200,pMin:214,travel:376,rod:460};
-const GA={x:150,y:665,R:70}, RV={x:300,y:772}, PU={x:PA,y:770,r:34}, MO={x:410,y:770,r:30}, TK={x0:90,x1:700,y0:840,y1:885};
+const GA={x:170,y:615,R:66}, RV={x:320,y:730}, PU={x:PA,y:775,r:34}, MO={x:445,y:775,r:30}, TK={x0:90,x1:700,y0:840,y1:885};
+const BOX_NAME={extend:'EXTEND',neutral:'CENTRE',retract:'RETRACT'};
 
+/* ISO 1219 style envelope symbols for a 4-way, 3-position valve (P, T at the bottom, A, B at the top) */
 function valveBox(i,bx){
   const a=bx+BW/2-28,b=bx+BW/2+28,t=VT,bt=VB,W=TEXT; let s='';
-  if(MODES[i]==='extend') s+=arrowHead(a,bt,a,t+4,W)+arrowHead(b,t,b,bt-4,W);
-  else if(MODES[i]==='retract') s+=arrowHead(a,bt,b-3,t+5,W)+arrowHead(a+2,t,b,bt-4,W);
-  else if(MODES[i]==='neutral') s+=blocked(a,t,1)+blocked(b,t,1)+`<path d="M${a} ${bt} L${a} ${bt-30} L${b} ${bt-30} L${b} ${bt}" stroke="${W}" stroke-width="3" fill="none"/>`;
-  else s+=arrowHead(a,bt,a,t+4,W)+`<path d="M${b} ${t} L${b} ${t+36} L${a} ${t+36}" stroke="${W}" stroke-width="3" fill="none"/><circle cx="${a}" cy="${t+36}" r="5" fill="${W}"/>`+blocked(b,bt,-1);
+  if(MODES[i]==='extend') s+=arrowHead(a,bt,a,t+4,W)+arrowHead(b,t,b,bt-4,W);                 // parallel arrows: P→A, B→T
+  else if(MODES[i]==='retract') s+=arrowHead(a,bt,b-3,t+5,W)+arrowHead(a+2,t,b,bt-4,W);       // crossed arrows: P→B, A→T
+  else s+=blocked(a,t,1)+blocked(b,t,1)+`<path d="M${a} ${bt} L${a} ${bt-30} L${b} ${bt-30} L${b} ${bt}" stroke="${W}" stroke-width="3" fill="none"/>`;   // tandem: A, B blocked, P→T
   return s;
 }
 function drawValve(c){
-  const idx=MODES.indexOf(S.mode);
-  const off=VX-BW/2-A.spool*BW; let s='';
-  // port stubs (fixed to the subplate)
+  const idx=MODES.indexOf(modeOf(S.mode));
+  const off=VX-BW/2-A.spool*BW, n=MODES.length, bw=BW*n; let s='';
   s+=`<g id="valve">`;
   // motion-blur ghosts when the spool is moving fast
   const sp=Math.abs(A.spoolV);
-  if(sp>.4)for(let g=1;g<=2;g++)s+=`<rect x="${off+A.spoolV*g*7}" y="${VT}" width="${BW*4}" height="${BH}" rx="4" fill="none" stroke="${TEXT}" stroke-width="2" opacity="${Math.min(.25,sp*.05)/g}"/>`;
-  s+=`<g filter="url(#fSh)"><rect x="${off-46}" y="${VT-8}" width="${BW*4+92}" height="${BH+16}" rx="10" fill="url(#gCastV)" stroke="#5d5750" stroke-width="1.5"/></g>`;
-  s+=`<rect x="${off-46}" y="${VT-8}" width="${BW*4+92}" height="3" fill="#fff" opacity=".12"/>`;
-  for(let i=0;i<4;i++){const bx=off+i*BW, on=i===idx&&Math.abs(A.spool-idx)<.08;
+  if(sp>.4)for(let g=1;g<=2;g++)s+=`<rect x="${off+A.spoolV*g*7}" y="${VT}" width="${bw}" height="${BH}" rx="4" fill="none" stroke="${TEXT}" stroke-width="2" opacity="${Math.min(.25,sp*.05)/g}"/>`;
+  s+=`<g filter="url(#fSh)"><rect x="${off-82}" y="${VT-8}" width="${bw+164}" height="${BH+16}" rx="10" fill="url(#gCastV)" stroke="#5d5750" stroke-width="1.5"/></g>`;
+  s+=`<rect x="${off-82}" y="${VT-8}" width="${bw+164}" height="3" fill="#fff" opacity=".12"/>`;
+  for(let i=0;i<n;i++){const bx=off+i*BW, on=i===idx&&Math.abs(A.spool-idx)<.08;
     s+=`<rect x="${bx}" y="${VT}" width="${BW}" height="${BH}" fill="#211f1c" stroke="${on?ACC:'#8a8278'}" stroke-width="${on?3.5:2}"/>`+valveBox(i,bx);
-    s+=`<text x="${bx+BW/2}" y="${VB+44}" text-anchor="middle" font-size="15" font-weight="800" letter-spacing="1" fill="${on?ACC:MUTED}" stroke="#1F1D1A" stroke-width="5" paint-order="stroke">${['REGEN','EXTEND','CENTRE','RETRACT'][i]}</text>`;}
-  // solenoids + centring springs ride with the spool body
-  const litL=A.spool<1.6, litR=A.spool>2.4, lx=off-44, rx=off+BW*4+4;
-  const sol=(x,lit)=>`<rect x="${x}" y="${VY-22}" width="40" height="44" rx="4" fill="${lit?'#4a3420':'#2b2825'}" stroke="${lit?ACC:'#6b645c'}" stroke-width="2"/>
+    s+=`<text x="${bx+BW/2}" y="${VB+42}" text-anchor="middle" font-size="15" font-weight="800" letter-spacing="1" fill="${on?ACC:MUTED}" stroke="#1F1D1A" stroke-width="5" paint-order="stroke">${BOX_NAME[MODES[i]]}</text>`;}
+  // centring springs (zig-zag) and solenoids ride with the spool body.
+  // The spring on the side being pushed squeezes up as the spool moves away from centre.
+  const sh=A.spool-1;                                            // −1 extend … 0 centre … +1 retract
+  const zig=(x0,x1,y)=>{let p=`M${x0} ${y}`;const k=6;for(let j=1;j<=k;j++)p+=` L${x0+(x1-x0)*j/k} ${y+(j===k?0:(j%2?-12:12))}`;
+    return `<path d="${p}" stroke="${TEXT}" stroke-width="2.5" fill="none"/>`;};
+  const lw=36*(1-.35*Math.max(0,-sh)), rw=36*(1-.35*Math.max(0,sh));
+  s+=zig(off-2-lw,off-2,VY)+zig(off+bw+2,off+bw+2+rw,VY);
+  const litL=A.spool<.6, litR=A.spool>1.4, lx=off-80, rx=off+bw+40;
+  const sol=(x,lit,tag)=>`<rect x="${x}" y="${VY-22}" width="40" height="44" rx="4" fill="${lit?'#4a3420':'#2b2825'}" stroke="${lit?ACC:'#6b645c'}" stroke-width="2"/>
     <line x1="${x+6}" y1="${VY+16}" x2="${x+34}" y2="${VY-16}" stroke="${lit?ACC:'#8a8278'}" stroke-width="3"/>
+    <text x="${x+20}" y="${VY+40}" text-anchor="middle" font-size="12" font-weight="800" fill="${lit?ACC:MUTED}">${tag}</text>
     ${lit?`<rect x="${x-3}" y="${VY-25}" width="46" height="50" rx="6" fill="none" stroke="${ACC}" stroke-width="2" opacity="${.35+.25*Math.sin(T/120)}"/>`:''}`;
-  s+=sol(lx,litL)+sol(rx,litR);
+  s+=sol(lx,litL,'SOL A')+sol(rx,litR,'SOL B');
   s+=`</g>`;
-  // springs from the fixed frame to the moving body (compress / stretch as the spool shifts)
-  const frameL=VX-BW/2-2*BW-60, frameR=VX+BW/2+2*BW+60;   // where body ends sit when centred (springs relaxed)
+  const pl=(x,y,t,anc)=>`<text x="${x}" y="${y}"${anc?` text-anchor="${anc}"`:''} font-size="19" font-weight="800" fill="${TEXT}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">${t}</text>`;
   return s+`<g id="valve-ports">${fitting(PA,VT-16,9)}${fitting(PB,VT-16,9)}${fitting(PA,VB+16,9)}${fitting(PB,VB+16,9)}
-    <text x="${PA-16}" y="${VT-26}" text-anchor="end" font-size="17" font-weight="800" fill="${MUTED}">A</text><text x="${PB+16}" y="${VT-26}" font-size="17" font-weight="800" fill="${MUTED}">B</text>
-    <text x="${PA-14}" y="${VB+22}" text-anchor="end" font-size="17" font-weight="800" fill="${MUTED}">P</text><text x="${PB+14}" y="${VB+22}" font-size="17" font-weight="800" fill="${MUTED}">T</text></g>`;
+    ${pl(PA-16,VT-22,'A','end')}${pl(PB+16,VT-22,'B')}${pl(PA-16,VB+24,'P','end')}${pl(PB+16,VB+24,'T')}</g>`;
 }
 
 function drawCylinder(c,L){
@@ -523,7 +531,7 @@ function drawTank(c){
   const tx=x1-34, tH=36, lvl=4+28*hc;
   s+=`<rect x="${tx-4}" y="${y0-2}" width="8" height="${tH}" rx="4" fill="#111" stroke="#8a8278"/><rect x="${tx-2}" y="${y0-2+tH-lvl}" width="4" height="${lvl}" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>
     <circle cx="${tx}" cy="${y0+tH}" r="6" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>`;
-  if(hc>.05)for(let i=0;i<4;i++){const hx=618+i*22, ph=(T/1400+i*.27)%1;
+  if(hc>.05)for(let i=0;i<4;i++){const hx=118+i*22, ph=(T/1400+i*.27)%1;
     s+=`<path d="M${hx} ${y0-10-ph*60} q 6 -10 0 -20 q -6 -10 0 -20" stroke="${BAD}" stroke-width="2.5" fill="none" opacity="${hc*(1-ph)*.8}"/>`;}
   return s+`</g>`;
 }
@@ -535,10 +543,9 @@ function lineState(c){
   if(S.mode==='neutral'){L.T={q:Q,p:0};}
   else if(c.moving){
     if(S.mode==='extend'){L.A={q:c.qin,p:c.Pwork};L.B={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
-    else if(S.mode==='retract'){L.B={q:c.qin,p:c.Pwork};L.A={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
-    else {L.A={q:c.qin,p:c.Pwork};L.B={q:-c.qout,p:c.Pwork};}
+    else {L.B={q:c.qin,p:c.Pwork};L.A={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
   } else if(c.stall){                                    // stalled: pressure side dead-headed at relief, no flow
-    if(S.mode==='extend'){L.A.p=c.Pwork;} else if(S.mode==='retract'){L.B.p=c.Pwork;} else {L.A.p=L.B.p=c.Pwork;}
+    if(S.mode==='extend')L.A.p=c.Pwork; else L.B.p=c.Pwork;
   }
   return L;
 }
@@ -575,7 +582,7 @@ function vmForce(c,x0,y0,w,h){
   o+=tx(x0+14,y0+27,`${tsp(COL.F,'F')} = ${tsp(pc,'P')} × ${tsp(COL.A,'A')}`,21,TEXT,800,'start',MONO);
   o+=tx(x0+w-14,y0+25,'force = pressure × area',12,MUTED,700,'end');
   const sub=m==='extend'?'Cap end: oil pushes on the whole piston face':m==='retract'?`Grey = under the rod (${fA(c.Ar)} ${u.A}): no push`:
-    m==='regen'?'Grey cancels out: same pressure both sides':'Valve centred: no pressure, so no push';
+    'Valve centred: no pressure, so no push';
   o+=tx(x0+14,y0+48,sub,13,MUTED,600);
   // grid: pick the column count that gives the biggest squares
   const gx=x0+14, gy=y0+58, gw=w-28, gh=106, N=Math.max(1,Math.ceil(ncap-1e-9));
@@ -594,7 +601,7 @@ function vmForce(c,x0,y0,w,h){
     out+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(side*span).toFixed(1)}" height="${side.toFixed(1)}" fill="none" stroke="${COL.A}" stroke-width="1.4"/>`;
     if(showN&&aS>=.8)lab+=`<text x="${(x+wA/2).toFixed(1)}" y="${(y+side/2+fs*.36).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="800" fill="#141414">${fP(Pd)}</text>`;
   }
-  const idA=m==='retract'?'area-ann':m==='regen'?'area-rod':'vm-push', idI=m==='retract'?'area-rod':'area-ann';
+  const idA=m==='retract'?'area-ann':'vm-push', idI=m==='retract'?'area-rod':'area-ann';
   o+=`<g id="${idA}">${act}</g><g id="${idI}">${ina}</g><g id="area-cap">${out}</g>${lab}`;
   // count line: A as whole squares + a part
   const whole=Math.floor(c.Aact/s+1e-9), frac=c.Aact/s-whole, fd=i?3:(s===1?2:3);
@@ -637,7 +644,7 @@ function vmForce(c,x0,y0,w,h){
 function vmSpeed(c,x0,y0,w,h){
   const u=U(), i=imp(), m=S.mode;
   const Vs=i?231*c.Q/60:c.Q*1000/60, Va=c.active?c.Aact:c.Acap, len=Vs/Va;     // in³ | cm³ per second;  in | cm per second
-  const vmx=Math.max(c.vext,c.vret,c.vregen), Lv=niceUp(vmx*1.08);             // one drawing scale for all three modes
+  const vmx=Math.max(c.vext,c.vret), Lv=niceUp(vmx*1.08);                       // one drawing scale for extend and retract
   const bx0=x0+82, lw=w-96, px=lw/Lv, Hb=40, hr=Hb*c.Ar/c.Acap;
   const ph=c.moving?Math.min(1,(T%1900)/1000):0;                                 // 1 s fill, short pause, repeat (virtual clock)
   const slugCap=c.vext*px, slug=c.moving?c.v*px:0;
@@ -654,14 +661,12 @@ function vmSpeed(c,x0,y0,w,h){
   o+=`<rect id="vm-oil"x="${(bx0+slugCap-rem).toFixed(1)}" y="${y1}" width="${Math.max(0,rem).toFixed(1)}" height="${Hb}" fill="${COL.Q}" opacity="${c.moving?.55:.3}" stroke="${COL.Q}" stroke-width="1.5"/>`;
   if(c.stall)o+=tx(Math.min(bx0+slugCap+6,bx0+lw-90),y1+25,'→ over relief',12,BAD,800);
   // row 2: the active area (height ∝ area); oil fills, piston moves
-  const y2=y0+98, nm=m==='retract'?'Rod end':m==='regen'?'Rod area':'Cap end';
+  const y2=y0+98, nm=m==='retract'?'Rod end':'Cap end';
   o+=tx(x0+14,y2+16,nm,12,COL.A,800)+tx(x0+14,y2+32,`${fA(Va)} ${u.A}`,12,COL.A,700);
   o+=`<rect x="${bx0}" y="${y2}" width="${lw}" height="${Hb}" fill="#141210" stroke="${COL.A}" stroke-width="1.5"/>`;
   const fill=slug*ph, band=(yy,hh,op)=>fill>.3?`<rect x="${bx0}" y="${yy.toFixed(1)}" width="${fill.toFixed(1)}" height="${hh.toFixed(1)}" fill="${COL.Q}" opacity="${op}"/>`:'';
   const yT=y2+(Hb-hr)/2, yB=y2+(Hb+hr)/2;
   if(m==='retract')o+=band(y2,(Hb-hr)/2,.6)+band(yB,(Hb-hr)/2,.6)+`<rect x="${bx0}" y="${yT.toFixed(1)}" width="${lw}" height="${hr.toFixed(1)}" fill="#8d99a2" opacity=".55"/>`;
-  else if(m==='regen')o+=band(y2,(Hb-hr)/2,.18)+band(yB,(Hb-hr)/2,.18)+band(yT,hr,.75)
-    +`<line x1="${bx0}" y1="${yT.toFixed(1)}" x2="${bx0+lw}" y2="${yT.toFixed(1)}" stroke="${COL.A}" stroke-dasharray="3 3"/><line x1="${bx0}" y1="${yB.toFixed(1)}" x2="${bx0+lw}" y2="${yB.toFixed(1)}" stroke="${COL.A}" stroke-dasharray="3 3"/>`;
   else o+=band(y2,Hb,.6);
   o+=`<rect id="vm-piston" x="${(bx0+fill).toFixed(1)}" y="${y2-3}" width="5" height="${Hb+6}" fill="#cdd6dc" stroke="#5a646c" stroke-width="1"/>`;
   // dimension: distance pushed in one second
@@ -716,16 +721,16 @@ function vmPower(c,x0,y0,w,h){
 }
 
 function trapCard(c){
-  const x0=975,y0=658,w=315,h=232,u=U();
+  const x0=662,y0=298,w=306,h=124,u=U();      // sits in the gap between the load track and the valve
   let s=`<g id="trap-card"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="10" fill="#24211E" stroke="${ACC}" stroke-width="2.5"/>`;
-  const t=(y,txt,col=TEXT,sz=15,wt=700)=>`<text x="${x0+14}" y="${y0+y}" font-size="${sz}" font-weight="${wt}" fill="${col}">${txt}</text>`;
-  s+=t(26,'COMMON EXAM TRAP',ACC,15,800);
+  const t=(y,txt,col=TEXT,sz=13.5,wt=700)=>`<text x="${x0+12}" y="${y0+y}" font-size="${sz}" font-weight="${wt}" fill="${col}">${txt}</text>`;
+  s+=t(21,'COMMON EXAM TRAP',ACC,14,800);
   let lines;
-  if(S.mode==='extend')lines=[['Forgot the ÷ 4 in the area:',TEXT],[`π × ${fLen(c.D)}² = ${fA(c.trapExt)} ${u.A}  ✗`,BAD],[`→ force 4 × too high`,BAD],['Correct: A = π × D² ÷ 4',TEXT],[`= ${fA(c.Acap)} ${u.A}  ✓`,OK],[`Max push ${fF(c.Fext)} ${u.F}  ✓`,OK]];
-  else if(S.mode==='retract')lines=[['Retract force with the CAP area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Acap)} = ${fF(c.trapRet)} ${u.F} ✗`,BAD],['Use the ROD-END (annulus) area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Aann)} = ${fF(c.Fret)} ${u.F} ✓`,OK],[`Speed is FASTER: ${fV(c.vret)} ${u.V}`,OK],[`(not ${fV(c.trapRetV)} ${u.V})`,MUTED]];
-  else if(S.mode==='regen')lines=[['Regen force with the CAP area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Acap)} = ${fF(c.Fext)} ${u.F} ✗`,BAD],['Regen pushes on the ROD area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Ar)} = ${fF(c.Fregen)} ${u.F} ✓`,OK],[`Speed: Q ÷ A_rod = ${fV(c.vregen)} ${u.V}`,OK],['Faster, but much less force.',MUTED]];
-  else lines=[['"Return flow = pump flow"  ✗',BAD],['On retract, oil out of the cap',TEXT],['end = Q × A_cap ÷ A_rod-end',TEXT],[`= ${fQ(c.Q)} × ${nf(c.ratio,2)} = ${fQ(c.Q*c.ratio)} ${u.Q}  ✓`,OK],['Size the return line and filter',MUTED],['for the bigger flow.',MUTED]];
-  lines.forEach((q,i)=>{s+=t(56+i*29,q[0],q[1],15,q[1]===MUTED?600:800);});
+  if(S.mode==='extend')lines=[['Forgot the ÷ 4 in the area:',TEXT],[`π × ${fLen(c.D)}² = ${fA(c.trapExt)} ${u.A} ✗ (4 × too big)`,BAD],['Correct: A = π × D² ÷ 4',TEXT],[`= ${fA(c.Acap)} ${u.A} ✓ · max push ${fF(c.Fext)} ${u.F}`,OK]];
+  else if(S.mode==='retract')lines=[['Retract force with the CAP area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Acap)} = ${fF(c.trapRet)} ${u.F} ✗`,BAD],['Use the ROD-END (annulus) area:',TEXT],[`${fP(c.Prel)} × ${fA(c.Aann)} = ${fF(c.Fret)} ${u.F} ✓`,OK],[`FASTER too: ${fV(c.vret)} ${u.V}, not ${fV(c.trapRetV)}`,OK]];
+  else lines=[['"Return flow = pump flow" ✗',BAD],['On retract, oil out of the cap end',TEXT],[`= Q × ratio = ${fQ(c.Q)} × ${nf(c.ratio,2)} = ${fQ(c.Q*c.ratio)} ${u.Q} ✓`,OK],['Size the return line and filter for it.',MUTED]];
+  const gap=lines.length>4?18.5:22;
+  lines.forEach((q,i)=>{s+=t(41+i*gap,q[0],q[1],13.5,q[1]===MUTED?600:800);});
   return s+`</g>`;
 }
 
@@ -739,22 +744,22 @@ function draw(c){
   const fl=st=>Math.abs(st.q)>1e-9;
   // pipes (drawn in the + flow direction)
   s+=pipe('suction',`M${PU.x} ${TK.y0+4} L${PU.x} ${PU.y+PU.r}`,col(L.suction),fl(L.suction));
-  s+=pipe('p1',`M${PU.x} ${PU.y-PU.r} L${PU.x} 712`,col(L.p1),fl(L.p1));
-  s+=pipe('p2',`M${PU.x} 712 L${PU.x} ${VB+16}`,col(L.p2),fl(L.p2));
+  s+=pipe('p1',`M${PU.x} ${PU.y-PU.r} L${PU.x} ${YREL}`,col(L.p1),fl(L.p1));
+  s+=pipe('p2',`M${PU.x} ${YREL} L${PU.x} ${VB+16}`,col(L.p2),fl(L.p2));
   s+=pipe('gauge',`M${PU.x} ${GA.y} L${GA.x+GA.R+6} ${GA.y}`,col(L.gauge),false);
-  s+=pipe('rel',`M${PU.x} 712 L${RV.x} 712 L${RV.x} ${RV.y-40}`,col(L.rel),fl(L.rel));
+  s+=pipe('rel',`M${PU.x} ${YREL} L${RV.x} ${YREL} L${RV.x} ${RV.y-40}`,col(L.rel),fl(L.rel));
   s+=pipe('relout',`M${RV.x} ${RV.y+40} L${RV.x} ${TK.y0+4}`,col(L.relout),fl(L.relout));
-  s+=pipe('A',`M${PA} ${VT-16} L${PA} 350 L240 350 L240 ${yb}`,col(L.A),fl(L.A));
-  s+=pipe('B',`M${PB} ${VT-16} L${PB} 380 L615 380 L615 ${yb}`,col(L.B),fl(L.B));
+  s+=pipe('A',`M${PA} ${VT-16} L${PA} ${YAB} L240 ${YAB} L240 ${yb}`,col(L.A),fl(L.A));
+  s+=pipe('B',`M${PB} ${VT-16} L${PB} ${yb}`,col(L.B),fl(L.B));                 // straight up to the rod-end port
   s+=pipe('T',`M${PB} ${VB+16} L${PB} ${TK.y0+4}`,col(L.T),fl(L.T));
-  s+=fitting(PU.x,712,8)+fitting(PU.x,GA.y,8);
+  s+=fitting(PU.x,YREL,8)+fitting(PU.x,GA.y,8);
   s+=drawTank(c)+drawPump(c)+drawRelief(c)+drawGauge(c)+drawValve(c)+cyl.s;
   // relief burst particles
   A.parts.forEach(p=>{s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(2.5+2*p.life).toFixed(1)}" fill="${BAD}" opacity="${(p.life*.9).toFixed(2)}"/>`;});
   // flow labels next to cylinder lines (show the differential flow)
-  if(c.moving){s+=`<text x="252" y="342" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
-    <text x="627" y="372" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
-  s+=`<text x="${PU.x-14}" y="700" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.p1)}">${fQ(c.Q)} ${U().Q}</text>`;
+  if(c.moving){s+=`<text x="254" y="${YAB-12}" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
+    <text x="${PB-14}" y="${YAB-14}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
+  s+=`<text x="${PU.x-14}" y="${YREL+38}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.p1)}">${fQ(c.Q)} ${U().Q}</text>`;
   // banner
   if(c.stall){const fl2=.82+.18*Math.sin(T/140);
     s+=`<g id="stall-banner"><rect x="20" y="14" width="${VW-40}" height="62" rx="10" fill="${BAD}" opacity="${fl2.toFixed(3)}"/>
@@ -765,8 +770,9 @@ function draw(c){
     s+=`</g>`;}
   // visual maths: beside the circuit on wide screens, in its own panel (below the formula bar) on phones
   const vm=$('vmsvg');
-  if(!narrow){s+=vmForce(c,975,318,315,330)+(S.trap?trapCard(c):vmSpeed(c,975,658,315,232))+vmPower(c,712,640,253,250);if(vm.innerHTML)vm.innerHTML='';}
-  else {if(S.trap)s+=trapCard(c);vm.innerHTML=vmForce(c,8,6,314,330)+vmSpeed(c,8,346,314,232)+vmPower(c,8,588,314,250);}
+  if(S.trap)s+=trapCard(c);
+  if(!narrow){s+=vmForce(c,975,318,315,330)+vmSpeed(c,975,658,315,232)+vmPower(c,712,640,253,250);if(vm.innerHTML)vm.innerHTML='';}
+  else {vm.innerHTML=vmForce(c,8,6,314,330)+vmSpeed(c,8,346,314,232)+vmPower(c,8,588,314,250);}
   $('dyn').innerHTML=s;
 }
 
@@ -777,11 +783,10 @@ function mathSteps(c){
   const Q=fQ(c.Q);
   if(S.mode==='neutral'){
     return [['Valve centred (tandem centre)','P → T open, A and B blocked.'],['Pump','Flow returns to tank at ≈ 0 '+u.P+'. Power ≈ 0: no heat.'],
-      ['Cylinder','Oil trapped in both ends: the rod is held where it stopped.'],['Next','Pick Extend, Retract or Regen to see the working.']];
+      ['Cylinder','Oil trapped in both ends: the rod is held where it stopped.'],['Next','Pick Extend or Retract to see the working.']];
   }
   const nm=S.mode==='extend'?['Cap area (orange squares)','A = π × D² ÷ 4',`π × ${fLen(c.D)}² ÷ 4${i?'':' ÷ 100'}`]:
-    S.mode==='retract'?['Rod-end (annulus) area','A = π × (D² − d²) ÷ 4',`π × (${fLen(c.D)}² − ${fLen(c.d)}²) ÷ 4${i?'':' ÷ 100'}`]:
-    ['Rod area (regen)','A = π × d² ÷ 4',`π × ${fLen(c.d)}² ÷ 4${i?'':' ÷ 100'}`];
+    ['Rod-end (annulus) area','A = π × (D² − d²) ÷ 4',`π × (${fLen(c.D)}² − ${fLen(c.d)}²) ÷ 4${i?'':' ÷ 100'}`];
   st.push([nm[0],`${Ac('A')} = ${nm[1].slice(4)} = ${nm[2]} = ${Ac(fA(c.Aact)+' '+u.A)}`]);
   st.push(['Pressure the load needs',i?`${P('P')} = ${Fc('F')} ÷ ${Ac('A')} = ${Fc(fF(c.F))} ÷ ${Ac(fA(c.Aact))} = ${P(Pf(c.Pneed)+' psi')}`:`${P('P')} = ${Fc('F')} × 100 ÷ ${Ac('A')} = ${Fc(fF(c.F))} × 100 ÷ ${Ac(fA(c.Aact))} = ${P(Pf(c.Pneed)+' bar')}`]);
   st.push(['Compare with relief',c.stall?`${P(Pf(c.Pneed))} &gt; ${Pf(c.Prel)} ${u.P} → ${hsp(BAD,'STALL')}: rod stops, all ${Qc(Q+' '+u.Q)} goes over the relief`:
@@ -789,7 +794,6 @@ function mathSteps(c){
   if(c.stall)st.push(['Speed',`No oil reaches the cylinder: ${Vc('v')} = 0`]);
   else st.push(['Speed',i?`${Vc('v')} = 231 × ${Qc('Q')} ÷ ${Ac('A')} = 231 × ${Qc(Q)} ÷ ${Ac(fA(c.Aact))} = ${fV2(c.v2)} in/min ÷ 60 = ${Vc(fV(c.v)+' in/s')}`:
     `${Vc('v')} = 10 × ${Qc('Q')} ÷ ${Ac('A')} = 10 × ${Qc(Q)} ÷ ${Ac(fA(c.Aact))} = ${fV2(c.v2)} m/min = ${Vc(fV(c.v)+' mm/s')}`]);
-  if(S.mode==='regen'&&!c.stall)st.push(['Regen flow',`Into cap end = ${Qc('Q')} × A_cap ÷ A_rod = ${Qc(Q)} × ${fA(c.Acap)} ÷ ${Ac(fA(c.Ar))} = ${Qc(fQ(c.qin)+' '+u.Q)} (pump ${Q} + rod end ${fQ(c.qout)})`]);
   if(!c.stall)st.push(['Stroke time',`t = ${fLen(S.stroke)} ${u.L} ÷ ${Vc(fV(c.v)+' '+u.V)} = <em>${fT(c.time)}</em>`]);
   st.push([c.stall?'Heat over relief':'Hydraulic power',`${i?'HP':'kW'} = ${P('P')} × ${Qc('Q')} ÷ ${u.K} = ${P(Pf(c.Pwork))} × ${Qc(Q)} ÷ ${u.K} = <em>${fW(c.power)} ${u.W}</em>${c.stall?' → all heat':''}`]);
   st.push(['Most force at relief',i?`${Fc('F')} = ${Pf(c.Prel)} × ${Ac(fA(c.Aact))} = ${Fc(fF(c.Fmax)+' lbf')}`:`${Fc('F')} = ${Pf(c.Prel)} × ${Ac(fA(c.Aact))} ÷ 100 = ${Fc(fF(c.Fmax)+' kN')}`]);
@@ -827,10 +831,6 @@ const CH=[
    check:c=>S.mode!=='extend'?'Put the valve in Extend.':c.stall?true:`Load needs ${fP(c.Pneed)} ${U().P}. It must need more than the relief setting (${fP(c.Prel)}).`,
    hint:{imp:c=>`Load needed to stall = relief × cap area = ${fP(c.Prel)} × ${fA(c.Acap)} = ${fF(c.Fext)} lbf. Go above that.`,met:c=>`Load needed to stall = relief × cap area ÷ 100 = ${fP(c.Prel)} × ${fA(c.Acap)} ÷ 100 = ${fF(c.Fext)} kN. Go above that.`},
    win:'Stalled: every drop of pump flow crosses the relief valve. All that power becomes heat.'},
-  {title:'Build a 2:1 cylinder',text:{imp:'Pick a bore and rod so REGEN extend speed equals normal RETRACT speed (within 5 %).',met:'Pick a bore and rod so REGEN extend speed equals normal RETRACT speed (within 5 %).'},
-   check:c=>{const r=c.vregen/c.vret; return Math.abs(r-1)<=.05?true:`Regen ÷ retract speed = ${nf(r,2)}. ${r>1?'Bigger rod.':'Smaller rod.'}`;},
-   hint:{imp:'Equal when rod area = half the cap area: d = D ÷ √2 ≈ 0.707 × D. Try a 3 in bore with a 2-1/8 in rod.',met:'Equal when rod area = half the cap area: d = D ÷ √2 ≈ 0.707 × D. Try 100 mm bore with a 71 mm rod.'},
-   win:'With a 2:1 area ratio, regen extend and retract match in speed AND force.'},
   {title:'Retract pull',text:{imp:'3 in bore, 1.5 in rod. Set the LOWEST relief setting that can still pull 10,000 lbf on RETRACT.',met:'80 mm bore, 40 mm rod. Set the LOWEST relief setting that can still pull 45 kN on RETRACT.'},
    check:c=>{const t=imp()?{D:3,d:1.5,F:10000}:{D:80,d:40,F:45};
      if(Math.abs(S.bore-t.D)>t.D*.01||Math.abs(S.rod-t.d)>t.d*.01)return `Set bore ${nf(t.D,imp()?1:0)} ${U().L} and rod ${nf(t.d,imp()?1:0)} ${U().L}.`;
@@ -871,6 +871,7 @@ function renderChallenges(){
 
 /* ---------- predict, then reveal ---------- */
 function predict(to,ans={}){
+  to=modeOf(to);
   if(to===S.mode||to==='neutral'||S.mode==='neutral'){set({mode:to});return;}
   PRED.phase='ask';PRED.from=S.mode;PRED.to=to;PRED.ans={speed:ans.speed||null,force:ans.force||null};PRED.age=0;
   if(!CAPTURE)frame(0);
@@ -919,14 +920,14 @@ function panel(c){
   const u=U();
   const set=(id,v,na)=>{const e=$(id);if(e.textContent!==v)e.textContent=v;e.parentElement.classList.toggle('na',!!na)};
   set('ro-acap',`${fA(c.Acap)} ${u.A}`);set('ro-aann',`${fA(c.Aann)} ${u.A}`);set('ro-arod',`${fA(c.Ar)} ${u.A}`);
-  set('ro-fext',`${fF(c.Fext)} ${u.F}`);set('ro-fret',`${fF(c.Fret)} ${u.F}`);set('ro-fregen',`${fF(c.Fregen)} ${u.F}`);
-  set('ro-vext',`${fV(c.vext)} ${u.V}`);set('ro-vret',`${fV(c.vret)} ${u.V}`);set('ro-vregen',`${fV(c.vregen)} ${u.V}`);
-  $('ro-vext2').textContent=`${fV2(c.vext2)} ${u.V2}`;$('ro-vret2').textContent=`${fV2(c.vret2)} ${u.V2}`;$('ro-vregen2').textContent=`${fV2(c.vregen2)} ${u.V2}`;
+  set('ro-fext',`${fF(c.Fext)} ${u.F}`);set('ro-fret',`${fF(c.Fret)} ${u.F}`);
+  set('ro-vext',`${fV(c.vext)} ${u.V}`);set('ro-vret',`${fV(c.vret)} ${u.V}`);
+  $('ro-vext2').textContent=`${fV2(c.vext2)} ${u.V2}`;$('ro-vret2').textContent=`${fV2(c.vret2)} ${u.V2}`;
   set('ro-pwork',`${fP(c.Pwork)} ${u.P}`);set('ro-pneed',c.active?`${fP(c.Pneed)} ${u.P}`:'—',!c.active);
   set('ro-ratio',`${nf(c.ratio,2)} : 1`);set('ro-power',`${fW(c.power)} ${u.W}`);set('ro-heat',`${fW(c.heat)} ${u.W}`,!c.stall);
   set('ro-qin',`${fQ(c.qin)} ${u.Q}`,!c.moving);set('ro-qout',`${fQ(c.qout)} ${u.Q}`,!c.moving);set('ro-time',fT(c.time),!c.moving);
-  const act={extend:['ro-fext','ro-vext','ro-acap'],retract:['ro-fret','ro-vret','ro-aann'],regen:['ro-fregen','ro-vregen','ro-arod'],neutral:[]}[S.mode];
-  ['ro-fext','ro-vext','ro-acap','ro-fret','ro-vret','ro-aann','ro-fregen','ro-vregen','ro-arod'].forEach(id=>$(id+'-box').classList.toggle('act',act.includes(id)));
+  const act={extend:['ro-fext','ro-vext','ro-acap'],retract:['ro-fret','ro-vret','ro-aann'],neutral:[]}[S.mode];
+  ['ro-fext','ro-vext','ro-acap','ro-fret','ro-vret','ro-aann'].forEach(id=>$(id+'-box').classList.toggle('act',act.includes(id)));
   $('ro-heat-box').style.borderColor=c.stall?BAD:'';
   $('ro-util').textContent=c.active?Math.round(c.util*100)+' %':'—';
   const uf=$('utilfill'); uf.style.width=Math.min(100,c.util*100)+'%'; uf.style.background=levelCol(c.level);
@@ -1033,6 +1034,7 @@ function set(p,dur=0){
     S.units=p.units; delete p.units;
   }
   const snap=p.snap; delete p.snap;
+  if('mode' in p)p.mode=MODES.includes(modeOf(p.mode))?modeOf(p.mode):S.mode;   // 'regen' (removed) → extend; unknown → ignored
   if('pos' in p){A.pos=clamp(+p.pos,0,1);A.hold=0;A.ret=0;delete p.pos;}
   if('challenge' in p&&p.challenge!==S.challenge){CHS.fb=null;}
   for(const [k,v] of Object.entries(p)){
