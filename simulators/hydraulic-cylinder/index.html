@@ -25,8 +25,11 @@
     bore      piston bore D  (in | mm)        rod     rod diameter d (in | mm), limited to 80 % of bore
     stroke    stroke length (in | mm)         flow    pump flow Q (gpm | L/min)
     relief    relief valve setting (psi | bar) load   load force opposing the rod's motion (lbf | kN)
-    loop      true → rod loops its stroke; false → stops at end of stroke
-    pos       rod position 0 (retracted) … 1 (extended), snaps the rod
+    pos       rod position as a fraction of stroke: 0 (fully retracted) … 1 (fully extended). Persists; snaps when set.
+    rodOut    rod position in length units (in | mm out from fully retracted); sets pos = rodOut ÷ stroke.
+              (`rod` stays the rod DIAMETER.) sim.get() returns both pos and rodOut.
+              The rod moves only while the valve is shifted and the relief is shut; it stops at either end of stroke
+              (dead-end: relief opens) and stays put in centre. 'loop' (removed 2026-11-07) is ignored.
     trap      true → show the common exam trap for the current mode beside the correct result
     predict   true → mode buttons ask for a prediction before switching (live use)
     tab       'readouts' | 'maths' | 'challenges'     challenge  index of the active challenge (0-4)
@@ -206,8 +209,8 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
       <div class="ctl"><label><span><span class="tip" data-tip="Rod (d): piston rod diameter. Takes area away from the rod end (annulus), so retract force is lower and retract speed is higher.">Rod (d)</span><span class="note" id="rodnote"></span></span> <b id="l-rod"></b></label><input id="c-rod" type="range" aria-label="Rod diameter"></div>
       <div class="ctl"><label><span class="tip" data-tip="Stroke: how far the rod travels. Stroke time = stroke ÷ speed.">Stroke</span> <b id="l-stroke"></b></label><input id="c-stroke" type="range" aria-label="Stroke"></div>
       <div class="ctl"><label><span class="tip" data-tip="Pump flow (Q): sets SPEED. Pressure does not set speed.">Pump flow (Q)</span> <b id="l-flow"></b></label><input id="c-flow" type="range" aria-label="Pump flow"></div>
-      <div class="ctl"><label><span class="tip" data-tip="Relief valve setting: the highest pressure the system can make. If the load needs more, the relief opens and all pump flow goes to tank as heat.">Relief setting</span> <b id="l-relief"></b></label><input id="c-relief" type="range" aria-label="Relief setting"></div>
-      <div class="ctl"><label><span class="tip" data-tip="Load: force resisting the rod's motion. Working pressure rises until it can push the load: P = F ÷ A.">Load (opposes motion)</span> <b id="l-load"></b></label><input id="c-load" type="range" aria-label="Load"></div>
+      <div class="ctl"><label><span class="tip" data-tip="Relief valve setting: the highest pressure the system can make. At the end of stroke (dead-end), or if the load needs more, the relief opens and all pump flow goes to tank as heat.">Relief setting</span> <b id="l-relief"></b></label><input id="c-relief" type="range" aria-label="Relief setting"></div>
+      <div class="ctl"><label><span class="tip" data-tip="Sliding (friction) load: it resists the rod's motion in either direction, so pressure rises until it can drag the load: P = F ÷ A. When the rod is stopped it pushes back with nothing.">Sliding load (friction)</span> <b id="l-load"></b></label><input id="c-load" type="range" aria-label="Load"></div>
     </div>
     <div class="tabs" role="tablist" id="c-tab"><button role="tab" data-v="readouts">READOUTS</button><button role="tab" data-v="maths">SHOW THE MATHS</button><button role="tab" data-v="challenges">CHALLENGES</button></div>
     <div id="tabbody">
@@ -254,7 +257,7 @@ if(!CAPTURE)document.body.classList.add('live');
 const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',TEXT='#F5F5F4',BLUE='#59b7ff',IDLE='#6a635b';
 const IN=25.4, GAL=3.785411784, PSI_BAR=0.0689475729, LBF_KN=0.0044482216152605;   // imperial → metric
 const CONV={bore:IN,rod:IN,stroke:IN,flow:GAL,relief:PSI_BAR,load:LBF_KN};
-const S={units:'imp',mode:'extend',bore:4,rod:2,stroke:24,flow:10,relief:2000,load:15000,loop:true,trap:false,predict:!CAPTURE,tab:'readouts',challenge:0};
+const S={units:'imp',mode:'extend',bore:4,rod:2,stroke:24,flow:10,relief:2000,load:15000,pos:0,trap:false,predict:!CAPTURE,tab:'readouts',challenge:0};
 const NUMERIC=['bore','rod','stroke','flow','relief','load'];
 const RANGES={imp:{bore:[1,8,.25],rod:[.5,6,.125],stroke:[4,60,1],flow:[1,50,.5],relief:[500,5000,50],load:[0,250000,250]},
               met:{bore:[25,200,5],rod:[12,160,1],stroke:[100,1500,10],flow:[4,190,1],relief:[35,345,5],load:[0,1100,.5]}};
@@ -279,10 +282,18 @@ const rnd=(v,n)=>Math.round(v*10**n)/10**n;
      v [in/s]  = v [in/min] ÷ 60                v [mm/s] = v [m/min] × 1000 ÷ 60
      HP        = P [psi] × Q [gpm] ÷ 1714       kW       = P [bar] × Q [L/min] ÷ 600
    Active area: extend → A_cap · retract → A_ann. (A_r is shown because the rod covers it on retract.)
-   Load-induced pressure  P_need = F_load ÷ A_active.  Load always opposes the motion.
-   P_need > relief → STALL: rod stops, all pump flow crosses the relief valve, power = heat.
-   Working pressure = min(P_need, relief). Utilisation = P_need ÷ relief; > 85 % caution.
-   Neutral (tandem centre): P→T at ≈ 0 pressure, A and B blocked, cylinder held.
+   Load = sliding (friction) load: it resists motion in either direction and pushes 0 when the rod is stopped.
+   Rod position pos (0 … 1 of stroke) persists. Moving: P = P_need = F_load ÷ A_active.
+   DEAD-END: rod at the end of stroke in the direction the valve sends it → oil has nowhere to go, pressure rises
+     to the relief setting, the relief opens and ALL pump flow crosses it (v = 0, power = heat).
+     Force on the piston = relief × A_active (the cylinder end takes it).
+   STALL: mid-stroke but P_need > relief → same: P = relief, v = 0, all flow over relief, heat.
+   Pascal's law: the pressure is the same everywhere in the connected oil (pump outlet, valve P port, active
+     cylinder port and chamber); the return side (other chamber, return line, T) is open to tank ≈ 0 (ideal).
+   Utilisation = P_need ÷ relief (dead-end: 1); > 85 % caution.
+   Neutral (tandem centre): P→T at ≈ 0 pressure, A and B blocked, trapped oil holds the rod where it is.
+     A friction load pushes 0 at rest, so trapped pressure ≈ 0; if the load pushed the rod in, the cap-end oil
+     would rise to F ÷ A_cap and hold it (PtrapIf).
    Ignored: line/valve pressure drops, back-pressure, seal friction, leakage, oil compressibility.
    ===================================================================== */
 function calc(st=S){
@@ -301,10 +312,14 @@ function calc(st=S){
   c.active=mode!=='neutral';
   c.Aact=mode==='extend'?Acap:mode==='retract'?Aann:0;
   c.Pneed=c.active?presFor(F,c.Aact):0;
-  c.stall=c.active&&c.Pneed>Prel;
-  c.Pwork=c.active?Math.min(c.Pneed,Prel):0;
-  c.util=c.active?c.Pneed/Prel:0;
-  c.moving=c.active&&!c.stall;
+  c.pos=clamp(st.pos==null?0:+st.pos,0,1);
+  c.atEnd=mode==='extend'?c.pos>=1-1e-9:mode==='retract'?c.pos<=1e-9:false;   // rod already at the end it is being sent to
+  c.deadEnd=c.active&&c.atEnd;                                          // dead-ended: relief opens
+  c.stall=c.active&&!c.deadEnd&&c.Pneed>Prel;                           // mid-stroke, load needs more than relief
+  c.relOpen=c.deadEnd||c.stall;                                         // all pump flow over the relief
+  c.Pwork=!c.active?0:c.relOpen?Prel:c.Pneed;
+  c.util=!c.active?0:c.deadEnd?1:c.Pneed/Prel;
+  c.moving=c.active&&!c.relOpen;
   c.v=c.moving?spd(Q,c.Aact):0; c.v2=c.moving?spd2(Q,c.Aact):0;
   c.vFree=c.active?spd(Q,c.Aact):0;                                     // speed if not stalled (for predictions)
   c.Fmax=mode==='extend'?c.Fext:mode==='retract'?c.Fret:0;
@@ -314,11 +329,17 @@ function calc(st=S){
     if(mode==='extend'){c.qin=Q;c.qout=Q*Aann/Acap;}
     else {c.qin=Q;c.qout=Q*Acap/Aann;}                                  // retract: more oil leaves the cap end than the pump sends
   }
-  c.qRelief=c.stall?Q:0;
+  c.qRelief=c.relOpen?Q:0;
   c.power=power(c.Pwork,Q);
-  c.heat=c.stall?c.power:0;
+  c.heat=c.relOpen?c.power:0;
   c.time=c.moving?st.stroke/c.v:Infinity;
-  c.level=!c.active?'idle':c.stall?'bad':c.util>.85?'warn':'ok';
+  c.Fpist=c.moving?F:c.active?force(c.Pwork,c.Aact):0;                  // force the oil puts on the piston (P × A)
+  // Pascal's law: one pressure on the connected pressure path, ≈ 0 on the side open to tank
+  const pr=c.Pwork; c.tag={pump:pr,P:pr,A:0,cap:0,B:0,rod:0,T:0};
+  if(mode==='extend'){c.tag.A=pr;c.tag.cap=pr;} else if(mode==='retract'){c.tag.B=pr;c.tag.rod=pr;}
+  c.Ptrap=0;                                                            // centre: friction load pushes 0 at rest
+  c.PtrapIf=presFor(F,Acap);                                            // … if the load pushed the rod in instead
+  c.level=!c.active?'idle':c.stall?'bad':c.deadEnd?'dead':c.util>.85?'warn':'ok';
   // common exam traps (wrong working) for the trap card
   c.trapExt=imp?Math.PI*D*D:Math.PI*D*D/100;                           // forgot ÷ 4
   c.trapRet=force(Prel,Acap);                                           // cap area used for retract
@@ -335,15 +356,15 @@ const fA=v=>nf(v,imp()?3:2), fF=v=>nf(v,imp()?0:1), fP=v=>nf(v,imp()?0:1), fQ=v=
 const fV=v=>nf(v,imp()?2:1), fV2=v=>nf(v,imp()?1:2), fW=v=>nf(v,2);
 const fT=v=>isFinite(v)?nf(v,1)+' s':'—';
 const L=()=>U().L;
-const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:l==='idle'?BLUE:OK;
+const levelCol=l=>l==='bad'||l==='dead'?BAD:l==='warn'?WARN:l==='idle'?BLUE:OK;
 const presCol=(P,rel)=>P<=rel*.005?BLUE:P>=rel*.999?BAD:P>rel*.85?WARN:OK;
-const MODE_NAME={extend:'EXTEND',retract:'RETRACT',neutral:'NEUTRAL (TANDEM CENTRE)'};
+const MODE_NAME={extend:'EXTEND',retract:'RETRACT',neutral:'CENTRE (TANDEM)'};
 
 /* ---------- animation state (virtual clock only) ---------- */
 let T=0, tweens=[], callouts=[], seed=1;
 const rand=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};   // deterministic
-const A={pos:0,hold:0,ret:0,retFrom:0,slow:1,spool:1,spoolV:0,needle:0,needleV:0,rel:0,relV:0,heat:0,rot:0,roll:0,
-  off:{},parts:[],mathKey:'',mathAge:0,lastMode:S.mode,wasOpen:false,vmAct:0,vmBlk:1,vmUnits:S.units};
+const A={slow:1,spool:1,spoolV:0,needle:0,needleV:0,rel:0,relV:0,heat:0,rot:0,roll:0,
+  off:{},parts:[],mathKey:'',mathAge:0,wasOpen:false,vmAct:0,vmBlk:1,vmUnits:S.units};
 const PRED={phase:null,from:null,to:null,ans:{speed:null,force:null},age:0,res:null};
 
 /* ---------- drawing helpers ---------- */
@@ -361,17 +382,25 @@ function arrowHead(x1,y1,x2,y2,col,w=3){const a=Math.atan2(y2-y1,x2-x1),h=13;
   return `<line x1="${x1}" y1="${y1}" x2="${x2-Math.cos(a)*h*.7}" y2="${y2-Math.sin(a)*h*.7}" stroke="${col}" stroke-width="${w}"/>
   <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.4)},${y2-h*Math.sin(a-.4)} ${x2-h*Math.cos(a+.4)},${y2-h*Math.sin(a+.4)}" fill="${col}"/>`;}
 const blocked=(x,y,dir)=>`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+dir*16}" stroke="${TEXT}" stroke-width="3"/><line x1="${x-9}" y1="${y+dir*16}" x2="${x+9}" y2="${y+dir*16}" stroke="${TEXT}" stroke-width="3"/>`;
+// Pascal pressure tag: a pill on a line or in a chamber, filled with the pressure colour. ≈ 0 shows dark with blue text.
+function ptag(id,x,y,p,c,anc='middle'){
+  const z=!(p>c.Prel*.005), t=z?`≈ 0 ${U().P}`:`${fP(p)} ${U().P}`, w=Math.round(t.length*8.5+16);
+  const x0=anc==='middle'?x-w/2:anc==='end'?x-w:x, fill=z?'#1d2a36':presCol(p,c.Prel), tc=z?BLUE:p>=c.Prel*.999?'#fff':'#141414';
+  return {w,s:`<g id="${id}"><rect x="${x0.toFixed(1)}" y="${y-13}" width="${w}" height="26" rx="13" fill="${fill}" stroke="#141210" stroke-width="2.5"/>
+    <text x="${(x0+w/2).toFixed(1)}" y="${y+5.5}" text-anchor="middle" font-size="15" font-weight="800" fill="${tc}" font-family="SF Mono,Menlo,Consolas,monospace">${t}</text></g>`};
+}
 function spring(x,y,len,amp,n,vertical){let p=`M${x} ${y}`;for(let i=1;i<=n;i++){const t=i/n, o=(i%2?amp:-amp)*(i===n?0:1);
   p+=vertical?` L${x+o} ${y+len*t}`:` L${x+len*t} ${y+o}`;}return `<path d="${p}" stroke="${TEXT}" stroke-width="2.5" fill="none"/>`;}
 
-// Geometry (SVG units, viewBox 1300 × 900)
-// Valve port B sits straight under the cylinder's rod-end port (x 615), so line B is one straight run;
-// line A goes up, across to the cap-end port (x 240) and up. P and T drop straight down to the pump and tank.
-const VX=587, VY=480, BW=100, BH=96, VT=VY-BH/2, VB=VY+BH/2;   // valve: active envelope centred on VX
+// Geometry (SVG units, viewBox 1300 × 900). Simplified 2026-11-07:
+// the valve sits centred under the cylinder (x 425). A and B each go up, across and up to their ports (two bends each).
+// P drops straight down to the pump, T straight down to the tank. Pump, motor and relief sit in one row above the tank;
+// the gauge tees off the pump line. Every line is straight vertical or horizontal.
+const VX=425, VY=480, BW=100, BH=96, VT=VY-BH/2, VB=VY+BH/2;   // valve: active envelope centred on VX
 const PA=VX-28, PB=VX+28;                                     // port x positions: A/P left, B/T right
-const YAB=360, YREL=660;                                      // y of line A's cross run · y of the relief tee
+const YAB=360, YREL=722, YG=640;                              // y of the A/B cross runs · relief tee · gauge tee
 const CYL={x0:200,x1:650,cy:200,pMin:214,travel:376,rod:460};
-const GA={x:170,y:615,R:66}, RV={x:320,y:730}, PU={x:PA,y:775,r:34}, MO={x:445,y:775,r:30}, TK={x0:90,x1:700,y0:840,y1:885};
+const GA={x:210,y:YG,R:58}, RV={x:110,y:790}, PU={x:PA,y:800,r:30}, MO={x:282,y:800,r:26}, TK={x0:60,x1:700,y0:852,y1:893};
 const BOX_NAME={extend:'EXTEND',neutral:'CENTRE',retract:'RETRACT'};
 
 /* ISO 1219 style envelope symbols for a 4-way, 3-position valve (P, T at the bottom, A, B at the top) */
@@ -416,8 +445,8 @@ function drawValve(c){
 function drawCylinder(c,L){
   const {x0,x1,cy}=CYL, hb=34+40*clamp((c.Din-1)/7,0,1), rh=Math.max(6,hb*c.d/c.D);
   const shake=c.stall?Math.sin(T/23)*1.4:0;
-  const px=CYL.pMin+A.pos*CYL.travel+shake, rodEnd=px+24+CYL.rod;
-  const capCol=L.A.p>0?presCol(L.A.p,c.Prel):BLUE, rodCol=L.B.p>0?presCol(L.B.p,c.Prel):BLUE;
+  const px=CYL.pMin+S.pos*CYL.travel+shake, rodEnd=px+24+CYL.rod;
+  const capCol=c.tag.cap>0?presCol(c.tag.cap,c.Prel):BLUE, rodCol=c.tag.rod>0?presCol(c.tag.rod,c.Prel):BLUE;
   let s=`<g id="cylinder"><g filter="url(#fSh)">`;
   s+=`<rect x="${x0}" y="${cy-hb-12}" width="${x1-x0}" height="${2*hb+24}" rx="6" fill="url(#gSteel)"/>`;
   s+=`<rect x="${x0-14}" y="${cy-hb-22}" width="30" height="${2*hb+44}" rx="5" fill="url(#gCast)" stroke="#5d5750"/>`;
@@ -434,8 +463,7 @@ function drawCylinder(c,L){
     if(c.moving)s+=`<line x1="${x0+16}" y1="${y}" x2="${Math.max(x0+16,px-2)}" y2="${y}" stroke="#fff" stroke-width="1" opacity=".08"/><line x1="${px+26}" y1="${y}" x2="${x1-18}" y2="${y}" stroke="#fff" stroke-width="1" opacity=".08"/>`;}
   s+=`<rect x="${x0+14}" y="${cy-hb}" width="${x1-x0-30}" height="${2*hb}" fill="url(#gGlass)" opacity=".5"/>`;
   // rod (chrome, machining marks travel with it, glint stays with the light)
-  const ghost=A.ret>0?.55:1;
-  s+=`<g id="rod" opacity="${ghost}"><rect x="${px+24}" y="${cy-rh}" width="${rodEnd-px-24}" height="${2*rh}" fill="url(#gChrome)"/>`;
+  s+=`<g id="rod"><rect x="${px+24}" y="${cy-rh}" width="${rodEnd-px-24}" height="${2*rh}" fill="url(#gChrome)"/>`;
   for(let mx=px+60;mx<rodEnd-10;mx+=46)s+=`<line x1="${mx}" y1="${cy-rh+2}" x2="${mx}" y2="${cy+rh-2}" stroke="#fff" stroke-width="1" opacity=".1"/>`;
   s+=`<rect x="${Math.max(px+24,x1+20)}" y="${cy-rh*.62}" width="${Math.max(0,rodEnd-Math.max(px+24,x1+20)-6)}" height="${Math.max(1.5,rh*.16)}" fill="#fff" opacity=".55"/></g>`;
   // piston with seals
@@ -443,6 +471,11 @@ function drawCylinder(c,L){
     <rect x="${px+5}" y="${cy-hb}" width="4" height="${2*hb}" fill="#1b1b1b"/><rect x="${px+15}" y="${cy-hb}" width="4" height="${2*hb}" fill="#1b1b1b"/></g>`;
   // gland
   s+=`<rect x="${x1+14}" y="${cy-rh-8}" width="16" height="${2*rh+16}" rx="3" fill="url(#gBrass)"/>`;
+  // Pascal tags inside each chamber (hidden when the chamber is squeezed to nothing at the end of stroke)
+  const wCap=px-x0-14, wRod=x1-16-px-24;
+  const tc=ptag('tag-cap',0,0,c.tag.cap,c).w, tr=ptag('tag-rod',0,0,c.tag.rod,c).w;
+  if(wCap>tc+10)s+=ptag('tag-cap',x0+14+wCap/2,cy,c.tag.cap,c).s;
+  if(wRod>tr+10)s+=ptag('tag-rod',px+24+wRod/2,cy,c.tag.rod,c).s;
   // ports
   const yb=cy+hb+12;
   s+=fitting(240,yb+4,12)+fitting(615,yb+4,12)+`</g>`;
@@ -453,12 +486,13 @@ function drawCylinder(c,L){
   s+=`<rect x="${rodEnd-6}" y="${cy-16}" width="20" height="32" rx="4" fill="url(#gSteel)"/>`;
   s+=`<g filter="url(#fSh)"><rect id="load-box" x="${bx}" y="${by+shake*.5}" width="${bw}" height="${bh}" rx="6" fill="url(#gCast)" stroke="#6b645c" stroke-width="2"/></g>
     <rect x="${bx+4}" y="${by+4}" width="${bw-8}" height="4" fill="#fff" opacity=".12"/>
-    <text x="${bx+bw/2}" y="${by+50}" text-anchor="middle" font-size="22" font-weight="800" fill="${TEXT}" letter-spacing="2">LOAD</text>
-    <text x="${bx+bw/2}" y="${by+82}" text-anchor="middle" font-size="19" font-weight="800" fill="${ACC}">${fF(S.load)} ${U().F}</text>`;
+    <text x="${bx+bw/2}" y="${by+40}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}" letter-spacing="2">LOAD</text>
+    <text x="${bx+bw/2}" y="${by+60}" text-anchor="middle" font-size="12" font-weight="700" fill="${MUTED}">sliding (friction)</text>
+    <text x="${bx+bw/2}" y="${by+88}" text-anchor="middle" font-size="19" font-weight="800" fill="${ACC}">${fF(S.load)} ${U().F}</text>`;
   [bx+28,bx+bw-28].forEach(rx0=>{const ry=cy+71;s+=`<circle cx="${rx0}" cy="${ry}" r="11" fill="#3a3632" stroke="#8a8278" stroke-width="2"/>`;
     for(let k2=0;k2<3;k2++){const a=A.roll+k2*Math.PI/3;s+=`<line x1="${rx0-9*Math.cos(a)}" y1="${ry-9*Math.sin(a)}" x2="${rx0+9*Math.cos(a)}" y2="${ry-9*Math.sin(a)}" stroke="#8a8278" stroke-width="2"/>`;}});
   // load force arrow: always opposes the motion
-  if(S.load>0){const pull=S.mode==='retract', op=c.active?1:.35, col=c.stall?BAD:'#d8d2c8';
+  if(S.load>0){const pull=S.mode==='retract', op=c.moving||c.stall?1:.3, col=c.stall?BAD:'#d8d2c8';   // friction only pushes back while it is being dragged
     s+=pull?`<g opacity="${op}">${arrowHead(bx+bw+6,cy,bx+bw+76,cy,col,7)}</g>`:`<g opacity="${op}">${arrowHead(bx+bw+76,cy,bx+bw+6,cy,col,7)}</g>`;}
   s+=`</g>`;
   return {s,yb,px};
@@ -483,9 +517,9 @@ function drawGauge(c){
     <line id="gauge-needle" x1="${x}" y1="${y}" x2="${nx}" y2="${ny}" stroke="${ACC}" stroke-width="4.5" stroke-linecap="round"/>
     <circle cx="${x}" cy="${y}" r="8" fill="url(#gBrass)"/>
     <ellipse cx="${x-16}" cy="${y-28}" rx="${R*.62}" ry="${R*.36}" fill="url(#gGlass)" opacity=".7"/>
-    <rect x="${x-38}" y="${y+R+12}" width="76" height="46" rx="6" fill="#0f0e0c" stroke="#45403A"/>
-    <text x="${x}" y="${y+R+26}" text-anchor="middle" font-size="10" font-weight="800" letter-spacing="1.2" fill="${MUTED}">PRESSURE ${u.P}</text>
-    <text id="gauge-value" x="${x}" y="${y+R+50}" text-anchor="middle" font-size="20" font-weight="800" fill="${presCol(c.Pwork,c.Prel)}" font-family="SF Mono,Menlo,Consolas,monospace">${fP(Math.max(0,c.Pwork))}</text></g>`;
+    <rect x="${x-R-98}" y="${y-23}" width="82" height="46" rx="6" fill="#0f0e0c" stroke="#45403A"/>
+    <text x="${x-R-57}" y="${y-9}" text-anchor="middle" font-size="10" font-weight="800" letter-spacing="1.2" fill="${MUTED}">GAUGE ${u.P}</text>
+    <text id="gauge-value" x="${x-R-57}" y="${y+15}" text-anchor="middle" font-size="20" font-weight="800" fill="${presCol(A.needle,c.Prel)}" font-family="SF Mono,Menlo,Consolas,monospace">${fP(Math.max(0,A.needle))}</text></g>`;
   return s;
 }
 
@@ -497,8 +531,10 @@ function drawRelief(c){
   s+=`<path d="M${x} ${y-36} L${x-22} ${y-36} L${x-22} ${y-6}" stroke="${TEXT}" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>`;   // pilot line
   const sl=34-14*Math.min(1,o);                                                                                                      // spring compresses as poppet lifts
   s+=spring(x+20,y+40-sl-2,sl,6,7,true)+`<line x1="${x+12}" y1="${y+40-sl-2}" x2="${x+28}" y2="${y+40-sl-2}" stroke="${TEXT}" stroke-width="2.5"/>`;
-  s+=`<text x="${x-40}" y="${y+18}" text-anchor="end" font-size="14" font-weight="800" letter-spacing="1.5" fill="${o>.5?BAD:MUTED}">RELIEF</text>
-    <text x="${x-40}" y="${y+37}" text-anchor="end" font-size="15" font-weight="800" fill="${o>.5?BAD:TEXT}">${fP(c.Prel)} ${U().P}</text></g>`;
+  if(o>.5)s+=`<rect x="${x-36}" y="${y-44}" width="72" height="88" rx="6" fill="none" stroke="${BAD}" stroke-width="2" opacity="${(.3+.3*Math.sin(T/110)).toFixed(2)}"/>`;
+  s+=`<text x="${x+42}" y="${y-8}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${o>.5?BAD:MUTED}">RELIEF</text>
+    <text x="${x+42}" y="${y+11}" font-size="15" font-weight="800" fill="${o>.5?BAD:TEXT}">${fP(c.Prel)} ${U().P}</text>
+    <text x="${x+42}" y="${y+30}" font-size="14" font-weight="800" fill="${o>.5?BAD:MUTED}">${o>.5?'OPEN':'shut'}</text></g>`;
   return s;
 }
 
@@ -506,7 +542,7 @@ function drawPump(c){
   const {x,y,r}=PU; let s=`<g id="pump"><g filter="url(#fSh)"><circle cx="${x}" cy="${y}" r="${r}" fill="url(#gCast)" stroke="#6b645c" stroke-width="2"/></g>`;
   for(let i=0;i<10;i++){const a=A.rot+i*Math.PI/5;s+=`<line x1="${x+(r-12)*Math.cos(a)}" y1="${y+(r-12)*Math.sin(a)}" x2="${x+(r-4)*Math.cos(a)}" y2="${y+(r-4)*Math.sin(a)}" stroke="#8a8278" stroke-width="3"/>`;}
   s+=`<polygon points="${x},${y-r+4} ${x-12},${y-r+24} ${x+12},${y-r+24}" fill="${TEXT}"/>`;
-  s+=`<text x="${x-r-4}" y="${y+r+8}" text-anchor="end" font-size="14" font-weight="800" fill="${MUTED}">PUMP</text></g>`;
+  s+=`<text x="${x-r-6}" y="${y-14}" text-anchor="end" font-size="14" font-weight="800" fill="${MUTED}">PUMP</text></g>`;
   // motor + shaft with rotating keyway on the coupling face
   const m=MO;
   s+=`<g id="motor"><g filter="url(#fSh)"><circle cx="${m.x}" cy="${m.y}" r="${m.r}" fill="url(#gCast)" stroke="#6b645c" stroke-width="2"/></g>
@@ -514,8 +550,7 @@ function drawPump(c){
     <rect x="${m.x+m.r}" y="${m.y-6}" width="${x-r-m.x-m.r}" height="12" fill="url(#gSteel)"/>`;
   const hx=(m.x+m.r+x-r)/2;
   s+=`<circle cx="${hx}" cy="${m.y}" r="13" fill="url(#gSteel)" stroke="#2b3034"/><circle cx="${hx}" cy="${m.y}" r="5" fill="#1b1b1b"/>
-    <rect x="${hx-2.5}" y="${m.y-13}" width="5" height="8" fill="#1b1b1b" transform="rotate(${(A.rot*180/Math.PI).toFixed(1)} ${hx} ${m.y})"/>
-    <text x="${m.x}" y="${m.y+m.r+22}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}">MOTOR</text></g>`;
+    <rect x="${hx-2.5}" y="${m.y-13}" width="5" height="8" fill="#1b1b1b" transform="rotate(${(A.rot*180/Math.PI).toFixed(1)} ${hx} ${m.y})"/></g>`;
   return s;
 }
 
@@ -526,12 +561,12 @@ function drawTank(c){
   w+=` L${x1-3} ${y1-3} Z`;
   const hc=A.heat; const oil=`rgb(${Math.round(60+150*hc)},${Math.round(120-40*hc)},${Math.round(190-130*hc)})`;
   s+=`<path d="${w}" fill="${oil}" opacity=".55"/>`;
-  s+=`<text x="${x0+16}" y="${y1-12}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${TEXT}" opacity=".8">TANK</text>`;
+ s+=`<text x="${x0+60}" y="${y1-12}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${TEXT}" opacity=".8">TANK</text>`;
   // thermometer: rises while flow crosses the relief (qualitative, no number)
   const tx=x1-34, tH=36, lvl=4+28*hc;
   s+=`<rect x="${tx-4}" y="${y0-2}" width="8" height="${tH}" rx="4" fill="#111" stroke="#8a8278"/><rect x="${tx-2}" y="${y0-2+tH-lvl}" width="4" height="${lvl}" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>
     <circle cx="${tx}" cy="${y0+tH}" r="6" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>`;
-  if(hc>.05)for(let i=0;i<4;i++){const hx=118+i*22, ph=(T/1400+i*.27)%1;
+  if(hc>.05)for(let i=0;i<4;i++){const hx=x0+470+i*22, ph=(T/1400+i*.27)%1;
     s+=`<path d="M${hx} ${y0-10-ph*60} q 6 -10 0 -20 q -6 -10 0 -20" stroke="${BAD}" stroke-width="2.5" fill="none" opacity="${hc*(1-ph)*.8}"/>`;}
   return s+`</g>`;
 }
@@ -544,7 +579,7 @@ function lineState(c){
   else if(c.moving){
     if(S.mode==='extend'){L.A={q:c.qin,p:c.Pwork};L.B={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
     else {L.B={q:c.qin,p:c.Pwork};L.A={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
-  } else if(c.stall){                                    // stalled: pressure side dead-headed at relief, no flow
+  } else if(c.relOpen){                                  // dead-ended or stalled: pressure side at relief, no flow to the cylinder
     if(S.mode==='extend')L.A.p=c.Pwork; else L.B.p=c.Pwork;
   }
   return L;
@@ -581,15 +616,16 @@ function vmForce(c,x0,y0,w,h){
   let o=`<g id="vm-force">`+cardBox('vm-force',x0,y0,w,h);
   o+=tx(x0+14,y0+27,`${tsp(COL.F,'F')} = ${tsp(pc,'P')} × ${tsp(COL.A,'A')}`,21,TEXT,800,'start',MONO);
   o+=tx(x0+w-14,y0+25,'force = pressure × area',12,MUTED,700,'end');
-  const sub=m==='extend'?'Cap end: oil pushes on the whole piston face':m==='retract'?`Grey = under the rod (${fA(c.Ar)} ${u.A}): no push`:
-    'Valve centred: no pressure, so no push';
+  const sub=c.deadEnd&&m==='extend'?'Dead-ended: relief pressure on every square':
+    m==='extend'?'Cap end: oil pushes on the whole piston face':m==='retract'?`Grey = under the rod (${fA(c.Ar)} ${u.A}): no push`:
+    'Valve centred: pump side ≈ 0, so no push';
   o+=tx(x0+14,y0+48,sub,13,MUTED,600);
   // grid: pick the column count that gives the biggest squares
   const gx=x0+14, gy=y0+58, gw=w-28, gh=106, N=Math.max(1,Math.ceil(ncap-1e-9));
   let best={cs:0,cols:1};
   for(let cols=1;cols<=N;cols++){const rows=Math.ceil(N/cols),cs=Math.min(gw/cols,gh/rows);if(cs>best.cs+1e-9)best={cs,cols};}
   const cs=Math.min(46,best.cs), gap=Math.max(2,cs*.1), side=cs-gap, showN=cs>=33&&c.active, fs=Math.min(13,side*.3);
-  const Pd=c.active?c.Pwork:0, pushing=c.moving||c.stall;
+  const Pd=c.active?c.Pwork:0, pushing=c.active;
   let act='',ina='',out='',lab='';
   for(let k=0;k<N;k++){
     const x=gx+(k%best.cols)*cs, y=gy+Math.floor(k/best.cols)*cs;
@@ -625,18 +661,26 @@ function vmForce(c,x0,y0,w,h){
   if(c.active){const mx=kp(Math.min(c.Pneed,pmax));o+=`<polygon points="${mx.toFixed(1)},${ky+7} ${(mx-6).toFixed(1)},${ky+16} ${(mx+6).toFixed(1)},${ky+16}" fill="${pc}" stroke="#141414" stroke-width="1"/>`;}
   o+=`</g>`;
   // force arrows: oil push (violet) against the load (grey), drawn to the same scale
-  const ax0=x0+14, ax1=x0+w-14, aw=ax1-ax0, Fs=Math.max(c.Fext,c.F,1e-9), Fp=c.active?(c.stall?c.Fmax:c.F):0;
+  const ax0=x0+14, ax1=x0+w-14, aw=ax1-ax0, Fs=Math.max(c.Fext,c.F,1e-9), Fp=c.Fpist;
   if(c.active){
     const lp=aw*Fp/Fs, lm=aw*c.Fmax/Fs, ll=aw*c.F/Fs, ya=y0+281, yl=y0+316;
-    o+=tx(ax0,ya-10,`${tsp(COL.F,'Push F = '+fF(Fp)+' '+u.F)}`,13.5,TEXT,700)+tx(ax1,ya-10,`max ${fF(c.Fmax)} at relief`,11,MUTED,700,'end');
+    if(c.relOpen)o+=tx(ax0,ya-10,`${tsp(COL.F,'F')} = ${tsp(pc,fP(Pd))} × ${tsp(COL.A,fA(c.Aact))}${i?'':' ÷ 100'} = ${tsp(COL.F,fF(Fp)+' '+u.F)}`,13.5,TEXT,700);
+    else o+=tx(ax0,ya-10,`${tsp(COL.F,'Push F = '+fF(Fp)+' '+u.F)}`,13.5,TEXT,700)+tx(ax1,ya-10,`max ${fF(c.Fmax)} at relief`,11,MUTED,700,'end');
     o+=`<rect id="vm-fmax" x="${ax0}" y="${ya-5}" width="${lm.toFixed(1)}" height="10" fill="none" stroke="${COL.F}" stroke-width="1.2" stroke-dasharray="4 3" opacity=".7"/>`;
     o+=`<g id="vm-farrow">${hArrow(ax0,ax0+lp,ya,COL.F,8,1)}`;
     if(c.moving&&lp>40)for(let k=0;k<5;k++){const xx=ax0+2+((T/16+k*(lp-16)/5)%(lp-16));o+=`<path d="M${xx.toFixed(1)} ${ya-3} l4 3 l-4 3" stroke="#2a1f3d" stroke-width="1.6" fill="none"/>`;}
     o+=`</g>`;
     const lc=c.stall?BAD:'#d8d2c8';
-    o+=tx(ax0,yl-10,c.stall?`${tsp(BAD,'Load '+fF(c.F)+' '+u.F)}: more than the push. STALL`:`Load ${fF(c.F)} ${u.F}: push = load, so it moves`,13,c.stall?BAD:MUTED,700);
-    o+=`<g id="vm-larrow">${hArrow(ax1-ll,ax1,yl,lc,8,-1)}</g>`;
-  } else o+=tx(x0+14,y0+280,'Cylinder held: oil is trapped in both ends.',13.5,MUTED,700);
+    if(c.deadEnd){   // the cylinder end (not the load) takes the push: draw it as a wall at the arrow tip
+      o+=`<rect x="${(ax0+lp+1).toFixed(1)}" y="${ya-12}" width="6" height="24" fill="#8d99a2"/>`;
+      o+=tx(ax0,yl-10,`End of stroke: the cylinder end takes it`,13,MUTED,700)+tx(ax0,yl+8,`${fQ(c.qRelief)} ${u.Q} over the relief, v = 0`,13,BAD,700);
+    } else {
+      o+=tx(ax0,yl-10,c.stall?`${tsp(BAD,'Load '+fF(c.F)+' '+u.F)}: more than the push. STALL`:`Load ${fF(c.F)} ${u.F}: push = load, so it moves`,13,c.stall?BAD:MUTED,700);
+      o+=`<g id="vm-larrow">${hArrow(ax1-ll,ax1,yl,lc,8,-1)}</g>`;}
+  } else {
+    o+=tx(x0+14,y0+276,'A and B blocked: oil trapped, rod held.',13,TEXT,700);
+    o+=tx(x0+14,y0+295,'Friction load pushes 0 at rest: ≈ 0 inside.',12.5,MUTED,700);
+    if(c.F>0)o+=tx(x0+14,y0+314,`Pushed in with ${fF(c.F)} ${u.F}: cap oil ${fP(c.PtrapIf)} ${u.P}`,12.5,MUTED,700);}
   return o+`</g>`;
 }
 
@@ -659,7 +703,7 @@ function vmSpeed(c,x0,y0,w,h){
   o+=`<rect x="${bx0}" y="${y1}" width="${lw}" height="${Hb}" fill="none" stroke="#3a3530" stroke-dasharray="3 4"/>`;
   o+=`<rect x="${bx0}" y="${y1}" width="${slugCap.toFixed(1)}" height="${Hb}" fill="none" stroke="${COL.Q}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`;   // where the 1 s of oil started
   o+=`<rect id="vm-oil"x="${(bx0+slugCap-rem).toFixed(1)}" y="${y1}" width="${Math.max(0,rem).toFixed(1)}" height="${Hb}" fill="${COL.Q}" opacity="${c.moving?.55:.3}" stroke="${COL.Q}" stroke-width="1.5"/>`;
-  if(c.stall)o+=tx(Math.min(bx0+slugCap+6,bx0+lw-90),y1+25,'→ over relief',12,BAD,800);
+  if(c.relOpen)o+=tx(Math.min(bx0+slugCap+6,bx0+lw-90),y1+25,'→ over relief',12,BAD,800);
   // row 2: the active area (height ∝ area); oil fills, piston moves
   const y2=y0+98, nm=m==='retract'?'Rod end':'Cap end';
   o+=tx(x0+14,y2+16,nm,12,COL.A,800)+tx(x0+14,y2+32,`${fA(Va)} ${u.A}`,12,COL.A,700);
@@ -682,7 +726,7 @@ function vmSpeed(c,x0,y0,w,h){
     o+=tx(x0+14,yt,i?`${tsp(COL.Q,fVol(Vs)+' in³')} ÷ ${tsp(COL.A,fA(Va)+' in²')} = ${tsp(COL.V,fV(c.v)+' in')} each second`
       :`${tsp(COL.Q,fVol(Vs)+' cm³')} ÷ ${tsp(COL.A,fA(Va)+' cm²')} = ${tsp(COL.V,nf(len,2)+' cm')}`,13,TEXT,700);
     o+=tx(x0+14,yt+18,i?`Pump oil: 231 in³ per gal × ${fQ(c.Q)} gpm ÷ 60 s`:`Pump oil: ${fQ(c.Q)} L/min × 1000 cm³ ÷ 60 s`,11.5,MUTED,700);
-  } else o+=tx(x0+14,yt+6,c.stall?`${tsp(BAD,'Stalled:')} oil goes over the relief. v = 0`:'Valve centred: oil goes P → T. v = 0',13,TEXT,700);
+  } else o+=tx(x0+14,yt+6,c.stall?`${tsp(BAD,'Stalled:')} oil goes over the relief. v = 0`:c.deadEnd?`${tsp(BAD,'Dead-ended:')} oil goes over the relief. v = 0`:'Valve centred: oil goes P → T. v = 0',13,TEXT,700);
   return o+`</g>`;
 }
 
@@ -691,7 +735,7 @@ function vmPower(c,x0,y0,w,h){
   const u=U(), i=imp(), pc=pCol(c), Qax=niceUp(c.Q*1.2), Pax=c.Prel*1.3;
   const pl=x0+16, pr=x0+w-16, pt=y0+60, pb=y0+168, pw=pr-pl, phh=pb-pt;
   const rw=pw*c.Q/Qax, rh=phh*clamp(c.Pwork/Pax,0,1), yr=pb-phh*c.Prel/Pax;
-  let o=`<g id="vm-power">`+cardBox('vm-power',x0,y0,w,h,c.stall?BAD:'#45403A');
+  let o=`<g id="vm-power">`+cardBox('vm-power',x0,y0,w,h,c.relOpen?BAD:'#45403A');
   o+=tx(x0+14,y0+27,`Power = ${tsp(pc,'P')} × ${tsp(COL.Q,'Q')}`,19,TEXT,800,'start',MONO);
   // axes
   o+=`<line x1="${pl}" y1="${pt-6}" x2="${pl}" y2="${pb}" stroke="#8a8278" stroke-width="1.5"/><line x1="${pl}" y1="${pb}" x2="${pr+4}" y2="${pb}" stroke="#8a8278" stroke-width="1.5"/>`;
@@ -701,10 +745,10 @@ function vmPower(c,x0,y0,w,h){
     if(c.stall){const yn=pb-phh*clamp(c.Pneed/Pax,0,1);   // what the load asks for: above the relief, never reached
       o+=`<rect x="${pl}" y="${yn.toFixed(1)}" width="${rw.toFixed(1)}" height="${(yr-yn).toFixed(1)}" fill="none" stroke="${BAD}" stroke-dasharray="4 3" opacity=".8"/>`;}
     else if(yr<pb-rh-4)o+=`<rect x="${pl}" y="${yr.toFixed(1)}" width="${rw.toFixed(1)}" height="${(pb-rh-yr).toFixed(1)}" fill="none" stroke="${pc}" stroke-dasharray="3 3" opacity=".5"/>`;
-    const op=c.stall?.62+.18*Math.sin(T/160):.6;
+    const op=c.relOpen?.62+.18*Math.sin(T/160):.6;
     o+=`<rect id="vm-prect" x="${pl}" y="${(pb-rh).toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" fill="${pc}" opacity="${op.toFixed(2)}"/>`;
     o+=`<line x1="${pl}" y1="${pb}" x2="${(pl+rw).toFixed(1)}" y2="${pb}" stroke="${COL.Q}" stroke-width="4"/><line x1="${pl}" y1="${pb}" x2="${pl}" y2="${(pb-rh).toFixed(1)}" stroke="${pc}" stroke-width="4"/>`;
-    if(c.stall)for(let k=0;k<4;k++){const hx=pl+rw*(k+.5)/4, q=(T/1300+k*.29)%1;   // heat rising off the rectangle
+    if(c.relOpen)for(let k=0;k<4;k++){const hx=pl+rw*(k+.5)/4, q=(T/1300+k*.29)%1;   // heat rising off the rectangle
       o+=`<path d="M${hx.toFixed(1)} ${(yr-2-q*22).toFixed(1)} q 5 -6 0 -12 q -5 -6 0 -12" stroke="${BAD}" stroke-width="2.2" fill="none" opacity="${(1-q).toFixed(2)}"/>`;}
     else if(c.moving){const n=Math.max(1,Math.floor(rw/14));for(let k=0;k<n;k++){const xx=pl+((T/40+k*rw/n)%rw);   // flow running along the Q edge
       o+=`<circle cx="${xx.toFixed(1)}" cy="${pb}" r="1.8" fill="#141414"/>`;}}
@@ -714,8 +758,8 @@ function vmPower(c,x0,y0,w,h){
   o+=tx(pl+6,pt-10,tsp(pc,'P '+fP(c.Pwork)+' '+u.P),12,TEXT,700);
   o+=tx(clamp(pl+rw,pl+52,pr-44),pb+15,tsp(COL.Q,'Q '+fQ(c.Q)+' '+u.Q),12,TEXT,700,'middle');
   const yt=y0+h-46;
-  o+=tx(x0+14,yt,`${tsp(pc,fP(c.Pwork))} × ${tsp(COL.Q,fQ(c.Q))} ÷ ${u.K} = ${tsp(c.stall?BAD:TEXT,fW(c.power)+' '+u.W)}`,14,TEXT,700);
-  o+=tx(x0+14,yt+18,!c.active?'Valve centred: P ≈ 0, so power ≈ 0':c.stall?tsp(BAD,'Stalled: all of it becomes heat'):'Area = power. All of it moves the load.',12,MUTED,700);
+  o+=tx(x0+14,yt,`${tsp(pc,fP(c.Pwork))} × ${tsp(COL.Q,fQ(c.Q))} ÷ ${u.K} = ${tsp(c.relOpen?BAD:TEXT,fW(c.power)+' '+u.W)}`,14,TEXT,700);
+  o+=tx(x0+14,yt+18,!c.active?'Valve centred: P ≈ 0, so power ≈ 0':c.stall?tsp(BAD,'Stalled: all of it becomes heat'):c.deadEnd?tsp(BAD,'Dead-ended: all of it becomes heat'):'Area = power. All of it moves the load.',12,MUTED,700);
   o+=tx(x0+14,yt+35,i?'÷ 1714 turns psi × gpm into HP':'÷ 600 turns bar × L/min into kW',11,MUTED,600);
   return o+`</g>`;
 }
@@ -750,23 +794,37 @@ function draw(c){
   s+=pipe('rel',`M${PU.x} ${YREL} L${RV.x} ${YREL} L${RV.x} ${RV.y-40}`,col(L.rel),fl(L.rel));
   s+=pipe('relout',`M${RV.x} ${RV.y+40} L${RV.x} ${TK.y0+4}`,col(L.relout),fl(L.relout));
   s+=pipe('A',`M${PA} ${VT-16} L${PA} ${YAB} L240 ${YAB} L240 ${yb}`,col(L.A),fl(L.A));
-  s+=pipe('B',`M${PB} ${VT-16} L${PB} ${yb}`,col(L.B),fl(L.B));                 // straight up to the rod-end port
+  s+=pipe('B',`M${PB} ${VT-16} L${PB} ${YAB} L615 ${YAB} L615 ${yb}`,col(L.B),fl(L.B));
   s+=pipe('T',`M${PB} ${VB+16} L${PB} ${TK.y0+4}`,col(L.T),fl(L.T));
   s+=fitting(PU.x,YREL,8)+fitting(PU.x,GA.y,8);
   s+=drawTank(c)+drawPump(c)+drawRelief(c)+drawGauge(c)+drawValve(c)+cyl.s;
   // relief burst particles
   A.parts.forEach(p=>{s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(2.5+2*p.life).toFixed(1)}" fill="${BAD}" opacity="${(p.life*.9).toFixed(2)}"/>`;});
-  // flow labels next to cylinder lines (show the differential flow)
-  if(c.moving){s+=`<text x="254" y="${YAB-12}" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
-    <text x="${PB-14}" y="${YAB-14}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
-  s+=`<text x="${PU.x-14}" y="${YREL+38}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.p1)}">${fQ(c.Q)} ${U().Q}</text>`;
+  // flow labels under the A and B cross runs (show the differential flow)
+  if(c.moving){s+=`<text x="252" y="${YAB+34}" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
+    <text x="603" y="${YAB+34}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
+  // Pascal's law: pressure tags on the pressure path and the return path (chamber tags are drawn with the cylinder)
+  const tg=c.tag;
+  s+=ptag('tag-a',(240+PA)/2,YAB,tg.A,c).s+ptag('tag-b',(PB+615)/2,YAB,tg.B,c).s;
+  s+=ptag('tag-p',PA-14,600,tg.P,c,'end').s+ptag('tag-pump',PA-14,684,tg.pump,c,'end').s+ptag('tag-t',PB+14,700,tg.T,c,'start').s;
+  const nx=472, ny=578, nw=230;
+  const nLine=!c.active?'Centre: pump side ≈ 0 (P → T).':
+    `Pressure side: every tag ${fP(c.Pwork)} ${U().P}.`;
+  s+=`<g id="pascal-note"><rect x="${nx}" y="${ny}" width="${nw}" height="88" rx="8" fill="#24211E" stroke="#45403A"/>
+    <text x="${nx+10}" y="${ny+20}" font-size="13" font-weight="800" letter-spacing="1" fill="${ACC}">PASCAL'S LAW</text>
+    <text x="${nx+10}" y="${ny+39}" font-size="12.5" font-weight="700" fill="${TEXT}">Pressure acts equally everywhere</text>
+    <text x="${nx+10}" y="${ny+56}" font-size="12.5" font-weight="700" fill="${TEXT}">in the connected oil.</text>
+    <text x="${nx+10}" y="${ny+76}" font-size="12.5" font-weight="800" fill="${c.active?pCol(c):BLUE}">${nLine}</text></g>`;
   // banner
-  if(c.stall){const fl2=.82+.18*Math.sin(T/140);
-    s+=`<g id="stall-banner"><rect x="20" y="14" width="${VW-40}" height="62" rx="10" fill="${BAD}" opacity="${fl2.toFixed(3)}"/>
-      <text x="${VW/2}" y="55" text-anchor="middle" font-size="25" font-weight="800" fill="#fff">STALLED · LOAD NEEDS ${fP(c.Pneed)} ${U().P} &gt; RELIEF ${fP(c.Prel)} ${U().P}${narrow?'':' · ALL FLOW OVER RELIEF = HEAT'}</text></g>`;}
+  if(c.relOpen){const fl2=.82+.18*Math.sin(T/140), u=U();
+    const msg=c.stall?`STALLED · LOAD NEEDS ${fP(c.Pneed)} ${u.P} &gt; RELIEF ${fP(c.Prel)} ${u.P}${narrow?'':' · ALL FLOW OVER RELIEF = HEAT'}`:
+      `DEAD-ENDED · RELIEF OPEN · ${fQ(c.qRelief)} ${u.Q} OVER RELIEF${narrow?'':` = ${fW(c.heat)} ${u.W} OF HEAT`}`;
+    s+=`<g id="${c.stall?'stall-banner':'deadend-banner'}"><rect x="20" y="14" width="${VW-40}" height="62" rx="10" fill="${BAD}" opacity="${fl2.toFixed(3)}"/>
+      <text x="${VW/2}" y="55" text-anchor="middle" font-size="25" font-weight="800" fill="#fff">${msg}</text></g>`;
+    s+=`<text x="24" y="104" font-size="18" font-weight="700" fill="${MUTED}">${c.stall?'Rod stopped mid-stroke: the load needs more than the relief allows':`End of stroke: oil has nowhere to go, so it all crosses the relief`}</text>`;}
   else {s+=`<g id="mode-banner"><text x="24" y="52" font-size="30" font-weight="800" fill="${TEXT}">${MODE_NAME[S.mode]}</text>`;
     if(c.moving)s+=`<text x="24" y="84" font-size="20" font-weight="700" fill="${MUTED}">Rod speed <tspan fill="${ACC}">${fV(c.v)} ${U().V}</tspan> · pressure ${fP(c.Pwork)} ${U().P}${A.slow>1.01?` · motion shown ${nf(A.slow,1)}× slower`:''}</text>`;
-    else s+=`<text x="24" y="84" font-size="20" font-weight="700" fill="${MUTED}">Pump unloads to tank · cylinder held by blocked ports</text>`;
+    else s+=`<text x="24" y="84" font-size="20" font-weight="700" fill="${MUTED}">Pump unloads P → T · A and B blocked: trapped oil holds the rod</text>`;
     s+=`</g>`;}
   // visual maths: beside the circuit on wide screens, in its own panel (below the formula bar) on phones
   const vm=$('vmsvg');
@@ -783,7 +841,18 @@ function mathSteps(c){
   const Q=fQ(c.Q);
   if(S.mode==='neutral'){
     return [['Valve centred (tandem centre)','P → T open, A and B blocked.'],['Pump','Flow returns to tank at ≈ 0 '+u.P+'. Power ≈ 0: no heat.'],
-      ['Cylinder','Oil trapped in both ends: the rod is held where it stopped.'],['Next','Pick Extend or Retract to see the working.']];
+      ['Cylinder','Oil trapped in both ends: the rod is held where it stopped.'],
+      ['Trapped pressure',`A friction load pushes 0 at rest, so ≈ 0 ${u.P}.`+(c.F>0?` If ${Fc(fF(c.F)+' '+u.F)} pushed the rod in, the cap oil would hold it at ${Fc(fF(c.F))}${i?'':' × 100'} ÷ ${Ac(fA(c.Acap))} = ${fP(c.PtrapIf)} ${u.P}.`:'')],
+      ['Next','Pick Extend or Retract to see the working.']];
+  }
+  if(c.deadEnd){
+    const end=S.mode==='extend'?'fully extended':'fully retracted';
+    return [['Rod is '+end,'The piston is against the cylinder end. Oil has nowhere to go.'],
+      ['Pressure rises to relief',`${P('P')} = relief = ${P(Pf(c.Prel)+' '+u.P)}: the relief opens. Pascal's law: the same ${Pf(c.Prel)} ${u.P} everywhere on the pressure side.`],
+      ['Force on the piston',i?`${Fc('F')} = ${P('P')} × ${Ac('A')} = ${P(Pf(c.Prel))} × ${Ac(fA(c.Aact))} = ${Fc(fF(c.Fpist)+' lbf')} (the cylinder end takes it)`:`${Fc('F')} = ${P('P')} × ${Ac('A')} ÷ 100 = ${P(Pf(c.Prel))} × ${Ac(fA(c.Aact))} ÷ 100 = ${Fc(fF(c.Fpist)+' kN')} (the cylinder end takes it)`],
+      ['Speed',`${Vc('v')} = 0. All ${Qc(Q+' '+u.Q)} goes over the relief to tank.`],
+      ['Heat over relief',`${i?'HP':'kW'} = ${P('P')} × ${Qc('Q')} ÷ ${u.K} = ${P(Pf(c.Prel))} × ${Qc(Q)} ÷ ${u.K} = <em>${fW(c.heat)} ${u.W}</em> → all heat`],
+      ['Fix','Centre the valve at end of stroke: the tandem centre unloads the pump at ≈ 0.']];
   }
   const nm=S.mode==='extend'?['Cap area (orange squares)','A = π × D² ÷ 4',`π × ${fLen(c.D)}² ÷ 4${i?'':' ÷ 100'}`]:
     ['Rod-end (annulus) area','A = π × (D² − d²) ÷ 4',`π × (${fLen(c.D)}² − ${fLen(c.d)}²) ÷ 4${i?'':' ÷ 100'}`];
@@ -800,7 +869,7 @@ function mathSteps(c){
   return st;
 }
 function renderMaths(c){
-  const st=mathSteps(c), key=S.mode+S.units+(c.stall?'s':'m');
+  const st=mathSteps(c), key=S.mode+S.units+(c.stall?'s':c.deadEnd?'d':'m');
   if(key!==A.mathKey){A.mathKey=key;A.mathAge=0;}
   $('tab-maths').innerHTML=st.map((q,i)=>`<div class="step" style="opacity:${clamp((A.mathAge-i*380)/320,0,1).toFixed(2)}"><div class="h">Step ${i+1} · ${q[0]}</div><div class="e">${q[1]}</div></div>`).join('');
 }
@@ -851,7 +920,7 @@ const CH=[
 ];
 const CHS={solved:CH.map(()=>false),attempts:CH.map(()=>0),fb:null,fbGood:false};
 function checkChallenge(){
-  const i=S.challenge, r=CH[i].check(calc());
+  const i=S.challenge, r=CH[i].check(calc({...S,pos:.5}));   // judged on the mid-stroke numbers, wherever the rod is
   CHS.attempts[i]++;
   if(r===true){CHS.solved[i]=true;CHS.fb=CH[i].win;CHS.fbGood=true;}
   else {CHS.fb=r;CHS.fbGood=false;}
@@ -908,6 +977,8 @@ function renderPredict(){
 function formula(c){
   const u=U(), i=imp(), pc=pCol(c), P=t=>hsp(pc,t), Fc=t=>hsp(COL.F,t), Ac=t=>hsp(COL.A,t), Qc=t=>hsp(COL.Q,t), Vc=t=>hsp(COL.V,t);
   if(S.mode==='neutral')return [`Tandem centre: P → T at ≈ 0 ${u.P} · A and B blocked · cylinder held`,`Power ≈ 0 ${u.W} · pump flow ${Qc(fQ(c.Q)+' '+u.Q)} returns to tank`];
+  if(c.deadEnd)return [`Dead-ended: ${Fc('F')} = ${P('P')} × ${Ac('A')} = ${P(fP(c.Prel)+' '+u.P)} × ${Ac(fA(c.Aact)+' '+u.A)}${i?'':' ÷ 100'} = ${Fc(fF(c.Fpist)+' '+u.F)} on the piston`,
+    `Heat = ${P(fP(c.Prel))} × ${Qc(fQ(c.Q))} ÷ ${u.K} = ${fW(c.heat)} ${u.W} · all ${Qc(fQ(c.qRelief)+' '+u.Q)} over the relief`];
   const f1=i?`${P('P')} = ${Fc('F')} ÷ ${Ac('A')} = ${Fc(fF(c.F)+' lbf')} ÷ ${Ac(fA(c.Aact)+' in²')} = ${P(fP(c.Pneed)+' psi')}`
     :`${P('P')} = ${Fc('F')} × 100 ÷ ${Ac('A')} = ${Fc(fF(c.F)+' kN')} × 100 ÷ ${Ac(fA(c.Aact)+' cm²')} = ${P(fP(c.Pneed)+' bar')}`;
   const rel=c.stall?`  &gt;  relief ${fP(c.Prel)}: STALL`:`  (relief ${fP(c.Prel)})`;
@@ -933,7 +1004,8 @@ function panel(c){
   const uf=$('utilfill'); uf.style.width=Math.min(100,c.util*100)+'%'; uf.style.background=levelCol(c.level);
   const st=$('status'), col=c.level==='idle'?'#3a4a5a':levelCol(c.level);
   st.style.background=col; st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
-  st.textContent=c.level==='idle'?'NEUTRAL: PUMP UNLOADED, CYLINDER HELD':c.stall?'STALLED: FLOW OVER RELIEF · OIL HEATING':c.level==='warn'?'CAUTION: NEAR RELIEF SETTING':'MOVING: WITHIN RELIEF SETTING';
+  st.textContent=c.level==='idle'?'CENTRE: PUMP UNLOADED, CYLINDER HELD':c.stall?'STALLED: FLOW OVER RELIEF · OIL HEATING':
+    c.deadEnd?`DEAD-ENDED: ${fQ(c.qRelief)} ${u.Q} OVER RELIEF · HEAT`:c.level==='warn'?'CAUTION: NEAR RELIEF SETTING':'MOVING: WITHIN RELIEF SETTING';
   $('l-bore').textContent=`${fLen(S.bore)} ${u.L}`;$('l-rod').textContent=`${fLen(c.d)} ${u.L}`;$('l-stroke').textContent=`${fLen(S.stroke)} ${u.L}`;
   $('l-flow').textContent=`${fQ(S.flow)} ${u.Q}`;$('l-relief').textContent=`${fP(S.relief)} ${u.P}`;$('l-load').textContent=`${fF(S.load)} ${u.F}`;
   $('rodnote').textContent=c.rodLimited?'limited to 80 % of bore':'';
@@ -978,38 +1050,35 @@ function step(ms){
   const dt=ms/1000; T+=ms;
   tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
   tweens=tweens.filter(t=>t.t<t.dur);
-  const c=calc(), L=lineState(c), Qmax=RANGES[S.units].flow[1];
-  if(S.mode!==A.lastMode){A.hold=0;A.ret=0;A.lastMode=S.mode;}
+  const c0=calc(), L=lineState(c0), Qmax=RANGES[S.units].flow[1];
   // oil particles: speed ∝ line flow (pump flow sets the scale, ratios between lines are exact)
-  const base=60+170*(c.Q/Qmax);
-  for(const k in L){A.off[k]=((A.off[k]||0)+base*(L[k].q/c.Q)*dt)%2200;}
+  const base=60+170*(c0.Q/Qmax);
+  for(const k in L){A.off[k]=((A.off[k]||0)+base*(L[k].q/c0.Q)*dt)%2200;}
   // pump turns at a rate ∝ flow
-  A.rot+=dt*2*Math.PI*(.4+1.8*c.Q/Qmax);
-  // rod motion at the computed speed (fraction of stroke per second); very fast strokes are slowed for viewing
-  if(ms>0&&ms<1000){
-    const before=A.pos;
-    if(A.ret>0){A.ret=Math.max(0,A.ret-ms);const start=S.mode==='retract'?1:0;A.pos=A.retFrom+(start-A.retFrom)*ease(1-A.ret/450);}
-    else if(c.moving){
-      let rate=c.v/S.stroke; A.slow=rate>1.25?rate/1.25:1; rate=Math.min(rate,1.25);
-      const dir=S.mode==='retract'?-1:1, end=dir>0?1:0;
-      if(A.hold>0){A.hold-=ms;if(A.hold<=0&&S.loop){A.ret=450;A.retFrom=A.pos;}}
-      else {A.pos=clamp(A.pos+dir*rate*dt,0,1);if(A.pos===end)A.hold=S.loop?700:1e12;}
-    }
-    A.roll-=(A.pos-before)*CYL.travel/11;
+  A.rot+=dt*2*Math.PI*(.4+1.8*c0.Q/Qmax);
+  // rod motion: a real stroke. It moves at v = Q ÷ A only while the valve is shifted and the relief is shut,
+  // and stops at the end of stroke (pos is clamped to 0 … 1; the next calc() then reads dead-end).
+  // Very fast strokes are slowed for viewing (banner says by how much).
+  if(c0.moving&&ms>0){
+    let rate=c0.v/S.stroke; A.slow=rate>1.25?rate/1.25:1; rate=Math.min(rate,1.25);
+    const before=S.pos, dir=S.mode==='retract'?-1:1;
+    S.pos=clamp(S.pos+dir*rate*dt,0,1);
+    A.roll-=(S.pos-before)*CYL.travel/11;
   }
+  const c=calc();                                        // after the move: may now be dead-ended
   // gauge needle: spring-damper (ωn 9 rad/s, ζ 0.35 → small overshoot, settles ~1.2 s)
   [A.needle,A.needleV]=springStep(A.needle,A.needleV,c.Pwork,9,.35,Math.min(dt,.2));
   // valve spool: stiff, well-damped
   [A.spool,A.spoolV]=springStep(A.spool,A.spoolV,MODES.indexOf(S.mode),13,.8,Math.min(dt,.2));
   // relief poppet: lifts when the load needs more than the setting
-  [A.rel,A.relV]=springStep(A.rel,A.relV,c.stall?1:0,16,.45,Math.min(dt,.2));
+  [A.rel,A.relV]=springStep(A.rel,A.relV,c.relOpen?1:0,16,.45,Math.min(dt,.2));
   const open=A.rel>.3;
   if(open&&!A.wasOpen)for(let i=0;i<26;i++)A.parts.push({x:RV.x+(rand()-.5)*8,y:RV.y+42,vx:(rand()-.5)*160,vy:60+rand()*160,life:1});
   A.wasOpen=open;
   if(open&&ms>0){const n=Math.round(dt*45+rand()*.5);for(let i=0;i<n;i++)A.parts.push({x:RV.x+(rand()-.5)*6,y:RV.y+42,vx:(rand()-.5)*60,vy:90+rand()*80,life:1});}
   A.parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.life-=dt*1.6;});
   A.parts=A.parts.filter(p=>p.life>0&&p.y<TK.y0+20);
-  A.heat=clamp(A.heat+dt*(c.stall?.09:-.035),0,1);
+  A.heat=clamp(A.heat+dt*(c.relOpen?.09:-.035),0,1);
   // visual maths: the pushing squares sweep to the new count when the mode or size changes
   if(blk(c)!==A.vmBlk||S.units!==A.vmUnits){A.vmBlk=blk(c);A.vmUnits=S.units;A.vmAct=vmTarget(c);}
   else A.vmAct+=(vmTarget(c)-A.vmAct)*(1-Math.exp(-dt*4));
@@ -1023,7 +1092,7 @@ function frame(ms){
   callouts.forEach(co=>co.age+=ms);
   renderCallouts();
 }
-function snapAll(){const c=calc();A.needle=c.Pwork;A.needleV=0;A.spool=MODES.indexOf(S.mode);A.spoolV=0;A.rel=c.stall?1:0;A.relV=0;A.wasOpen=A.rel>.3;A.parts=[];A.heat=c.stall?.6:0;A.mathAge=1e6;A.vmAct=vmTarget(c);A.vmBlk=blk(c);A.vmUnits=S.units;}
+function snapAll(){const c=calc();A.needle=c.Pwork;A.needleV=0;A.spool=MODES.indexOf(S.mode);A.spoolV=0;A.rel=c.relOpen?1:0;A.relV=0;A.wasOpen=A.rel>.3;A.parts=[];A.heat=c.relOpen?.6:0;A.mathAge=1e6;A.vmAct=vmTarget(c);A.vmBlk=blk(c);A.vmUnits=S.units;}
 function set(p,dur=0){
   p={...p};
   if(p.units&&p.units!==S.units){            // switching units alone converts values: same machine, new units
@@ -1035,13 +1104,16 @@ function set(p,dur=0){
   }
   const snap=p.snap; delete p.snap;
   if('mode' in p)p.mode=MODES.includes(modeOf(p.mode))?modeOf(p.mode):S.mode;   // 'regen' (removed) → extend; unknown → ignored
-  if('pos' in p){A.pos=clamp(+p.pos,0,1);A.hold=0;A.ret=0;delete p.pos;}
+  if('pos' in p){S.pos=clamp(+p.pos||0,0,1);delete p.pos;}
+  let rodOut=null; if('rodOut' in p){rodOut=+p.rodOut||0;delete p.rodOut;}
+  delete p.loop;                                                     // looping stroke removed 2026-11-07
   if('challenge' in p&&p.challenge!==S.challenge){CHS.fb=null;}
   for(const [k,v] of Object.entries(p)){
     tweens=tweens.filter(t=>t.key!==k);
     if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
     else S[k]=v;
   }
+  if(rodOut!=null)S.pos=clamp(rodOut/S.stroke,0,1);
   if(snap)snapAll();
   if(!CAPTURE)frame(0);
 }
@@ -1077,7 +1149,8 @@ addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 snapAll(); frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S}),predict,reveal,checkChallenge,
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S,rodOut:S.pos*S.stroke}),predict,reveal,checkChallenge,
+  get view(){return {needle:A.needle,relief:A.rel,spool:A.spool};},   // read-only animation state (tests)
   get challenge(){return {index:S.challenge,total:CH.length,solved:[...CHS.solved],attempts:[...CHS.attempts],score:CHS.solved.filter(Boolean).length};},
   ready:true};
 })();
