@@ -133,3 +133,7 @@ footer .disc{margin-top:22px;font-size:13px;max-width:900px}
 .region-note{background:rgba(242,194,48,.10);border:1px solid rgba(242,194,48,.45);border-left:5px solid var(--caution);border-radius:12px;padding:14px 16px;margin-top:16px;color:var(--text);font-size:15px}
 .region-note[hidden],.region-ok[hidden]{display:none}
 .region-ok{margin-top:18px}
+
+.simgrid.five{grid-template-columns:repeat(5,1fr);gap:14px}
+.simgrid.five .card{padding:12px}
+@media (max-width:960px){.simgrid.five{grid-template-columns:1fr 1fr}}

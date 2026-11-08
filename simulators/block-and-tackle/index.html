@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Block and Tackle and Chain Fall Simulator · CrewForge</title>
+<!--
+  CrewForge: Mechanical Advantage Simulator (block and tackle, chain falls). Level 1, RSOS task B-10.
+  Brand: charcoal #1F1D1A, off-white #F5F5F4, orange #F08A2B (accents only, never a warning).
+  PIPELINE CONTRACT:
+    window.sim.set(partialState, durationMs)   tween numeric values, set others instantly
+    window.sim.callout(targetId, text, {pos})   highlight an element with a label
+    window.sim.clear()                          remove all callouts
+    window.sim.advance(ms)                      advance the virtual clock (ALL motion runs off this)
+    window.sim.isIdle()                         always false: the load path flows continuously
+    window.sim.ready                            true once loaded
+  Extras: sim.calc(), sim.get(), sim.view (animation state, read-only, for tests)
+  ?capture=1 → no requestAnimationFrame; the pipeline drives time through advance().
+
+  STATE (sim.set keys)
+    mode       'tackle' | 'chainfall'
+    parts      1 … 8   parts of line supporting the moving block (tackle)
+    lead       'fixed'  lead line leaves the FIXED (upper) block, you pull down
+               'moving' lead line leaves the MOVING (lower) block, you pull up ("rove to advantage"; needs parts ≥ 2)
+    friction   'ideal' | 'rule10' (add 10 % of the load per sheave) | 'bronze' | 'roller' (Crosby ratio tables)
+    chain      'geared' (hand chain hoist, maker's table) | 'differential' (Weston block)
+    cap        0 … 8   index into the Harrington CB table: ½, 1, 1½, 2, 2½, 3, 5, 8, 10 ton
+    D, d       differential pocket-wheel diameters (in | mm), d < D
+    eta        differential efficiency (0.20 … 0.60)
+    load       load weight W (lb | kg)
+    rise       load height above its start (ft | m), 0 … riseMax (8 ft | 2.5 m). Tween it to lift: sim.set({rise:4},6000)
+    units      'imp' | 'met'   switching units alone converts load, rise, D and d (the rig stays the same)
+    snap       true → arrows and needles jump to rest (use in scene setups)
+-->
+<style>
+:root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
+--accent:#F08A2B;--ok:#3ddc84;--warn:#F2C230;--bad:#ff4d4d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+#app{display:grid;grid-template-columns:1fr 600px;height:100vh}
+#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--line);
+background:radial-gradient(ellipse at 40% 35%,#26231f 0%,#1F1D1A 55%,#141210 100%)}
+.brandbar{display:flex;align-items:center;gap:14px;padding:14px 26px;border-bottom:1px solid var(--line)}
+.brandbar .logo{height:44px;width:auto;display:block}
+.brandbar .t1{font-size:13px;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.brandbar .t2{font-size:26px;font-weight:700}
+#svgwrap{flex:1;min-height:0;position:relative}
+#svg{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px)}
+#vm2wrap{display:none;position:relative}
+#svg2{position:absolute;inset:0;width:100%;height:100%}
+#formula{margin:0 22px 16px;padding:10px 20px;background:linear-gradient(180deg,#2e2a26,#272420);border:1px solid var(--line);
+border-left:5px solid var(--accent);border-radius:8px;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.45;
+font-family:"SF Mono",Menlo,Consolas,monospace}
+#formula div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel{background:linear-gradient(180deg,#2c2925,#262320);padding:14px 22px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+.sec h3{margin:0 0 6px;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:44px;padding:7px 6px;border-radius:7px;border:1px solid var(--line);
+background:linear-gradient(180deg,#3a3530,#302c28);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+.seg button.on{background:linear-gradient(180deg,#f59a45,#e07c1f);color:#141414;border-color:var(--accent)}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.ctl{margin-top:6px}
+.ctl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:2px}
+.ctl label b{color:var(--text);font-variant-numeric:tabular-nums}
+.ctl .sub{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:700;margin:0 0 4px}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.hide{display:none!important}
+.ro{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.ro div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 10px;min-width:0}
+.ro span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro b{font-size:21px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ro .big{grid-column:span 2}
+.ro .big b{font-size:30px;color:#59b7ff}
+.ro .wide{grid-column:span 3}
+#ro-lost{color:#b48af0}
+#status{padding:10px;border-radius:8px;font-weight:800;font-size:18px;text-align:center;letter-spacing:.03em;border:1px solid var(--line)}
+#co{position:fixed;inset:0;pointer-events:none;z-index:10}
+.ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
+.clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
+line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+@media (max-width:1000px){
+  #app{grid-template-columns:1fr;height:auto}
+  #stage{border-right:0}
+  #svgwrap{height:106vw;min-height:300px}
+  #vm2wrap{display:block;height:calc((100vw - 8px)*1.76);margin:0 4px 8px}
+  #formula{font-size:12px;margin:0 8px 10px;padding:8px 10px}
+  #formula div{white-space:normal}
+  #panel{overflow:visible;padding:12px}
+  .brandbar{padding:10px 12px}.brandbar .t2{font-size:18px}.brandbar .logo{height:34px}
+  .ro{grid-template-columns:1fr 1fr}
+  .ro .wide{grid-column:span 2}
+  .ro b{font-size:17px}.ro .big b{font-size:24px}
+  .seg button{font-size:13px;padding:7px 3px;min-width:36px}
+  .clabel{font-size:15px;max-width:240px;padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2" id="title">Block and Tackle and Chain Fall Simulator</div></div></div>
+    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Rigging diagram: upper block, lower block, parts of line and the lead line, with pictures of the maths"></svg></div>
+    <div id="vm2wrap"><svg id="svg2" viewBox="826 0 474 836" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Pictures of the maths: force, distance and work"></svg></div>
+    <div id="formula"><div id="f1"></div><div id="f2"></div></div>
+  </section>
+  <aside id="panel">
+    <div class="sec"><h3>MACHINE</h3>
+      <div class="seg" id="c-mode"><button data-v="tackle">Block and tackle</button><button data-v="chainfall">Chain fall</button></div>
+    </div>
+    <div class="sec" id="w-tackle"><h3>REEVING</h3>
+      <div class="ctl"><div class="sub">PARTS OF LINE SUPPORTING THE MOVING BLOCK (n)</div>
+        <div class="seg" id="c-parts"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="7">7</button><button data-v="8">8</button></div></div>
+      <div class="ctl"><div class="sub">LEAD LINE LEAVES THE</div>
+        <div class="seg" id="c-lead"><button data-v="fixed">Fixed block (pull down)</button><button data-v="moving">Moving block (pull up)</button></div></div>
+      <div class="ctl"><div class="sub">SHEAVE FRICTION</div>
+        <div class="seg" id="c-friction"><button data-v="ideal">Ideal</button><button data-v="rule10">10 % rule</button><button data-v="bronze">Bronze bushed</button><button data-v="roller">Roller bearing</button></div></div>
+    </div>
+    <div class="sec hide" id="w-chain"><h3>CHAIN FALL</h3>
+      <div class="seg" id="c-chain"><button data-v="geared">Geared hand chain hoist</button><button data-v="differential">Differential block</button></div>
+      <div class="ctl" id="w-cap"><div class="sub">RATED CAPACITY (MAKER'S TABLE, US TONS)</div>
+        <div class="seg" id="c-cap"><button data-v="0">½</button><button data-v="1">1</button><button data-v="2">1½</button><button data-v="3">2</button><button data-v="4">2½</button><button data-v="5">3</button><button data-v="6">5</button><button data-v="7">8</button><button data-v="8">10</button></div></div>
+      <div id="w-diff">
+        <div class="ctl"><label>Large pocket wheel (D) <b id="l-D"></b></label><input id="c-D" type="range"></div>
+        <div class="ctl"><label>Small pocket wheel (d) <b id="l-d"></b></label><input id="c-d" type="range"></div>
+        <div class="ctl"><label>Efficiency (η) <b id="l-eta"></b></label><input id="c-eta" type="range" min="0.2" max="0.6" step="0.01"></div>
+      </div>
+    </div>
+    <div class="sec"><h3>LOAD</h3>
+      <div class="ctl"><label>Load weight (W) <b id="l-load"></b></label><input id="c-load" type="range"></div>
+      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units" style="flex:2"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div>
+        <div class="seg" id="c-lift" style="flex:2"><button data-v="up">Pull (lift)</button><button data-v="down">Lower</button></div></div>
+    </div>
+    <div class="sec"><h3>READOUTS</h3>
+      <div class="ro">
+        <div class="big" id="ro-p-box"><span id="ro-p-lbl">Line pull, with friction (P)</span><b id="ro-p"></b></div>
+        <div id="ro-pi-box"><span>Ideal pull W ÷ MA</span><b id="ro-pi"></b></div>
+        <div id="ro-ma-box"><span id="ro-ma-lbl">Ideal MA (n)</span><b id="ro-ma"></b></div>
+        <div id="ro-s-box"><span id="ro-s-lbl">Sheaves (S)</span><b id="ro-s"></b></div>
+        <div id="ro-act-box"><span>Actual MA W ÷ P</span><b id="ro-act"></b></div>
+        <div id="ro-eff-box"><span>Efficiency</span><b id="ro-eff"></b></div>
+        <div id="ro-kn-box"><span>Pull in kN</span><b id="ro-kn"></b></div>
+        <div id="ro-rise-box"><span>Load rise</span><b id="ro-rise"></b></div>
+        <div id="ro-travel-box"><span id="ro-travel-lbl">Lead line travel</span><b id="ro-travel"></b></div>
+        <div id="ro-win-box"><span>Work in P × travel</span><b id="ro-win"></b></div>
+        <div id="ro-wout-box"><span>Work out W × rise</span><b id="ro-wout"></b></div>
+        <div class="wide" id="ro-lost-box"><span>Lost to friction (work in − work out)</span><b id="ro-lost"></b></div>
+      </div>
+    </div>
+    <div id="status"></div>
+  </aside>
+</div>
+<div id="co"></div>
+<script>
+(()=>{
+const CAPTURE=new URLSearchParams(location.search).has('capture');
+const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',STEEL='#9fb0bc',TEXT='#F5F5F4';
+// Visual-maths colours: each symbol keeps one colour in the drawing, the cards and the formula bar
+const COL={W:'#d9d3c7', P:'#59b7ff', n:ACC, loss:'#b48af0', dist:'#7fd6c2'};
+const LB_TO_KG=0.45359237, FT_TO_M=0.3048, IN_TO_MM=25.4, G=9.80665, LBF_TO_N=4.4482216;
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+/* =====================================================================
+   SOURCE DATA (cited in NOTES.md)
+   Crosby Group general catalogue, Blocks section 15, "How to Figure Line Parts" (p. 443, 2023):
+     Ratio = total load ÷ single line pull. Ratio A bronze-bushed sheaves, Ratio B anti-friction (roller) bearing sheaves.
+   Harrington CB hand chain hoist specification table (Harrington manual hoist catalogue p. 8):
+     [capacity US tons, pull to lift rated load lb, overhaul ratio (ft of hand chain per ft of lift), load chain falls]
+   ===================================================================== */
+const CROSBY={bronze:[.96,1.87,2.75,3.59,4.39,5.16,5.90,6.60], roller:[.98,1.94,2.88,3.81,4.71,5.60,6.47,7.32]};
+const CB=[[.5,48,25,1],[1,58,43,1],[1.5,70,57,1],[2,72,70,1],[2.5,66,99,1],[3,72,114,2],[5,68,198,2],[8,75,297,3],[10,72,396,4]];
+const CAPNAME=['½','1','1½','2','2½','3','5','8','10'];
+const FRICNAME={ideal:'ideal (no friction)',rule10:'10 % of the load per sheave',bronze:'Crosby ratio A, bronze bushed',roller:'Crosby ratio B, roller bearing'};
+
+const S={mode:'tackle',parts:4,lead:'fixed',friction:'rule10',chain:'geared',cap:3,D:10,d:9,eta:.35,
+         load:4000,rise:0,units:'imp'};
+const NUMERIC=['load','rise','D','d','eta'];
+const riseMax=()=>S.units==='imp'?8:2.5;
+
+/* =====================================================================
+   PHYSICS: every number on screen comes from calc().
+   BLOCK AND TACKLE (n = parts of line supporting the moving block)
+     Ideal MA = n. Velocity ratio VR = n: the lead line moves n × the load's rise.
+     Sheaves the rope runs over: S = n when the lead leaves the fixed block, n − 1 when it leaves the moving block.
+     Ideal pull         P = W ÷ n
+     10 % rule          P = W × (1 + 0.10 × S) ÷ n          (US Navy rigging texts: add 10 % of the load per sheave)
+     Crosby tables      P = W ÷ ratio(n)                    (ratio A bronze bushed, ratio B roller bearing; lead off the fixed block)
+                        lead off the moving block: ratio = 1 + ratio(n − 1) — the lead part carries P directly and the
+                        other n − 1 parts run over the n − 1 sheaves (our derivation from Crosby's method; see NOTES.md)
+   CHAIN FALL
+     Geared hoist       VR = maker's overhaul ratio. η = rated load ÷ (rated pull × VR). P = W ÷ (VR × η)
+                        (= rated pull × W ÷ rated load: the maker's pull scaled to the load)
+     Differential       VR = 2D ÷ (D − d). P = W ÷ (VR × η). η from the user (default 35 %; EB 1911: under 50 %, so it does not overhaul)
+   ALL
+     Actual MA = W ÷ P.  Efficiency = actual MA ÷ VR.
+     Lead (hand chain) travel = VR × rise.  Work out = W × rise.  Work in = P × travel.  Lost = work in − work out.
+     Imperial work in ft·lb (lb × ft). Metric work in joules: kg × 9.80665 × m (kilograms here are kilograms of force).
+   ===================================================================== */
+function calc(st=S){
+  const imp=st.units==='imp', W=st.load, c={imp,W,mode:st.mode};
+  if(st.mode==='tackle'){
+    const n=st.parts, lm=st.lead==='moving'&&n>=2;
+    c.n=n; c.leadMoving=lm; c.S=lm?n-1:n;
+    c.U=lm?Math.floor((n-1)/2):Math.ceil(n/2); c.L=c.S-c.U;           // sheaves in the upper / lower block
+    c.MA=n; c.VR=n; c.Pideal=W/n; c.share=W/n;
+    if(st.friction==='ideal'){c.P=W/n; c.ratio=n;}
+    else if(st.friction==='rule10'){c.P=W*(1+0.10*c.S)/n; c.ratio=null;}
+    else {const t=CROSBY[st.friction]; c.ratio=lm?1+t[n-2]:t[n-1]; c.P=W/c.ratio;}
+  } else if(st.chain==='geared'){
+    const h=CB[st.cap], Wr=h[0]*2000;                                   // US ton = 2,000 lb
+    c.cap=h[0]; c.falls=h[3]; c.VR=h[2]; c.MA=h[2];
+    c.eta=Wr/(h[1]*h[2]);                                               // maker's efficiency at rated load
+    c.rated=imp?Wr:Wr*LB_TO_KG; c.pullRated=imp?h[1]:h[1]*LB_TO_KG;
+    c.Pideal=W/c.VR; c.P=W/(c.VR*c.eta);
+    c.util=W/c.rated;
+  } else {
+    c.VR=2*st.D/(st.D-st.d); c.MA=c.VR; c.eta=st.eta;
+    c.Pideal=W/c.VR; c.P=W/(c.VR*c.eta);
+  }
+  c.MAact=c.P>0?W/c.P:c.MA; c.eff=c.MAact/c.VR;
+  c.rise=st.rise; c.travel=c.VR*st.rise;
+  const wk=imp?1:G;
+  c.workOut=W*st.rise*wk; c.workIn=c.P*c.travel*wk; c.lost=c.workIn-c.workOut;
+  c.kN=imp?c.P*LBF_TO_N/1000:c.P*G/1000;
+  c.level=st.mode==='chainfall'&&st.chain==='geared'?(c.util>1?'bad':c.util>.8?'warn':'ok'):'info';
+  return c;
+}
+
+/* ---------- formatting ---------- */
+const nf=(v,d=0)=>v.toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});
+const wu=()=>S.units==='imp'?'lb':'kg';
+const wt=v=>nf(Math.round(v))+' '+wu();
+const len=(v,d=2)=>nf(v,d)+(S.units==='imp'?' ft':' m');
+const dia=v=>S.units==='imp'?nf(v,2)+' in':nf(Math.round(v))+' mm';
+const work=v=>nf(Math.round(v))+(S.units==='imp'?' ft·lb':' J');
+const pct=v=>nf(v*100,1)+' %';
+const sp=(col,t)=>`<span style="color:${col}">${t}</span>`;
+const tsp=(col,t)=>`<tspan fill="${col}">${t}</tspan>`;   // same colour code inside SVG text
+// '=' when the shown numbers multiply out to the shown result, '≈' when rounding of P makes them differ
+const eq=(a,b)=>Math.abs(a-b)<0.5?'=':'≈';
+const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
+
+/* ---------- animation state (virtual clock only) ---------- */
+let T=0,tweens=[],callouts=[];
+const A={disp:0,lastRisePx:null,flow:0,arrow:0,arrowV:0,lastMode:null};
+
+/* ---------- drawing helpers ---------- */
+function arrow(id,x1,y1,x2,y2,col,w=6){
+  const a=Math.atan2(y2-y1,x2-x1),h=18;
+  return `<g id="${id}"><line x1="${x1}" y1="${y1}" x2="${x2-Math.cos(a)*h*.6}" y2="${y2-Math.sin(a)*h*.6}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
+  <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.42)},${y2-h*Math.sin(a-.42)} ${x2-h*Math.cos(a+.42)},${y2-h*Math.sin(a+.42)}" fill="${col}"/></g>`;
+}
+function pill(id,x,y,text,col,fs=18,anchor='middle'){
+  const w=text.length*fs*.58+20, x0=anchor==='start'?x:x-w/2;
+  return `<g id="${id}"><rect x="${x0}" y="${y-fs*.9}" width="${w}" height="${fs*1.8}" rx="${fs*.9}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
+  <text x="${x0+w/2}" y="${y+fs*.36}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${col}">${text}</text></g>`;
+}
+function sheave(id,x,y,r,rot,hi){
+  let s=`<g id="${id}"><circle cx="${x}" cy="${y}" r="${r}" fill="#2F2B27" stroke="${hi?ACC:STEEL}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="${r-7}" fill="none" stroke="#4a443d" stroke-width="2"/>`;
+  for(let k=0;k<3;k++){const a=rot+k*Math.PI/3;s+=`<line x1="${(x-(r-8)*Math.cos(a)).toFixed(1)}" y1="${(y-(r-8)*Math.sin(a)).toFixed(1)}" x2="${(x+(r-8)*Math.cos(a)).toFixed(1)}" y2="${(y+(r-8)*Math.sin(a)).toFixed(1)}" stroke="${STEEL}" stroke-width="2.5"/>`;}
+  return s+`<circle cx="${x}" cy="${y}" r="5" fill="${ACC}"/></g>`;
+}
+// rope (wire rope look): base + strand dashes that run with the material
+function rope(d,off,extra=''){
+  return `<path d="${d}" stroke="#7f8f9b" stroke-width="9" fill="none" stroke-linecap="round" ${extra}/>
+  <path d="${d}" stroke="#c3ced6" stroke-width="3" fill="none" stroke-dasharray="8 6" stroke-dashoffset="${off.toFixed(1)}" ${extra}/>`;
+}
+// chain look: links as long dashes with a lighter centre
+function chain(id,d,off,op=1){
+  return `<g id="${id}" opacity="${op}"><path d="${d}" stroke="#5d6a74" stroke-width="10" fill="none" stroke-dasharray="13 4" stroke-dashoffset="${off.toFixed(1)}"/>
+  <path d="${d}" stroke="#b7c3cc" stroke-width="3" fill="none" stroke-dasharray="9 8" stroke-dashoffset="${(off+2).toFixed(1)}"/></g>`;
+}
+function hook(x,y){ // shank top at (x,y), bowl below
+  return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+18}" stroke="${STEEL}" stroke-width="9" stroke-linecap="round"/>
+  <path d="M${x} ${y+16} C${x} ${y+44} ${x+26} ${y+44} ${x+24} ${y+24}" stroke="${STEEL}" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+}
+function beam(x0,x1){
+  let s=`<g id="beam"><rect x="${x0}" y="26" width="${x1-x0}" height="30" fill="#3A3631" stroke="#5a534b" stroke-width="2"/><rect x="${x0}" y="52" width="${x1-x0}" height="5" fill="${ACC}" opacity=".8"/>`;
+  for(let hx=x0+8;hx<x1-10;hx+=22)s+=`<line x1="${hx}" y1="52" x2="${hx+14}" y2="28" stroke="#4a443d" stroke-width="2"/>`;
+  return s+`</g>`;
+}
+function loadBox(cx,top,w,c){
+  const h=LOADH;
+  return `<g id="load-box"><rect x="${cx-w/2}" y="${top}" width="${w}" height="${h}" rx="4" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
+    <rect x="${cx-w/2}" y="${top}" width="${w}" height="10" fill="#5d5750"/>
+    <text x="${cx}" y="${top+h/2+12}" text-anchor="middle" font-size="${w<140?24:w<200?26:32}" font-weight="800" fill="${COL.W}">${wt(c.W)}</text>
+    <text x="${cx}" y="${top+h/2+40}" text-anchor="middle" font-size="16" font-weight="700" fill="${MUTED}">W</text></g>`;
+}
+
+/* ---------- rig geometry ---------- */
+const GSP=60, SR=30, UY=170, FLOOR=840, LOADH=120, RISEPX=214, CX=360;
+const risePx=()=>clamp(S.rise/riseMax(),0,1)*RISEPX;
+function hangOf(c){ if(S.mode==='tackle')return 106; if(S.chain==='geared')return 92; return diffGeo().pr+52; }
+function lowerY(c){ return FLOOR-10-LOADH-hangOf(c)-risePx(); }
+
+/* Reeving: parts are vertical lines GSP apart; a sheave of radius GSP/2 joins neighbours (k, k+1).
+   Counting k from the dead end (k = 1) to the lead, sheave (k, k+1) sits in the UPPER block when n − k is even,
+   otherwise in the LOWER block. That puts the lead on the fixed block (pull down) or, with one less line, on the
+   moving block (pull up), and the dead end on the upper block when the first sheave is a lower one. */
+function tackleGeo(c){
+  const n=c.n, lm=c.leadMoving, M=lm?n:n+1, Ly=lowerY(c);
+  const xs=[...Array(M)].map((_,k)=>CX+(k-(M-1)/2)*GSP);
+  const sh=[];
+  for(let j=0;j<M-1;j++){const k=j+1, up=((n-k)%2===0); sh.push({j,up,x:(xs[j]+xs[j+1])/2,y:up?UY:Ly});}
+  const deadLower=sh[0].up;
+  // material speed of the rope in each part, as a multiple of the load's speed: starts at 0 (dead end on the fixed
+  // block) or 1 (dead end on the moving block); each moving sheave adds 2, a fixed sheave passes it on. Lead = n.
+  let s=deadLower?1:0; const f=[s];
+  sh.forEach(q=>{q.rim=q.up?s:s+1; if(!q.up)s+=2; f.push(s);});
+  return {n,lm,M,Ly,xs,sh,deadLower,f};
+}
+
+function drawTackle(c){
+  const g=tackleGeo(c), {xs,sh,Ly,M,n}=g, disp=A.disp;
+  let s='';
+  const ups=sh.filter(q=>q.up), lows=sh.filter(q=>!q.up);
+  // upper block body
+  let uL,uR; if(ups.length){uL=Math.min(...ups.map(q=>q.x))-SR-12;uR=Math.max(...ups.map(q=>q.x))+SR+12;} else {uL=xs[0]-22;uR=xs[0]+22;}
+  if(!g.deadLower){uL=Math.min(uL,xs[0]-16);uR=Math.max(uR,xs[0]+16);}
+  const uT=ups.length?UY-SR-16:UY-34, uB=ups.length?UY+SR+12:UY+12, ucx=(uL+uR)/2;
+  const bx0=Math.min(uL-70,xs[0]-90), bx1=g.lm?Math.min(uR+40,xs[M-1]-26):Math.max(uR+40,ucx+120);
+  s+=beam(bx0,bx1);
+  s+=`<g id="upper-block"><line x1="${ucx}" y1="56" x2="${ucx}" y2="${uT}" stroke="${STEEL}" stroke-width="10"/><circle cx="${ucx}" cy="72" r="13" fill="none" stroke="${STEEL}" stroke-width="6"/>
+     <rect x="${uL}" y="${uT}" width="${uR-uL}" height="${uB-uT}" rx="14" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".95"/>
+     <text x="${uL-10}" y="${UY+6}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">FIXED</text><text x="${uL-10}" y="${UY+26}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
+  // lower block body (n = 1: just the hook on the rope end)
+  let lL,lR,lB,lcx;
+  if(n>1){lL=Math.min(...lows.map(q=>q.x))-SR-12;lR=Math.max(...lows.map(q=>q.x))+SR+12;
+    if(g.deadLower){lL=Math.min(lL,xs[0]-16);lR=Math.max(lR,xs[0]+16);}
+    lB=Ly+SR+16; lcx=(lL+lR)/2;
+    s+=`<g id="lower-block"><rect x="${lL}" y="${Ly-SR-12}" width="${lR-lL}" height="${lB-(Ly-SR-12)}" rx="14" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".95"/>
+       <rect x="${lL}" y="${lB-9}" width="${lR-lL}" height="7" fill="${ACC}" opacity=".85"/>
+       <text x="${lL-10}" y="${Ly+6}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">MOVING</text><text x="${lL-10}" y="${Ly+26}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
+  } else { lcx=xs[0]; lB=Ly+SR+16; s+=`<g id="lower-block"><circle cx="${lcx}" cy="${Ly+6}" r="10" fill="none" stroke="${STEEL}" stroke-width="5"/><line x1="${lcx}" y1="${Ly+16}" x2="${lcx}" y2="${lB}" stroke="${STEEL}" stroke-width="8"/></g>`; }
+  // hook + short sling to the load
+  const ltop=Ly+106;
+  s+=`<g id="hook">${hook(lcx,lB)}<line x1="${lcx+12}" y1="${lB+40}" x2="${lcx-50}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/><line x1="${lcx+12}" y1="${lB+40}" x2="${lcx+70}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/></g>`;
+  s+=`<ellipse cx="${lcx}" cy="${FLOOR+5}" rx="${130-risePx()*.25}" ry="7" fill="#000" opacity="${.4-risePx()*.0012}"/>`;
+  s+=loadBox(lcx,ltop,260,c);
+  // rope: parts in path order (dead end → lead). Dashes run at f × the load's speed.
+  const lx=xs[M-1], gripY=g.lm?96:330;
+  for(let j=0;j<M;j++){
+    const isLead=j===M-1;
+    let y0,y1;
+    if(j===0)[y0,y1]=g.deadLower?[Ly,UY]:[UY,Ly];
+    else [y0,y1]=sh[j-1].up?[UY,Ly]:[Ly,UY];
+    if(isLead)y1=g.lm?gripY:gripY;
+    const off=-g.f[j]*disp;
+    s+=`<g id="${isLead?'lead-line':'part-'+j}">${rope(`M${xs[j]} ${y0} L${xs[j]} ${y1}`,off)}`;
+    // load path: thin dashes flowing toward the fixed block, opacity by share of the load
+    if(!isLead||g.lm){const ya=Math.max(y0,y1),yb=Math.min(y0,y1);
+      s+=`<path d="M${xs[j]} ${ya} L${xs[j]} ${isLead?Math.max(yb,UY-SR):yb}" stroke="${COL.W}" stroke-width="2.5" stroke-dasharray="6 22" stroke-dashoffset="${A.flow.toFixed(1)}" opacity=".55"/>`;}
+    s+=`</g>`;
+  }
+  // rope wraps + sheaves (on top of the bodies, under the tags)
+  let nu=0,nl=0;
+  sh.forEach((q,i)=>{
+    const d=q.up?`M${q.x-SR} ${q.y} A${SR} ${SR} 0 0 1 ${q.x+SR} ${q.y}`:`M${q.x-SR} ${q.y} A${SR} ${SR} 0 0 0 ${q.x+SR} ${q.y}`;
+    const rot=(q.up?1:-1)*q.rim*disp/SR;
+    s+=sheave(q.up?'sheave-u'+(nu++):'sheave-l'+(nl++),q.x,q.y,SR-4,rot,false)+rope(d,-g.f[i]*disp);
+  });
+  // dead end (becket)
+  const dy=g.deadLower?Ly:UY;
+  s+=`<g id="dead-end"><circle cx="${xs[0]}" cy="${dy}" r="9" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
+  // lead line beyond the grip: pulled rope goes to a coil on the floor (fixed) or off the top (moving)
+  if(!g.lm){const cxn=Math.min(lx+170,790);
+    s+=`<g id="lead-tail">${rope(`M${lx} ${gripY} Q${cxn} ${gripY+60} ${cxn} ${FLOOR-18}`,-n*disp)}
+      <ellipse cx="${cxn}" cy="${FLOOR-12}" rx="46" ry="11" fill="none" stroke="#7f8f9b" stroke-width="8"/><ellipse cx="${cxn}" cy="${FLOOR-20}" rx="38" ry="9" fill="none" stroke="#7f8f9b" stroke-width="7"/></g>`;}
+  else s+=`<g id="lead-tail">${rope(`M${lx} ${gripY} L${lx} 0`,-n*disp)}</g>`;
+  // grip + force arrow sized to the pull (spring-damped)
+  const al=20+110*clamp(A.arrow/Math.max(c.W,1e-9),0,1.3), dir=g.lm?-1:1;
+  s+=`<g id="grip"><rect x="${lx-16}" y="${gripY-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/>
+     <line x1="${lx-16}" y1="${gripY-8}" x2="${lx+16}" y2="${gripY-8}" stroke="#1F1D1A" stroke-width="3"/><line x1="${lx-16}" y1="${gripY+6}" x2="${lx+16}" y2="${gripY+6}" stroke="#1F1D1A" stroke-width="3"/></g>`;
+  s+=arrow('pull-arrow',lx+32,gripY,lx+32,gripY+dir*al,COL.P,7);
+  s+=pill('pull-tag',lx+52,gripY,'P = '+wt(c.P),COL.P,18,'start');
+  // tension tags: each supporting part carries its share W ÷ n (two staggered rows so they never touch)
+  const mid=(UY+Ly)/2;
+  for(let j=0;j<n;j++){ if(g.lm&&j===M-1)continue;
+    s+=pill('tag-'+j,xs[j],mid+(j%2?26:-26),nf(Math.round(c.share)),COL.W,17); }
+  s+=`<text x="${xs[0]-GSP/2-8}" y="${mid+6}" text-anchor="end" font-size="15" font-weight="700" fill="${COL.W}">${wu()} per part</text>`;
+  // n count above the parts
+  s+=`<g id="n-label"><text x="${CX}" y="${FLOOR+40}" text-anchor="middle" font-size="22" font-weight="800" fill="${COL.n}">${n>1?`n = ${n} parts of line hold the moving block${g.lm?' (lead line counts)':''}`:'n = 1: a single fixed sheave only changes direction'}</text></g>`;
+  return s;
+}
+
+/* ---------- chain falls ---------- */
+function diffGeo(){ const R=72, r=R*S.d/S.D, pr=(R+r)/2; return {R,r,pr,ax:400,ay:205}; }
+function drawGeared(c){
+  const Ly=lowerY(c), disp=A.disp, vis=Math.min(c.VR,20);     // hand chain shown at up to 20 × load speed (true ratio in the numbers)
+  const hx=210, hy=160, hr=52, bx0=250, bx1=420, by0=92, by1=232, lc=360;
+  let s=beam(150,500);
+  s+=`<g id="hoist-body"><line x1="335" y1="56" x2="335" y2="${by0}" stroke="${STEEL}" stroke-width="10"/><circle cx="335" cy="72" r="13" fill="none" stroke="${STEEL}" stroke-width="6"/>
+     <rect x="${bx0}" y="${by0}" width="${bx1-bx0}" height="${by1-by0}" rx="22" fill="#C05A00" stroke="#7a3a00" stroke-width="3"/>
+     <text x="${(bx0+bx1)/2}" y="${by1-12}" text-anchor="middle" font-size="14" font-weight="800" fill="#1F1D1A">${CAPNAME[S.cap]} TON</text></g>`;
+  // gear window: pinion turns with the hand wheel, gear at a third of the speed (the reduction inside)
+  const ang=-disp*vis/hr, gx=345, gy=150;
+  const gear=(x,y,r,t,a)=>{let p='';for(let k=0;k<t;k++){const q=a+k*2*Math.PI/t;p+=`<rect x="${(x+r*Math.cos(q)-3).toFixed(1)}" y="${(y+r*Math.sin(q)-3).toFixed(1)}" width="6" height="6" fill="#d9d3c7" transform="rotate(${(q*180/Math.PI).toFixed(1)} ${(x+r*Math.cos(q)).toFixed(1)} ${(y+r*Math.sin(q)).toFixed(1)})"/>`;}
+    return p+`<circle cx="${x}" cy="${y}" r="${r-2}" fill="#2F2B27" stroke="#d9d3c7" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${(x+(r-6)*Math.cos(a)).toFixed(1)}" y2="${(y+(r-6)*Math.sin(a)).toFixed(1)}" stroke="${ACC}" stroke-width="3"/>`;};
+  s+=`<g id="gears"><circle cx="${gx}" cy="${gy}" r="52" fill="#1F1D1A" stroke="#7a3a00" stroke-width="3"/>${gear(gx-26,gy,13,8,ang)}${gear(gx+14,gy,30,24,-ang/3)}</g>`;
+  // load chain falls down to the bottom hook block
+  const f=c.falls, sp=26, xsF=[...Array(f)].map((_,k)=>lc+(k-(f-1)/2)*sp);
+  xsF.forEach((x,k)=>{s+=chain('load-chain'+(k?'-'+k:''),`M${x} ${by1} L${x} ${Ly}`,-(k%2?-1:1)*disp*(f>1?1:1));});
+  s+=`<g id="lower-block"><rect x="${lc-Math.max(28,f*sp/2+14)}" y="${Ly-14}" width="${2*Math.max(28,f*sp/2+14)}" height="44" rx="12" fill="#C05A00" stroke="#7a3a00" stroke-width="3"/></g>`;
+  s+=`<g id="hook">${hook(lc,Ly+30)}</g>`;
+  s+=`<line x1="${lc+12}" y1="${Ly+70}" x2="${lc}" y2="${Ly+92}" stroke="#7f8f9b" stroke-width="5"/>`;
+  s+=`<ellipse cx="${lc}" cy="${FLOOR+5}" rx="${80-risePx()*.2}" ry="6" fill="#000" opacity=".35"/>`;
+  s+=loadBox(lc,Ly+92,170,c);
+  // hand chain loop: runs over the hand wheel; pulled side goes down at vis × the load's speed
+  const loopB=790, hoff=disp*vis;
+  s+=chain('hand-chain',`M${hx-hr} ${hy} L${hx-hr} ${loopB-20} Q${hx-hr} ${loopB+12} ${hx} ${loopB+12} Q${hx+hr} ${loopB+12} ${hx+hr} ${loopB-20} L${hx+hr} ${hy}`,hoff);
+  s+=`<g id="hand-wheel"><circle cx="${hx}" cy="${hy}" r="${hr}" fill="#2F2B27" stroke="${STEEL}" stroke-width="5"/>`;
+  for(let k=0;k<6;k++){const a=ang+k*Math.PI/3;s+=`<line x1="${hx}" y1="${hy}" x2="${(hx+(hr-6)*Math.cos(a)).toFixed(1)}" y2="${(hy+(hr-6)*Math.sin(a)).toFixed(1)}" stroke="${STEEL}" stroke-width="3"/>`;}
+  s+=`<circle cx="${hx}" cy="${hy}" r="8" fill="${ACC}"/></g>`;
+  // grip on the hand chain + force arrow
+  const gy2=470, al=20+110*clamp(A.arrow/Math.max(c.W/c.VR*2.5,1e-9),0,1.2);
+  s+=`<g id="grip"><rect x="${hx+hr-16}" y="${gy2-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
+  s+=arrow('pull-arrow',hx+hr-34,gy2,hx+hr-34,gy2+al,COL.P,7);
+  s+=pill('pull-tag',20,gy2-150,'P = '+wt(c.P),COL.P,20,'start');
+  s+=pill('tag-0',lc+70,(by1+Ly)/2,`VR ${nf(c.VR)} · ${f} fall${f>1?'s':''}`,COL.n,17,'start');
+  return s;
+}
+function drawDifferential(c){
+  const Ly=lowerY(c), {R,r,pr,ax,ay}=diffGeo(), disp=A.disp, vis=Math.min(c.VR,20);
+  const th=disp*vis/R;                                    // wheel angle: hand strand moves R·θ (shown at up to 20 × load speed)
+  const px=ax+(R-r)/2;                                    // lower pulley centre sits between the two load strands
+  let s=beam(200,560);
+  s+=`<g id="upper-block"><line x1="${ax}" y1="56" x2="${ax}" y2="${ay-R-12}" stroke="${STEEL}" stroke-width="10"/><circle cx="${ax}" cy="72" r="13" fill="none" stroke="${STEEL}" stroke-width="6"/>
+     <rect x="${ax-R-16}" y="${ay-R-12}" width="${2*R+32}" height="${2*R+26}" rx="20" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".9"/></g>`;
+  // slack (hand) loop: hangs from the large wheel's left side; drawn beside it (it really hangs in a plane behind)
+  const loopB=760, hl=ax-R, hr2=ax-R-44;
+  s+=chain('hand-chain',`M${hl} ${ay} L${hl} ${loopB-22} Q${hl} ${loopB} ${(hl+hr2)/2} ${loopB} Q${hr2} ${loopB} ${hr2} ${loopB-22} L${hr2} ${ay+30}`,disp*vis);
+  // load loop: large wheel right side → down → round the pulley → up to the small wheel left side
+  s+=chain('load-chain',`M${ax+R} ${ay} L${ax+R} ${Ly}`,-disp*vis*.5);
+  s+=chain('load-chain-2',`M${ax-r} ${Ly} L${ax-r} ${ay}`,-disp*vis*.5);
+  s+=chain('load-wrap',`M${ax+R} ${Ly} A${pr} ${pr} 0 0 1 ${ax-r} ${Ly}`,-disp*vis*.5);
+  // wheels (same shaft, turn together): large D, small d
+  const wheel=(id,rr,col)=>{let q=`<g id="${id}"><circle cx="${ax}" cy="${ay}" r="${rr}" fill="none" stroke="${col}" stroke-width="7"/>`;
+    for(let k=0;k<10;k++){const a=th+k*Math.PI/5;q+=`<circle cx="${(ax+rr*Math.cos(a)).toFixed(1)}" cy="${(ay+rr*Math.sin(a)).toFixed(1)}" r="3.5" fill="#1F1D1A"/>`;}return q+`</g>`;};
+  s+=wheel('wheel-D',R,COL.dist)+wheel('wheel-d',r,ACC);
+  s+=`<line x1="${ax}" y1="${ay}" x2="${(ax+R*Math.cos(th)).toFixed(1)}" y2="${(ay+R*Math.sin(th)).toFixed(1)}" stroke="${STEEL}" stroke-width="3"/><circle cx="${ax}" cy="${ay}" r="7" fill="${ACC}"/>`;
+  // D and d dimension lines (visual maths on the machine)
+  const dyy=ay-R-24;
+  s+=`<g id="dim-D"><line x1="${ax-R}" y1="${dyy}" x2="${ax+R}" y2="${dyy}" stroke="${COL.dist}" stroke-width="3"/><line x1="${ax-R}" y1="${dyy-8}" x2="${ax-R}" y2="${dyy+8}" stroke="${COL.dist}" stroke-width="3"/><line x1="${ax+R}" y1="${dyy-8}" x2="${ax+R}" y2="${dyy+8}" stroke="${COL.dist}" stroke-width="3"/>
+     <line x1="${ax-R}" y1="${dyy}" x2="${ax-R}" y2="${ay}" stroke="${COL.dist}" stroke-width="1.5" stroke-dasharray="4 4"/><line x1="${ax+R}" y1="${dyy}" x2="${ax+R}" y2="${ay}" stroke="${COL.dist}" stroke-width="1.5" stroke-dasharray="4 4"/>
+     <text x="${ax+R+18}" y="${dyy+7}" font-size="20" font-weight="800" fill="${COL.dist}">D = ${dia(S.D)}</text></g>
+     <g id="dim-d"><text x="${ax+R+24}" y="${ay+6}" font-size="20" font-weight="800" fill="${ACC}">d = ${dia(S.d)}</text><line x1="${ax+r}" y1="${ay}" x2="${ax+R+18}" y2="${ay}" stroke="${ACC}" stroke-width="2" stroke-dasharray="4 4"/></g>`;
+  // lower pulley + hook + load
+  s+=`<g id="lower-block">${sheave('pulley',px,Ly,pr-3,-th*R/pr*.5,false)}</g>`;
+  s+=`<g id="hook">${hook(px,Ly+pr)}</g><line x1="${px+12}" y1="${Ly+pr+40}" x2="${px}" y2="${Ly+pr+52}" stroke="#7f8f9b" stroke-width="5"/>`;
+  s+=`<ellipse cx="${px}" cy="${FLOOR+5}" rx="${80-risePx()*.2}" ry="6" fill="#000" opacity=".35"/>`;
+  s+=loadBox(px,Ly+pr+52,124,c);
+  const gy2=480, al=20+110*clamp(A.arrow/Math.max(c.W/c.VR*3,1e-9),0,1.2);
+  s+=`<g id="grip"><rect x="${hl-16}" y="${gy2-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
+  s+=arrow('pull-arrow',hr2-30,gy2,hr2-30,gy2+al,COL.P,7);
+  s+=pill('pull-tag',70,gy2-70,'P = '+wt(c.P),COL.P,20,'start');
+  return s;
+}
+
+/* ---------- picture the maths: three cards on the right ---------- */
+const CX0=840, CW=440;
+function card(id,y0,h,title,sub){
+  return `<g id="${id}"><rect id="${id}-card" x="${CX0-14}" y="${y0}" width="${CW+28}" height="${h}" rx="10" fill="#24211E" stroke="#45403A"/>
+  <text x="${CX0}" y="${y0+26}" font-size="16" font-weight="800" fill="${MUTED}" letter-spacing="1.4">${title}</text>
+  <text x="${CX0}" y="${y0+50}" font-size="17" font-weight="700" fill="${TEXT}">${sub}</text>`;
+}
+const bar=(id,x,y,w,h,col,op=1,extra='')=>`<rect id="${id}" x="${x.toFixed(1)}" y="${y}" width="${Math.max(0,w).toFixed(1)}" height="${h}" rx="3" fill="${col}" opacity="${op}" ${extra}/>`;
+// Card 1: VR copies of the pull laid end to end = the load + friction (P × VR × η = W)
+function cardForce(c){
+  const y0=10, tot=c.P*c.VR, k=CW/Math.max(tot,1e-9), wl=c.W*k, slices=c.VR<=8&&Number.isInteger(c.VR);
+  let s=card('vm-force',y0,262,'FORCE · P × VR = W + FRICTION', S.mode==='tackle'?`${tsp(COL.n,'n')} pulls of ${tsp(COL.P,'P')} hold ${tsp(COL.W,'W')}`:`${tsp(COL.P,'P')} × ${tsp(COL.n,'VR')} = ${tsp(COL.W,'W')} + friction`);
+  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.W}">Load W = ${wt(c.W)}</text>`;
+  s+=bar('vm-w',CX0,y0+96,wl,30,COL.W,.9);
+  s+=`<text x="${CX0}" y="${y0+152}" font-size="16" font-weight="700" fill="${COL.P}">${S.mode==='tackle'?nf(c.VR)+' × P':'P × VR'} = ${nf(c.VR)} × ${wt(c.P)} ${eq(c.VR*Math.round(c.P),tot)} ${wt(tot)}</text>`;
+  if(slices){ const pw=c.P*k;
+    for(let i=0;i<c.VR;i++){const x=CX0+i*pw;
+      s+=bar('vm-slice'+i,x,y0+162,pw-2,30,COL.P,.85);
+      if(x+pw>CX0+wl+.5)s+=bar('vm-loss'+i,Math.max(x,CX0+wl),y0+162,x+pw-2-Math.max(x,CX0+wl),30,COL.loss,.95);
+      if(pw>34)s+=`<text x="${x+pw/2}" y="${y0+183}" text-anchor="middle" font-size="14" font-weight="800" fill="#141414">P</text>`;}
+  } else { s+=bar('vm-slice0',CX0,y0+162,wl,30,COL.P,.85)+bar('vm-loss0',CX0+wl,y0+162,CW-wl,30,COL.loss,.95); }
+  s+=`<line x1="${CX0+wl}" y1="${y0+92}" x2="${CX0+wl}" y2="${y0+200}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  const fr=tot-c.W;
+  s+=`<text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${COL.loss}">${fr>0.5?'Friction (purple) = '+wt(fr):'No friction: n × P = W exactly'}</text>
+      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${TEXT}">Efficiency η = W ÷ (P × VR) = ${pct(c.eff)}</text></g>`;
+  return s;
+}
+// Card 2: lead (hand chain) travel vs load rise, measured bars that grow as the load rises
+function cardDist(c){
+  const y0=286, full=c.VR*riseMax(), k=CW/full, lt=c.travel*k, rr=c.rise*k;
+  const what=S.mode==='tackle'?'Lead line':'Hand chain';
+  let s=card('vm-dist',y0,262,`DISTANCE · ${what.toUpperCase()} MOVES VR × RISE`,`${tsp(COL.dist,what+' travel')} = ${tsp(COL.n,'VR')} × ${tsp(TEXT,'rise')}`);
+  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.dist}">${what} pulled = ${nf(c.VR,c.VR%1?2:0)} × ${len(c.rise)} = ${len(c.travel,c.travel>=100?0:2)}</text>`;
+  s+=bar('vm-bg-lead',CX0,y0+96,CW,30,'#2f2b27')+bar('vm-lead',CX0,y0+96,lt,30,COL.dist,.9);
+  if(c.VR<=12&&Number.isInteger(c.VR))for(let i=1;i<c.VR;i++)s+=`<line x1="${CX0+i*rr}" y1="${y0+96}" x2="${CX0+i*rr}" y2="${y0+126}" stroke="#141414" stroke-width="${rr>3?2:0}"/>`;
+  s+=`<text x="${CX0}" y="${y0+156}" font-size="16" font-weight="700" fill="${TEXT}">Load rise = ${len(c.rise)}</text>`;
+  s+=bar('vm-bg-rise',CX0,y0+166,CW,30,'#2f2b27')+bar('vm-rise',CX0,y0+166,Math.max(rr,c.rise>0?2:0),30,TEXT,.9);
+  s+=`<text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${MUTED}">${S.mode==='tackle'?'Every part shortens by the rise; the lead takes up all n.':'You trade distance for force: '+nf(c.VR,c.VR%1?2:0)+' to 1.'}</text>
+      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${MUTED}">Friction does not change the distance.</text></g>`;
+  return s;
+}
+// Card 3: work in = work out + lost
+function cardWork(c){
+  const y0=562, full=c.workIn/Math.max(c.rise,1e-9)*riseMax(), k=CW/Math.max(full,1e-9);
+  let s=card('vm-work',y0,262,'WORK · IN = OUT + LOST',`${tsp(COL.P,'P')} × ${tsp(COL.dist,'travel')} = ${tsp(COL.W,'W')} × rise + ${tsp(COL.loss,'lost')}`);
+  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.P}">Work in = ${wt(c.P)} × ${len(c.travel,c.travel>=100?0:2)} ${eq(Math.round(c.P)*(+c.travel.toFixed(c.travel>=100?0:2))*(c.imp?1:G),c.workIn)} ${work(c.workIn)}</text>`;
+  s+=bar('vm-bg-in',CX0,y0+96,CW,30,'#2f2b27')+bar('vm-in',CX0,y0+96,c.workIn*k,30,'none',1,`stroke="${COL.P}" stroke-width="3"`);
+  s+=bar('vm-out',CX0,y0+99,c.workOut*k,24,COL.W,.9)+bar('vm-lost',CX0+c.workOut*k,y0+99,c.lost*k,24,COL.loss,.95);
+  s+=`<text x="${CX0}" y="${y0+156}" font-size="16" font-weight="700" fill="${COL.W}">Work out = ${wt(c.W)} × ${len(c.rise)} = ${work(c.workOut)}</text>
+      <text x="${CX0}" y="${y0+182}" font-size="16" font-weight="700" fill="${COL.loss}">Lost to friction = ${work(c.lost)}</text>
+      <text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${MUTED}">A machine never gives back more work than you put in.</text>
+      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${MUTED}">${c.rise>0?'':'Pull the load up to fill these bars.'}</text></g>`;
+  return s;
+}
+
+function draw(c){
+  let s='';
+  for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
+  for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
+  s+=`<rect x="0" y="${FLOOR}" width="1300" height="60" fill="#191714"/><line x1="0" y1="${FLOOR}" x2="1300" y2="${FLOOR}" stroke="#45403A" stroke-width="3"/>`;
+  s+=S.mode==='tackle'?drawTackle(c):S.chain==='geared'?drawGeared(c):drawDifferential(c);
+  const cards=cardForce(c)+cardDist(c)+cardWork(c);
+  // rise gauge beside the load (measured)
+  const rp=risePx(), ly=FLOOR-10;
+  s+=`<g id="rise-dim"><line x1="40" y1="${ly}" x2="40" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly}" x2="52" y2="${ly}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly-rp}" x2="52" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/>
+     <text x="58" y="${ly-rp/2+7}" font-size="18" font-weight="800" fill="${TEXT}">${len(c.rise)}</text></g>`;
+  // phone: the rig fills the first picture and the maths cards stack in a second one below it
+  const phone=matchMedia('(max-width:1000px)').matches;
+  $('svg').setAttribute('viewBox',phone?(S.mode==='tackle'?'0 0 830 900':'20 40 640 860'):'0 0 1300 900');
+  $('svg').innerHTML=phone?s:s+cards; $('svg2').innerHTML=phone?cards:'';
+}
+
+function formula(c){
+  const P=sp(COL.P,'P'), W=sp(COL.W,'W'), Wv=sp(COL.W,nf(Math.round(c.W))), Pv=sp(COL.P,wt(c.P));
+  if(S.mode==='tackle'){
+    const n=sp(COL.n,nf(c.n));
+    const f1=`MA = ${sp(COL.n,'parts holding the moving block')} = ${n}   ·   ${P} ideal = ${W} ÷ ${sp(COL.n,'n')} = ${Wv} ÷ ${n} = ${sp(COL.P,wt(c.Pideal))}`;
+    let f2;
+    if(S.friction==='ideal')f2=`No friction: ${P} = ${Pv}   ·   ${sp(COL.dist,'lead travel')} = ${n} × rise`;
+    else if(S.friction==='rule10')f2=`10 % rule: ${P} = ${W} × (1 + 0.10 × ${sp(COL.loss,'S')}) ÷ ${sp(COL.n,'n')} = ${Wv} × (1 + 0.10 × ${sp(COL.loss,c.S)}) ÷ ${n} = ${Pv}`;
+    else f2=`${S.friction==='bronze'?'Bronze bushed':'Roller bearing'} (Crosby): ${P} = ${W} ÷ ratio = ${Wv} ÷ ${sp(COL.loss,c.ratio.toFixed(2))} = ${Pv}`;
+    return [f1,f2];
+  }
+  const VR=sp(COL.n,'VR'), eta=sp(COL.loss,'η');
+  if(S.chain==='geared')return [`Maker: ${CAPNAME[S.cap]} ton lifts ${wt(c.rated)} with ${wt(c.pullRated)} pull, ${VR} = ${sp(COL.n,nf(c.VR))} ft of hand chain per ft   ·   ${eta} = ${sp(COL.loss,c.eta.toFixed(3))}`,
+    `${P} = ${W} ÷ (${VR} × ${eta}) = ${Wv} ÷ (${sp(COL.n,nf(c.VR))} × ${sp(COL.loss,c.eta.toFixed(3))}) = ${Pv}`];
+  const un=S.units==='imp'?2:0;
+  return [`${VR} = 2${sp(COL.dist,'D')} ÷ (${sp(COL.dist,'D')} − ${sp(ACC,'d')}) = 2 × ${nf(S.D,un)} ÷ (${nf(S.D,un)} − ${nf(S.d,un)}) = ${sp(COL.n,nf(c.VR,2))}`,
+    `${P} = ${W} ÷ (${VR} × ${eta}) = ${Wv} ÷ (${sp(COL.n,nf(c.VR,2))} × ${sp(COL.loss,S.eta.toFixed(2))}) = ${Pv}`];
+}
+
+/* ---------- panel ---------- */
+const RANGES={imp:{tackle:[100,80000,100],diff:[100,4000,50],D:[4,16,.25]},met:{tackle:[50,36000,50],diff:[50,2000,25],D:[100,400,5]}};
+function panel(c){
+  const set=(id,v)=>{$(id).textContent=v};
+  const tk=S.mode==='tackle';
+  set('ro-p',wt(c.P)); set('ro-pi',wt(c.Pideal));
+  $('ro-p-lbl').textContent=tk?'Line pull, with friction (P)':'Hand chain pull (P)';
+  $('ro-ma-lbl').textContent=tk?'Ideal MA (n)':'Velocity ratio (VR)';
+  set('ro-ma',nf(c.MA,c.MA%1?2:0));
+  $('ro-s-lbl').textContent=tk?'Sheaves (S)':S.chain==='geared'?'Load chain falls':'Set efficiency';
+  set('ro-s',tk?String(c.S):S.chain==='geared'?String(c.falls):pct(c.eta));
+  set('ro-act',nf(c.MAact,2)); set('ro-eff',pct(c.eff)); set('ro-kn',nf(c.kN,2)+' kN');
+  set('ro-rise',len(c.rise)); $('ro-travel-lbl').textContent=tk?'Lead line travel':'Hand chain travel';
+  set('ro-travel',len(c.travel,c.travel>=100?1:2));
+  set('ro-win',work(c.workIn)); set('ro-wout',work(c.workOut)); set('ro-lost',work(c.lost));
+  const st=$('status');
+  if(c.level==='info'){st.style.background='#34302B';st.style.color=TEXT;st.style.borderColor=ACC;
+    st.textContent=tk?`PULL ${wt(c.P)} TO LIFT ${wt(c.W)} · ${pct(c.eff)} EFFICIENT`
+      :(c.eta<.5?`UNDER 50 % EFFICIENT: LOAD HOLDS WHEN RELEASED`:`50 % OR MORE: LOAD CAN RUN BACK`);}
+  else {const col=levelCol(c.level);st.style.background=col;st.style.borderColor=col;st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
+    st.textContent=c.util>1?`OVER RATED CAPACITY (${pct(c.util)}): DO NOT LIFT`:c.util>.8?`CAUTION: ${pct(c.util)} OF RATED CAPACITY`:`WITHIN RATED CAPACITY (${pct(c.util)})`;}
+  // controls
+  $('w-tackle').classList.toggle('hide',!tk); $('w-chain').classList.toggle('hide',tk);
+  $('w-cap').classList.toggle('hide',S.chain!=='geared'); $('w-diff').classList.toggle('hide',S.chain!=='differential');
+  segSync('c-mode',S.mode);segSync('c-parts',String(S.parts));segSync('c-lead',S.lead);segSync('c-friction',S.friction);
+  segSync('c-chain',S.chain);segSync('c-cap',String(S.cap));segSync('c-units',S.units);
+  segSync('c-lift',S.rise>=riseMax()/2?'up':'down');
+  document.querySelector('#c-lead button[data-v="moving"]').disabled=S.parts<2;
+  const R=RANGES[S.units], e=$('c-load');
+  if(tk)[e.min,e.max,e.step]=R.tackle;
+  else if(S.chain==='differential')[e.min,e.max,e.step]=R.diff;
+  else {const rt=c.rated;e.min=0;e.max=Math.round(rt*1.25);e.step=S.units==='imp'?10:5;}
+  e.value=S.load;
+  ['D','d'].forEach(k=>{const el=$('c-'+k);[el.min,el.max,el.step]=R.D;el.value=S[k];});
+  $('c-eta').value=S.eta;
+  $('l-load').textContent=wt(S.load); $('l-D').textContent=dia(S.D); $('l-d').textContent=dia(S.d); $('l-eta').textContent=pct(S.eta);
+}
+function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
+
+/* ---------- callouts (pulse + fade on the virtual clock) ---------- */
+function renderCallouts(){
+  const host=$('co'); host.innerHTML='';
+  callouts.forEach(co=>{
+    const el=$(co.target); if(!el)return;
+    const r=el.getBoundingClientRect(), pad=10, op=Math.min(1,co.age/300);
+    const pulse=co.age<1800?1+0.04*Math.sin(co.age/110):1;
+    const w=(r.width+2*pad)*pulse,h=(r.height+2*pad)*pulse;
+    const ring=document.createElement('div'); ring.className='ring';
+    Object.assign(ring.style,{left:(r.left+r.width/2-w/2)+'px',top:(r.top+r.height/2-h/2)+'px',width:w+'px',height:h+'px',opacity:op});
+    host.appendChild(ring);
+    if(co.text){const lb=document.createElement('div');lb.className='clabel';lb.textContent=co.text;lb.style.opacity=op;host.appendChild(lb);
+      const lw=lb.offsetWidth,lh=lb.offsetHeight,vw=innerWidth,vh=innerHeight, slide=(1-op)*14;
+      const pos=co.pos||(r.left>vw*0.55?'left':'right'); let x,y;
+      const inPanel=$('panel').contains(el)&&innerWidth>1000, edge=inPanel?$('panel').getBoundingClientRect().left:r.left;
+      if(pos==='left'){x=edge-pad-lw-18-slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='right'){x=r.right+pad+18+slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='top'){x=r.left+r.width/2-lw/2;y=r.top-pad-lh-18-slide}
+      else {x=r.left+r.width/2-lw/2;y=r.bottom+pad+18+slide}
+      lb.style.left=clamp(x,12,vw-lw-12)+'px'; lb.style.top=clamp(y,12,vh-lh-12)+'px';}
+  });
+}
+
+/* ---------- virtual clock: ALL motion advances here ---------- */
+function step(ms){
+  const dt=ms/1000; T+=ms;
+  tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
+  tweens=tweens.filter(t=>t.t<t.dur);
+  S.rise=clamp(S.rise,0,riseMax());
+  const c=calc();
+  // rope / chain material moves with the load: accumulate the load's travel in px (sign: up = positive)
+  const rp=risePx(), key=S.mode+S.chain+S.parts+S.lead;
+  if(A.lastRisePx!=null&&A.lastMode===key)A.disp+=rp-A.lastRisePx;
+  A.lastRisePx=rp; A.lastMode=key;
+  A.flow-=dt*40;                                                     // load path creeps toward the fixed block
+  // pull arrow: spring-damper toward the live pull (ω≈7 rad/s, ζ≈0.4)
+  const wn=7,z=.4;
+  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(c.P-A.arrow)-2*z*wn*A.arrowV;A.arrowV+=acc*h;A.arrow+=A.arrowV*h;}}
+  else if(ms>=200){A.arrow=c.P;A.arrowV=0;}
+  return c;
+}
+function frame(ms){
+  const c=step(ms);
+  draw(c); panel(c);
+  const f=formula(c); $('f1').innerHTML=f[0]; $('f2').innerHTML=f[1];
+  callouts.forEach(co=>co.age+=ms);
+  renderCallouts();
+}
+function set(p,dur=0){
+  p={...p};
+  if(p.units&&p.units!==S.units){
+    const toMet=p.units==='met', fw=toMet?LB_TO_KG:1/LB_TO_KG, fl=toMet?FT_TO_M:1/FT_TO_M, fd=toMet?IN_TO_MM:1/IN_TO_MM;
+    tweens=tweens.filter(t=>!['load','rise','D','d'].includes(t.key));
+    if(!('load' in p))S.load*=fw; if(!('rise' in p))S.rise*=fl;
+    if(!('D' in p))S.D*=fd; if(!('d' in p))S.d*=fd;
+    S.units=p.units; delete p.units;
+  }
+  const snap=p.snap; delete p.snap;
+  if('parts' in p)p.parts=clamp(Math.round(p.parts),1,8);
+  if('cap' in p)p.cap=clamp(Math.round(p.cap),0,8);
+  for(const [k,v] of Object.entries(p)){
+    tweens=tweens.filter(t=>t.key!==k);
+    if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
+    else S[k]=v;
+  }
+  if(S.parts<2&&S.lead==='moving')S.lead='fixed';
+  if(S.d>=S.D)S.d=S.D*.9;
+  S.rise=clamp(S.rise,0,riseMax());
+  if(snap){const c=calc();A.arrow=c.P;A.arrowV=0;A.disp=0;A.lastRisePx=null;A.flow=0;}
+  if(!CAPTURE)frame(0);
+}
+function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
+function clear(){callouts=[];if(!CAPTURE)frame(0);}
+
+/* ---------- user controls ---------- */
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;const v=b.dataset.v;
+  ({'c-mode':()=>set({mode:v}),'c-parts':()=>set({parts:+v}),'c-lead':()=>set({lead:v}),'c-friction':()=>set({friction:v}),
+    'c-chain':()=>set({chain:v,load:v==='geared'?calc({...S,chain:'geared'}).rated*.75:S.units==='imp'?1000:500}),
+    'c-cap':()=>{set({cap:+v});set({load:calc().rated*.75});},
+    'c-units':()=>set({units:v}),
+    'c-lift':()=>{const to=v==='up'?riseMax():0;set({rise:to},Math.max(300,Math.abs(to-S.rise)/riseMax()*6000));}})[seg.id]?.();
+}));
+['load','D','d','eta'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
+addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
+
+frame(0);
+if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>calc(),get:()=>({...S}),get view(){return {...A}},ready:true};
+})();
+</script>
+</body>
+</html>
