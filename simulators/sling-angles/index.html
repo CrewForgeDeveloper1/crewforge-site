@@ -494,8 +494,12 @@ function chokeInset(c,op){
   CHOKE_ROWS.forEach((r,i)=>{const on=i===c.row&&S.slingType!=='chain';
     s+=`<g id="choke-row-${i}"><text x="${x0+14}" y="${y0+i*rh+30}" font-size="22" font-weight="700" fill="${on?'#141414':TEXT}">${r[3]}</text>
     <text x="${x0+276}" y="${y0+i*rh+30}" text-anchor="end" font-size="22" font-weight="800" fill="${on?'#141414':ACC}">${Math.round(r[2]*100)}%</text></g>`;});
-  s+=`<text x="${x0+4}" y="${y0+5*rh+26}" font-size="15" fill="${MUTED}">${S.slingType==='chain'?'Alloy chain: use the maker’s chart':'Wire rope / synthetic. Brackets vary'}</text>
-  <text x="${x0+4}" y="${y0+5*rh+48}" font-size="15" fill="${MUTED}">${S.slingType==='chain'?'':'by maker: check the tag.'}</text></g>`;
+  // The angle-of-choke table is a wire rope table; synthetic and chain chokers under 120° go to the maker's chart
+  // (Blair 2026-11-08). Synthetic keeps the wire rope figure as a conservative reference, labelled as such.
+  const l1=S.slingType==='wire'?'Wire rope table. Brackets vary':S.slingType==='chain'?'Alloy chain: use the maker’s chart':'Wire rope table, for reference.';
+  const l2=S.slingType==='wire'?'by maker: check the tag.':S.slingType==='chain'?'':'Synthetic: use the maker’s chart.';
+  s+=`<text x="${x0+4}" y="${y0+5*rh+26}" font-size="15" fill="${MUTED}">${l1}</text>
+  <text x="${x0+4}" y="${y0+5*rh+48}" font-size="15" fill="${S.slingType==='synthetic'?ACC:MUTED}">${l2}</text></g>`;
   return s;
 }
 
