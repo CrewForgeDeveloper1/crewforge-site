@@ -47,6 +47,9 @@
     pull       angle of pull from in-line, degrees · hwLoad load on the part · ddD pin or load diameter D, ddd rope diameter d (in | mm)
   mode 'hitch' uses the ep 001 keys (hitch legs angle load wll slingType choke twoLeg lift) plus
     loadD      diameter of the load the basket bends around (in | mm) · ropeD sling body diameter (in | mm) · tags tag lines on/off
+  FAILURE MODES (all modes; NOTES.md "Failure modes")
+    fail       true → past breaking strength the part fails on the virtual clock (default: true interactive, false in ?capture=1)
+               false, snap:true or a mode change → the rig is restored. sim.failure() → {on, kind, t, parted, caption, ratio, …}
   Callout IDs and sources: see NOTES.md beside this file.
 -->
 <style>
@@ -217,6 +220,7 @@ const NUMERIC=['angle','load','wll','sling','choke','lift'];
 Object.assign(S,{mode:'sling',shape:'plate',plateL:10,plateW:4,plateT:1,barD:6,barL:12,pipeOD:8.625,pipeWall:.5,pipeL:20,
   blockL:6,blockW:3,blockH:2,skidL:12,skidW:4,skidT:2,motorW:3000,motorX:9,motorH:2,pick1:1,pick2:1,rig:'level',hookH:6,cgView:'legs',
   part:'eyebolt',eyeType:'shoulder',hwWll:5200,hwLoad:1500,pull:45,ddD:4,ddd:.5,loadD:24,ropeD:.75,tags:true});
+S.fail=!CAPTURE;   // FAILURE MODES armed: on in the interactive page, off in ?capture=1 unless a script sets fail:true
 NUMERIC.push('plateL','plateW','plateT','barD','barL','pipeOD','pipeWall','pipeL','blockL','blockW','blockH','skidL','skidW','skidT',
   'motorW','motorX','motorH','pick1','pick2','hookH','hwWll','hwLoad','pull','ddD','ddd','loadD','ropeD');
 const $=id=>document.getElementById(id);
@@ -319,6 +323,7 @@ function calc(){
     c.angleBad=S.rig!=='vertical'&&Math.min(c.th1,c.th2)<30;
     c.tilted=Math.abs(c.tilt)>5;                    // SkilledTradesBC: more than 5° of tilt → land it and re-rig
     c.level=c.tips||c.angleBad||c.util>1?'bad':(c.util>.8||c.tilted)?'warn':'ok';
+    c.df=DF[S.slingType]; c.breakAt=S.wll*c.df; c.breakLeg=c.T2>c.T1?2:1;     // FAILURE MODES: minimum breaking strength
     return c;
   }
   /* =====================================================================
@@ -339,6 +344,7 @@ function calc(){
     c.T=c.load; c.rating=c.adj; c.capacity=c.adj; c.util=c.adj>0?c.load/c.adj:(c.load>0?Infinity:0);
     c.notAllowed=c.pct===0;
     c.level=c.notAllowed||c.util>1?'bad':c.util>.8?'warn':'ok';
+    c.df=HWDF[S.part]; c.breakAt=c.adj*c.df;                                  // FAILURE MODES: derated WLL × design factor
     return c;
   }
   /* MODE 'sling' (episode 001) below, unchanged. MODE 'hitch' (episode 006) runs the same maths and adds the
@@ -372,6 +378,7 @@ function calc(){
   c.util=c.T/c.rating;
   c.angleBad=angled&&th<30;
   c.level=c.angleBad||c.util>1?'bad':c.util>.8?'warn':'ok';
+  c.df=DF[S.slingType]; c.breakAt=c.rating*c.df;                            // FAILURE MODES: leg breaks past rating × design factor
   return c;
 }
 
@@ -402,7 +409,7 @@ function pill(id,x,y,text,col,op=1){const w=text.length*13.5+28;
    from the load UP into the hook, speed ∝ how hard the leg is working, colour by utilization. */
 function leg(id,x1,y1,x2,y2,sag,col,work,shake){
   const mx=(x1+x2)/2+sag*.35, my=(y1+y2)/2+sag;
-  const j=shake?Math.sin(T/18+x2)*1.6:0;
+  const j=shake?Math.sin(T/18+x2)*1.6+LEGSTRAIN*5*Math.sin(T/6.5+x2*1.7):0;   // LEGSTRAIN 0 unless failure modes are armed
   const d=`M${x1+j} ${y1} Q${mx+j} ${my} ${x2} ${y2}`;
   let base;
   if(S.slingType==='chain') base=`<path d="${d}" stroke="#7f8f9b" stroke-width="13" fill="none" stroke-dasharray="16 5" stroke-linecap="butt"/>
@@ -495,7 +502,7 @@ function chokeInset(c,op){
 function draw(c){
   const cx=470, ground=820, Lpx=380;
   const k=smooth(0,.3,S.lift);                 // slack taken up (0 → 1)
-  const rise=smooth(.3,1,S.lift)*120;           // load height off the floor
+  const rise=smooth(.3,1,S.lift)*120-(S.fail?14*strainOf(c)*k:0);   // load height off the floor (armed + overloaded: the legs stretch)
   const work=k*c.util;                          // how hard the legs are working right now
   const col=levelCol(c.level), shake=k>.9&&(c.util>1||c.angleBad);
   let s='';
@@ -519,6 +526,7 @@ function draw(c){
       r+=hookBlock(cx,hy)+leg('leg-0',cx,hy+18,cx,top-14,(1-k)*60,col,work,shake);
       r+=pill('leg-label-0',cx+150,(hy+top)/2,wt(c.T*k),col);
       A.curHook=hy; A.lb={l:cx-170,r:cx+170,y:top+bh/2};
+      A.geo={type:'box',x0:cx-170,w:340,top,bh,hx:cx,hy,legs:[[cx,top-14]],depth:false,label};
     } else {
       const R=115, ccy=ground-R-rise, a=clamp(180-S.choke,25,89);
       const d=R/Math.sin(rad(a)), Cy=ccy-d, b=Math.acos(R/d), tx=R*Math.sin(b), ty=ccy-R*Math.cos(b), hy=Cy-250+(1-k)*60;
@@ -539,6 +547,7 @@ function draw(c){
         <text x="${cx+74}" y="${Cy-22}" font-size="28" font-weight="800" fill="${ACC}">Choke ${deg(S.choke)}</text></g>`;
       r+=pill('leg-label-0',cx-150,(hy+Cy)/2,wt(c.T*k),col);
       A.curHook=hy; A.lb={l:cx-R,r:cx+R,y:ccy};
+      A.geo={type:'bundle',cx,cy:ccy,r:R,hx:cx,hy,legs:[[cx,Cy]],label};
     }
   } else {
     const th=rad(c.th), half=Math.max(40,Lpx*Math.cos(th)), riseH=Lpx*Math.sin(th);
@@ -554,7 +563,7 @@ function draw(c){
     // Two-leg rule: the load rocks onto one pair of legs, then another. Slack legs sag; their corners dip.
     const slack=pts.map(()=>0);
     if(depth&&S.twoLeg){
-      const sets=S.legs===4?[[0,2],[1,3]]:[[0,1],[1,2],[2,0]], per=3200, ph=(T/per)%sets.length, i=Math.floor(ph), fr=ph-i;
+      const sets=S.legs===4?[[0,2],[1,3]]:[[0,1],[1,2],[2,0]], per=3200, ph=((T/per)%sets.length+sets.length)%sets.length, i=Math.floor(ph), fr=ph-i;
       const bl=smooth(.75,1,fr), cur=sets[i], nxt=sets[(i+1)%sets.length];
       pts.forEach((_,j)=>{slack[j]=(cur.includes(j)?0:1)*(1-bl)+(nxt.includes(j)?0:1)*bl;});
     }
@@ -611,14 +620,17 @@ function draw(c){
     r+=pill('leg-label-0',(hx+pts[0][0])/2-78,(hy+top)/2+6,lab(0),slack[0]>.5?MUTED:col);
     r+=pill('leg-label-1',(hx+pts[1][0])/2+88,(hy+top)/2+52,lab(1),slack[1]>.5?MUTED:col);
     A.curHook=hy; A.lb=isB?{l:cx-rB,r:cx+rB,y:cyB}:{l:x0,r:x0+w,y:top+bh/2};
+    A.geo=isB?{type:'drum',cx,cy:cyB,r:rB,rs:rsB,th,hx,hy,legs:pts.map(p=>[...p]),label}
+             :{type:'box',x0,w,top,bh,hx,hy,legs:pts.map(p=>[...p]),depth,dx,dy,label};
   }
   r+=`</g>`;
   s+=r;
   // insets
-  if(S.mode==='hitch')s+=tagLines(c,k,swayDeg)+hitchInsets(c);
+  if(S.mode==='hitch')s+=tagLines(c,k,swayDeg)+hitchInsets(c)+(creakOn(c)?creakCard(990,640,304,160,c):'');
   else{
   s+=S.hitch==='choker'?chokeInset(c,1):curveInset(c,1);
   s+=triangleInset(c,A.vec);
+  if(creakOn(c))s+=creakCard(990,664,304,136,c);
   }
   if(c.angleBad){const fl=.75+.25*Math.sin(T/140);
     s+=`<g id="warn-banner" opacity="${fl}"><rect x="200" y="40" width="640" height="68" rx="10" fill="${BAD}"/><text x="520" y="86" text-anchor="middle" font-size="31" font-weight="800" fill="#fff">BELOW 30° · DO NOT LIFT</text></g>`;}
@@ -748,6 +760,10 @@ function drawCG(c){
     <path d="M${gx} ${gy} L${gx+15} ${gy} A15 15 0 0 1 ${gx} ${gy+15} Z M${gx} ${gy} L${gx-15} ${gy} A15 15 0 0 1 ${gx} ${gy-15} Z" fill="${TEXT}"/></g>`;
   r+=txt(gx+20,gy-18,'CG',{fs:22});
   r+=`</g>`;
+  // FAILURE MODES: world geometry of this frame (before sway), used if the rig fails on the next frame
+  A.geoCG={single,HX,hy:single?HY+sag:null,hy1:single?null:p1[1]-h*sc+sag,hy2:single?null:p2[1]-h*sc+sag,p1:[...p1],p2:[...p2],
+    poly:[[0,0],[L,0],[L,-Hd],[0,-Hd]].map(q=>M(q[0],q[1])),motor:skid&&c.hm>0?[[mx0,0],[mx0+mw,0],[mx0+mw,c.hm],[mx0,c.hm]].map(q=>M(q[0],q[1])):null,
+    cg:[gx,gy],sc,ground,label:wt(c.W),tilt:t};
   // plumb line from the hook: once the load is free, the CG ends up on this line
   if(single){const o=k>.5?.9:.35;
     s+=`<line id="cg-plumb" x1="${HX}" y1="${HY+40}" x2="${HX}" y2="${ground}" stroke="${CD}" stroke-width="2.5" stroke-dasharray="10 8" stroke-dashoffset="${-A.flow*.3}" opacity="${o}"/>`;
@@ -762,7 +778,7 @@ function drawCG(c){
     const msg=c.tips?'CG OUTSIDE THE PICKS · LOAD TIPS':c.angleBad?'BELOW 30° · DO NOT LIFT':'OVERLOADED · DO NOT LIFT';
     s+=`<g id="cg-warn" opacity="${fl}"><rect x="140" y="40" width="680" height="64" rx="10" fill="${BAD}"/>${txt(480,84,msg,{fs:28,anchor:'middle',col:'#fff'})}</g>`;}
   if(S.lift<.3&&k<.98)s+=txt(480,ground+52,S.lift<.02?'LOAD ON THE FLOOR · SLINGS SLACK':'TAKING UP SLACK',{fs:24,fw:700,col:MUTED,anchor:'middle'});
-  s+=volumeCard(c)+(S.rig==='equal'?tiltCard(c):momentCard(c));
+  s+=(F.on&&F.kind==='swing'?failCard(976,16,318):volumeCard(c))+(creakOn(c)?creakCard(990,500,304,140,c):S.rig==='equal'?tiltCard(c):momentCard(c));
   $('svg').innerHTML=s;
 }
 /* Volume as a picture: the load is drawn as a block of unit cubes (1 ft³ or a decimal of it), each worth ρ × cube. */
@@ -851,33 +867,57 @@ function drawHW(c){
     const top=650, cx=480;
     s+=`<rect id="hw-base" x="170" y="${top}" width="620" height="${ground-top}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`;
     // the part bends a little toward the pull (exaggerated): more sideways force, more bend
-    const bend=clamp((c.side/Math.max(1,c.rated))*9,0,9)*(1+.04*Math.sin(T/220));
+    const bend0=clamp((c.side/Math.max(1,c.rated))*9,0,9)*(1+.04*Math.sin(T/220));
+    // FAILURE MODES: past the derated breaking load the part yields toward the pull (0 → THW ms), then lets go and flies
+    // off along the pull with the sling (projectile on the virtual clock). Before that, armed + overloaded: it shivers.
+    const FH=F.on&&F.kind===S.part, fu=FH?clamp(F.t/THW,0,1):0, snapped=FH&&F.t>=THW, ftau=FH?Math.max(0,(F.t-THW)/1000):0;
+    const bend=FH?bend0+(Math.min(c.ang,80)*.8-bend0)*ease(fu)+Math.sin(T/9)*(1-fu)*.6:bend0+LEGSTRAIN*1.2*Math.sin(T/7);
+    // the part flies off along the pull (650 px/s), falls under gravity and lands on the floor, sliding to a stop
+    const fly=v=>{const V=650, yAt=t=>-Math.cos(a)*V*t+.5*GPX*t*t, lim=792-v[1]; let tl=ftau;
+      if(yAt(ftau)>lim){let lo=0,hi=ftau;for(let i=0;i<40;i++){const m=(lo+hi)/2;if(yAt(m)>lim&&m>Math.cos(a)*V/GPX)hi=m;else lo=m;}tl=hi;}
+      const fx=Math.sin(a)*V*tl+Math.sin(a)*140*(1-Math.exp(-(ftau-tl)/.3)), fy=Math.min(yAt(tl),lim);
+      return [fx,fy,`translate(${fx.toFixed(1)} ${fy.toFixed(1)}) rotate(${(tl*480*(a>=0?1:-1)).toFixed(1)} ${v[0].toFixed(1)} ${v[1].toFixed(1)})`];};
     let anchor;
     if(S.part==='eyebolt'){
       const plain=S.eyeType==='plain', ey=top-(plain?60:76);
       s+=`<g id="hw-thread"><rect x="${cx-18}" y="${top}" width="36" height="110" fill="#2E2A26"/>`;
       for(let i=0;i<9;i++)s+=`<line x1="${cx-18}" y1="${top+8+i*12}" x2="${cx+18}" y2="${top+14+i*12}" stroke="${STEEL}" stroke-width="2"/>`;
-      s+=`</g><g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${top})">`;
-      if(!plain)s+=`<rect id="hw-shoulder" x="${cx-40}" y="${top-16}" width="80" height="16" rx="4" fill="${STEEL}"/>`;
-      s+=`<rect x="${cx-13}" y="${ey+40}" width="26" height="${top-(ey+40)-(plain?0:16)}" fill="${STEEL}"/>
-        <circle id="hw-eye" cx="${cx}" cy="${ey}" r="44" fill="none" stroke="${STEEL}" stroke-width="18"/></g>`;
       {const r0=top-ey+44;anchor=[cx+Math.sin(rad(bend))*r0,top-Math.cos(rad(bend))*r0];}
+      let fl=null; if(snapped){fl=fly(anchor);anchor=[anchor[0]+fl[0],anchor[1]+fl[1]];}
+      const neck=FH?6*smooth(.5,1,fu):0;                  // the shank necks down just before it lets go
+      s+=`</g>${fl?`<g transform="${fl[2]}">`:''}<g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${top})">`;
+      if(!plain)s+=`<rect id="hw-shoulder" x="${cx-40}" y="${top-16}" width="80" height="16" rx="4" fill="${STEEL}"/>`;
+      s+=`<rect x="${cx-13+neck}" y="${ey+40}" width="${26-2*neck}" height="${top-(ey+40)-(plain?0:16)}" fill="${STEEL}"/>
+        <circle id="hw-eye" cx="${cx}" cy="${ey}" r="44" fill="none" stroke="${STEEL}" stroke-width="18"/></g>${fl?'</g>':''}`;
+      if(snapped)s+=`<path id="hw-stub" d="M${cx-18} ${top} L${cx-18} ${top-8} L${cx-9} ${top-14} L${cx-2} ${top-6} L${cx+6} ${top-15} L${cx+13} ${top-7} L${cx+18} ${top-11} L${cx+18} ${top} Z" fill="${STEEL}" stroke="#5d6a74" stroke-width="2"/>`+sparks(cx,top-10,ftau,3);
       if(!plain)s+=txt(cx-56,top-2,'shoulder',{fs:16,col:MUTED,anchor:'end'});
       if(plain&&c.ang>5)s+=`<g id="hw-x"><line x1="${cx-70}" y1="${ey-70}" x2="${cx+70}" y2="${top+40}" stroke="${BAD}" stroke-width="10"/><line x1="${cx+70}" y1="${ey-70}" x2="${cx-70}" y2="${top+40}" stroke="${BAD}" stroke-width="10"/></g>`;
     } else {
       // screw-pin shackle: padeye up from the base, pin across, bow above; side load in the plane of the bow
       const py=top-50;
       s+=`<path id="hw-padeye" d="M${cx-46} ${top} L${cx-46} ${py} A46 46 0 0 1 ${cx+46} ${py} L${cx+46} ${top} Z" fill="#5D5750" stroke="#7A7268" stroke-width="2"/>`;
-      s+=`<g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${py})">
-        <path d="M${cx-58} ${py} L${cx-58} ${py-150} A58 58 0 0 1 ${cx+58} ${py-150} L${cx+58} ${py}" fill="none" stroke="${STEEL}" stroke-width="20" stroke-linecap="round"/>
-        <rect id="hw-pin" x="${cx-86}" y="${py-11}" width="172" height="22" rx="8" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/>
-        <circle cx="${cx-86}" cy="${py}" r="18" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/></g>`;
-      anchor=[cx+Math.sin(rad(bend))*208,py-Math.cos(rad(bend))*208];
+      // failure: the bow is pulled over and stretched, its ears spread, the pin bends; then the pin shears and the bow goes
+      const sp=FH?20*ease(fu):0, st=FH?26*ease(fu):0, bulge=FH?16*ease(fu):0;
+      anchor=[cx+Math.sin(rad(bend))*(208+st),py-Math.cos(rad(bend))*(208+st)];
+      let fl=null; if(snapped){fl=fly(anchor);anchor=[anchor[0]+fl[0],anchor[1]+fl[1]];}
+      const bow=FH?`M${cx-58-sp} ${py} L${cx-58} ${py-150-st} C${cx-58} ${py-228-st} ${cx+58} ${py-228-st} ${cx+58} ${py-150-st} L${cx+58+sp} ${py}`
+                  :`M${cx-58} ${py} L${cx-58} ${py-150} A58 58 0 0 1 ${cx+58} ${py-150} L${cx+58} ${py}`;
+      const pin=FH?`<path id="hw-pin" d="M${cx-86-sp} ${py} Q${cx} ${py+2*bulge} ${cx+86+sp} ${py}" fill="none" stroke="#c3ced6" stroke-width="22" stroke-linecap="round"/>`
+                  :`<rect id="hw-pin" x="${cx-86}" y="${py-11}" width="172" height="22" rx="8" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/>`;
+      if(snapped)s+=`<path id="hw-stub" d="M${cx-46} ${py+4} Q${cx} ${py+2*bulge+4} ${cx+40} ${py-2}" fill="none" stroke="#c3ced6" stroke-width="20" stroke-linecap="round"/>`+sparks(cx+44,py,ftau,5);
+      s+=`${fl?`<g transform="${fl[2]}">`:''}<g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${py})">
+        <path d="${bow}" fill="none" stroke="${STEEL}" stroke-width="20" stroke-linecap="round"/>
+        ${snapped?'':pin}
+        <circle cx="${cx-86-sp}" cy="${py}" r="18" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/></g>${fl?'</g>':''}`;
       s+=txt(cx-108,py+6,'pin',{fs:16,col:MUTED,anchor:'end'})+txt(cx+80,py-150,'bow',{fs:16,col:MUTED});
     }
     // the pull: sling line at angle α from in-line, load path flowing toward the hook
-    const Ls=430, ex=anchor[0]+Ls*Math.sin(a), ey2=anchor[1]-Ls*Math.cos(a);
-    s+=leg('hw-sling',ex,ey2,anchor[0],anchor[1],0,col,work,c.level==='bad');
+    const Ls=430;
+    // the sling's far end stays where it was; after the part lets go the sling is slack and whips
+    const a0=FH?A.hwA0:a, base0=FH?A.hwAnc:anchor;
+    if(!FH){A.hwAnc=[...anchor];A.hwA0=a;}
+    const ex=FH?base0[0]+Ls*Math.sin(a0):anchor[0]+Ls*Math.sin(a), ey2=FH?base0[1]-Ls*Math.cos(a0):anchor[1]-Ls*Math.cos(a);
+    s+=leg('hw-sling',ex,ey2,anchor[0],anchor[1],snapped?Math.min(1,ftau*3)*70*Math.sin(ftau*9+1):0,snapped?MUTED:col,snapped?0:work,c.level==='bad'&&!snapped);
     s+=`<line x1="${anchor[0]}" y1="${anchor[1]}" x2="${anchor[0]}" y2="${anchor[1]-300}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="6 6"/>`;
     const R=110;
     if(A.pull>.5)s+=`<g id="hw-angle"><path d="M${anchor[0]} ${anchor[1]-R} A${R} ${R} 0 0 1 ${anchor[0]+R*Math.sin(a)} ${anchor[1]-R*Math.cos(a)}" fill="none" stroke="${ACC}" stroke-width="5"/>
@@ -896,8 +936,8 @@ function drawHW(c){
     s+=`</g>`;
     s+=pill('hw-load-label',clamp(ex,180,860),Math.max(64,ey2+30),wt(c.load),col);
   }
-  s+=S.part==='dd'?ddCurveCard(c):envelopeCard(c);
-  s+=blocksCard(c);
+  s+=F.on&&F.kind===S.part?failCard(976,16,318):S.part==='dd'?ddCurveCard(c):envelopeCard(c);
+  s+=creakOn(c)?creakCard(990,466,304,150,c):blocksCard(c);
   if(c.level==='bad'){const fl=.75+.25*Math.sin(T/140);
     const msg=c.notAllowed?(S.part==='dd'?'D/d BELOW 1:1 · NOT ALLOWED':'NO ANGULAR LIFTS ON A PLAIN EYEBOLT'):'OVERLOADED · DO NOT LIFT';
     s+=`<g id="hw-warn" opacity="${fl}"><rect x="120" y="40" width="720" height="64" rx="10" fill="${BAD}"/>${txt(480,84,msg,{fs:27,anchor:'middle',col:'#fff'})}</g>`;}
@@ -966,10 +1006,22 @@ function blocksCard(c){
 /* Rope bent around a pin of diameter D, drawn to the real ratio. Outer wires stretch, inner wires crush. */
 function drawDD(c,col,work){
   const cx=480, cy=270, room=470, k=Math.min(room/(S.ddD+2*S.ddd),300/Math.max(1e-6,S.ddD));
-  const D=S.ddD*k, d=Math.max(3,S.ddd*k), Rc=D/2+d/2, bot=720+4*Math.sin(T/400);
+  const D=S.ddD*k, d=Math.max(3,S.ddd*k), Rc=D/2+d/2;
+  // FAILURE MODES: the outer wires at the top of the bend break first, the strands unravel, the rope parts and the load drops
+  const FH=F.on&&F.kind==='dd', fu=FH?clamp(F.t/THW,0,1):0, snapped=FH&&F.t>=THW, ftau=FH?Math.max(0,(F.t-THW)/1000):0;
+  if(!FH)A.ddBot0=720+4*Math.sin(T/400);
+  const bot0=FH?A.ddBot0:720+4*Math.sin(T/400), fall=820-(bot0+40), tl=Math.sqrt(2*fall/GPX);
+  const drop=snapped?(ftau<tl?.5*GPX*ftau*ftau:fall-Math.exp(-(ftau-tl)/.1)*Math.abs(Math.sin((ftau-tl)*30))*6):0, bot=bot0+drop;
   let s=`<rect x="${cx-40}" y="0" width="80" height="${cy}" fill="#3A3631"/><circle id="hw-pin-dd" cx="${cx}" cy="${cy}" r="${D/2}" fill="#5D5750" stroke="${STEEL}" stroke-width="3"/>`;
+  if(snapped){const lay=ftau>tl?smooth(0,.5,ftau-tl):0, top=cy+drop, Lr=bot-40-top;
+    [-1,1].forEach(sg=>{const x=cx+sg*Rc, ty=bot-40-Lr*(1-.75*lay), tx=x+sg*Lr*.6*lay;
+      s+=`<path id="${sg<0?'hw-rope':'hw-rope-2'}" d="M${x} ${bot-40} Q${x} ${(ty+bot-40)/2} ${tx} ${ty}" fill="none" stroke="#7f8f9b" stroke-width="${d}"/>`+fray(tx,ty,Math.atan2(ty-(bot-40),tx-x),'wire',Math.min(d,26));});
+    s+=`<rect id="hw-dd-load" x="${cx-Rc-60}" y="${bot-40}" width="${2*Rc+120}" height="80" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`+txt(cx,bot+12,wt(c.load),{fs:30,anchor:'middle'});
+    if(ftau>tl)s+=dust(cx,820,2*Rc+120,ftau-tl,7);
+    return s+txt(cx,cy+D/2+64,'D ÷ d = '+trim(c.ratio,2)+' : 1',{fs:32,anchor:'middle',id:'hw-ratio'});}
   const rope=`M${cx-Rc} ${bot-40} L${cx-Rc} ${cy} A${Rc} ${Rc} 0 0 1 ${cx+Rc} ${cy} L${cx+Rc} ${bot-40}`;
   s+=`<path id="hw-rope" d="${rope}" fill="none" stroke="#7f8f9b" stroke-width="${d}"/>`;
+  if(FH)s+=damage(cx,cy-Rc,0,'wire',fu,Math.max(d,12));
   // outer and inner edge marks: spacing ∝ radius, so the outside of the bend shows the stretch
   const ro=Rc+d/2-1.5, ri=Math.max(1,Rc-d/2+1.5), step=10;
   s+=`<path d="M${cx-ro} ${cy} A${ro} ${ro} 0 0 1 ${cx+ro} ${cy}" fill="none" stroke="#e6edf2" stroke-width="2.5" stroke-dasharray="${2*ro/Rc*2} ${step*ro/Rc}" stroke-dashoffset="${A.flow*.2}"/>`;
@@ -1028,7 +1080,8 @@ function hitchInsets(c){
   s+=txt(tx,ccy-24,'D/d = '+trim(c.dd,1),{fs:20,id:'hitch-dd-ratio'});
   s+=txt(tx,ccy+8,c.ddWire?'factor '+c.ddEff.toFixed(2):'wire rope rule',{fs:18,col:c.ddWire&&c.ddEff<1?WARN:CD});
   s+=txt(tx,ccy+34,c.ddWire?(c.dd>=25?'≥ 25:1 · full':'< 25:1 · reduce'):'only',{fs:15,col:MUTED,fw:700});
-  // tag-line note
+  // tag-line note (the creak meter takes its place when failure modes are armed and the sling is overloaded)
+  if(creakOn(c))return s;
   s+=card('hitch-tag-note',x0,y0+624,w,160,'LOAD CONTROL');
   ['Tag lines stop swing and spin.','Stand clear, out from under it.','Never wrap a tag line around','your hand. Keep them on until','the load has landed.'].forEach((l,i)=>{s+=txt(x0+14,y0+624+54+i*22,l,{fs:16,fw:700,col:i<2?TEXT:MUTED});});
   return s;
@@ -1118,7 +1171,7 @@ function panelModes(c){
 function cubeCount(c){const b=(S.units==='lb'?[.01,.1,1,10,100,1000]:[1e-4,1e-3,.01,.1,1,10]);const blk=b.find(x=>c.V/x<=40)||b[b.length-1];return c.V/blk;}
 function animModes(c,dt,toward){
   if(c.mode==='cg'){
-    const goal=c.tilt*smooth(.3,.65,S.lift), wn=3.2, z=.22;          // tilt: under-damped, so the load rocks and settles
+    const goal=c.tilt*smooth(.3,.65,S.lift), wn=3.2, z=F.on&&F.kind==='swing'?.03:.22;   // tilt: under-damped, so the load rocks and settles (failure 'swing': barely damped)
     A.tilt=A.tilt??goal; A.tiltV=A.tiltV??0;
     const n=Math.max(1,Math.ceil(dt*1000/8));for(let i=0;i<n;i++){const h=dt/n;A.tiltV+=(wn*wn*(goal-A.tilt)-2*z*wn*A.tiltV)*h;A.tilt+=A.tiltV*h;}
     A.cubes=toward(A.cubes??0,cubeCount(c),18); A.grow=toward(A.grow??0,1,1.2);
@@ -1144,6 +1197,286 @@ function layoutMode(){
   segSync('c-mode',m);
 }
 
+/* =====================================================================
+   FAILURE MODES (owner's standing rule, 2026-11-07). Push the rig past breaking strength and it fails, on the virtual
+   clock, with a plain-words caption and a "Never do this on the job" tag. Armed by state fail:true (default: on in the
+   interactive page, off in ?capture=1, so episode 001 renders exactly as published; a script cues it with
+   sim.set({fail:true, ...})). sim.set({fail:false}), snap:true or a mode change resets the rig; so does bringing the
+   load back under the limit.
+   Minimum breaking strength = rating × design factor (the part holds AT that number and fails just past it):
+     slings (ASME B30.9 design factors, as cited in the episode 001 textbook): wire rope 5, alloy chain 4, synthetic 5
+       rating = the hitch rating per leg (vertical WLL; choker WLL × choker %; basket leg WLL × D/d factor)
+     shoulder eyebolt 5 (Crosby G-277 / S-279: ultimate load 5 × WLL) · screw-pin shackle 6 (Crosby G-209: ultimate 6 × WLL)
+     wire rope bent over a pin (D/d part): 5 × the D/d-reduced rating
+     Angled hardware breaks at the DERATED WLL × design factor (assumption: the maker's angle table scales the ultimate
+     load in the same proportion as the WLL). Plain eyebolts at an angle have no published value: no failure is drawn.
+   Weight and CG: CG outside the picks → the load tips about the pick on the CG side, lands on its end and slides out
+   flat. Equal legs tilted over 5° (SkilledTradesBC: land it and re-rig) → the load swings, undamped: 0° to about 2 × tilt.
+   Between 100 % of the rating and breaking (armed): the red overloaded state plus strain cues: the legs shiver and
+   stretch, and the creak meter shows how close the leg is to breaking.
+   Gravity in screen pixels: sling scenes ≈ 38 px per ft (32.2 ft/s²); weight-and-CG scenes use the drawing's own scale.
+   ===================================================================== */
+const DF={wire:5,chain:4,synthetic:5}, DFNAME={wire:'Wire rope',chain:'Alloy chain',synthetic:'Synthetic web'};
+const HWDF={eyebolt:5,shackle:6,dd:5};
+const GPX=32.174*38;            // px/s² in the sling and hardware scenes
+const TPART=520, THW=900;       // ms from the trigger to the leg parting (slings) / the part letting go (hardware)
+let F={on:false,t:0}, LEGSTRAIN=0;
+const rnd=(i,sd=0)=>{const x=Math.sin(i*12.9898+sd*78.233)*43758.5453;return x-Math.floor(x);};
+const xf=(r,df)=>{let t=r.toFixed(1);if(+t<=df)t=r.toFixed(2);if(+t<=df)t='just over '+df;return t;};
+function strainOf(c){return c&&isFinite(c.util)&&c.df?clamp((c.util-1)/(c.df-1),0,1):0;}
+function creakOn(c){return !!(S.fail&&!F.on&&c.df&&isFinite(c.util)&&c.util>1&&c.breakAt>0&&(S.mode==='hardware'||smooth(0,.3,S.lift)>.9)&&!(c.mode==='cg'&&c.tips));}
+/* Creak meter: how far the leg is between its rating (1 ×) and breaking (design factor ×); noise bars flicker harder near breaking */
+function creakCard(x0,y0,w,h,c){
+  const st=strainOf(c), bx=x0+14, bw=w-28, by=y0+44, X=v=>bx+bw*clamp((v-1)/(c.df-1),0,1);
+  let s=card('creak-meter',x0,y0,w,h,'STRAIN · CREAK METER');
+  s+=`<rect x="${bx}" y="${by}" width="${bw}" height="18" rx="4" fill="#2f2b27"/><rect id="creak-bar" x="${bx}" y="${by}" width="${(X(c.util)-bx).toFixed(1)}" height="18" rx="4" fill="${st>.6?BAD:WARN}"/>`;
+  s+=`<line x1="${bx+bw}" y1="${by-6}" x2="${bx+bw}" y2="${by+24}" stroke="${BAD}" stroke-width="3"/>`;
+  s+=txt(bx,by+46,`${c.util.toFixed(2)} × rating`,{fs:20,col:st>.6?BAD:WARN})+txt(bx+bw,by+46,`breaks at ${c.df} ×`,{fs:15,col:MUTED,fw:700,anchor:'end'});
+  s+=`<g id="creak-noise">`;
+  for(let i=0;i<16;i++){const hh=3+st*26*Math.abs(Math.sin(T/23+i*1.3)*Math.sin(T/57+i*.7));
+    s+=`<rect x="${(bx+i*(bw/16)).toFixed(1)}" y="${(y0+h-12-hh).toFixed(1)}" width="${(bw/16-4).toFixed(1)}" height="${hh.toFixed(1)}" fill="${st>.6?BAD:WARN}" opacity=".8"/>`;}
+  return s+`</g>`;
+}
+/* Caption card: what went wrong, with the number, in plain words. Stable IDs: fail-card, fail-big, fail-verdict, fail-tag. */
+function failCard(x0,y0,w){
+  const P=F.card; if(!P)return '';
+  const op=clamp(F.t/250,0,1); let y=y0+30, b='';
+  b+=txt(x0+14,y,P.head,{fs:16,col:MUTED,fw:700}); y+=46;
+  b+=txt(x0+14,y,P.big,{fs:40,id:'fail-big'}); y+=36;
+  P.lines.forEach((l,i)=>{b+=txt(x0+14,y,l,{fs:i===0?24:19,col:i===0?TEXT:'#d9d3c7',fw:i===0?800:700});y+=i===0?32:26;});
+  y+=10; b+=`<g id="fail-verdict">`;P.verdict.forEach(l=>{b+=txt(x0+14,y,l,{fs:26,col:BAD});y+=32;});b+=`</g>`;
+  y+=4; b+=`<g id="fail-tag"><rect x="${x0+14}" y="${y}" width="${w-28}" height="40" rx="8" fill="${BAD}"/>${txt(x0+w/2,y+27,'NEVER DO THIS ON THE JOB',{fs:19,col:'#fff',anchor:'middle'})}</g>`;
+  y+=56;
+  return `<g id="fail-card" opacity="${op.toFixed(3)}"><rect id="fail-card-box" x="${x0}" y="${y0}" width="${w}" height="${y-y0}" rx="10" fill="#2a1717" stroke="${BAD}" stroke-width="3"/>${b}</g>`;
+}
+/* Dust cloud where a load lands (deterministic particles, u = s since impact) */
+function dust(x,y,span,u,seed){
+  if(u<0||u>1.8)return '';
+  let s=`<g id="fail-dust">`;
+  for(let i=0;i<24;i++){const r1=rnd(i,seed),r2=rnd(i+40,seed),r3=rnd(i+80,seed);
+    const x0=x+(r1-.5)*span, vx=(x0-x)/Math.max(1,span/2)*260+(r2-.5)*160, vy=-(60+r3*220), f=(1-Math.exp(-u/.45))*.45;
+    const px=x0+vx*f, py=y-4+vy*f+50*u*u, rr=5+u*(14+22*r2), op=.5*(1-u/1.8);
+    s+=`<circle cx="${px.toFixed(1)}" cy="${Math.min(py,y).toFixed(1)}" r="${rr.toFixed(1)}" fill="#8a7f72" opacity="${op.toFixed(3)}"/>`;}
+  if(u<.15)s+=`<line x1="${x-span/2-30}" y1="${y-2}" x2="${x+span/2+30}" y2="${y-2}" stroke="#fff" stroke-width="${(4*(1-u/.15)).toFixed(2)}" opacity=".7"/>`;
+  return s+`</g>`;
+}
+function sparks(x,y,u,seed){
+  if(u>.45)return '';
+  let s=`<g id="fail-sparks">`;
+  for(let i=0;i<14;i++){const a=rnd(i,seed)*Math.PI*2, v=200+rnd(i+20,seed)*500, px=x+Math.cos(a)*v*u, py=y+Math.sin(a)*v*u+400*u*u;
+    s+=`<line x1="${px.toFixed(1)}" y1="${py.toFixed(1)}" x2="${(px-Math.cos(a)*12).toFixed(1)}" y2="${(py-Math.sin(a)*12).toFixed(1)}" stroke="${WARN}" stroke-width="3" opacity="${(1-u/.45).toFixed(3)}"/>`;}
+  return s+`</g>`;
+}
+/* Damage at a point on a leg before it parts (u 0 → 1). Wire rope: strands open into a bird cage and broken wires stick out.
+   Alloy chain: one link stretches long and thin, then its side opens. Synthetic web: a tear cuts in from one edge, fibres fray. */
+function damage(x,y,ang,type,u,wd=14){
+  const dx=Math.cos(ang), dy=Math.sin(ang), nx=-dy, ny=dx;
+  let s=`<g id="fail-damage">`;
+  if(type==='chain'){const rx=14+u*22, ry=9-u*4;
+    s+=`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${(ang*180/Math.PI).toFixed(1)} ${x} ${y})" fill="none" stroke="${u>.5?BAD:'#c3ced6'}" stroke-width="5"/>`;
+    if(u>.6){const g=(u-.6)/.4*10;s+=`<line x1="${x+nx*ry-dx*g}" y1="${y+ny*ry-dy*g}" x2="${x+nx*ry+dx*g}" y2="${y+ny*ry+dy*g}" stroke="#1F1D1A" stroke-width="7"/>`;}}
+  else if(type==='synthetic'){const dep=Math.min(wd*.9,(.25+u)*wd), wd2=wd;
+    s+=`<polygon points="${x+nx*wd/2-dx*6},${y+ny*wd/2-dy*6} ${x+nx*(wd/2-dep)},${y+ny*(wd/2-dep)} ${x+nx*wd/2+dx*6},${y+ny*wd/2+dy*6}" fill="#1F1D1A"/>`;
+    for(let i=0;i<3+Math.floor(u*12);i++){const o=(rnd(i,3)-.5)*22, l=8+rnd(i,4)*16*u;
+      s+=`<line x1="${x+dx*o+nx*wd/2}" y1="${y+dy*o+ny*wd/2}" x2="${x+dx*o+nx*(wd/2+l)}" y2="${y+dy*o+ny*(wd/2+l)}" stroke="#b48af0" stroke-width="1.5"/>`;}}
+  else{for(let i=0;i<6;i++){const sd=(i%2?1:-1), off=(1+Math.floor(i/2))*(.2+u)*wd*.6*sd, L=34+u*16;
+      s+=`<path d="M${x-dx*L} ${y-dy*L} Q${x+nx*off} ${y+ny*off} ${x+dx*L} ${y+dy*L}" fill="none" stroke="${i<2?'#e6edf2':'#c3ced6'}" stroke-width="3"/>`;}
+    for(let i=0;i<3+Math.floor(u*14);i++){const a=ang+(i%2?1:-1)*Math.PI/2+(rnd(i,7)-.5)*1.2, l=8+rnd(i,8)*18;
+      s+=`<line x1="${x}" y1="${y}" x2="${x+Math.cos(a)*l}" y2="${y+Math.sin(a)*l}" stroke="#e6edf2" stroke-width="1.5"/>`;}}
+  return s+`</g>`;
+}
+/* A parted end: wire rope splays into loose wires, chain ends in an open link, web ends in a frayed tear */
+function fray(x,y,ang,type,wd=14){
+  let s='';
+  if(type==='chain'){const p=a=>[x+Math.cos(a)*11,y+Math.sin(a)*11];const [ax,ay]=p(ang+.9),[bx,by]=p(ang-.9);
+    s+=`<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} A11 11 0 1 0 ${bx.toFixed(1)} ${by.toFixed(1)}" fill="none" stroke="#c3ced6" stroke-width="5"/>`;}
+  else for(let i=0;i<7;i++){const a=ang+(i-3)*.28, l=wd*.7+rnd(i,11)*wd;
+    s+=`<line x1="${x}" y1="${y}" x2="${(x+Math.cos(a)*l).toFixed(1)}" y2="${(y+Math.sin(a)*l).toFixed(1)}" stroke="${type==='synthetic'?'#b48af0':'#e6edf2'}" stroke-width="2"/>`;}
+  return s;
+}
+const angTo=(a,b)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return d;};
+/* Rigid-body motion after the part lets go (pure function of time, so every frame is deterministic):
+   'drop'  free fall until the lowest point meets the floor, then a short bounce (and a roll for round loads)
+   'pivot' the load turns about the attachment that still holds (compound pendulum: θ'' = g · x ÷ k², x = CG's
+           horizontal distance from the pivot, k² = I ÷ m about the pivot) until a corner meets the floor; with
+           slide:true it then slips out of the sling and falls flat, turning about that corner.
+           PIVOT_DAMP (1/s) is the swing energy lost in the stretching sling and the hitch: a load that never reaches the
+           floor rocks on its one leg and settles hanging on end, instead of swinging round forever. */
+const PIVOT_DAMP=1.6;
+function bodyMotion(b,tau,g,ground){
+  const out={dx:0,dy:0,ang:0,cx:0,cy:0,landed:false,u:0,ang2:0,c2:null,flat:false,u2:0};
+  if(b.mode==='drop'){const fall=Math.max(0,ground-b.low), tl=Math.sqrt(2*fall/g);
+    out.cx=b.cg[0]; out.cy=b.cg[1];
+    if(tau<tl){out.dy=.5*g*tau*tau;return out;}
+    const u=tau-tl; out.landed=true; out.u=u; out.impact=[b.cg[0],ground];
+    out.dy=fall-Math.min(16,g*tl*.012)*Math.exp(-u/.12)*Math.abs(Math.sin(u*26));
+    if(b.roll){out.dx=b.roll*(1-Math.exp(-u/.55)); out.ang=out.dx/b.r; out.impact=[b.cg[0]+out.dx,ground];}
+    return out;}
+  const p=b.p, k2=b.k2, rx0=b.cg[0]-p[0], ry0=b.cg[1]-p[1], h=.002;
+  const low=th=>Math.max(...b.poly.map(([x,y])=>p[1]+(x-p[0])*Math.sin(th)+(y-p[1])*Math.cos(th)));
+  let th=0,w=0,tt=0,tl=null;
+  if(low(0)>=ground-.5)tl=0;                          // already touching: nothing to swing through
+  while(tl==null&&tt<tau){const rx=rx0*Math.cos(th)-ry0*Math.sin(th);w+=(g*rx/k2-PIVOT_DAMP*w)*h;const th2=th+w*h;
+    if(low(th2)>=ground){let lo=th,hi=th2;for(let i=0;i<30;i++){const m=(lo+hi)/2;if(low(m)>=ground)hi=m;else lo=m;}th=lo;tl=tt;break;}
+    th=th2;tt+=h;}
+  out.ang=th; out.cx=p[0]; out.cy=p[1];
+  if(tl==null)return out;
+  out.landed=true; out.u=tau-tl;
+  const R=([x,y])=>[p[0]+(x-p[0])*Math.cos(th)-(y-p[1])*Math.sin(th),p[1]+(x-p[0])*Math.sin(th)+(y-p[1])*Math.cos(th)];
+  const pts=b.poly.map(R); const c0=pts.reduce((m,q)=>q[1]>m[1]?q:m,pts[0]); out.impact=c0;
+  if(!b.slide)return out;
+  // slides out: turns about the landed corner back toward flat (rests when ang + ang2 = 0: the bottom face on the floor)
+  const cg=R(b.cg), kc=b.kcm+(cg[0]-c0[0])**2+(cg[1]-c0[1])**2, tgt=-th;
+  if(Math.abs(tgt)<1e-6||(cg[0]-c0[0])*tgt>=0)return out;     // already flat, or the CG is past the corner: it stays
+  let ps=0,wv=0,t2=0; const u=tau-tl;
+  while(t2<u){const rx=(cg[0]-c0[0])*Math.cos(ps)-(cg[1]-c0[1])*Math.sin(ps);wv+=g*rx/kc*h;ps+=wv*h;t2+=h;
+    if((tgt>0&&ps>=tgt)||(tgt<0&&ps<=tgt)){ps=tgt;out.flat=true;out.u2=u-t2;break;}}
+  out.ang2=ps; out.c2=c0;
+  return out;
+}
+const bodyXf=m=>`translate(${m.dx.toFixed(2)} ${m.dy.toFixed(2)})${m.c2?` rotate(${(m.ang2*180/Math.PI).toFixed(3)} ${m.c2[0].toFixed(2)} ${m.c2[1].toFixed(2)})`:''} rotate(${(m.ang*180/Math.PI).toFixed(3)} ${m.cx.toFixed(2)} ${m.cy.toFixed(2)})`;
+function bodyPt(m,[x,y]){let X=m.cx+(x-m.cx)*Math.cos(m.ang)-(y-m.cy)*Math.sin(m.ang), Y=m.cy+(x-m.cx)*Math.sin(m.ang)+(y-m.cy)*Math.cos(m.ang);
+  if(m.c2){const c=m.c2,a=m.ang2;[X,Y]=[c[0]+(X-c[0])*Math.cos(a)-(Y-c[1])*Math.sin(a),c[1]+(X-c[0])*Math.sin(a)+(Y-c[1])*Math.cos(a)];}
+  return [X+m.dx,Y+m.dy];}
+/* A leg that breaks: damage grows at mid-leg, then it parts. The upper end whips and hangs from the hook; the lower end
+   goes with the load and flops over to the outside. */
+function brokenLeg(id,H,A0,At,tau,type,out,single=false){
+  const B=[(H[0]+A0[0])/2,(H[1]+A0[1])/2], ang=Math.atan2(A0[1]-H[1],A0[0]-H[0]), wd=type==='synthetic'?15:12;
+  if(F.t<TPART)return leg(id,H[0],H[1],A0[0],A0[1],0,BAD,1,true)+damage(B[0],B[1],ang,type,F.t/TPART,wd);
+  const L=Math.hypot(B[0]-H[0],B[1]-H[1]), e=1-Math.exp(-tau/.12);
+  const a=ang+angTo(ang,Math.PI/2+out*.12)*e+Math.exp(-tau/.45)*Math.sin(tau*15)*.55;
+  const Lu=L*(1-.3*Math.exp(-tau/.09));                                   // elastic recoil, then it hangs
+  const U=[H[0]+Lu*Math.cos(a),H[1]+Lu*Math.sin(a)];
+  const b0=Math.atan2(B[1]-A0[1],B[0]-A0[0]), lie=single?-.06:.45, b1=out>0?lie:Math.PI-lie, bb=b0+angTo(b0,b1)*smooth(0,.7,tau);   // single leg: drapes over the top of the load
+  const E=[At[0]+L*Math.cos(bb),Math.min(816,At[1]+L*Math.sin(bb))];
+  return `<g id="${id}">`+leg(id+'-up',H[0],H[1],U[0],U[1],0,MUTED,0,false)+fray(U[0],U[1],a,type,wd)
+    +leg(id+'-lo',At[0],At[1],E[0],E[1],0,MUTED,0,false)+fray(E[0],E[1],bb,type,wd)+`</g>`;
+}
+
+/* ---------- failure scene: sling angles and hitches ---------- */
+function drawFailSling(c){
+  const g=F.geo, ground=820, tau=Math.max(0,(F.t-TPART)/1000), parted=F.t>=TPART, type=S.slingType;
+  let b;
+  if(g.type==='box'){const poly=[[g.x0,g.top],[g.x0+g.w,g.top],[g.x0+g.w,g.top+g.bh],[g.x0,g.top+g.bh]], cg=[g.x0+g.w/2,g.top+g.bh/2];
+    b={poly,cg,low:g.top+g.bh};
+    if(g.legs.length>1){b.mode='pivot';b.p=g.legs[1];b.kcm=(g.w*g.w+g.bh*g.bh)/12;b.k2=b.kcm+(cg[0]-b.p[0])**2+(cg[1]-b.p[1])**2;}
+    else b.mode='drop';}
+  else b={mode:'drop',cg:[g.cx,g.cy],r:g.r,low:g.cy+g.r,roll:g.type==='drum'?-150:0};
+  const m=parted?bodyMotion(b,tau,GPX,ground):{dx:0,dy:0,ang:0,cx:0,cy:0,landed:false};
+  const broken=g.type==='box'&&g.legs.length===4?[0,3]:[0], released=b.mode==='drop';
+  const jump=parted?(released?1:.4)*(28*(1-Math.exp(-tau/.08))-14*Math.exp(-tau/.35)*Math.sin(tau*17)):0;
+  const shake=m.landed&&m.u<.5?Math.exp(-m.u/.1)*Math.sin(m.u*80):0;
+  let s=sceneBack(ground)+`<g id="fail-scene" transform="translate(${(shake*3).toFixed(2)} ${(shake*7).toFixed(2)})">`;
+  s+=`<ellipse cx="${(b.cg[0]+m.dx).toFixed(1)}" cy="${ground+6}" rx="200" ry="10" fill="#000" opacity="${m.landed?.45:.3}"/>`;
+  let body='';
+  if(g.type==='box'){
+    if(g.depth){const fl=[g.x0,g.top], fR=[g.x0+g.w,g.top], br=[g.x0+g.w+g.dx,g.top+g.dy], bL=[g.x0+g.dx,g.top+g.dy];
+      body+=`<polygon points="${fl} ${bL} ${br} ${fR}" fill="#5D5750"/><polygon points="${fR} ${br} ${br[0]},${br[1]+g.bh} ${fR[0]},${fR[1]+g.bh}" fill="#3C3833"/>`;}
+    body+=`<polygon id="load-box" points="${b.poly.join(' ')}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`+txt(b.cg[0],b.cg[1]+16,g.label,{fs:40,anchor:'middle'});}
+  else if(g.type==='drum')body+=`<circle id="load-box" cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="#4f4a43" stroke="#7A7268" stroke-width="2"/><circle cx="${g.cx}" cy="${g.cy}" r="${g.r*.28}" fill="#2E2A26" stroke="#7A7268" stroke-width="2"/><line x1="${g.cx}" y1="${g.cy-g.r*.28}" x2="${g.cx}" y2="${g.cy-g.r}" stroke="#7A7268" stroke-width="3"/>`;
+  else {body+=`<g id="load-box"><circle cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="#4D4842" stroke="#7A7268" stroke-width="4"/>`;
+    for(let i=0;i<6;i++){const q=i*Math.PI/3;body+=`<circle cx="${g.cx+62*Math.cos(q)}" cy="${g.cy+62*Math.sin(q)}" r="30" fill="#3C3833" stroke="#7A7268" stroke-width="2"/>`;}
+    body+=`<circle cx="${g.cx}" cy="${g.cy}" r="30" fill="#3C3833" stroke="#7A7268" stroke-width="2"/></g>`;}
+  s+=`<g transform="${bodyXf(m)}">${body}</g>`;
+  if(g.type!=='box')s+=txt(g.cx+m.dx,ground+52,g.label,{fs:30,anchor:'middle'});
+  // hook (jumps up when the load comes off) and the legs
+  const hy=g.hy-jump, H=[g.hx,hy+18];
+  s+=hookBlock(g.hx,hy);
+  g.legs.forEach((p,j)=>{const At=bodyPt(m,p);
+    if(broken.includes(j)){const out=p[0]<g.hx?-1:1;s+=brokenLeg('leg-'+j,H,[p[0],p[1]],At,Math.max(0,tau-(j?.15:0)),type,out,g.legs.length===1);}
+    else if(g.type==='drum'){// the rest of the basket sling slips off the drum and hangs from the hook
+      const sw=parted?Math.exp(-tau/.8)*Math.sin(tau*5)*40:0, E=parted?[H[0]+60+sw,H[1]+280]:p;
+      s+=leg('leg-'+j,H[0],H[1],E[0],E[1],parted?20:0,parted?MUTED:BAD,parted?0:1,!parted);}
+    else s+=leg('leg-'+j,H[0],H[1],At[0],At[1],0,BAD,1,!m.landed)+`<circle cx="${At[0].toFixed(1)}" cy="${At[1].toFixed(1)}" r="11" fill="${ACC}"/>`;});
+  if(g.type==='drum'&&!parted){const tx=g.rs*Math.sin(g.th), ty=g.cy-g.rs*Math.cos(g.th);
+    s+=`<path d="M${g.cx-tx} ${ty} A${g.rs} ${g.rs} 0 1 0 ${g.cx+tx} ${ty}" fill="none" stroke="${type==='synthetic'?'#8c5bd6':'#7f8f9b'}" stroke-width="11"/>`;}
+  if(m.landed)s+=dust(m.impact[0],ground,g.type==='box'&&b.mode==='drop'?g.w:160,m.u,1);
+  s+=`</g>`;
+  s+=failCard(976,16,318);
+  $('svg').innerHTML=s;
+}
+
+/* ---------- failure scene: weight and CG (a leg breaks, or the load tips and slides out) ---------- */
+function drawFailCG(c){
+  const g=F.geo, ground=g.ground, gpx=(S.units==='kg'?9.80665:32.174)*g.sc, tau=Math.max(0,(F.t-TPART)/1000);
+  const tip=F.kind==='tip', moving=tip||F.t>=TPART;
+  const piv=F.pivot===1?g.p1:g.p2, brk=F.pivot===1?2:1;
+  const xs=g.poly.map(q=>q[0]), ys=g.poly.map(q=>q[1]), w=Math.max(...xs)-Math.min(...xs), hh=Math.max(...ys)-Math.min(...ys);
+  const b={mode:'pivot',poly:g.poly.concat(g.motor||[]),cg:g.cg,p:piv,kcm:(w*w+hh*hh)/12,slide:tip};
+  b.k2=b.kcm+(g.cg[0]-piv[0])**2+(g.cg[1]-piv[1])**2;
+  const m=moving?bodyMotion(b,tip?F.t/1000:tau,gpx,ground):{dx:0,dy:0,ang:0,cx:0,cy:0,landed:false};
+  const u=m.landed?(m.flat?m.u2:m.u):0, shake=m.landed&&u<.5?Math.exp(-u/.1)*Math.sin(u*80):0;
+  let s=sceneBack(ground)+`<g id="fail-scene" transform="translate(${(shake*3).toFixed(2)} ${(shake*7).toFixed(2)})">`;
+  const pp=q=>q.map(v=>v.toFixed(1)).join(',');
+  let body=`<polygon id="cg-load" points="${g.poly.map(pp).join(' ')}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`;
+  if(g.motor)body+=`<polygon id="cg-motor" points="${g.motor.map(pp).join(' ')}" fill="#3F5566" stroke="#7FA3BC" stroke-width="2"/>`;
+  body+=`<g id="cg-mark"><circle cx="${g.cg[0]}" cy="${g.cg[1]}" r="15" fill="#1F1D1A" stroke="${TEXT}" stroke-width="3"/><path d="M${g.cg[0]} ${g.cg[1]} l15 0 a15 15 0 0 1 -15 15 Z M${g.cg[0]} ${g.cg[1]} l-15 0 a15 15 0 0 1 15 -15 Z" fill="${TEXT}"/></g>`;
+  s+=`<g transform="${bodyXf(m)}">${body}</g>`;
+  const hooks=g.single?[[g.HX,g.hy+18],[g.HX,g.hy+18]]:[[g.p1[0],g.hy1+8],[g.p2[0],g.hy2+8]];
+  if(g.single)s+=hookBlock(g.HX,g.hy);
+  else s+=`<rect x="20" y="0" width="940" height="26" fill="#3A3631"/><rect x="20" y="22" width="940" height="5" fill="${ACC}" opacity=".8"/>`+miniHoist('cg-hoist-1',g.p1[0],g.hy1)+miniHoist('cg-hoist-2',g.p2[0],g.hy2);
+  [g.p1,g.p2].forEach((p,i)=>{const H=hooks[i], At=bodyPt(m,p), id='cg-leg-'+(i+1), held=(i+1)!==brk;
+    if(!tip&&!held)s+=brokenLeg(id,H,p,At,tau,S.slingType,i?1:-1);
+    else if(tip&&(m.c2||!held)){                    // slack leg, or the load has slipped out: the leg hangs from its hook
+      const L=Math.hypot(p[0]-H[0],p[1]-H[1]), Lh=Math.max(40,Math.min(L,ground-30-H[1])), sw=Math.exp(-F.t/900)*Math.sin(F.t/160)*30;
+      s+=held||m.c2?leg(id,H[0],H[1],H[0]+sw,H[1]+Lh,0,MUTED,0,false):leg(id,H[0],H[1],At[0],At[1],60,MUTED,0,false);}
+    else s+=leg(id,H[0],H[1],At[0],At[1],0,BAD,1,!m.landed);});
+  if(m.landed)s+=dust(m.impact[0],ground,160,m.u,2);
+  if(m.flat)s+=dust(bodyPt(m,g.cg)[0],ground,w*.8,m.u2,3);
+  s+=`</g>`;
+  s+=failCard(976,16,318)+(S.rig==='equal'?tiltCard(c):momentCard(c));
+  $('svg').innerHTML=s;
+}
+
+/* ---------- trigger, latch and reset ---------- */
+function failCond(c){
+  if(!S.fail)return null;
+  if(c.mode==='hardware'){if(S.part==='eyebolt'&&S.eyeType==='plain')return null;
+    return c.adj>0&&c.load>c.breakAt?S.part:null;}
+  const k=smooth(0,.3,S.lift), off=smooth(.3,1,S.lift)>.15;      // off = the load is clear of the floor
+  if(c.mode==='cg'){
+    if(c.tips)return off?'tip':null;
+    if(c.T*k>c.breakAt)return 'leg';
+    if(S.rig==='equal'&&c.tilted&&off)return 'swing';
+    return null;}
+  return c.breakAt>0&&c.T*k>c.breakAt?'leg':null;
+}
+function failText(c,kind){
+  if(kind==='leg'){const rt=c.mode==='cg'?S.wll:c.rating, T=c.T, r=T/rt, x=xf(r,c.df), what=c.mode!=='cg'&&S.hitch==='choker'?'choker rating':'rating';
+    return {ratio:r,tension:T,rating:rt,df:c.df,
+      caption:`Leg tension ${wt(T)} = ${x} × the ${wt(rt)} ${what}: the sling breaks`,
+      card:{head:'LEG TENSION',big:wt(T),lines:[`= ${x} × the ${what}`,`${what} ${wt(rt)} per leg`,`${DFNAME[S.slingType]} breaks near`,`${c.df} × its rating (design factor).`],verdict:['THE SLING BREAKS.']}};}
+  if(kind==='tip'){const above=S.rig==='equal'&&c.D<=0&&c.a>=0&&c.b>=0, right=c.b<0||(c.a>=0&&c.e>0), d=right?-c.b:-c.a;
+    if(above)return {caption:`CG ${len(-c.D)} above the hook: the load flips over`,
+      card:{head:'CG ABOVE THE HOOK',big:len(-c.D),lines:['above the hook.','Nothing holds it upright:','it turns over the moment','it leaves the floor.'],verdict:['THE LOAD FLIPS.']}};
+    return {dist:d,caption:`CG ${len(d)} outside the ${right?'right':'left'} pick: the load tips over`,
+      card:{head:'CG OUTSIDE THE PICKS',big:len(d),lines:[`outside the ${right?'right':'left'} pick.`,'One leg would have to push,','so the load turns on the','other pick until it hits.'],verdict:['THE LOAD TIPS OVER.']}};}
+  if(kind==='swing'){const t=Math.abs(c.tilt);
+    return {tilt:t,caption:`Hook ${len(Math.abs(c.e))} off the CG: tilt ${nf(t,1)}°, the load swings from 0° to about ${nf(2*t,1)}° as it leaves the floor`,
+      card:{head:'HOOK IS OFF THE CG BY',big:len(Math.abs(c.e)),lines:[`Tilt ${nf(t,1)}°`,`It rocks from 0° to ${nf(2*t,1)}°`,'as it leaves the floor.','Over 5°: land it, re-rig.'],verdict:['THE LOAD SWINGS.']}};}
+  const r=c.load/c.adj, x=xf(r,c.df), nm={eyebolt:'eyebolt',shackle:'shackle',dd:'sling'}[kind];
+  const why=kind==='dd'?`D/d ${trim(c.ratio,2)}, ${pct(c.pct)} of rope`:`${pct(c.pct)} of WLL at ${deg(c.ang)}`;
+  const src=kind==='eyebolt'?['Eyebolts break near 5 × WLL','(Crosby: ultimate 5 × WLL).']:kind==='shackle'?['Shackles break near 6 × WLL','(Crosby: ultimate 6 × WLL).']:['Wire rope breaks near 5 ×','its rating (design factor 5).'];
+  return {ratio:r,tension:c.load,rating:c.adj,df:c.df,
+    caption:`Load ${wt(c.load)} = ${x} × the ${wt(c.adj)} adjusted WLL: the ${nm} ${kind==='dd'?'breaks at the pin':kind==='shackle'?'bends and the pin shears':'bends and breaks'}`,
+    card:{head:`LOAD ON THE ${nm.toUpperCase()}`,big:wt(c.load),lines:[`= ${x} × the adjusted WLL`,`${wt(c.adj)}: ${why}`,...src],
+      verdict:kind==='dd'?['THE ROPE BREAKS','AT THE PIN.']:kind==='eyebolt'?['THE EYEBOLT BENDS','AND BREAKS.']:['THE SHACKLE BENDS,','THE PIN SHEARS.']}};
+}
+function updateFail(c,ms){
+  const kind=failCond(c);
+  if(!kind){if(F.on)F={on:false,t:0};return;}
+  if(!F.on||F.kind!==kind){F={on:true,t:0,kind,primed:false,...failText(c,kind)};
+    if(c.mode==='cg'&&kind!=='swing')F.pivot=kind==='tip'?((c.b<0||(c.a>=0&&c.e>0))?2:1):(c.breakLeg===1?2:1);
+    if(kind==='swing')A.swayV+=1.6;
+    return;}
+  F.t+=ms;
+}
+const FAILT={eyebolt:THW,shackle:THW,dd:THW,tip:0,swing:0,leg:TPART};
+function failInfo(){return F.on?{on:true,kind:F.kind,t:F.t,parted:F.t>=FAILT[F.kind],
+  caption:F.caption,ratio:F.ratio,tension:F.tension,rating:F.rating,df:F.df}:{on:false};}
+const FAILSTATUS={leg:'SLING BROKE: NEVER DO THIS ON THE JOB',tip:'LOAD TIPPED: NEVER DO THIS ON THE JOB',swing:'LOAD SWINGS: LAND IT AND RE-RIG',
+  eyebolt:'EYEBOLT FAILED: NEVER DO THIS ON THE JOB',shackle:'SHACKLE FAILED: NEVER DO THIS ON THE JOB',dd:'SLING BROKE AT THE PIN: NEVER DO THIS'};
+
 /* Load cell dial: needle has spring-damper motion toward the live leg tension. */
 function drawGauge(c){
   const max=Math.max(c.rating*1.5,c.T*1.05)||1, cx=125,cy=128,R=100;
@@ -1155,7 +1488,7 @@ function drawGauge(c){
     <text x="${cx+(R+4)*Math.cos(ar)}" y="${cy-(R+12)*Math.sin(ar)}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">RATING</text>`;
   const an=ang(A.needle);
   s+=`<line x1="${cx}" y1="${cy}" x2="${cx+(R-14)*Math.cos(an)}" y2="${cy-(R-14)*Math.sin(an)}" stroke="${ACC}" stroke-width="5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="9" fill="${ACC}"/>
-    <text x="${cx}" y="${cy-34}" text-anchor="middle" font-size="22" font-weight="800" fill="${TEXT}">${wt(c.T*(S.mode==='hardware'?1:smooth(0,.3,S.lift)))}</text>
+    <text x="${cx}" y="${cy-34}" text-anchor="middle" font-size="22" font-weight="800" fill="${TEXT}">${wt(F.on&&F.kind!=='swing'&&F.kind!=='tip'&&failInfo().parted?0:c.T*(S.mode==='hardware'?1:smooth(0,.3,S.lift)))}</text>
     <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="12" letter-spacing="1.5" font-weight="700" fill="${MUTED}">${S.mode==='cg'?'LOAD CELL · HEAVIER LEG':S.mode==='hardware'?'LOAD ON THE PART':'LOAD CELL · ONE LEG'}</text>`;
   $('gauge').innerHTML=s;
 }
@@ -1224,11 +1557,12 @@ function step(ms){
   tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
   tweens=tweens.filter(t=>t.t<t.dur);
   const c=calc(), k=S.mode==='hardware'?1:smooth(0,.3,S.lift);
+  updateFail(c,ms);                                 // FAILURE MODES: trigger / latch / reset (nothing happens unless armed)
   // load path flow speed ∝ utilization
   A.flow-=dt*(30+190*Math.min(1.6,c.util))*k;
   A.chokeSlide=(A.chokeSlide||0)+dt*(S.hitch==='choker'?18+40*Math.min(1.6,c.util):0)*k;
   // needle: spring-damper toward the live tension (ω≈7 rad/s, ζ≈0.35 → a visible overshoot that settles in ~1.5 s)
-  const target=c.T*k, wn=7, z=.35;
+  const target=F.on&&F.kind!=='swing'&&F.kind!=='tip'&&failInfo().parted?0:c.T*k, wn=7, z=.35;   // a broken leg reads zero
   if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(target-A.needle)-2*z*wn*A.needleV;A.needleV+=acc*h;A.needle+=A.needleV*h;}}
   else if(ms>=200||ms===0&&A.needle===0){A.needle=target;A.needleV=0;}
   // sway: pendulum, kicked by changes in lift and angle, plus a slow breathing drift
@@ -1255,13 +1589,20 @@ function step(ms){
 function frame(ms){
   const c=step(ms);
   layoutMode();
+  LEGSTRAIN=S.fail&&!F.on&&(S.mode==='hardware'||smooth(0,.3,S.lift)>.9)?strainOf(c):0;
   const sv=A.sway; A.sway=A.swayShown??A.sway;
-  if(S.mode==='cg')drawCG(c); else if(S.mode==='hardware')drawHW(c); else draw(c);
+  const drawNormal=()=>{if(S.mode==='cg')drawCG(c); else if(S.mode==='hardware')drawHW(c); else draw(c);};
+  // FAILURE MODES: on the trigger frame, draw the intact rig once so the failure starts from this frame's geometry
+  if(F.on&&!F.primed){const keep=F;F={on:false,t:0};drawNormal();F=keep;F.primed=true;F.geo=structuredClone(S.mode==='cg'?A.geoCG:A.geo);}
+  if(F.on&&(S.mode==='sling'||S.mode==='hitch'))drawFailSling(c);
+  else if(F.on&&S.mode==='cg'&&F.kind!=='swing')drawFailCG(c);
+  else drawNormal();
   A.sway=sv;
   drawGauge(c);
   if(S.mode==='sling'||S.mode==='hitch')panel(c);
   if(S.mode!=='sling')panelModes(c);
   if(S.mode==='sling')$('formula').textContent=formula(c); else $('formula').innerHTML=formulaHTML(c);
+  if(F.on){const st=$('status');st.textContent=FAILSTATUS[F.kind];st.style.background=F.kind==='swing'?WARN:BAD;st.style.color=F.kind==='swing'?'#2a2203':'#fff';}
   callouts.forEach(co=>co.age+=ms);
   renderCallouts();
 }
@@ -1284,6 +1625,7 @@ function set(p,dur=0){
   if(snap){const c=calc();A.vec=S.vectors?1:0;A.ang=S.angles?1:0;A.dim=S.dims?1:0;A.needle=c.T*(S.mode==='hardware'?1:smooth(0,.3,S.lift));A.needleV=0;
     A.sway=A.swayV=A.bounce=A.bounceV=0;A.lastLift=S.lift;if(c.row>=0&&S.mode==='sling'||c.row>=0&&S.mode==='hitch')A.rowY=c.row;A.lastHook=null;
     if(S.mode!=='sling')snapModes(c);}
+  if(snap||'mode' in p||p.fail===false)F={on:false,t:0};      // FAILURE MODES: any reset restores the rig
   if(!CAPTURE)frame(0);
 }
 function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
@@ -1308,8 +1650,8 @@ if(CAPTURE)$('c-mode').style.display='none';     // capture renders show the tit
 addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 frame(0);
-if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S}),ready:true};
+if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.max(0,Math.min(100,ts-last)));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S}),failure:failInfo,ready:true};
 })();
 </script>
 </body>

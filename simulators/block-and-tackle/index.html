@@ -31,6 +31,11 @@
     rise       load height above its start (ft | m), 0 … riseMax (8 ft | 2.5 m). Tween it to lift: sim.set({rise:4},6000)
     units      'imp' | 'met'   switching units alone converts load, rise, D and d (the rig stays the same)
     snap       true → arrows and needles jump to rest (use in scene setups)
+  FAILURE MODES (block and tackle; NOTES.md "Failure modes")
+    blockWll   rated WLL of each block, its hook and the overhead anchor (lb | kg; default 16,000 lb = 8 US tons)
+    fail       true → past blockWll × 4 (Crosby block design factor 4 : 1) the most-loaded hook opens and the load drops
+               (default: true interactive, false in ?capture=1). false, snap:true or a mode change restores the rig.
+               sim.failure() → {on, kind 'anchor' | 'hook', t, parted, landed, caption, load, ratio}
 -->
 <style>
 :root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
@@ -176,8 +181,9 @@ const CAPNAME=['½','1','1½','2','2½','3','5','8','10'];
 const FRICNAME={ideal:'ideal (no friction)',rule10:'10 % of the load per sheave',bronze:'Crosby ratio A, bronze bushed',roller:'Crosby ratio B, roller bearing'};
 
 const S={mode:'tackle',parts:4,lead:'fixed',friction:'rule10',chain:'geared',cap:3,D:10,d:9,eta:.35,
-         load:4000,rise:0,units:'imp'};
-const NUMERIC=['load','rise','D','d','eta'];
+         load:4000,rise:0,units:'imp',blockWll:16000};
+S.fail=!CAPTURE;                      // FAILURE MODES armed: on in the interactive page, off in ?capture=1 unless a script sets it
+const NUMERIC=['load','rise','D','d','eta','blockWll'];
 const riseMax=()=>S.units==='imp'?8:2.5;
 
 /* =====================================================================
@@ -209,6 +215,13 @@ function calc(st=S){
     if(st.friction==='ideal'){c.P=W/n; c.ratio=n;}
     else if(st.friction==='rule10'){c.P=W*(1+0.10*c.S)/n; c.ratio=null;}
     else {const t=CROSBY[st.friction]; c.ratio=lm?1+t[n-2]:t[n-1]; c.P=W/c.ratio;}
+    /* FAILURE MODES. Statics on the blocks (friction included, because it is in P):
+       lead off the FIXED block (pull down): the top block and its anchor hold every supporting part AND the lead: W + P.
+       lead off the MOVING block (pull up): the lead helps hold the moving block, so the top block holds W − P.
+       The moving block and its hook always hold W. The most-loaded part fails first, past its WLL × design factor
+       (Crosby blocks: ultimate load 4 × WLL; we use the same blockWll for both blocks, their hooks and the anchor). */
+    c.upper=lm?W-c.P:W+c.P; c.lower=W; c.crit=Math.max(c.upper,c.lower); c.critPart=c.upper>=c.lower?'anchor':'hook';
+    c.blockWll=st.blockWll; c.df=BLOCK_DF; c.breakAt=st.blockWll*BLOCK_DF; c.blockUtil=st.blockWll>0?c.crit/st.blockWll:Infinity;
   } else if(st.chain==='geared'){
     const h=CB[st.cap], Wr=h[0]*2000;                                   // US ton = 2,000 lb
     c.cap=h[0]; c.falls=h[3]; c.VR=h[2]; c.MA=h[2];
@@ -291,10 +304,12 @@ function loadBox(cx,top,w,c){
 }
 
 /* ---------- rig geometry ---------- */
-const GSP=60, SR=30, UY=170, FLOOR=840, LOADH=120, RISEPX=214, CX=360;
+const GSP=60, SR=30, UY0=170, FLOOR=840, LOADH=120, RISEPX=214, CX=360;
+let UY=UY0;                                   // top block height; only the failure animation moves it
+const GO={up:0,low:0,load:0,hook:0,lhook:0,slack:false,shiver:0};   // failure offsets (all zero = the normal rig)
 const risePx=()=>clamp(S.rise/riseMax(),0,1)*RISEPX;
 function hangOf(c){ if(S.mode==='tackle')return 106; if(S.chain==='geared')return 92; return diffGeo().pr+52; }
-function lowerY(c){ return FLOOR-10-LOADH-hangOf(c)-risePx(); }
+function lowerY(c){ return FLOOR-10-LOADH-hangOf(c)-risePx()+GO.low; }
 
 /* Reeving: parts are vertical lines GSP apart; a sheave of radius GSP/2 joins neighbours (k, k+1).
    Counting k from the dead end (k = 1) to the lead, sheave (k, k+1) sits in the UPPER block when n − k is even,
@@ -323,7 +338,7 @@ function drawTackle(c){
   const uT=ups.length?UY-SR-16:UY-34, uB=ups.length?UY+SR+12:UY+12, ucx=(uL+uR)/2;
   const bx0=Math.min(uL-70,xs[0]-90), bx1=g.lm?Math.min(uR+40,xs[M-1]-26):Math.max(uR+40,ucx+120);
   s+=beam(bx0,bx1);
-  s+=`<g id="upper-block"><line x1="${ucx}" y1="56" x2="${ucx}" y2="${uT}" stroke="${STEEL}" stroke-width="10"/><circle cx="${ucx}" cy="72" r="13" fill="none" stroke="${STEEL}" stroke-width="6"/>
+  s+=`<g id="upper-block"><line x1="${ucx}" y1="${56+GO.up}" x2="${ucx}" y2="${uT}" stroke="${STEEL}" stroke-width="10"/>${GO.hook>0?openEye(ucx,72+GO.up,GO.hook):`<circle cx="${ucx}" cy="72" r="13" fill="none" stroke="${STEEL}" stroke-width="6"/>`}
      <rect x="${uL}" y="${uT}" width="${uR-uL}" height="${uB-uT}" rx="14" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".95"/>
      <text x="${uL-10}" y="${UY+6}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">FIXED</text><text x="${uL-10}" y="${UY+26}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
   // lower block body (n = 1: just the hook on the rope end)
@@ -336,8 +351,8 @@ function drawTackle(c){
        <text x="${lL-10}" y="${Ly+6}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">MOVING</text><text x="${lL-10}" y="${Ly+26}" text-anchor="end" font-size="17" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
   } else { lcx=xs[0]; lB=Ly+SR+16; s+=`<g id="lower-block"><circle cx="${lcx}" cy="${Ly+6}" r="10" fill="none" stroke="${STEEL}" stroke-width="5"/><line x1="${lcx}" y1="${Ly+16}" x2="${lcx}" y2="${lB}" stroke="${STEEL}" stroke-width="8"/></g>`; }
   // hook + short sling to the load
-  const ltop=Ly+106;
-  s+=`<g id="hook">${hook(lcx,lB)}<line x1="${lcx+12}" y1="${lB+40}" x2="${lcx-50}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/><line x1="${lcx+12}" y1="${lB+40}" x2="${lcx+70}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/></g>`;
+  const ltop=Ly+106+GO.load;
+  s+=`<g id="hook">${GO.lhook>0?openHook(lcx,lB,GO.lhook):hook(lcx,lB)}<line x1="${lcx+12}" y1="${lB+40+GO.load}" x2="${lcx-50}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/><line x1="${lcx+12}" y1="${lB+40+GO.load}" x2="${lcx+70}" y2="${ltop}" stroke="#7f8f9b" stroke-width="5"/></g>`;
   s+=`<ellipse cx="${lcx}" cy="${FLOOR+5}" rx="${130-risePx()*.25}" ry="7" fill="#000" opacity="${.4-risePx()*.0012}"/>`;
   s+=loadBox(lcx,ltop,260,c);
   // rope: parts in path order (dead end → lead). Dashes run at f × the load's speed.
@@ -374,13 +389,15 @@ function drawTackle(c){
   const al=20+110*clamp(A.arrow/Math.max(c.W,1e-9),0,1.3), dir=g.lm?-1:1;
   s+=`<g id="grip"><rect x="${lx-16}" y="${gripY-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/>
      <line x1="${lx-16}" y1="${gripY-8}" x2="${lx+16}" y2="${gripY-8}" stroke="#1F1D1A" stroke-width="3"/><line x1="${lx-16}" y1="${gripY+6}" x2="${lx+16}" y2="${gripY+6}" stroke="#1F1D1A" stroke-width="3"/></g>`;
-  s+=arrow('pull-arrow',lx+32,gripY,lx+32,gripY+dir*al,COL.P,7);
-  s+=pill('pull-tag',lx+52,gripY,'P = '+wt(c.P),COL.P,18,'start');
+  s+=arrow('pull-arrow',lx+32,gripY,lx+32,gripY+dir*(GO.slack?20:al),COL.P,7);
+  s+=pill('pull-tag',lx+52,gripY,'P = '+wt(GO.slack?0:c.P),COL.P,18,'start');
   // tension tags: each supporting part carries its share W ÷ n (two staggered rows so they never touch)
   const mid=(UY+Ly)/2;
+  if(!GO.slack){
   for(let j=0;j<n;j++){ if(g.lm&&j===M-1)continue;
     s+=pill('tag-'+j,xs[j],mid+(j%2?26:-26),nf(Math.round(c.share)),COL.W,17); }
-  s+=`<text x="${xs[0]-GSP/2-8}" y="${mid+6}" text-anchor="end" font-size="15" font-weight="700" fill="${COL.W}">${wu()} per part</text>`;
+  s+=`<text x="${xs[0]-GSP/2-8}" y="${mid+6}" text-anchor="end" font-size="15" font-weight="700" fill="${COL.W}">${wu()} per part</text>`;}
+  if(S.fail&&!GO.slack)s+=blockTag(c,g,ucx,uR,lcx,lB);
   // n count above the parts
   s+=`<g id="n-label"><text x="${CX}" y="${FLOOR+40}" text-anchor="middle" font-size="22" font-weight="800" fill="${COL.n}">${n>1?`n = ${n} parts of line hold the moving block${g.lm?' (lead line counts)':''}`:'n = 1: a single fixed sheave only changes direction'}</text></g>`;
   return s;
@@ -514,16 +531,139 @@ function cardWork(c){
   return s;
 }
 
+/* =====================================================================
+   FAILURE MODES (owner's standing rule, 2026-11-07), block and tackle only.
+   Rating: blockWll = WLL of each block, its hook and the overhead anchor (one number, stated on screen).
+   Design factor 4 : 1 (Crosby / McKissick blocks: "Ultimate load is 4 times the Working Load Limit").
+   Load on the top block and anchor = W + P (lead off the fixed block) or W − P (lead off the moving block);
+   load on the moving block hook = W. The most-loaded part fails when its load is strictly greater than blockWll × 4:
+     'anchor' the top block's hook opens on the beam (0 → THK ms), then the whole rig falls: the load lands, the top
+              block comes down on top of the moving block.
+     'hook'   the moving block's hook opens and the load drops out of it.
+   Gravity in screen px: the rise scale (214 px = 8 ft) → 26.75 px per ft × 32.2 ft/s².
+   Armed (fail:true) and over blockWll: the anchor / hook tag turns red and the creak meter replaces the work card.
+   ===================================================================== */
+const BLOCK_DF=4, GPXB=32.174*RISEPX/8, THK=700;
+let F={on:false,t:0};
+const rnd=(i,sd=0)=>{const x=Math.sin(i*12.9898+sd*78.233)*43758.5453;return x-Math.floor(x);};
+const xf=(r,df)=>{let t=r.toFixed(1);if(+t<=df)t=r.toFixed(2);if(+t<=df)t='just over '+df;return t;};
+function failCond(c){ if(!S.fail||S.mode!=='tackle'||!(c.breakAt>0))return null; return c.crit>c.breakAt?c.critPart:null; }
+function failText(c,kind){
+  const r=c.crit/c.blockWll, x=xf(r,BLOCK_DF), lm=c.leadMoving;
+  if(kind==='anchor')return {load:c.crit,ratio:r,
+    caption:`Anchor load ${wt(c.crit)} (W ${lm?'−':'+'} P) = ${x} × the ${wt(c.blockWll)} block rating: the hook opens and the load drops`,
+    card:{head:'LOAD ON THE TOP BLOCK AND ANCHOR',big:wt(c.crit),lines:[`= W ${lm?'−':'+'} P = ${wt(c.W)} ${lm?'−':'+'} ${wt(c.P)}`,`= ${x} × the ${wt(c.blockWll)} block rating`,
+      'Blocks and hooks break near 4 × WLL','(Crosby design factor 4 : 1).'],verdict:['THE HOOK OPENS.','THE LOAD DROPS.']}};
+  return {load:c.crit,ratio:r,
+    caption:`Moving block hook load ${wt(c.W)} = ${x} × the ${wt(c.blockWll)} block rating: the hook opens and the load drops`,
+    card:{head:'LOAD ON THE MOVING BLOCK HOOK',big:wt(c.W),lines:[`= W (the pull only helps the top block)`,`= ${x} × the ${wt(c.blockWll)} block rating`,
+      'Blocks and hooks break near 4 × WLL','(Crosby design factor 4 : 1).'],verdict:['THE HOOK OPENS.','THE LOAD DROPS.']}};
+}
+function updateFail(c,ms){
+  const kind=failCond(c);
+  if(!kind){if(F.on)F={on:false,t:0};return;}
+  if(!F.on||F.kind!==kind){
+    const rp=risePx(), Ly0=lowerY(c);
+    F={on:true,t:0,kind,rp,fallU:Math.max(0,(Ly0+rp-SR-12)-(UY0+SR+12)-14),...failText(c,kind)};
+    return;}
+  F.t+=ms;
+}
+/* Failure offsets for this frame: a pure function of F.t, so every frame is deterministic */
+function applyGO(){
+  Object.assign(GO,{up:0,low:0,load:0,hook:0,lhook:0,slack:false});
+  if(!F.on)return null;
+  const u=clamp(F.t/THK,0,1), tau=Math.max(0,(F.t-THK)/1000), d=.5*GPXB*tau*tau, ev={parted:F.t>=THK,lands:[]};
+  const fall=(dist,t0)=>{const tl=Math.sqrt(2*dist/GPXB); if(tau<tl)return {y:.5*GPXB*tau*tau,u:-1};
+    const uu=tau-tl;return {y:dist-Math.min(10,GPXB*tl*.012)*Math.exp(-uu/.12)*Math.abs(Math.sin(uu*26)),u:uu};};
+  if(F.kind==='anchor'){
+    GO.hook=u;
+    if(!ev.parted){GO.up=GO.low=Math.sin(F.t/9)*1.5*u;return ev;}
+    GO.slack=true;
+    const L=fall(F.rp,0), U=fall(F.fallU,0);
+    GO.low=F.rp>0?L.y:0; GO.up=U.y;
+    if(F.rp>0&&L.u>=0)ev.lands.push(['load',L.u]); if(U.u>=0)ev.lands.push(['block',U.u]);
+  } else {
+    GO.lhook=u;
+    if(!ev.parted){GO.low=Math.sin(F.t/9)*1.5*u;return ev;}
+    GO.slack=true;
+    const L=fall(F.rp,0); GO.load=F.rp>0?L.y:0;
+    GO.low=-(18*(1-Math.exp(-tau/.08))-8*Math.exp(-tau/.3)*Math.sin(tau*18));     // the empty block jumps up
+    if(F.rp>0&&L.u>=0)ev.lands.push(['load',L.u]);
+  }
+  return ev;
+}
+/* the hanger eye on the beam opens out (u 0 → 1) */
+function openEye(x,y,u){
+  const gap=.35+u*2.1, a0=-Math.PI/2+gap/2, a1=-Math.PI/2-gap/2+2*Math.PI, r=13+u*5;
+  return `<path id="anchor-eye" d="M${(x+r*Math.cos(a0)).toFixed(1)} ${(y+r*Math.sin(a0)).toFixed(1)} A${r} ${r} 0 1 1 ${(x+r*Math.cos(a1)).toFixed(1)} ${(y+r*Math.sin(a1)).toFixed(1)}" fill="none" stroke="${u>.4?BAD:STEEL}" stroke-width="6" stroke-linecap="round"/>`;
+}
+/* the moving block's hook straightens (u 0 → 1) */
+function openHook(x,y,u){
+  return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+18}" stroke="${STEEL}" stroke-width="9" stroke-linecap="round"/>
+  <path id="hook-open" d="M${x} ${y+16} C${x} ${y+44} ${x+26+u*10} ${y+44+u*6} ${x+24+u*22} ${y+24+u*26}" stroke="${u>.4?BAD:STEEL}" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+}
+/* load on the top block / anchor and on the moving block hook, against the block rating (armed only) */
+function blockTag(c,g,ucx,uR,lcx,lB){
+  const col=v=>v>c.blockWll?BAD:v>.8*c.blockWll?WARN:TEXT;
+  let s=pill('anchor-tag',ucx+30,96,`Anchor W ${c.leadMoving?'−':'+'} P = ${nf(Math.round(c.upper))} of ${wt(c.blockWll)} WLL`,col(c.upper),15,'start');
+  if(c.leadMoving)s+=pill('hook-tag',lcx+48,lB+18,`Hook W = ${nf(Math.round(c.W))} of ${wt(c.blockWll)}`,col(c.W),15,'start');
+  return s;
+}
+function creakOn(c){return !!(S.fail&&!F.on&&S.mode==='tackle'&&isFinite(c.blockUtil)&&c.blockUtil>1);}
+/* Creak meter (replaces the work card): load between the rating (1 ×) and breaking (4 ×), noise bars flicker harder */
+function creakCard(c){
+  const y0=562, st=clamp((c.blockUtil-1)/(BLOCK_DF-1),0,1), X=v=>CX0+CW*clamp((v-1)/(BLOCK_DF-1),0,1), col=st>.6?BAD:WARN;
+  let s=card('creak-meter',y0,262,'STRAIN · CREAK METER',`${c.critPart==='anchor'?'Top block and anchor':'Moving block hook'}: ${wt(c.crit)}`);
+  s+=bar('creak-bg',CX0,y0+80,CW,24,'#2f2b27')+bar('creak-bar',CX0,y0+80,X(c.blockUtil)-CX0,24,col);
+  s+=`<line x1="${CX0+CW}" y1="${y0+72}" x2="${CX0+CW}" y2="${y0+112}" stroke="${BAD}" stroke-width="3"/>`;
+  s+=`<text x="${CX0}" y="${y0+138}" font-size="20" font-weight="800" fill="${col}">${c.blockUtil.toFixed(2)} × the block rating</text>
+      <text x="${CX0+CW}" y="${y0+138}" text-anchor="end" font-size="15" font-weight="700" fill="${MUTED}">breaks at 4 ×</text><g id="creak-noise">`;
+  for(let i=0;i<20;i++){const hh=3+st*40*Math.abs(Math.sin(T/23+i*1.3)*Math.sin(T/57+i*.7));
+    s+=`<rect x="${(CX0+i*CW/20).toFixed(1)}" y="${(y0+240-hh).toFixed(1)}" width="${(CW/20-5).toFixed(1)}" height="${hh.toFixed(1)}" fill="${col}" opacity=".8"/>`;}
+  return s+`</g></g>`;
+}
+/* Caption card (replaces the force and distance cards). IDs: fail-card, fail-big, fail-verdict, fail-tag */
+function failCard(){
+  const P=F.card, x0=CX0-14, w=CW+28, op=clamp(F.t/250,0,1); let y=40, b='';
+  b+=`<text x="${CX0}" y="${y}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${P.head}</text>`; y+=50;
+  b+=`<text id="fail-big" x="${CX0}" y="${y}" font-size="44" font-weight="800" fill="${TEXT}">${P.big}</text>`; y+=40;
+  P.lines.forEach((l,i)=>{b+=`<text x="${CX0}" y="${y}" font-size="${i<2?22:19}" font-weight="${i<2?800:700}" fill="${i<2?TEXT:'#d9d3c7'}">${l}</text>`;y+=i<2?32:27;});
+  y+=12; b+=`<g id="fail-verdict">`;P.verdict.forEach(l=>{b+=`<text x="${CX0}" y="${y}" font-size="30" font-weight="800" fill="${BAD}">${l}</text>`;y+=38;});b+=`</g>`;
+  b+=`<g id="fail-tag"><rect x="${CX0}" y="${y}" width="${CW}" height="46" rx="8" fill="${BAD}"/><text x="${CX0+CW/2}" y="${y+31}" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">NEVER DO THIS ON THE JOB</text></g>`;
+  y+=64;
+  return `<g id="fail-card" opacity="${op.toFixed(3)}"><rect id="fail-card-box" x="${x0}" y="10" width="${w}" height="${y-10}" rx="10" fill="#2a1717" stroke="${BAD}" stroke-width="3"/>${b}</g>`;
+}
+function dust(x,y,span,u,seed){
+  if(u<0||u>1.8)return '';
+  let s=`<g id="fail-dust">`;
+  for(let i=0;i<24;i++){const r1=rnd(i,seed),r2=rnd(i+40,seed),r3=rnd(i+80,seed);
+    const x0=x+(r1-.5)*span, vx=(x0-x)/Math.max(1,span/2)*260+(r2-.5)*160, vy=-(60+r3*220), f=(1-Math.exp(-u/.45))*.45;
+    const px=x0+vx*f, py=y-4+vy*f+50*u*u, rr=5+u*(14+22*r2), op=.5*(1-u/1.8);
+    s+=`<circle cx="${px.toFixed(1)}" cy="${Math.min(py,y).toFixed(1)}" r="${rr.toFixed(1)}" fill="#8a7f72" opacity="${op.toFixed(3)}"/>`;}
+  if(u<.15)s+=`<line x1="${x-span/2-30}" y1="${y-2}" x2="${x+span/2+30}" y2="${y-2}" stroke="#fff" stroke-width="${(4*(1-u/.15)).toFixed(2)}" opacity=".7"/>`;
+  return s+`</g>`;
+}
+function failInfo(){return F.on?{on:true,kind:F.kind,t:F.t,parted:F.t>=THK,caption:F.caption,load:F.load,ratio:F.ratio}:{on:false};}
+
 function draw(c){
   let s='';
   for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
   for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
   s+=`<rect x="0" y="${FLOOR}" width="1300" height="60" fill="#191714"/><line x1="0" y1="${FLOOR}" x2="1300" y2="${FLOOR}" stroke="#45403A" stroke-width="3"/>`;
-  s+=S.mode==='tackle'?drawTackle(c):S.chain==='geared'?drawGeared(c):drawDifferential(c);
-  const cards=cardForce(c)+cardDist(c)+cardWork(c);
+  const ev=applyGO(); UY=UY0+GO.up;                  // FAILURE MODES: offsets for this frame (all zero normally)
+  const rig=S.mode==='tackle'?drawTackle(c):S.chain==='geared'?drawGeared(c):drawDifferential(c);
+  if(ev){const g=tackleGeo(c), lcx=(()=>{const lows=g.sh.filter(q=>!q.up);return c.n>1?(Math.min(...lows.map(q=>q.x))+Math.max(...lows.map(q=>q.x)))/2:g.xs[0];})();
+    const land=ev.lands.find(l=>l[0]==='load'), blk=ev.lands.find(l=>l[0]==='block'), sh=[land,blk].filter(Boolean).map(l=>l[1]<.5?Math.exp(-l[1]/.1)*Math.sin(l[1]*80):0).reduce((a,b)=>a+b,0);
+    s+=`<g id="fail-scene" transform="translate(${(sh*3).toFixed(2)} ${(sh*6).toFixed(2)})">${rig}`;
+    if(land)s+=dust(lcx,FLOOR,260,land[1],1);
+    if(blk)s+=dust(lcx,lowerY(c)-SR-12,180,blk[1],2);
+    s+=`</g>`;}
+  else s+=rig;
+  UY=UY0; Object.assign(GO,{up:0,low:0,load:0,hook:0,lhook:0,slack:false});
+  const cards=(F.on?failCard():cardForce(c)+cardDist(c))+(creakOn(c)?creakCard(c):cardWork(c));
   // rise gauge beside the load (measured)
   const rp=risePx(), ly=FLOOR-10;
-  s+=`<g id="rise-dim"><line x1="40" y1="${ly}" x2="40" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly}" x2="52" y2="${ly}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly-rp}" x2="52" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/>
+  if(!F.on)s+=`<g id="rise-dim"><line x1="40" y1="${ly}" x2="40" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly}" x2="52" y2="${ly}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly-rp}" x2="52" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/>
      <text x="58" y="${ly-rp/2+7}" font-size="18" font-weight="800" fill="${TEXT}">${len(c.rise)}</text></g>`;
   // phone: the rig fills the first picture and the maths cards stack in a second one below it
   const phone=matchMedia('(max-width:1000px)').matches;
@@ -619,6 +759,7 @@ function step(ms){
   tweens=tweens.filter(t=>t.t<t.dur);
   S.rise=clamp(S.rise,0,riseMax());
   const c=calc();
+  updateFail(c,ms);                                                  // FAILURE MODES: trigger / latch / reset
   // rope / chain material moves with the load: accumulate the load's travel in px (sign: up = positive)
   const rp=risePx(), key=S.mode+S.chain+S.parts+S.lead;
   if(A.lastRisePx!=null&&A.lastMode===key)A.disp+=rp-A.lastRisePx;
@@ -626,13 +767,15 @@ function step(ms){
   A.flow-=dt*40;                                                     // load path creeps toward the fixed block
   // pull arrow: spring-damper toward the live pull (ω≈7 rad/s, ζ≈0.4)
   const wn=7,z=.4;
-  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(c.P-A.arrow)-2*z*wn*A.arrowV;A.arrowV+=acc*h;A.arrow+=A.arrowV*h;}}
+  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub,tg=F.on&&F.t>=THK?0:c.P;for(let i=0;i<sub;i++){const acc=wn*wn*(tg-A.arrow)-2*z*wn*A.arrowV;A.arrowV+=acc*h;A.arrow+=A.arrowV*h;}}
   else if(ms>=200){A.arrow=c.P;A.arrowV=0;}
   return c;
 }
 function frame(ms){
   const c=step(ms);
   draw(c); panel(c);
+  if(F.on){const st=$('status');st.style.background=BAD;st.style.borderColor=BAD;st.style.color='#fff';
+    st.textContent=(F.kind==='anchor'?'ANCHOR HOOK':'BLOCK HOOK')+' FAILED: NEVER DO THIS ON THE JOB';}
   const f=formula(c); $('f1').innerHTML=f[0]; $('f2').innerHTML=f[1];
   callouts.forEach(co=>co.age+=ms);
   renderCallouts();
@@ -643,7 +786,7 @@ function set(p,dur=0){
     const toMet=p.units==='met', fw=toMet?LB_TO_KG:1/LB_TO_KG, fl=toMet?FT_TO_M:1/FT_TO_M, fd=toMet?IN_TO_MM:1/IN_TO_MM;
     tweens=tweens.filter(t=>!['load','rise','D','d'].includes(t.key));
     if(!('load' in p))S.load*=fw; if(!('rise' in p))S.rise*=fl;
-    if(!('D' in p))S.D*=fd; if(!('d' in p))S.d*=fd;
+    if(!('D' in p))S.D*=fd; if(!('d' in p))S.d*=fd; if(!('blockWll' in p))S.blockWll*=fw;
     S.units=p.units; delete p.units;
   }
   const snap=p.snap; delete p.snap;
@@ -658,6 +801,7 @@ function set(p,dur=0){
   if(S.d>=S.D)S.d=S.D*.9;
   S.rise=clamp(S.rise,0,riseMax());
   if(snap){const c=calc();A.arrow=c.P;A.arrowV=0;A.disp=0;A.lastRisePx=null;A.flow=0;}
+  if(snap||'mode' in p||p.fail===false)F={on:false,t:0};          // FAILURE MODES: any reset restores the rig
   if(!CAPTURE)frame(0);
 }
 function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
@@ -677,7 +821,7 @@ addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>calc(),get:()=>({...S}),get view(){return {...A}},ready:true};
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>calc(),get:()=>({...S}),get view(){return {...A}},failure:failInfo,ready:true};
 })();
 </script>
 </body>
