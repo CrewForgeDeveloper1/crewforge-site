@@ -31,6 +31,23 @@
     vectors    show the force triangle (vertical / horizontal / sling tension)
     angles     show angle-from-vertical and included-angle arcs
     dims       show L and H dimension lines
+
+  RIGGING FAMILY (2026-11-07). mode selects the screen; the default 'sling' is the episode 001 simulator, unchanged.
+    mode       'sling' (default, ep 001) | 'cg' (ep 004 weight + centre of gravity) | 'hardware' (ep 005) | 'hitch' (ep 006)
+  mode 'cg'
+    shape      'plate' | 'bar' | 'pipe' | 'block' | 'skid' (deck plate + off-centre motor)
+    plateL plateW plateT · barD barL · pipeOD pipeWall pipeL · blockL blockW blockH · skidL skidW skidT motorW motorX motorH
+               long lengths in ft | m, short ones (plateT barD pipeOD pipeWall skidT) in in | mm, motorW in lb | kg
+    pick1      left pick point, distance in from the LEFT end (ft | m) · pick2 right pick point, in from the RIGHT end
+    rig        'vertical' (two vertical legs, two hoists) | 'level' (one hook over the CG, legs sized so the load hangs level)
+               | 'equal' (equal legs, hook over the middle of the picks: the load tilts until the CG is under the hook)
+    hookH      hook height above the pick line (ft | m), load level · wll = WLL of each leg · cgView 'weight' | 'legs' (formula bar)
+  mode 'hardware'
+    part       'eyebolt' | 'shackle' | 'dd' · eyeType 'shoulder' | 'plain' · hwWll rated WLL (in-line / vertical)
+    pull       angle of pull from in-line, degrees · hwLoad load on the part · ddD pin or load diameter D, ddd rope diameter d (in | mm)
+  mode 'hitch' uses the ep 001 keys (hitch legs angle load wll slingType choke twoLeg lift) plus
+    loadD      diameter of the load the basket bends around (in | mm) · ropeD sling body diameter (in | mm) · tags tag lines on/off
+  Callout IDs and sources: see NOTES.md beside this file.
 -->
 <style>
 :root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
@@ -89,21 +106,37 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
   #meter{grid-template-columns:1fr}#gauge{margin:0 auto}
   .clabel{font-size:15px;max-width:240px;padding:8px 10px}
 }
+/* rigging family: mode tabs (hidden in capture so episode 001 renders are unchanged), per-mode panels */
+.brandbar #c-mode{margin-left:auto;flex:0 1 560px}
+.brandbar #c-mode button{min-width:0;padding:7px 10px;font-size:14px}
+.pmode{display:contents}
+.pmode.hide,.ctl.hide,.sec.hide{display:none}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.ro4{grid-template-columns:1fr 1fr 1fr 1fr}
+#formula .ta{color:#59b7ff}#formula .tb{color:#ff8a3d}#formula .tc{color:#b48af0}#formula .td{color:#4fd1c5}#formula .tw{color:#fff;font-weight:700}
+@media (max-width:1000px){
+  .brandbar{flex-wrap:wrap}
+  .brandbar #c-mode{margin-left:0;flex:1 1 100%}
+  .g2{grid-template-columns:1fr}
+  .ro4{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
 <div id="app">
   <section id="stage">
-    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Sling Angle Simulator</div></div></div>
+    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2" id="title">Sling Angle Simulator</div></div>
+      <div class="seg" id="c-mode"><button data-v="sling">Sling angles</button><button data-v="cg">Weight &amp; CG</button><button data-v="hardware">Hardware</button><button data-v="hitch">Hitches</button></div></div>
     <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet"></svg></div>
     <div id="formula"></div>
   </section>
   <aside id="panel">
-    <div class="sec"><h3>HITCH</h3>
+   <div id="p-sling" class="pmode">
+    <div class="sec" id="sec-hitch"><h3>HITCH</h3>
       <div class="seg" id="c-hitch"><button data-v="vertical">Vertical</button><button data-v="choker">Choker</button><button data-v="basket">Basket</button><button data-v="bridle">Bridle</button></div>
       <div class="ctl" id="w-legs"><div class="seg" id="c-legs"><button data-v="2">2 legs</button><button data-v="3">3 legs</button><button data-v="4">4 legs</button></div></div>
     </div>
-    <div class="sec"><h3>SETUP</h3>
+    <div class="sec" id="sec-setup"><h3>SETUP</h3>
       <div class="ctl" id="w-load"><label>Load weight (W) <b id="l-load"></b></label><input id="c-load" type="range"></div>
       <div class="ctl" id="w-wll"><label>Sling WLL, vertical, per leg <b id="l-wll"></b></label><input id="c-wll" type="range"></div>
       <div class="ctl" id="w-angle"><label>Sling angle from horizontal (θ) <b id="l-angle"></b></label><input id="c-angle" type="range" min="10" max="90" step="1"></div>
@@ -114,7 +147,7 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
       <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units" style="flex:2"><button data-v="lb">Imperial</button><button data-v="kg">Metric</button></div>
         <div class="seg" id="c-lift" style="flex:1"><button data-v="1">Lift</button><button data-v="0">Land</button></div></div>
     </div>
-    <div class="sec"><h3>READOUTS</h3>
+    <div class="sec" id="sec-readouts"><h3>READOUTS</h3>
       <div class="ro">
         <div class="big" id="ro-tension-box"><span>Tension per leg (T)</span><b id="ro-tension"></b></div>
         <div id="ro-factor-box"><span>Load angle factor</span><b id="ro-factor"></b></div>
@@ -129,6 +162,44 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
         <div id="ro-capacity-box"><span>Hitch capacity</span><b id="ro-capacity"></b></div>
       </div>
     </div>
+   </div>
+   <div id="p-cg" class="pmode hide">
+    <div class="sec" id="sec-cg-load"><h3>LOAD</h3>
+      <div class="seg" id="c-shape" data-k="shape"><button data-v="plate">Plate</button><button data-v="bar">Round bar</button><button data-v="pipe">Pipe</button><button data-v="block">Block</button><button data-v="skid">Skid + motor</button></div>
+      <div class="g2" id="g-dims"><div class="ctl" id="w-plateL"><label> <b id="l-plateL"></b></label><input id="c-plateL" data-k="plateL" type="range"></div><div class="ctl" id="w-plateW"><label> <b id="l-plateW"></b></label><input id="c-plateW" data-k="plateW" type="range"></div><div class="ctl" id="w-plateT"><label> <b id="l-plateT"></b></label><input id="c-plateT" data-k="plateT" type="range"></div><div class="ctl" id="w-barD"><label> <b id="l-barD"></b></label><input id="c-barD" data-k="barD" type="range"></div><div class="ctl" id="w-barL"><label> <b id="l-barL"></b></label><input id="c-barL" data-k="barL" type="range"></div><div class="ctl" id="w-pipeOD"><label> <b id="l-pipeOD"></b></label><input id="c-pipeOD" data-k="pipeOD" type="range"></div><div class="ctl" id="w-pipeWall"><label> <b id="l-pipeWall"></b></label><input id="c-pipeWall" data-k="pipeWall" type="range"></div><div class="ctl" id="w-pipeL"><label> <b id="l-pipeL"></b></label><input id="c-pipeL" data-k="pipeL" type="range"></div><div class="ctl" id="w-blockL"><label> <b id="l-blockL"></b></label><input id="c-blockL" data-k="blockL" type="range"></div><div class="ctl" id="w-blockW"><label> <b id="l-blockW"></b></label><input id="c-blockW" data-k="blockW" type="range"></div><div class="ctl" id="w-blockH"><label> <b id="l-blockH"></b></label><input id="c-blockH" data-k="blockH" type="range"></div><div class="ctl" id="w-skidL"><label> <b id="l-skidL"></b></label><input id="c-skidL" data-k="skidL" type="range"></div><div class="ctl" id="w-skidW"><label> <b id="l-skidW"></b></label><input id="c-skidW" data-k="skidW" type="range"></div><div class="ctl" id="w-skidT"><label> <b id="l-skidT"></b></label><input id="c-skidT" data-k="skidT" type="range"></div><div class="ctl" id="w-motorW"><label> <b id="l-motorW"></b></label><input id="c-motorW" data-k="motorW" type="range"></div><div class="ctl" id="w-motorX"><label> <b id="l-motorX"></b></label><input id="c-motorX" data-k="motorX" type="range"></div><div class="ctl" id="w-motorH"><label> <b id="l-motorH"></b></label><input id="c-motorH" data-k="motorH" type="range"></div></div>
+    </div>
+    <div class="sec" id="sec-cg-rig"><h3>PICK POINTS AND RIGGING</h3>
+      <div class="seg" id="c-rig" data-k="rig"><button data-v="vertical">Two vertical legs</button><button data-v="level">Hook over CG</button><button data-v="equal">Equal legs</button></div>
+      <div class="g2"><div class="ctl" id="w-pick1"><label>Left pick, in from left end <b id="l-pick1"></b></label><input id="c-pick1" data-k="pick1" type="range"></div><div class="ctl" id="w-pick2"><label>Right pick, in from right end <b id="l-pick2"></b></label><input id="c-pick2" data-k="pick2" type="range"></div><div class="ctl" id="w-hookH"><label>Hook height above picks (h) <b id="l-hookH"></b></label><input id="c-hookH" data-k="hookH" type="range"></div><div class="ctl" id="w-cgwll"><label>Sling WLL per leg <b id="l-cgwll"></b></label><input id="c-cgwll" data-k="cgwll" type="range"></div></div>
+      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-cgView" data-k="cgView" style="flex:2"><button data-v="weight">Show weight</button><button data-v="legs">Show leg loads</button></div></div>
+      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units-cg" data-k="units" style="flex:2"><button data-v="lb">Imperial</button><button data-v="kg">Metric</button></div><div class="seg" id="c-lift-cg" data-k="lift" style="flex:1"><button data-v="1">Lift</button><button data-v="0">Land</button></div></div>
+    </div>
+    <div class="sec" id="sec-cg-ro"><h3>READOUTS</h3>
+      <div class="ro"><div id="ro-cg-w-box" class="big"><span>Load weight (W)</span><b id="ro-cg-w"></b></div><div id="ro-cg-v-box"><span>Volume (V)</span><b id="ro-cg-v"></b></div><div id="ro-cg-x-box"><span>CG from left end</span><b id="ro-cg-x"></b></div><div id="ro-cg-a-box"><span>a (left pick → CG)</span><b id="ro-cg-a"></b></div><div id="ro-cg-b-box"><span>b (CG → right pick)</span><b id="ro-cg-b"></b></div><div id="ro-cg-r1-box"><span>Left vertical share</span><b id="ro-cg-r1"></b></div><div id="ro-cg-r2-box"><span>Right vertical share</span><b id="ro-cg-r2"></b></div><div id="ro-cg-tilt-box"><span>Load tilt</span><b id="ro-cg-tilt"></b></div><div id="ro-cg-t1-box"><span>Left leg tension</span><b id="ro-cg-t1"></b></div><div id="ro-cg-t2-box"><span>Right leg tension</span><b id="ro-cg-t2"></b></div><div id="ro-cg-th-box"><span>Leg angles (L / R)</span><b id="ro-cg-th"></b></div></div>
+    </div>
+   </div>
+   <div id="p-hw" class="pmode hide">
+    <div class="sec" id="sec-hw-part"><h3>PART</h3>
+      <div class="seg" id="c-part" data-k="part"><button data-v="eyebolt">Eyebolt</button><button data-v="shackle">Shackle</button><button data-v="dd">Sling D/d</button></div>
+      <div class="ctl" id="w-eyeType"><div class="seg" id="c-eyeType" data-k="eyeType"><button data-v="shoulder">Shoulder eyebolt</button><button data-v="plain">Plain eyebolt (no shoulder)</button></div></div>
+    </div>
+    <div class="sec" id="sec-hw-setup"><h3>SETUP</h3>
+      <div class="ctl" id="w-hwWll"><label>Rated WLL <b id="l-hwWll"></b></label><input id="c-hwWll" data-k="hwWll" type="range"></div><div class="ctl" id="w-pull"><label>Angle of pull from in-line <b id="l-pull"></b></label><input id="c-pull" data-k="pull" type="range"></div><div class="ctl" id="w-ddD"><label>Pin or load diameter (D) <b id="l-ddD"></b></label><input id="c-ddD" data-k="ddD" type="range"></div><div class="ctl" id="w-ddd"><label>Rope diameter (d) <b id="l-ddd"></b></label><input id="c-ddd" data-k="ddd" type="range"></div><div class="ctl" id="w-hwLoad"><label>Load on the part <b id="l-hwLoad"></b></label><input id="c-hwLoad" data-k="hwLoad" type="range"></div>
+      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units-hw" data-k="units" style="flex:2"><button data-v="lb">Imperial</button><button data-v="kg">Metric</button></div></div>
+    </div>
+    <div class="sec" id="sec-hw-ro"><h3>READOUTS</h3>
+      <div class="ro"><div id="ro-hw-eff-box" class="big"><span>Adjusted WLL</span><b id="ro-hw-eff"></b></div><div id="ro-hw-pct-box"><span>% of rated</span><b id="ro-hw-pct"></b></div><div id="ro-hw-rated-box"><span>Rated WLL</span><b id="ro-hw-rated"></b></div><div id="ro-hw-angle-box"><span>Angle / ratio</span><b id="ro-hw-angle"></b></div><div id="ro-hw-load-box"><span>Load on part</span><b id="ro-hw-load"></b></div><div id="ro-hw-up-box"><span>Straight-up part</span><b id="ro-hw-up"></b></div><div id="ro-hw-side-box"><span>Sideways part</span><b id="ro-hw-side"></b></div><div id="ro-hw-band-box"><span>Table row</span><b id="ro-hw-band"></b></div></div>
+    </div>
+   </div>
+   <div id="p-hitch" class="pmode hide">
+    <div class="sec" id="sec-hitch-dd"><h3>BASKET D/d AND LOAD CONTROL</h3>
+      <div class="g2"><div class="ctl" id="w-loadD"><label>Load diameter (D) <b id="l-loadD"></b></label><input id="c-loadD" data-k="loadD" type="range"></div><div class="ctl" id="w-ropeD"><label>Sling body diameter (d) <b id="l-ropeD"></b></label><input id="c-ropeD" data-k="ropeD" type="range"></div></div>
+      <div class="ctl row" id="w-tags"><input type="checkbox" id="c-tags" data-k="tags"><label for="c-tags" style="margin:0">Tag lines on (load control)</label></div>
+    </div>
+    <div class="sec" id="sec-hitch-ro"><h3>CAPACITY BY HITCH · SAME SLING</h3>
+      <div class="ro ro4"><div id="ro-cap-v-box"><span>Vertical</span><b id="ro-cap-v"></b></div><div id="ro-cap-c-box"><span>Choker</span><b id="ro-cap-c"></b></div><div id="ro-cap-b-box"><span>Basket</span><b id="ro-cap-b"></b></div><div id="ro-cap-br-box"><span>Bridle</span><b id="ro-cap-br"></b></div><div id="ro-hi-dd-box"><span>Basket D/d</span><b id="ro-hi-dd"></b></div><div id="ro-hi-ddeff-box"><span>D/d factor</span><b id="ro-hi-ddeff"></b></div><div id="ro-hi-t-box"><span>Tension per leg</span><b id="ro-hi-t"></b></div><div id="ro-hi-cap-box"><span>This hitch</span><b id="ro-hi-cap"></b></div></div>
+    </div>
+   </div>
     <div id="meter"><svg id="gauge" viewBox="0 0 250 150"></svg>
       <div><div id="utilrow"><span>UTILIZATION<br>T ÷ rating</span><b id="ro-util"></b></div><div id="status"></div></div></div>
   </aside>
@@ -142,6 +213,12 @@ const LB_TO_KG=0.45359237, FT_TO_M=0.3048;
 const S={hitch:'bridle',legs:2,angle:60,load:10000,wll:8000,sling:10,units:'lb',slingType:'wire',choke:135,
          twoLeg:true,lift:1,vectors:false,angles:false,dims:false};
 const NUMERIC=['angle','load','wll','sling','choke','lift'];
+// rigging family state (see the header): defaults are imperial, matching S.units
+Object.assign(S,{mode:'sling',shape:'plate',plateL:10,plateW:4,plateT:1,barD:6,barL:12,pipeOD:8.625,pipeWall:.5,pipeL:20,
+  blockL:6,blockW:3,blockH:2,skidL:12,skidW:4,skidT:2,motorW:3000,motorX:9,motorH:2,pick1:1,pick2:1,rig:'level',hookH:6,cgView:'legs',
+  part:'eyebolt',eyeType:'shoulder',hwWll:5200,hwLoad:1500,pull:45,ddD:4,ddd:.5,loadD:24,ropeD:.75,tags:true});
+NUMERIC.push('plateL','plateW','plateT','barD','barL','pipeOD','pipeWall','pipeL','blockL','blockW','blockH','skidL','skidW','skidT',
+  'motorW','motorX','motorH','pick1','pick2','hookH','hwWll','hwLoad','pull','ddD','ddd','loadD','ropeD');
 const $=id=>document.getElementById(id);
 const rad=d=>d*Math.PI/180, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -165,7 +242,107 @@ const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
 const CHOKER_EFF={wire:.75,chain:.80,synthetic:.80};
 const CHOKE_ROWS=[[120,180,1.00,'120°–180°'],[90,119,.87,'90°–119°'],[60,89,.74,'60°–89°'],[30,59,.62,'30°–59°'],[0,29,.49,'0°–29°']];
 function chokeRow(a){a=Math.round(a);return CHOKE_ROWS.findIndex(r=>a>=r[0])}
+
+/* ---------- rigging family tables (every value from a public source; see NOTES.md) ----------
+   Shoulder eyebolt, angle of pull from in-line → % of rated WLL. Crosby catalogue 2023, Lifting Points p. 417
+   (G-277 / S-279 / G-291): 5° 100 %, 15° 80 %, 30° 65 %, 45° 30 %, 90° 25 %. Load in the plane of the eye.
+   Between printed angles we use the NEXT HIGHER printed angle (the lower %): never more than the table allows.
+   Plain (regular nut, no shoulder) eyebolts: in-line only. Crosby: "Never use regular nut eye bolts for angular lifts." */
+const EYE_ROWS=[[5,1.00],[15,.80],[30,.65],[45,.30],[90,.25]];
+/* Screw-pin / bolt-type shackle side loading, angle from the vertical in-line of the shackle, in the plane of the bow.
+   Crosby catalogue 2023, Shackles p. 364, Table 1 (3/16"–3"): bands as printed, whole degrees. */
+const SHACKLE_ROWS=[[10,1.00],[20,.85],[30,.75],[45,.70],[55,.60],[70,.55],[90,.50]];
+/* Wire rope strength efficiency bent over a pin or sheave, D/d → % of catalogue strength. Kulkoni catalogue p. 87.
+   Between printed ratios we use the next LOWER printed ratio (the lower %). Below 1:1 the table stops: not allowed. */
+const DD_ROWS=[[1,.50],[2,.65],[4,.75],[5,.79],[8,.83],[10,.86],[15,.89],[20,.91],[30,.93],[40,.95]];
+/* Wire rope sling basket rating vs D/d, normalised so 25:1 = 100 % (published basket ratings assume D/d ≥ 25:1:
+   Unirope TB3a; Crosby p. 471). Purdue University rigging training table. Same step-down rule. */
+const BASKET_DD_ROWS=[[1,.50],[2,.65],[4,.75],[6,.80],[8,.84],[10,.86],[15,.88],[20,.92],[25,1.00]];
+const angleRow=(rows,a)=>rows.findIndex(r=>a<=r[0]);                      // first band whose upper angle covers a
+const ddRow=(rows,r)=>{let i=-1;rows.forEach((row,j)=>{if(r>=row[0]-1e-9)i=j;});return i;};  // last printed ratio ≤ r
+const RHO={lb:490,kg:7850};          // steel: 490 lb/ft³ (= 0.2836 lb/in³), 7,850 kg/m³ (Iowa DOT IM 452.02)
+const DIMS={plate:['plateL','plateW','plateT'],bar:['barD','barL'],pipe:['pipeOD','pipeWall','pipeL'],
+            block:['blockL','blockW','blockH'],skid:['skidL','skidW','skidT','motorW','motorX','motorH']};
+
 function calc(){
+  /* =====================================================================
+     MODE 'cg' (episode 004): load weight from volume × density, the centre of gravity, and the leg loads.
+     Lengths: long ones in ft (m), short ones (thickness, diameters) in in (mm) → converted to ft (m) here.
+     W        = V × ρ  (+ motor nameplate weight on the skid)
+     CG x̄     = Σ(weight × distance from the left end) ÷ W ;  CG height measured from the pick line (picks on the top face)
+     a, b     = horizontal distances from the left pick to the CG and from the CG to the right pick
+     vertical : R1 = W × b ÷ (a + b),  R2 = W × a ÷ (a + b)   (moments about each pick point)
+     level    : hook over the CG at height h. Vertical shares as above; leg i length Li = √(ai² + h²);
+                Ti = Ri × Li ÷ h ; both legs pull sideways by the same H = W × a × b ÷ ((a + b) × h)
+     equal    : equal legs, hook over the middle of the picks. Free-hanging, the load turns until the CG is under
+                the hook: tilt φ = atan(e ÷ (h + dz)), e = CG offset from the middle of the picks, dz = CG depth below
+                the pick line. Leg tensions from hook equilibrium in the tilted position: T1·u1 + T2·u2 = (0, W).
+     ===================================================================== */
+  if(S.mode==='cg'){
+    const imp=S.units==='lb', sh=imp?1/12:1/1000, rho=RHO[S.units];
+    const c={mode:'cg',shape:S.shape,rho,Wm:0,xm:0,hm:0,ID:0};
+    if(S.shape==='plate'){c.L=S.plateL;c.Wd=S.plateW;c.H=S.plateT*sh;c.V=c.L*c.Wd*c.H;}
+    else if(S.shape==='bar'){c.L=S.barL;c.H=S.barD*sh;c.Wd=c.H;c.V=Math.PI/4*c.H*c.H*c.L;}
+    else if(S.shape==='pipe'){c.L=S.pipeL;c.H=S.pipeOD*sh;const t=Math.min(S.pipeWall*sh,c.H/2);c.ID=c.H-2*t;c.Wd=c.H;
+      c.V=Math.PI/4*(c.H*c.H-c.ID*c.ID)*c.L;}                                   // ring area × length
+    else if(S.shape==='block'){c.L=S.blockL;c.Wd=S.blockW;c.H=S.blockH;c.V=c.L*c.Wd*c.H;}
+    else {c.L=S.skidL;c.Wd=S.skidW;c.H=S.skidT*sh;c.V=c.L*c.Wd*c.H;                // steel deck plate
+      c.Wm=S.motorW;c.xm=clamp(S.motorX,0,c.L);c.hm=S.motorH;}
+    c.Ws=c.V*rho;                                   // steel weight = volume × density
+    const W=c.W=c.Ws+c.Wm;
+    // CG along the load: moments about the left end ÷ total weight (steel acts at L/2, motor at its own position)
+    c.xg=W>0?(c.Ws*c.L/2+c.Wm*c.xm)/W:c.L/2;
+    // CG height from the pick line: steel centre H/2 below, motor centre hm/2 above the deck
+    const zg=W>0?(c.Ws*(-c.H/2)+c.Wm*c.hm/2)/W:-c.H/2; c.dz=-zg;
+    c.x1=clamp(S.pick1,0,.45*c.L); c.x2=c.L-clamp(S.pick2,0,.45*c.L);
+    const a=c.a=c.xg-c.x1, b=c.b=c.x2-c.xg, s=c.s=c.x2-c.x1;
+    c.R1=W*b/s; c.R2=W*a/s;                         // vertical shares: moments about each pick
+    c.tilt=0; c.Hf=0; c.e=0; c.D=0; c.hookX=c.xg; c.h=S.hookH;
+    if(S.rig==='vertical'){c.T1=c.R1;c.T2=c.R2;c.th1=c.th2=90;c.L1=c.L2=S.hookH;}
+    else if(S.rig==='level'){const h=S.hookH;
+      c.L1=Math.hypot(a,h); c.L2=Math.hypot(b,h);
+      c.T1=c.R1*c.L1/h; c.T2=c.R2*c.L2/h;          // T = vertical part × (leg length ÷ height)
+      c.th1=Math.atan2(h,Math.abs(a))*180/Math.PI; c.th2=Math.atan2(h,Math.abs(b))*180/Math.PI;
+      c.Hf=W*a*b/(s*h);}
+    else {const h0=S.hookH, xm=(c.x1+c.x2)/2; c.hookX=xm;
+      c.e=c.xg-xm; c.D=h0+c.dz; c.L1=c.L2=Math.hypot(s/2,h0);
+      const phi=Math.atan2(c.e,c.D); c.tilt=phi*180/Math.PI;           // + = right end drops
+      const rot=([x,y])=>[x*Math.cos(phi)+y*Math.sin(phi),-x*Math.sin(phi)+y*Math.cos(phi)];  // turn the load frame by φ
+      const u1=rot([(xm-c.x1)/c.L1,h0/c.L1]), u2=rot([(xm-c.x2)/c.L2,h0/c.L2]);         // pick → hook unit vectors
+      const det=u1[0]*u2[1]-u2[0]*u1[1];
+      c.T1=-W*u2[0]/det; c.T2=W*u1[0]/det;                              // T1·u1 + T2·u2 = (0, W)
+      c.R1=c.T1*u1[1]; c.R2=c.T2*u2[1];                                 // vertical parts (sum = W)
+      c.th1=Math.atan2(u1[1],Math.abs(u1[0]))*180/Math.PI; c.th2=Math.atan2(u2[1],Math.abs(u2[0]))*180/Math.PI;
+      c.Hf=Math.abs(c.T1*u1[0]);}
+    c.T=Math.max(c.T1,c.T2,0); c.rating=S.wll; c.capacity=S.wll; c.util=c.rating>0?c.T/c.rating:Infinity;
+    c.tips=W>0&&(c.T1<-1e-9||c.T2<-1e-9||(S.rig==='equal'&&c.D<=0));
+    c.angleBad=S.rig!=='vertical'&&Math.min(c.th1,c.th2)<30;
+    c.tilted=Math.abs(c.tilt)>5;                    // SkilledTradesBC: more than 5° of tilt → land it and re-rig
+    c.level=c.tips||c.angleBad||c.util>1?'bad':(c.util>.8||c.tilted)?'warn':'ok';
+    return c;
+  }
+  /* =====================================================================
+     MODE 'hardware' (episode 005): adjusted WLL of a part = rated WLL × % from the maker's table.
+     eyebolt  : % from EYE_ROWS by the angle of pull (plain eyebolts: in-line ≤ 5° only)
+     shackle  : % from SHACKLE_ROWS by the side-load angle
+     dd       : % from DD_ROWS by D ÷ d (rope bent around a pin or the load)
+     The pull splits into a straight-up part F × cos α and a sideways part F × sin α (the sideways part bends the part).
+     ===================================================================== */
+  if(S.mode==='hardware'){
+    const c={mode:'hardware',part:S.part,rated:S.hwWll,load:S.hwLoad,row:-1};
+    if(S.part==='dd'){c.ratio=S.ddD/S.ddd; c.row=ddRow(DD_ROWS,c.ratio); c.pct=c.row<0?0:DD_ROWS[c.row][1]; c.ang=0;}
+    else {c.ang=clamp(Math.round(S.pull),0,90);
+      if(S.part==='shackle'){c.row=angleRow(SHACKLE_ROWS,c.ang);c.pct=SHACKLE_ROWS[c.row][1];}
+      else if(S.eyeType==='plain'){c.row=c.ang<=5?0:-1;c.pct=c.ang<=5?1:0;}
+      else {c.row=angleRow(EYE_ROWS,c.ang);c.pct=EYE_ROWS[c.row][1];}}
+    c.adj=c.rated*c.pct; c.up=c.load*Math.cos(rad(c.ang)); c.side=c.load*Math.sin(rad(c.ang));
+    c.T=c.load; c.rating=c.adj; c.capacity=c.adj; c.util=c.adj>0?c.load/c.adj:(c.load>0?Infinity:0);
+    c.notAllowed=c.pct===0;
+    c.level=c.notAllowed||c.util>1?'bad':c.util>.8?'warn':'ok';
+    return c;
+  }
+  /* MODE 'sling' (episode 001) below, unchanged. MODE 'hitch' (episode 006) runs the same maths and adds the
+     capacity of every hitch from the same sling plus the basket D/d check (marked HITCH MODE). */
   const W=S.load, angled=S.hitch==='basket'||S.hitch==='bridle';
   const th=angled?S.angle:90;
   const f=Math.round(1000/Math.sin(rad(th)))/1000;
@@ -179,6 +356,19 @@ function calc(){
   else {c.carry=(S.twoLeg&&S.legs>=3)?2:S.legs;c.T=W/c.carry*f;c.capacity=c.carry*S.wll/f;}
   c.L=S.sling; c.H=S.sling*Math.sin(rad(th)); c.hl=c.L/c.H;
   c.V=W/c.carry; c.Hf=c.V/Math.tan(rad(th));   // force triangle: vertical part (always W ÷ n) and horizontal part of T
+  if(S.mode==='hitch'){
+    /* HITCH MODE (episode 006): one sling, vertical WLL, every hitch. Same factors as episode 001.
+       vertical = WLL · choker = WLL × choker efficiency × angle-of-choke % · bridle = n × WLL ÷ LAF
+       basket   = 2 × WLL ÷ LAF × E,  E = basket D/d factor (wire rope only; 1.00 at D/d ≥ 25:1, BASKET_DD_ROWS) */
+    const fA=Math.round(1000/Math.sin(rad(S.angle)))/1000, nB=(S.twoLeg&&S.legs>=3)?2:S.legs, chain=S.slingType==='chain';
+    c.dd=S.loadD/S.ropeD; c.ddWire=S.slingType==='wire';
+    c.ddRow=c.ddWire?ddRow(BASKET_DD_ROWS,c.dd):-1;
+    c.ddEff=!c.ddWire?1:c.ddRow<0?0:BASKET_DD_ROWS[c.ddRow][1];
+    c.caps={vertical:S.wll, choker:S.wll*CHOKER_EFF[S.slingType]*(chain?1:CHOKE_ROWS[chokeRow(S.choke)][2]),
+            basket:2*S.wll/fA*c.ddEff, bridle:nB*S.wll/fA};
+    c.fA=fA; c.nB=nB;
+    if(S.hitch==='basket'){c.rating=S.wll*c.ddEff; c.capacity=c.caps.basket;}
+  }
   c.util=c.T/c.rating;
   c.angleBad=angled&&th<30;
   c.level=c.angleBad||c.util>1?'bad':c.util>.8?'warn':'ok';
@@ -328,7 +518,7 @@ function draw(c){
         <rect x="${cx-16}" y="${top-26}" width="32" height="28" rx="6" fill="#7A7268"/>`;
       r+=hookBlock(cx,hy)+leg('leg-0',cx,hy+18,cx,top-14,(1-k)*60,col,work,shake);
       r+=pill('leg-label-0',cx+150,(hy+top)/2,wt(c.T*k),col);
-      A.curHook=hy;
+      A.curHook=hy; A.lb={l:cx-170,r:cx+170,y:top+bh/2};
     } else {
       const R=115, ccy=ground-R-rise, a=clamp(180-S.choke,25,89);
       const d=R/Math.sin(rad(a)), Cy=ccy-d, b=Math.acos(R/d), tx=R*Math.sin(b), ty=ccy-R*Math.cos(b), hy=Cy-250+(1-k)*60;
@@ -348,7 +538,7 @@ function draw(c){
       r+=`<g id="choke-arc"><path d="M${cx} ${Cy-Ra} A${Ra} ${Ra} 0 0 1 ${cx+Ra*Math.sin(rad(a))} ${Cy+Ra*Math.cos(rad(a))}" fill="none" stroke="${ACC}" stroke-width="5"/>
         <text x="${cx+74}" y="${Cy-22}" font-size="28" font-weight="800" fill="${ACC}">Choke ${deg(S.choke)}</text></g>`;
       r+=pill('leg-label-0',cx-150,(hy+Cy)/2,wt(c.T*k),col);
-      A.curHook=hy;
+      A.curHook=hy; A.lb={l:cx-R,r:cx+R,y:ccy};
     }
   } else {
     const th=rad(c.th), half=Math.max(40,Lpx*Math.cos(th)), riseH=Lpx*Math.sin(th);
@@ -420,22 +610,543 @@ function draw(c){
     const lab=j=>slack[j]>.5?'slack':wt(c.T*k);
     r+=pill('leg-label-0',(hx+pts[0][0])/2-78,(hy+top)/2+6,lab(0),slack[0]>.5?MUTED:col);
     r+=pill('leg-label-1',(hx+pts[1][0])/2+88,(hy+top)/2+52,lab(1),slack[1]>.5?MUTED:col);
-    A.curHook=hy;
+    A.curHook=hy; A.lb=isB?{l:cx-rB,r:cx+rB,y:cyB}:{l:x0,r:x0+w,y:top+bh/2};
   }
   r+=`</g>`;
   s+=r;
   // insets
+  if(S.mode==='hitch')s+=tagLines(c,k,swayDeg)+hitchInsets(c);
+  else{
   s+=S.hitch==='choker'?chokeInset(c,1):curveInset(c,1);
   s+=triangleInset(c,A.vec);
+  }
   if(c.angleBad){const fl=.75+.25*Math.sin(T/140);
     s+=`<g id="warn-banner" opacity="${fl}"><rect x="200" y="40" width="640" height="68" rx="10" fill="${BAD}"/><text x="520" y="86" text-anchor="middle" font-size="31" font-weight="800" fill="#fff">BELOW 30° · DO NOT LIFT</text></g>`;}
   if(S.lift<.3&&k<.98)s+=`<text x="${cx}" y="${ground+52}" text-anchor="middle" font-size="24" font-weight="700" fill="${MUTED}">${S.lift<.02?'LOAD ON THE FLOOR · SLINGS SLACK':'TAKING UP SLACK'}</text>`;
   $('svg').innerHTML=s;
 }
 
+/* =====================================================================
+   RIGGING FAMILY DRAWING (modes cg, hardware, hitch). Episode 001's draw() above is untouched.
+   Term colours match the formula bar: blue = a / e / straight-up part, orange = b / h + dz / sideways part,
+   purple = vertical shares R / volume, teal = density / % from the table.
+   ===================================================================== */
+const CA='#59b7ff', CB='#ff8a3d', CC='#b48af0', CD='#4fd1c5';
+const LKEYS=['sling','plateL','plateW','barL','pipeL','blockL','blockW','blockH','skidL','skidW','motorX','motorH','pick1','pick2','hookH'];
+const SKEYS=['plateT','barD','pipeOD','pipeWall','skidT','ddD','ddd','loadD','ropeD'];
+const WKEYS=['load','wll','motorW','hwWll','hwLoad'];
+const trim=(v,d)=>nf(v,d).replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'');
+const slen=v=>S.units==='kg'?trim(v,1)+' mm':trim(v,3)+' in';                 // short lengths
+const vol=v=>nf(v,4)+(S.units==='kg'?' m³':' ft³');
+const lu=()=>S.units==='kg'?'m':'ft';
+const pct=v=>Math.round(v*100)+'%';
+const utilTxt=u=>isFinite(u)?Math.round(u*100)+'%':'over 999%';
+function sceneBack(ground){
+  let s='';
+  for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
+  for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
+  s+=`<rect x="0" y="${ground}" width="1300" height="80" fill="#191714"/><line x1="0" y1="${ground}" x2="1300" y2="${ground}" stroke="#45403A" stroke-width="3"/>`;
+  for(let hx=-40;hx<1300;hx+=36)s+=`<line x1="${hx}" y1="${ground+80}" x2="${hx+40}" y2="${ground}" stroke="#24211D" stroke-width="3"/>`;
+  return s;
+}
+const card=(id,x,y,w,h,title)=>`<rect id="${id}" x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#24211E" stroke="#45403A"/>
+  <text x="${x+14}" y="${y+26}" font-size="17" font-weight="700" fill="${MUTED}" letter-spacing="1.5">${title}</text>`;
+const txt=(x,y,t,o={})=>`<text${o.id?` id="${o.id}"`:''} x="${x}" y="${y}" font-size="${o.fs||20}" font-weight="${o.fw||800}" fill="${o.col||TEXT}"${o.anchor?` text-anchor="${o.anchor}"`:''}${o.rot!=null?` transform="rotate(${o.rot} ${x} ${y})"`:''}>${t}</text>`;
+function dimLine(id,x1,y1,x2,y2,col,label,lx,ly,anchor='middle'){
+  const a=Math.atan2(y2-y1,x2-x1), nx=-Math.sin(a)*9, ny=Math.cos(a)*9;
+  return `<g id="${id}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="3"/>
+    <line x1="${x1-nx}" y1="${y1-ny}" x2="${x1+nx}" y2="${y1+ny}" stroke="${col}" stroke-width="3"/><line x1="${x2-nx}" y1="${y2-ny}" x2="${x2+nx}" y2="${y2+ny}" stroke="${col}" stroke-width="3"/>
+    ${txt(lx,ly,label,{col,fs:22,anchor})}</g>`;
+}
+/* Small chain hoist hanging from the runway beam, hook at (x,y). Chain links run as the hook travels. */
+function miniHoist(id,x,y){
+  const run=A.hookTravel*.8;
+  return `<g id="${id}"><rect x="${x-34}" y="26" width="68" height="44" rx="8" fill="#3A3631" stroke="${STEEL}" stroke-width="3"/>
+    <line x1="${x}" y1="70" x2="${x}" y2="${y-22}" stroke="${STEEL}" stroke-width="6" stroke-dasharray="9 5" stroke-dashoffset="${run}"/>
+    <path d="M${x-10} ${y-26} L${x-10} ${y-8} C${x-10} ${y+18} ${x+16} ${y+18} ${x+16} ${y-4}" stroke="${ACC}" stroke-width="8" fill="none" stroke-linecap="round"/></g>`;
+}
+
+/* ---------- MODE cg ---------- */
+function drawCG(c){
+  const ground=820, k=smooth(0,.3,S.lift), rise=smooth(.3,1,S.lift)*150;
+  const col=levelCol(c.level), work=k*Math.min(1.6,isFinite(c.util)?c.util:1.6), shake=k>.9&&c.level==='bad';
+  const L=c.L, H=c.H, skid=c.shape==='skid';
+  const mw=skid?Math.max(L*.12,Math.min(L*.28,c.Wd*.6)):0, mx0=skid?clamp(c.xm-mw/2,0,L-mw):0;
+  const pts=[[0,0],[L,0],[L,-H],[0,-H]].concat(skid&&c.hm>0?[[mx0,c.hm],[mx0+mw,c.hm]]:[]);
+  const single=S.rig!=='vertical', h=S.hookH, xh=c.hookX;
+  // one scale for x and y, so angles on screen are true. Fit the load (at its full tilt) left/right of the hook and below it.
+  const ext=t=>{const r=rad(t);let mnx=0,mxx=0,mxy=0;
+    pts.concat([[c.xg,-c.dz]]).forEach(([x,y])=>{const dx=x-(single?xh:L/2), dy=(single?h:0)-y;
+      const X=dx*Math.cos(r)-dy*Math.sin(r), Y=dx*Math.sin(r)+dy*Math.cos(r); mnx=Math.min(mnx,X);mxx=Math.max(mxx,X);mxy=Math.max(mxy,Y);});
+    return {mnx,mxx,mxy};};
+  const e0=ext(0), e1=ext(c.tilt), top=single?210:Math.max(210,0);
+  const room=ground-150-top-(single?0:30);
+  const sc=Math.max(1e-6,Math.min(440/Math.max(1e-6,-Math.min(e0.mnx,e1.mnx)),440/Math.max(1e-6,Math.max(e0.mxx,e1.mxx)),
+    room/Math.max(1e-6,single?Math.max(e0.mxy,e1.mxy):(h+H+(skid?c.hm:0))), 760/Math.max(1e-6,L)));
+  const t=A.tilt, tr=rad(t), HX=480;
+  const eNow=ext(t), HY=single?ground-rise-eNow.mxy*sc:0;           // the hook height that puts the lowest point at the load height
+  const PY=ground-rise-H*sc;                                         // pick line (vertical rig)
+  const M=(x,y)=>{if(!single)return [HX+(x-L/2)*sc,PY-y*sc];
+    const dx=(x-xh)*sc, dy=(h-y)*sc;return [HX+dx*Math.cos(tr)-dy*Math.sin(tr),HY+dx*Math.sin(tr)+dy*Math.cos(tr)];};
+  const P=pp=>pp.map(q=>M(q[0],q[1]).map(v=>v.toFixed(1)).join(',')).join(' ');
+  let s=sceneBack(ground);
+  s+=`<ellipse cx="${HX}" cy="${ground+6}" rx="${Math.min(330,L*sc/2)}" ry="${10-rise*.04}" fill="#000" opacity="${.45-rise*.002}"/>`;
+  let r=`<g transform="rotate(${A.sway.toFixed(3)} ${HX} 0) translate(0 ${A.bounce.toFixed(2)})">`;
+  // load body (steel); thin plates get a minimum drawn thickness of 8 px
+  const Hd=Math.max(H,8/sc);
+  r+=`<polygon id="cg-load" points="${P([[0,0],[L,0],[L,-Hd],[0,-Hd]])}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`;
+  if(c.shape==='pipe'&&c.ID>0){const w=(H-c.ID)/2;
+    r+=`<polyline points="${P([[0,-w],[L,-w]])}" stroke="#2E2A26" stroke-width="2" stroke-dasharray="10 7" fill="none"/><polyline points="${P([[0,-H+w],[L,-H+w]])}" stroke="#2E2A26" stroke-width="2" stroke-dasharray="10 7" fill="none"/>`;}
+  if(c.shape==='bar'||c.shape==='pipe')r+=`<polyline points="${P([[0,-H*.3],[L,-H*.3]])}" stroke="#6B645B" stroke-width="${Math.max(1,H*sc*.12)}" fill="none" opacity=".6"/>`;
+  if(skid){
+    r+=`<polygon id="cg-motor" points="${P([[mx0,0],[mx0+mw,0],[mx0+mw,c.hm],[mx0,c.hm]])}" fill="#3F5566" stroke="#7FA3BC" stroke-width="2"/>`;
+    for(let i=1;i<5;i++)r+=`<polyline points="${P([[mx0+mw*i/5,c.hm*.12],[mx0+mw*i/5,c.hm*.88]])}" stroke="#7FA3BC" stroke-width="2" fill="none" opacity=".6"/>`;
+    const [mtx,mty]=M(mx0+mw/2,c.hm*.5);
+    r+=txt(mtx,mty+7,'MOTOR',{fs:Math.max(12,Math.min(20,mw*sc/5)),anchor:'middle',col:'#cfe3f2',rot:t});
+    if(c.Wm>0){const [dx,dy]=M(c.xm,c.hm/2);r+=`<circle cx="${dx}" cy="${dy}" r="6" fill="#cfe3f2"/>`;}
+  }
+  // weight label on the load
+  const [lx,ly]=M(L*.27,-Hd/2), big=Hd*sc>46&&L*sc>300;      // off centre so the CG mark never covers it
+  r+=big?txt(lx,ly+13,wt(c.W),{fs:36,anchor:'middle',rot:t}):'';
+  // dimension lines a and b along the load, below it
+  // dimension lines go under the load once it is lifted clear, above it while it sits on the floor
+  const below=rise>=90, yd=below?-Hd-46/sc:(skid?c.hm:0)+44/sc, ldy=below?34:-14, xc=c.xg;
+  { const [ax1,ay1]=M(c.x1,yd),[ax2,ay2]=M(xc,yd),[bx2,by2]=M(c.x2,yd);
+    r+=dimLine('cg-dim-a',ax1,ay1,ax2,ay2,CA,'a = '+len(Math.abs(c.a)),(ax1+ax2)/2,ay1+ldy);
+    r+=dimLine('cg-dim-b',ax2,ay2,bx2,by2,CB,'b = '+len(Math.abs(c.b)),(ax2+bx2)/2,by2+ldy);
+    [[c.x1,0],[xc,-c.dz],[c.x2,0]].forEach(([x,y])=>{const [p1x,p1y]=M(x,y),[p2x,p2y]=M(x,yd);
+      r+=`<line x1="${p1x}" y1="${p1y}" x2="${p2x}" y2="${p2y}" stroke="${MUTED}" stroke-width="1.5" stroke-dasharray="4 5"/>`;}); }
+  // rigging
+  const p1=M(c.x1,0), p2=M(c.x2,0), sag=(1-k)*60;
+  const lab=(T)=>wt(Math.max(0,T)*k);
+  if(single){
+    const hy=HY+sag;
+    r+=hookBlock(HX,hy);
+    r+=leg('cg-leg-1',HX,hy+18,p1[0],p1[1],sag,col,work,shake)+leg('cg-leg-2',HX,hy+18,p2[0],p2[1],sag,col,work,shake);
+    A.curHook=hy;
+    const m1x=(HX+p1[0])/2, m1y=(hy+p1[1])/2, m2x=(HX+p2[0])/2, m2y=(hy+p2[1])/2;
+    r+=pill('cg-leg-label-1',clamp(Math.min(m1x-110,HX-150),90,870),m1y,lab(c.T1),col)+pill('cg-leg-label-2',clamp(Math.max(m2x+110,HX+150),90,870),m2y+40,lab(c.T2),col);
+    r+=txt(p1[0]+12,p1[1]-30,deg(c.th1),{id:'cg-ang-1',col:ACC,fs:24})+txt(p2[0]-12,p2[1]-30,deg(c.th2),{id:'cg-ang-2',col:ACC,fs:24,anchor:'end'});
+    if(S.rig==='equal'){const [mx,my]=M((c.x1+c.x2)/2,0),[mx2,my2]=M((c.x1+c.x2)/2,below?yd-70/sc:yd+40/sc);
+      r+=`<g id="cg-mid"><line x1="${mx}" y1="${my}" x2="${mx2}" y2="${my2}" stroke="${CD}" stroke-width="3" stroke-dasharray="3 4"/>${txt(mx2,my2+(below?20:-8),'middle of picks',{fs:16,col:CD,anchor:'middle'})}</g>`;}
+  } else {
+    const hy1=p1[1]-h*sc+sag, hy2=p2[1]-h*sc+sag;
+    r+=`<rect x="20" y="0" width="940" height="26" fill="#3A3631"/><rect x="20" y="22" width="940" height="5" fill="${ACC}" opacity=".8"/>`;
+    r+=miniHoist('cg-hoist-1',p1[0],hy1)+miniHoist('cg-hoist-2',p2[0],hy2);
+    r+=leg('cg-leg-1',p1[0],hy1+8,p1[0],p1[1],sag*.5,col,work,shake)+leg('cg-leg-2',p2[0],hy2+8,p2[0],p2[1],sag*.5,col,work,shake);
+    A.curHook=hy1;
+    r+=pill('cg-leg-label-1',clamp(p1[0]-95,90,870),(hy1+p1[1])/2,lab(c.T1),col)+pill('cg-leg-label-2',clamp(p2[0]+95,90,870),(hy2+p2[1])/2+(p2[0]-p1[0]<260?60:0),lab(c.T2),col);
+  }
+  [p1,p2].forEach((p,i)=>{r+=`<g id="cg-pick-${i+1}"><path d="M${p[0]-12} ${p[1]+2} L${p[0]} ${p[1]-14} L${p[0]+12} ${p[1]+2} Z" fill="${ACC}"/><circle cx="${p[0]}" cy="${p[1]-5}" r="5" fill="#1F1D1A"/></g>`;});
+  // forces: weight down at the CG, vertical shares up at the picks (arrow length ∝ share of W)
+  const [gx,gy]=M(c.xg,-c.dz), aw=110*k;
+  if(k>.05&&c.W>0){
+    r+=arrow('cg-w-arrow',gx,gy,gx,gy+aw,TEXT,6)+txt(gx+12,gy+aw-6,'W',{fs:24});
+    [[p1,c.R1,'cg-r1-arrow','R1'],[p2,c.R2,'cg-r2-arrow','R2']].forEach(([p,R,id,nm])=>{const l=110*k*R/c.W;
+      if(Math.abs(l)>4)r+=arrow(id,p[0],p[1]+(l>0?50:-50),p[0],p[1]+(l>0?50:-50)-l,CC,6);});}
+  r+=`<g id="cg-mark"><circle cx="${gx}" cy="${gy}" r="15" fill="#1F1D1A" stroke="${TEXT}" stroke-width="3"/>
+    <path d="M${gx} ${gy} L${gx+15} ${gy} A15 15 0 0 1 ${gx} ${gy+15} Z M${gx} ${gy} L${gx-15} ${gy} A15 15 0 0 1 ${gx} ${gy-15} Z" fill="${TEXT}"/></g>`;
+  r+=txt(gx+20,gy-18,'CG',{fs:22});
+  r+=`</g>`;
+  // plumb line from the hook: once the load is free, the CG ends up on this line
+  if(single){const o=k>.5?.9:.35;
+    s+=`<line id="cg-plumb" x1="${HX}" y1="${HY+40}" x2="${HX}" y2="${ground}" stroke="${CD}" stroke-width="2.5" stroke-dasharray="10 8" stroke-dashoffset="${-A.flow*.3}" opacity="${o}"/>`;
+    s+=txt(HX+10,ground-14,'plumb line under the hook',{fs:16,col:CD});}
+  s+=r;
+  // tilt readout beside the load
+  if(single&&Math.abs(t)>.3){const [ex,ey]=M(L,-Hd), [sx,sy]=M(0,-Hd);
+    const lev=sy, R=70;
+    s+=`<g id="cg-tilt"><line x1="${sx}" y1="${lev}" x2="${sx+Math.max(120,(ex-sx)*.7)}" y2="${lev}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="6 6"/>
+      ${txt(Math.min(930,Math.max(ex,sx)+16),Math.max(ey,sy)+(t>0?30:-14),'tilt '+nf(Math.abs(t),1)+'°',{fs:24,col:c.tilted?WARN:TEXT,anchor:Math.max(ex,sx)+16>930?'end':'start'})}</g>`;}
+  if(c.level==='bad'&&k>.5){const fl=.75+.25*Math.sin(T/140);
+    const msg=c.tips?'CG OUTSIDE THE PICKS · LOAD TIPS':c.angleBad?'BELOW 30° · DO NOT LIFT':'OVERLOADED · DO NOT LIFT';
+    s+=`<g id="cg-warn" opacity="${fl}"><rect x="140" y="40" width="680" height="64" rx="10" fill="${BAD}"/>${txt(480,84,msg,{fs:28,anchor:'middle',col:'#fff'})}</g>`;}
+  if(S.lift<.3&&k<.98)s+=txt(480,ground+52,S.lift<.02?'LOAD ON THE FLOOR · SLINGS SLACK':'TAKING UP SLACK',{fs:24,fw:700,col:MUTED,anchor:'middle'});
+  s+=volumeCard(c)+(S.rig==='equal'?tiltCard(c):momentCard(c));
+  $('svg').innerHTML=s;
+}
+/* Volume as a picture: the load is drawn as a block of unit cubes (1 ft³ or a decimal of it), each worth ρ × cube. */
+function volumeCard(c){
+  const x0=990,y0=16,w=304,h=470, imp=S.units==='lb';
+  let s=card('cg-vol-card',x0,y0,w,h,'WEIGHT = VOLUME × DENSITY');
+  // shape sketch (not to scale) with the live dimensions
+  const sx=x0+30, sy=y0+70;
+  if(c.shape==='bar'||c.shape==='pipe'){
+    s+=`<rect x="${sx+20}" y="${sy+10}" width="190" height="60" fill="#4D4842" stroke="#7A7268"/><ellipse cx="${sx+20}" cy="${sy+40}" rx="16" ry="30" fill="#5D5750" stroke="#7A7268"/>`;
+    if(c.shape==='pipe')s+=`<ellipse cx="${sx+20}" cy="${sy+40}" rx="9" ry="18" fill="#24211E" stroke="#7A7268"/>`;
+    s+=txt(sx+120,sy+46,'L '+len(c.L),{fs:16,col:CB,anchor:'middle'});
+    s+=txt(sx,sy+100,c.shape==='pipe'?'OD '+slen(S.pipeOD)+' · wall '+slen(S.pipeWall):'d '+slen(S.barD),{fs:16,col:CA});
+  } else {
+    s+=`<polygon points="${sx},${sy+40} ${sx+150},${sy+40} ${sx+180},${sy+12} ${sx+30},${sy+12}" fill="#5D5750" stroke="#7A7268"/>
+      <polygon points="${sx},${sy+40} ${sx+150},${sy+40} ${sx+150},${sy+76} ${sx},${sy+76}" fill="#4D4842" stroke="#7A7268"/>
+      <polygon points="${sx+150},${sy+40} ${sx+180},${sy+12} ${sx+180},${sy+48} ${sx+150},${sy+76}" fill="#3C3833" stroke="#7A7268"/>`;
+    const tk=c.shape==='block'?len(S.blockH):slen(c.shape==='plate'?S.plateT:S.skidT);
+    s+=txt(sx+75,sy+100,'L '+len(c.L),{fs:16,col:CB,anchor:'middle'})+txt(sx+188,sy+26,'W '+len(c.Wd),{fs:16,col:CA})+txt(sx+188,sy+68,(c.shape==='block'?'H ':'t ')+tk,{fs:16,col:CA});
+  }
+  // cubes
+  const blocks=imp?[.01,.1,1,10,100,1000]:[1e-4,1e-3,.01,.1,1,10];
+  const blk=blocks.find(b=>c.V/b<=40)||blocks[blocks.length-1], n=c.V/blk, shown=Math.min(n,A.cubes??n);
+  const cs=22, gap=4, cx0=x0+20, cy0=y0+196;
+  s+=`<g id="cg-cubes">`;
+  for(let i=0;i<Math.ceil(n-1e-9)&&i<40;i++){const col=i%10,row=Math.floor(i/10), x=cx0+col*(cs+gap), y=cy0+row*(cs+gap);
+    const f=clamp(shown-i,0,1);
+    s+=`<rect x="${x}" y="${y}" width="${cs}" height="${cs}" fill="none" stroke="${CC}" stroke-width="1.5" opacity=".7"/>`;
+    if(f>0)s+=`<rect x="${x}" y="${y+cs*(1-f)}" width="${cs}" height="${cs*f}" fill="${CC}" opacity=".85"/>`;}
+  s+=`</g>`;
+  const bw=blk*c.rho;
+  s+=`<rect x="${x0+20}" y="${y0+310}" width="16" height="16" fill="${CC}"/>`+txt(x0+44,y0+324,`= ${trim(blk,4)} ${imp?'ft³':'m³'} = ${trim(bw,2)} ${S.units}`,{fs:17,col:CD,fw:700});
+  s+=txt(x0+20,y0+354,`${nf(n,1)} cubes`,{fs:17,col:MUTED,fw:700});
+  s+=txt(x0+14,y0+390,`<tspan fill="${CC}">${vol(c.V)}</tspan> × <tspan fill="${CD}">${nf(c.rho,0)}</tspan>`,{fs:21,id:'cg-vol-eq'});
+  s+=txt(x0+14,y0+418,`= ${wt(c.Ws)} steel`,{fs:21});
+  if(c.shape==='skid')s+=txt(x0+14,y0+448,`+ motor ${wt(c.Wm)} = <tspan fill="#fff">${wt(c.W)}</tspan>`,{fs:19,id:'cg-motor-eq'});
+  return s;
+}
+/* Moments about the CG as equal areas: (R1 × a) and (R2 × b) are two rectangles with the same area. */
+function momentCard(c){
+  const x0=990,y0=500,w=304,h=300;
+  let s=card('cg-moment-card',x0,y0,w,h,'MOMENTS: R1 × a = R2 × b');
+  if(!(c.a>0&&c.b>0)||c.W<=0){
+    s+=txt(x0+14,y0+80,c.W<=0?'No load.':'CG is outside the picks.',{fs:20,col:c.W<=0?MUTED:BAD})+txt(x0+14,y0+110,c.W<=0?'':'One leg would have to push:',{fs:18,col:MUTED})+txt(x0+14,y0+136,c.W<=0?'':'the load tips over.',{fs:18,col:MUTED});
+    return s;}
+  const base=y0+222, kx=260/(c.a+c.b), ky=118/Math.max(c.R1,c.R2), xp=x0+22+c.a*kx;
+  const h1=c.R1*ky*A.grow, h2=c.R2*ky*A.grow;
+  s+=`<rect id="cg-area-a" x="${xp-c.a*kx}" y="${base-h1}" width="${c.a*kx}" height="${h1}" fill="${CA}" opacity=".35" stroke="${CA}" stroke-width="2"/>
+    <rect id="cg-area-b" x="${xp}" y="${base-h2}" width="${c.b*kx}" height="${h2}" fill="${CB}" opacity=".35" stroke="${CB}" stroke-width="2"/>
+    <line x1="${x0+16}" y1="${base}" x2="${x0+w-16}" y2="${base}" stroke="${TEXT}" stroke-width="3"/>
+    <path d="M${xp} ${base} l-8 12 h16 Z" fill="${TEXT}"/>`;
+  s+=txt(xp-c.a*kx/2,base+24,'a '+nf(c.a,2),{fs:15,col:CA,anchor:'middle'})+txt(xp+c.b*kx/2,base+24,'b '+nf(c.b,2),{fs:15,col:CB,anchor:'middle'});
+  s+=txt(xp-c.a*kx/2,base-8,nf(Math.round(c.R1*c.a)),{fs:14,anchor:'middle',fw:700})+txt(xp+c.b*kx/2,base-8,nf(Math.round(c.R2*c.b)),{fs:14,anchor:'middle',fw:700});
+  s+=txt(x0+w-12,y0+56,`R1 ${wt(c.R1)}`,{fs:17,col:CC,anchor:'end'})+txt(x0+w-12,y0+78,`R2 ${wt(c.R2)}`,{fs:17,col:CC,anchor:'end'});
+  s+=txt(x0+14,y0+56,'heights = R',{fs:15,col:MUTED,fw:700})+txt(x0+14,y0+76,'widths = a, b',{fs:15,col:MUTED,fw:700});
+  s+=txt(x0+14,y0+h-14,`R1 = W × b ÷ (a + b)`,{fs:17,col:MUTED,fw:700});
+  return s;
+}
+/* Tilt as a triangle: from the hook, down h + dz to the pick line depth of the CG, across e to the CG. tan φ = e ÷ (h + dz). */
+function tiltCard(c){
+  const x0=990,y0=500,w=304,h=300;
+  let s=card('cg-tilt-card',x0,y0,w,h,'TILT: tan φ = e ÷ (h + dz)');
+  if(c.D<=0){s+=txt(x0+14,y0+80,'CG is above the hook:',{fs:20,col:BAD})+txt(x0+14,y0+108,'the load would flip.',{fs:18,col:MUTED});return s;}
+  const kk=Math.min(170/c.D,200/Math.max(1e-6,Math.abs(c.e))), hx=x0+(c.e>=0?80:224), hy=y0+50, by=hy+c.D*kk, ex=hx+c.e*kk;
+  s+=`<line x1="${hx}" y1="${hy}" x2="${hx}" y2="${by}" stroke="${CB}" stroke-width="4"/>
+    <line x1="${hx}" y1="${by}" x2="${ex}" y2="${by}" stroke="${CA}" stroke-width="4"/>
+    <line x1="${hx}" y1="${hy}" x2="${ex}" y2="${by}" stroke="${CD}" stroke-width="3" stroke-dasharray="8 6"/>
+    <circle cx="${hx}" cy="${hy}" r="7" fill="${ACC}"/><circle cx="${ex}" cy="${by}" r="9" fill="${TEXT}"/>`;
+  const ar=34, a0=Math.PI/2, a1=Math.atan2(by-hy,ex-hx);
+  if(Math.abs(c.e)>1e-6)s+=`<path d="M${hx} ${hy+ar} A${ar} ${ar} 0 0 ${c.e>0?0:1} ${hx+ar*Math.cos(a1)} ${hy+ar*Math.sin(a1)}" fill="none" stroke="${TEXT}" stroke-width="2.5"/>`;
+  const side=c.e>=0?'end':'start', sx=c.e>=0?hx-10:hx+10;
+  s+=txt(sx,(hy+by)/2,'h + dz',{fs:16,col:CB,anchor:side})+txt(sx,(hy+by)/2+20,len(c.D),{fs:16,col:CB,anchor:side});
+  s+=txt(clamp((hx+ex)/2,x0+60,x0+w-60),by+32,'e = '+len(Math.abs(c.e)),{fs:16,col:CA,anchor:'middle'});
+  s+=txt(x0+w-12,y0+56,'φ = '+nf(Math.abs(c.tilt),1)+'°',{fs:20,col:c.tilted?WARN:TEXT,anchor:'end'});
+  s+=txt(x0+14,y0+h-14,'hook over the middle, not the CG',{fs:15,col:MUTED,fw:700});
+  return s;
+}
+
+/* ---------- MODE hardware ---------- */
+function drawHW(c){
+  const ground=820; let s=sceneBack(ground);
+  const col=levelCol(c.level), work=Math.min(1.6,isFinite(c.util)?c.util:1.6), a=rad(S.part==='dd'?0:A.pull);
+  if(S.part==='dd')s+=drawDD(c,col,work);
+  else {
+    // the load (a machine base) sits on the floor; the part is fitted to its top face
+    const top=650, cx=480;
+    s+=`<rect id="hw-base" x="170" y="${top}" width="620" height="${ground-top}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`;
+    // the part bends a little toward the pull (exaggerated): more sideways force, more bend
+    const bend=clamp((c.side/Math.max(1,c.rated))*9,0,9)*(1+.04*Math.sin(T/220));
+    let anchor;
+    if(S.part==='eyebolt'){
+      const plain=S.eyeType==='plain', ey=top-(plain?60:76);
+      s+=`<g id="hw-thread"><rect x="${cx-18}" y="${top}" width="36" height="110" fill="#2E2A26"/>`;
+      for(let i=0;i<9;i++)s+=`<line x1="${cx-18}" y1="${top+8+i*12}" x2="${cx+18}" y2="${top+14+i*12}" stroke="${STEEL}" stroke-width="2"/>`;
+      s+=`</g><g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${top})">`;
+      if(!plain)s+=`<rect id="hw-shoulder" x="${cx-40}" y="${top-16}" width="80" height="16" rx="4" fill="${STEEL}"/>`;
+      s+=`<rect x="${cx-13}" y="${ey+40}" width="26" height="${top-(ey+40)-(plain?0:16)}" fill="${STEEL}"/>
+        <circle id="hw-eye" cx="${cx}" cy="${ey}" r="44" fill="none" stroke="${STEEL}" stroke-width="18"/></g>`;
+      {const r0=top-ey+44;anchor=[cx+Math.sin(rad(bend))*r0,top-Math.cos(rad(bend))*r0];}
+      if(!plain)s+=txt(cx-56,top-2,'shoulder',{fs:16,col:MUTED,anchor:'end'});
+      if(plain&&c.ang>5)s+=`<g id="hw-x"><line x1="${cx-70}" y1="${ey-70}" x2="${cx+70}" y2="${top+40}" stroke="${BAD}" stroke-width="10"/><line x1="${cx+70}" y1="${ey-70}" x2="${cx-70}" y2="${top+40}" stroke="${BAD}" stroke-width="10"/></g>`;
+    } else {
+      // screw-pin shackle: padeye up from the base, pin across, bow above; side load in the plane of the bow
+      const py=top-50;
+      s+=`<path id="hw-padeye" d="M${cx-46} ${top} L${cx-46} ${py} A46 46 0 0 1 ${cx+46} ${py} L${cx+46} ${top} Z" fill="#5D5750" stroke="#7A7268" stroke-width="2"/>`;
+      s+=`<g id="hw-part" transform="rotate(${bend.toFixed(2)} ${cx} ${py})">
+        <path d="M${cx-58} ${py} L${cx-58} ${py-150} A58 58 0 0 1 ${cx+58} ${py-150} L${cx+58} ${py}" fill="none" stroke="${STEEL}" stroke-width="20" stroke-linecap="round"/>
+        <rect id="hw-pin" x="${cx-86}" y="${py-11}" width="172" height="22" rx="8" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/>
+        <circle cx="${cx-86}" cy="${py}" r="18" fill="#c3ced6" stroke="#7f8f9b" stroke-width="2"/></g>`;
+      anchor=[cx+Math.sin(rad(bend))*208,py-Math.cos(rad(bend))*208];
+      s+=txt(cx-108,py+6,'pin',{fs:16,col:MUTED,anchor:'end'})+txt(cx+80,py-150,'bow',{fs:16,col:MUTED});
+    }
+    // the pull: sling line at angle α from in-line, load path flowing toward the hook
+    const Ls=430, ex=anchor[0]+Ls*Math.sin(a), ey2=anchor[1]-Ls*Math.cos(a);
+    s+=leg('hw-sling',ex,ey2,anchor[0],anchor[1],0,col,work,c.level==='bad');
+    s+=`<line x1="${anchor[0]}" y1="${anchor[1]}" x2="${anchor[0]}" y2="${anchor[1]-300}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="6 6"/>`;
+    const R=110;
+    if(A.pull>.5)s+=`<g id="hw-angle"><path d="M${anchor[0]} ${anchor[1]-R} A${R} ${R} 0 0 1 ${anchor[0]+R*Math.sin(a)} ${anchor[1]-R*Math.cos(a)}" fill="none" stroke="${ACC}" stroke-width="5"/>
+      ${txt(anchor[0]+(R+30)*Math.sin(a/2)-6,anchor[1]-(R+30)*Math.cos(a/2),deg(c.ang),{fs:30,col:ACC})}</g>`;
+    // force parts: straight up (F cos α) and sideways (F sin α), drawn to scale
+    // the pull split into its two parts, drawn to scale in the open space on the left
+    const kf=190/Math.max(1,c.load), fx=60, fy=500;
+    const up=c.up*kf, sd=c.side*kf;
+    s+=`<g id="hw-forces">`+txt(fx-20,fy-240,'THE PULL SPLITS',{fs:17,fw:700,col:MUTED});
+    if(c.load>0){
+      s+=arrow('hw-up',fx,fy,fx,fy-up,CA,6)+arrow('hw-side',fx,fy-up,fx+sd,fy-up,CB,6);
+      s+=arrow('hw-pull',fx,fy,fx+sd,fy-up,col,4);
+      s+=txt(fx-20,fy+34,'up = F × cos α = '+nf(Math.round(c.up)),{fs:18,col:CA});
+      s+=txt(fx-20,fy+60,'sideways = F × sin α = '+nf(Math.round(c.side)),{fs:18,col:CB});
+    }
+    s+=`</g>`;
+    s+=pill('hw-load-label',clamp(ex,180,860),Math.max(64,ey2+30),wt(c.load),col);
+  }
+  s+=S.part==='dd'?ddCurveCard(c):envelopeCard(c);
+  s+=blocksCard(c);
+  if(c.level==='bad'){const fl=.75+.25*Math.sin(T/140);
+    const msg=c.notAllowed?(S.part==='dd'?'D/d BELOW 1:1 · NOT ALLOWED':'NO ANGULAR LIFTS ON A PLAIN EYEBOLT'):'OVERLOADED · DO NOT LIFT';
+    s+=`<g id="hw-warn" opacity="${fl}"><rect x="120" y="40" width="720" height="64" rx="10" fill="${BAD}"/>${txt(480,84,msg,{fs:27,anchor:'middle',col:'#fff'})}</g>`;}
+  $('svg').innerHTML=s;
+}
+/* Capacity envelope: a quarter fan, one wedge per table row, radius ∝ % of rated WLL. The live pull is the ray. */
+function envelopeCard(c){
+  const x0=990,y0=16,w=304,h=430, O=[x0+30,y0+380], Rm=228;
+  const rows=S.part==='shackle'?SHACKLE_ROWS:(S.eyeType==='plain'?[[5,1],[90,0]]:EYE_ROWS);
+  let s=card('hw-envelope',x0,y0,w,h,S.part==='shackle'?'SIDE LOAD → % OF WLL':'ANGLE OF PULL → % OF WLL');
+  let prev=0;
+  rows.forEach((r,i)=>{const a0=rad(prev),a1=rad(r[0]),R=Rm*r[1], on=i===c.row;
+    if(R>0)s+=`<path id="hw-row-${i}" d="M${O[0]} ${O[1]} L${O[0]+R*Math.sin(a0)} ${O[1]-R*Math.cos(a0)} A${R} ${R} 0 0 1 ${O[0]+R*Math.sin(a1)} ${O[1]-R*Math.cos(a1)} Z" fill="${on?ACC:CD}" opacity="${on?.85:.28}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+    const am=rad((prev+r[0])/2), lr=Math.max(R,40)+(i===0&&r[0]<=10?34:20);
+    prev=r[0];});
+  [0,30,45,60,90].forEach(a=>{const t=rad(a);s+=`<line x1="${O[0]}" y1="${O[1]}" x2="${O[0]+(Rm+8)*Math.sin(t)}" y2="${O[1]-(Rm+8)*Math.cos(t)}" stroke="#3A3530"/>`;
+    s+=txt(O[0]+(Rm+16)*Math.sin(t)-(a===90?14:0),O[1]-(Rm+16)*Math.cos(t)+(a===90?-6:6),a+'°',{fs:14,col:MUTED,fw:700,anchor:a===0?'middle':'start'});});
+  [25,50,75,100].forEach(p=>{const R=Rm*p/100;s+=`<path d="M${O[0]} ${O[1]-R} A${R} ${R} 0 0 1 ${O[0]+R} ${O[1]}" fill="none" stroke="#3A3530" stroke-dasharray="3 4"/>`;
+    s+=txt(O[0]+R,O[1]+18,p+'%',{fs:12,col:MUTED,fw:700,anchor:'middle'});});
+  const t=rad(A.pull), Rp=Rm*c.pct;
+  s+=`<line x1="${O[0]}" y1="${O[1]}" x2="${O[0]+(Rm+6)*Math.sin(t)}" y2="${O[1]-(Rm+6)*Math.cos(t)}" stroke="${TEXT}" stroke-width="2.5"/>
+    <circle id="hw-env-dot" cx="${O[0]+Rp*Math.sin(t)}" cy="${O[1]-Rp*Math.cos(t)}" r="${9+2*Math.sin(T/160)}" fill="${levelCol(c.level)}" stroke="#1F1D1A" stroke-width="3"/>`;
+  s+=txt(x0+w-14,y0+60,pct(c.pct),{fs:34,col:ACC,anchor:'end',id:'hw-env-pct'});
+  const band=c.row<0?'—':S.part==='shackle'?`${c.row===0?0:SHACKLE_ROWS[c.row-1][0]+1}°–${SHACKLE_ROWS[c.row][0]}°`:(S.eyeType==='plain'?(c.row===0?'in-line':'angular'):`up to ${EYE_ROWS[c.row][0]}°`);
+  s+=txt(x0+w-14,y0+84,band,{fs:16,col:MUTED,anchor:'end',fw:700});
+  s+=txt(x0+14,y0+h-8,S.part==='shackle'?'Crosby, screw pin / bolt type':(S.eyeType==='plain'?'Plain eyebolt: in-line only':'Crosby shoulder eyebolt table'),{fs:14,col:MUTED,fw:700});
+  return s;
+}
+/* D/d efficiency: step curve of the published table (log scale so the small ratios show), live dot. */
+function ddCurveCard(c){
+  const x0=990,y0=16,w=304,h=430, X0=x0+50,X1=x0+w-18,Y0=y0+70,Y1=y0+370;
+  const X=r=>X0+Math.log(clamp(r,1,50))/Math.log(50)*(X1-X0), Y=p=>Y1-(p-.4)/.6*(Y1-Y0);
+  let s=card('hw-dd-card',x0,y0,w,h,'D/d → % OF ROPE STRENGTH');
+  [.5,.6,.7,.8,.9,1].forEach(p=>{s+=`<line x1="${X0}" y1="${Y(p)}" x2="${X1}" y2="${Y(p)}" stroke="#3A3530"/>`+txt(X0-6,Y(p)+5,Math.round(p*100)+'',{fs:13,col:MUTED,fw:700,anchor:'end'});});
+  [1,2,5,10,20,40].forEach(r=>{s+=txt(X(r),Y1+20,r+'',{fs:13,col:MUTED,fw:700,anchor:'middle'});});
+  let p='';DD_ROWS.forEach((r,i)=>{const nx=i<DD_ROWS.length-1?DD_ROWS[i+1][0]:50;p+=(p?'L':'M')+X(r[0])+' '+Y(r[1])+' L'+X(nx)+' '+Y(r[1]);});
+  s+=`<path d="${p}" fill="none" stroke="${CD}" stroke-width="3"/>`;
+  DD_ROWS.forEach(r=>{s+=`<circle cx="${X(r[0])}" cy="${Y(r[1])}" r="4" fill="${CD}"/>`;});
+  const rr=clamp(A.ddr??c.ratio,1,50), py=c.pct>0?Y(c.pct):Y1;
+  s+=`<line x1="${X(rr)}" y1="${Y1}" x2="${X(rr)}" y2="${py}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <circle id="hw-dd-dot" cx="${X(rr)}" cy="${py}" r="${9+2*Math.sin(T/160)}" fill="${levelCol(c.level)}" stroke="#1F1D1A" stroke-width="3"/>`;
+  s+=txt(x0+w-14,y0+60,pct(c.pct),{fs:34,col:ACC,anchor:'end',id:'hw-env-pct'});
+  s+=txt(X1,Y1+38,'D/d (log scale)',{fs:13,col:MUTED,fw:700,anchor:'end'});
+  s+=txt(x0+14,y0+h-8,'Kulkoni wire rope table · step down',{fs:14,col:MUTED,fw:700});
+  return s;
+}
+/* % of rated as 20 blocks of 5 %: the adjusted WLL is the lit blocks; the load is the marker. */
+function blocksCard(c){
+  const x0=990,y0=466,w=304,h=334;
+  let s=card('hw-blocks',x0,y0,w,h,'ADJUSTED WLL = RATED × %');
+  const bx=x0+18,by=y0+50,bw=13,gap=1.4;
+  const lit=Math.round(c.pct*20*1000)/1000, show=Math.min(lit,A.blk??lit);
+  for(let i=0;i<20;i++){const f=clamp(show-i,0,1);
+    s+=`<rect x="${bx+i*bw}" y="${by}" width="${bw-gap}" height="46" fill="none" stroke="${CD}" stroke-width="1.2" opacity=".6"/>`;
+    if(f>0)s+=`<rect x="${bx+i*bw}" y="${by}" width="${(bw-gap)*f}" height="46" fill="${CD}" opacity=".85"/>`;}
+  const lx=bx+20*bw*clamp(c.rated>0?c.load/c.rated:0,0,1.2);
+  if(c.load>0)s+=`<line id="hw-load-mark" x1="${Math.min(lx,bx+20*bw+6)}" y1="${by-10}" x2="${Math.min(lx,bx+20*bw+6)}" y2="${by+58}" stroke="${levelCol(c.level)}" stroke-width="4"/>`;
+  s+=txt(bx,by+80,'each block = 5 % of rated',{fs:15,col:MUTED,fw:700});
+  s+=txt(x0+14,y0+168,`rated <tspan fill="#fff">${wt(c.rated)}</tspan>`,{fs:20});
+  s+=txt(x0+14,y0+198,`× <tspan fill="${CD}">${pct(c.pct)}</tspan>`,{fs:20});
+  s+=txt(x0+14,y0+232,`= ${wt(c.adj)}`,{fs:26,col:ACC,id:'hw-adj'});
+  s+=txt(x0+14,y0+266,`load ${wt(c.load)} · ${utilTxt(c.util)}`,{fs:18,col:levelCol(c.level)});
+  s+=txt(x0+14,y0+h-14,'Check the tag and the maker’s data.',{fs:14,col:MUTED,fw:700});
+  return s;
+}
+/* Rope bent around a pin of diameter D, drawn to the real ratio. Outer wires stretch, inner wires crush. */
+function drawDD(c,col,work){
+  const cx=480, cy=270, room=470, k=Math.min(room/(S.ddD+2*S.ddd),300/Math.max(1e-6,S.ddD));
+  const D=S.ddD*k, d=Math.max(3,S.ddd*k), Rc=D/2+d/2, bot=720+4*Math.sin(T/400);
+  let s=`<rect x="${cx-40}" y="0" width="80" height="${cy}" fill="#3A3631"/><circle id="hw-pin-dd" cx="${cx}" cy="${cy}" r="${D/2}" fill="#5D5750" stroke="${STEEL}" stroke-width="3"/>`;
+  const rope=`M${cx-Rc} ${bot-40} L${cx-Rc} ${cy} A${Rc} ${Rc} 0 0 1 ${cx+Rc} ${cy} L${cx+Rc} ${bot-40}`;
+  s+=`<path id="hw-rope" d="${rope}" fill="none" stroke="#7f8f9b" stroke-width="${d}"/>`;
+  // outer and inner edge marks: spacing ∝ radius, so the outside of the bend shows the stretch
+  const ro=Rc+d/2-1.5, ri=Math.max(1,Rc-d/2+1.5), step=10;
+  s+=`<path d="M${cx-ro} ${cy} A${ro} ${ro} 0 0 1 ${cx+ro} ${cy}" fill="none" stroke="#e6edf2" stroke-width="2.5" stroke-dasharray="${2*ro/Rc*2} ${step*ro/Rc}" stroke-dashoffset="${A.flow*.2}"/>`;
+  if(d>8)s+=`<path d="M${cx-ri} ${cy} A${ri} ${ri} 0 0 1 ${cx+ri} ${cy}" fill="none" stroke="#2E2A26" stroke-width="2.5" stroke-dasharray="${2} ${Math.max(1,step*ri/Rc)}"/>`;
+  s+=`<path d="${rope}" fill="none" stroke="${col}" stroke-width="${Math.min(6,d*.4)}" stroke-dasharray="20 26" stroke-dashoffset="${A.flow}" opacity="${.35+.6*Math.min(1,work)}"/>`;
+  s+=`<rect id="hw-dd-load" x="${cx-Rc-60}" y="${bot-40}" width="${2*Rc+120}" height="80" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>`+txt(cx,bot+12,wt(c.load),{fs:30,anchor:'middle'});
+  // D and d dimension lines
+  s+=dimLine('hw-dim-D',cx-D/2,cy+D/2+30,cx+D/2,cy+D/2+30,CA,'D = '+slen(S.ddD),cx,cy+D/2+64);
+  s+=dimLine('hw-dim-d',cx+Rc-d/2,cy+150,cx+Rc+d/2,cy+150,CB,'d = '+slen(S.ddd),cx+Rc+d/2+16,cy+158,'start');
+  s+=txt(cx,Math.min(bot-70,cy+D/2+110),'D ÷ d = '+trim(c.ratio,2)+' : 1',{fs:32,anchor:'middle',id:'hw-ratio'});
+  s+=txt(Math.min(cx-Rc-d/2-12,300),cy-40,'outer wires stretch',{fs:18,col:'#e6edf2',fw:700,anchor:'end'});
+  if(d>8)s+=txt(cx,cy-D/2+30+d,'inner wires crush',{fs:16,col:MUTED,fw:700,anchor:'middle'});
+  return s;
+}
+
+/* ---------- MODE hitch extras (drawn inside episode 001's scene) ---------- */
+function tagLines(c,k,swayDeg){
+  if(!S.tags||!A.lb)return `<g id="tag-off">${txt(40,880,'No tag lines: the load is free to swing and turn',{fs:20,col:WARN,fw:700})}</g>`;
+  const ground=820, cx=470, rs=rad(swayDeg);
+  const W=([x,y])=>{y+=A.bounce;const dx=x-cx;return [cx+dx*Math.cos(rs)-y*Math.sin(rs),dx*Math.sin(rs)+y*Math.cos(rs)];};
+  const pl=W([A.lb.l,A.lb.y]), pr=W([A.lb.r,A.lb.y]);
+  const wl=[Math.max(60,pl[0]-230),ground], wr=[Math.min(930,pr[0]+230),ground];
+  const pull=Math.sin(T/700)*.5+.5;          // the hands take in and pay out as the load drifts
+  let s='<g id="tag-lines">';
+  [[pl,wl,-1,'tag-left'],[pr,wr,1,'tag-right']].forEach(([p,wk,sg,id])=>{
+    const hx=wk[0]-sg*10, hy=wk[1]-62, sag=10+18*(sg<0?pull:1-pull);
+    s+=`<path id="${id}" d="M${p[0]} ${p[1]} Q${(p[0]+hx)/2} ${(p[1]+hy)/2+sag} ${hx} ${hy}" fill="none" stroke="#d9b77a" stroke-width="4"/>
+      <g id="${id}-worker"><circle cx="${wk[0]}" cy="${wk[1]-112}" r="13" fill="#d8c7b0"/><path d="M${wk[0]-16} ${wk[1]-118} a16 13 0 0 1 32 0 Z" fill="#F5F5F4"/>
+      <line x1="${wk[0]}" y1="${wk[1]-98}" x2="${wk[0]}" y2="${wk[1]-44}" stroke="#F5F5F4" stroke-width="7"/>
+      <line x1="${wk[0]}" y1="${wk[1]-44}" x2="${wk[0]-12}" y2="${wk[1]}" stroke="#F5F5F4" stroke-width="6"/><line x1="${wk[0]}" y1="${wk[1]-44}" x2="${wk[0]+12}" y2="${wk[1]}" stroke="#F5F5F4" stroke-width="6"/>
+      <line x1="${wk[0]}" y1="${wk[1]-86}" x2="${hx}" y2="${hy}" stroke="#F5F5F4" stroke-width="5"/></g>`;});
+  return s+'</g>';
+}
+function hitchInsets(c){
+  const x0=990,y0=16,w=304;
+  let s=card('hitch-bars',x0,y0,w,330,'CAPACITY BY HITCH');
+  const rows=[['vertical','Vertical','× 1'],['choker','Choker',`× ${CHOKER_EFF[S.slingType].toFixed(2)}${S.slingType==='chain'?'':' × '+CHOKE_ROWS[chokeRow(S.choke)][2].toFixed(2)}`],
+    ['basket','Basket',`2 ÷ ${c.fA.toFixed(3)}${c.ddWire?' × '+c.ddEff.toFixed(2):''}`],['bridle','Bridle',`${c.nB} ÷ ${c.fA.toFixed(3)}`]];
+  const mx=Math.max(c.W,...Object.values(c.caps))*1.04||1, bx=x0+14, bwid=w-28, bb=bwid-104;
+  rows.forEach(([key,name,f],i)=>{const y=y0+50+i*66, on=S.hitch===key, v=A.bars?.[key]??c.caps[key];
+    s+=`<g id="hitch-row-${key}">${on?`<rect x="${x0+6}" y="${y-4}" width="${w-12}" height="62" rx="7" fill="none" stroke="${ACC}" stroke-width="3"/>`:''}
+      ${txt(bx,y+18,name,{fs:18,col:on?ACC:TEXT})}${txt(bx+bwid,y+18,f,{fs:14,col:MUTED,fw:700,anchor:'end'})}
+      <rect x="${bx}" y="${y+26}" width="${bb*clamp(v/mx,0,1)}" height="20" rx="3" fill="${on?ACC:'#6B645B'}"/>
+      ${txt(bx+bwid,y+43,wt(c.caps[key]),{fs:17,anchor:'end',col:c.caps[key]<c.W?BAD:TEXT})}</g>`;});
+  const lx=bx+bb*clamp(c.W/mx,0,1);
+  s+=`<line id="hitch-load-line" x1="${lx}" y1="${y0+44}" x2="${lx}" y2="${y0+316}" stroke="${TEXT}" stroke-width="2" stroke-dasharray="6 5"/>`+txt(Math.min(lx,x0+w-60),y0+326,'load',{fs:13,col:MUTED,fw:700,anchor:'middle'});
+  // D/d check for the basket: the load drawn as a circle of diameter D, the sling as a band of width d, to ratio
+  s+=card('hitch-dd',x0,y0+346,w,262,'BASKET D/d CHECK');
+  const ccx=x0+96, ccy=y0+346+140, kk=Math.min(70/Math.max(1e-6,S.loadD/2+S.ropeD),70/Math.max(1e-6,S.loadD/2));
+  const Rl=S.loadD/2*kk, dw=Math.max(2,S.ropeD*kk), Rr=Rl+dw/2;
+  s+=`<circle cx="${ccx}" cy="${ccy}" r="${Rl}" fill="#4D4842" stroke="#7A7268"/>
+    <path d="M${ccx-Rr} ${ccy-85} L${ccx-Rr} ${ccy} A${Rr} ${Rr} 0 0 0 ${ccx+Rr} ${ccy} L${ccx+Rr} ${ccy-85}" fill="none" stroke="${S.slingType==='synthetic'?'#8c5bd6':'#7f8f9b'}" stroke-width="${dw}"/>`;
+  s+=txt(ccx,ccy+Rr+dw/2+22,'D '+slen(S.loadD),{fs:15,col:CA,anchor:'middle'});
+  const tx=x0+178;
+  s+=txt(tx,ccy-60,'d '+slen(S.ropeD),{fs:15,col:CB});
+  s+=txt(tx,ccy-24,'D/d = '+trim(c.dd,1),{fs:20,id:'hitch-dd-ratio'});
+  s+=txt(tx,ccy+8,c.ddWire?'factor '+c.ddEff.toFixed(2):'wire rope rule',{fs:18,col:c.ddWire&&c.ddEff<1?WARN:CD});
+  s+=txt(tx,ccy+34,c.ddWire?(c.dd>=25?'≥ 25:1 · full':'< 25:1 · reduce'):'only',{fs:15,col:MUTED,fw:700});
+  // tag-line note
+  s+=card('hitch-tag-note',x0,y0+624,w,160,'LOAD CONTROL');
+  ['Tag lines stop swing and spin.','Stand clear, out from under it.','Never wrap a tag line around','your hand. Keep them on until','the load has landed.'].forEach((l,i)=>{s+=txt(x0+14,y0+624+54+i*22,l,{fs:16,fw:700,col:i<2?TEXT:MUTED});});
+  return s;
+}
+
+/* ---------- formula bar for the new modes (coloured terms match the picture) ---------- */
+const sp=(cls,t)=>`<span class="${cls}">${t}</span>`;
+function formulaHTML(c){
+  const u=S.units, l2=v=>nf(v,2);
+  if(c.mode==='cg'){
+    if(S.cgView==='weight')return c.shape==='skid'
+      ?`W = ${sp('tc',nf(c.V,4))} × ${sp('td',nf(c.rho,0))} + ${wt(c.Wm)} motor = ${sp('tw',wt(c.W))}`
+      :`W = V × ρ = ${sp('tc',vol(c.V))} × ${sp('td',nf(c.rho,0)+' '+u+'/'+lu()+'³')} = ${sp('tw',wt(c.W))}`;
+    if(S.cgView==='cg')return c.shape==='skid'
+      ?`CG = (${nf(Math.round(c.Ws))} × ${l2(c.L/2)} + ${nf(Math.round(c.Wm))} × ${l2(c.xm)}) ÷ ${nf(Math.round(c.W))} = ${sp('tw',len(c.xg))}`
+      :`CG = L ÷ 2 = ${l2(c.L)} ÷ 2 = ${sp('tw',len(c.xg))} from the left end`;
+    if(S.rig==='vertical')return `R1 = W × ${sp('tb','b')} ÷ (a + b) = ${nf(Math.round(c.W))} × ${sp('tb',l2(c.b))} ÷ ${l2(c.s)} = ${sp('tw',wt(c.R1))}  ·  R2 = ${wt(c.R2)}`;
+    if(S.rig==='level')return `T1 = ${sp('tc','R1')} × L1 ÷ h = ${sp('tc',nf(Math.round(c.R1)))} × ${l2(c.L1)} ÷ ${l2(S.hookH)} = ${sp('tw',wt(c.T1))}  ·  T2 = ${wt(c.T2)}`;
+    return `φ = atan(${sp('ta',l2(c.e))} ÷ ${sp('tb',l2(c.D))}) = ${sp('tw',nf(c.tilt,1)+'°')}  ·  T1 = ${wt(c.T1)}  ·  T2 = ${wt(c.T2)}`;
+  }
+  if(c.mode==='hardware'){
+    if(S.part==='dd')return `D ÷ d = ${slen(S.ddD)} ÷ ${slen(S.ddd)} = ${trim(c.ratio,2)} → ${sp('td',pct(c.pct))}  ·  ${wt(c.rated)} × ${sp('td',c.pct.toFixed(2))} = ${sp('tw',wt(c.adj))}`;
+    return `Adjusted WLL = ${wt(c.rated)} × ${sp('td',c.pct.toFixed(2))} (${deg(c.ang)}) = ${sp('tw',wt(c.adj))}  ·  load ${wt(c.load)}`;
+  }
+  // hitch
+  const W=S.wll;
+  if(S.hitch==='vertical')return `Vertical = WLL × 1 = ${sp('tw',wt(W))}  ·  load ${wt(c.W)} · ${utilTxt(c.util)}`;
+  if(S.hitch==='choker')return `Choker = ${wt(W)} × ${sp('td',CHOKER_EFF[S.slingType].toFixed(2))}${S.slingType==='chain'?'':' × '+sp('td',c.red.toFixed(2))} = ${sp('tw',wt(c.caps.choker))}`;
+  if(S.hitch==='basket')return `Basket = 2 × ${wt(W)} ÷ ${sp('ta',c.fA.toFixed(3))} × ${sp('td',c.ddEff.toFixed(2))} = ${sp('tw',wt(c.caps.basket))}`;
+  return `Bridle = ${c.nB} × ${wt(W)} ÷ ${sp('ta',c.fA.toFixed(3))} = ${sp('tw',wt(c.caps.bridle))}`;
+}
+
+/* ---------- panel for the new modes ---------- */
+const RANGES2={lb:{plateL:[1,40,.5],plateW:[.5,10,.25],plateT:[.125,6,.125],barD:[.5,24,.25],barL:[1,40,.5],pipeOD:[1,48,.125],pipeWall:[.065,2,.005],
+    pipeL:[1,40,.5],blockL:[.5,20,.25],blockW:[.5,20,.25],blockH:[.25,10,.25],skidL:[2,40,.5],skidW:[1,10,.25],skidT:[.25,6,.125],
+    motorW:[0,20000,50],motorX:[0,40,.25],motorH:[.5,8,.25],pick1:[0,20,.25],pick2:[0,20,.25],hookH:[1,30,.5],cgwll:[1000,20000,100],
+    hwWll:[500,40000,100],hwLoad:[0,40000,100],pull:[0,90,1],ddD:[.25,60,.25],ddd:[.25,3,.125],loadD:[1,120,1],ropeD:[.25,3,.125]},
+  kg:{plateL:[.3,12,.05],plateW:[.15,3,.05],plateT:[3,150,1],barD:[12,600,1],barL:[.3,12,.05],pipeOD:[25,1200,1],pipeWall:[1.5,50,.5],
+    pipeL:[.3,12,.05],blockL:[.15,6,.05],blockW:[.15,6,.05],blockH:[.1,3,.05],skidL:[.6,12,.05],skidW:[.3,3,.05],skidT:[6,150,1],
+    motorW:[0,9000,25],motorX:[0,12,.05],motorH:[.15,2.4,.05],pick1:[0,6,.05],pick2:[0,6,.05],hookH:[.3,9,.1],cgwll:[500,10000,50],
+    hwWll:[250,18000,50],hwLoad:[0,18000,50],pull:[0,90,1],ddD:[6,1500,1],ddd:[6,76,1],loadD:[25,3000,5],ropeD:[6,76,1]}};
+const LABELS={plateL:'Length (L)',plateW:'Width (W)',plateT:'Thickness (t)',barD:'Diameter (d)',barL:'Length (L)',pipeOD:'Outside diameter (OD)',
+  pipeWall:'Wall thickness',pipeL:'Length (L)',blockL:'Length (L)',blockW:'Width (W)',blockH:'Height (H)',skidL:'Skid length (L)',skidW:'Skid width (W)',
+  skidT:'Deck plate thickness (t)',motorW:'Motor weight (nameplate)',motorX:'Motor CG from left end',motorH:'Motor height'};
+function keyVal(k){const v=k==='cgwll'?S.wll:S[k];
+  if(WKEYS.includes(k)||k==='cgwll')return wt(v); if(LKEYS.includes(k))return len(v); if(SKEYS.includes(k))return slen(v); if(k==='pull')return deg(v); return String(v);}
+function panelModes(c){
+  const set=(id,v,na)=>{const e=$(id);if(!e)return;e.textContent=v;e.parentElement.classList.toggle('na',!!na)};
+  document.querySelectorAll('#panel [data-k]').forEach(e=>{const k=e.dataset.k;
+    if(e.tagName==='INPUT'&&e.type==='range'){const R=RANGES2[S.units][k];if(R){[e.min,e.max,e.step]=R;e.value=k==='cgwll'?S.wll:S[k];const lb=$('l-'+k);if(lb)lb.textContent=keyVal(k);}}
+    else if(e.type==='checkbox')e.checked=!!S[k];
+    else if(e.classList.contains('seg'))e.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===(k==='lift'?(S.lift>=.5?'1':'0'):String(S[k]))));});
+  Object.entries(LABELS).forEach(([k,t])=>{const w=$('w-'+k);if(w)w.querySelector('label').firstChild.textContent=t+' ';});
+  const sec=(id,on)=>$(id).classList.toggle('hide',!on);
+  if(c.mode==='cg'){
+    Object.keys(LABELS).forEach(k=>$('w-'+k).classList.toggle('hide',!DIMS[S.shape].includes(k)));
+    $('w-hookH').classList.toggle('off',false);
+    set('ro-cg-w',wt(c.W)); set('ro-cg-v',vol(c.V)); set('ro-cg-x',len(c.xg)); set('ro-cg-a',len(c.a)); set('ro-cg-b',len(c.b));
+    set('ro-cg-r1',wt(c.R1)); set('ro-cg-r2',wt(c.R2)); set('ro-cg-tilt',nf(Math.abs(c.tilt),1)+'°',S.rig!=='equal');
+    set('ro-cg-t1',wt(c.T1)); set('ro-cg-t2',wt(c.T2)); set('ro-cg-th',S.rig==='vertical'?'90° / 90°':deg(c.th1)+' / '+deg(c.th2));
+  } else if(c.mode==='hardware'){
+    const dd=S.part==='dd';
+    $('w-eyeType').classList.toggle('hide',S.part!=='eyebolt');
+    $('w-pull').classList.toggle('hide',dd); $('w-ddD').classList.toggle('hide',!dd); $('w-ddd').classList.toggle('hide',!dd);
+    $('w-hwWll').querySelector('label').firstChild.textContent=(S.part==='eyebolt'?'Eyebolt rated WLL, in-line':S.part==='shackle'?'Shackle WLL, in-line':'Sling WLL, vertical (straight)')+' ';
+    $('w-pull').querySelector('label').firstChild.textContent=(S.part==='shackle'?'Side-load angle from in-line':'Angle of pull from in-line')+' ';
+    set('ro-hw-eff',wt(c.adj)); set('ro-hw-pct',pct(c.pct)); set('ro-hw-rated',wt(c.rated));
+    set('ro-hw-angle',dd?trim(c.ratio,2)+' : 1':deg(c.ang)); set('ro-hw-load',wt(c.load));
+    set('ro-hw-up',dd?'n/a':wt(c.up),dd); set('ro-hw-side',dd?'n/a':wt(c.side),dd);
+    set('ro-hw-band',c.row<0?'off table':dd?DD_ROWS[c.row][0]+' : 1 row':S.part==='shackle'?(c.row===0?0:SHACKLE_ROWS[c.row-1][0]+1)+'–'+SHACKLE_ROWS[c.row][0]+'°':(S.eyeType==='plain'?'in-line':'≤ '+EYE_ROWS[c.row][0]+'°'));
+  } else {
+    set('ro-cap-v',wt(c.caps.vertical)); set('ro-cap-c',wt(c.caps.choker)); set('ro-cap-b',wt(c.caps.basket)); set('ro-cap-br',wt(c.caps.bridle));
+    set('ro-hi-dd',trim(c.dd,1)+' : 1'); set('ro-hi-ddeff',c.ddWire?c.ddEff.toFixed(2):'n/a',!c.ddWire);
+    set('ro-hi-t',wt(c.T)); set('ro-hi-cap',wt(c.capacity));
+  }
+  $('ro-util').textContent=utilTxt(c.util);
+  const col=levelCol(c.level), st=$('status');
+  st.style.background=col; st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
+  let msg;
+  if(c.mode==='cg')msg=c.tips?'CG OUTSIDE THE PICKS: LOAD TIPS':c.angleBad?'BELOW 30°: DO NOT LIFT':c.util>1?'LEG OVERLOADED: DO NOT LIFT':c.tilted?'TILTS OVER 5°: LAND IT, RE-RIG':c.util>.8?'CAUTION: OVER 80% OF RATING':'WITHIN RATING';
+  else if(c.mode==='hardware')msg=c.notAllowed?(S.part==='dd'?'OFF THE D/d TABLE: DO NOT USE':'PLAIN EYEBOLT: IN-LINE ONLY'):c.util>1?'OVER ADJUSTED WLL: DO NOT LIFT':c.util>.8?'CAUTION: OVER 80% OF ADJUSTED WLL':'WITHIN ADJUSTED WLL';
+  else msg=c.angleBad?'BELOW 30°: DO NOT LIFT':c.util>1?'OVERLOADED: DO NOT LIFT':c.util>.8?'CAUTION: OVER 80% OF RATING':'WITHIN RATING';
+  st.textContent=msg;
+  $('utilrow').firstElementChild.innerHTML=c.mode==='cg'?'UTILIZATION<br>heavier leg ÷ WLL':c.mode==='hardware'?'UTILIZATION<br>load ÷ adjusted WLL':'UTILIZATION<br>T ÷ rating';
+}
+/* new-mode motion on the virtual clock: load tilt settles like a pendulum, cubes and blocks fill, bars grow */
+function cubeCount(c){const b=(S.units==='lb'?[.01,.1,1,10,100,1000]:[1e-4,1e-3,.01,.1,1,10]);const blk=b.find(x=>c.V/x<=40)||b[b.length-1];return c.V/blk;}
+function animModes(c,dt,toward){
+  if(c.mode==='cg'){
+    const goal=c.tilt*smooth(.3,.65,S.lift), wn=3.2, z=.22;          // tilt: under-damped, so the load rocks and settles
+    A.tilt=A.tilt??goal; A.tiltV=A.tiltV??0;
+    const n=Math.max(1,Math.ceil(dt*1000/8));for(let i=0;i<n;i++){const h=dt/n;A.tiltV+=(wn*wn*(goal-A.tilt)-2*z*wn*A.tiltV)*h;A.tilt+=A.tiltV*h;}
+    A.cubes=toward(A.cubes??0,cubeCount(c),18); A.grow=toward(A.grow??0,1,1.2);
+  } else { A.tilt=0; A.tiltV=0; }
+  if(c.mode==='hardware'){A.pull=S.pull; A.blk=toward(A.blk??0,c.pct*20,14);
+    if(c.ratio!=null)A.ddr=(A.ddr??c.ratio)+(c.ratio-(A.ddr??c.ratio))*Math.min(1,dt*5);}
+  if(c.caps){A.bars=A.bars||{...c.caps};for(const k in c.caps)A.bars[k]+=(c.caps[k]-A.bars[k])*Math.min(1,dt*4);}
+}
+function snapModes(c){
+  A.tilt=c.mode==='cg'?c.tilt*smooth(.3,.65,S.lift):0; A.tiltV=0; A.pull=S.pull;
+  if(c.mode==='cg'){A.cubes=cubeCount(c);A.grow=1;}
+  if(c.mode==='hardware'){A.blk=c.pct*20;A.ddr=c.ratio;}
+  if(c.caps)A.bars={...c.caps};
+}
+const TITLES={sling:'Sling Angle Simulator',cg:'Load Weight and Centre of Gravity',hardware:'Rigging Hardware: WLL, Angles, D/d',hitch:'Hitches and Load Control'};
+function layoutMode(){
+  const m=S.mode;
+  $('title').textContent=TITLES[m]||TITLES.sling;
+  $('p-sling').classList.toggle('hide',!(m==='sling'||m==='hitch'));
+  $('p-cg').classList.toggle('hide',m!=='cg'); $('p-hw').classList.toggle('hide',m!=='hardware'); $('p-hitch').classList.toggle('hide',m!=='hitch');
+  if(m==='sling')$('utilrow').firstElementChild.innerHTML='UTILIZATION<br>T ÷ rating';
+  $('sec-readouts').classList.toggle('hide',m==='hitch'); $('w-sling').classList.toggle('hide',m==='hitch');
+  segSync('c-mode',m);
+}
+
 /* Load cell dial: needle has spring-damper motion toward the live leg tension. */
 function drawGauge(c){
-  const max=Math.max(c.rating*1.5,c.T*1.05), cx=125,cy=128,R=100;
+  const max=Math.max(c.rating*1.5,c.T*1.05)||1, cx=125,cy=128,R=100;
   const ang=v=>Math.PI*(1-clamp(v/max,0,1));
   const arc=(v0,v1,colr)=>{const a0=ang(v0),a1=ang(v1);return `<path d="M${cx+R*Math.cos(a0)} ${cy-R*Math.sin(a0)} A${R} ${R} 0 0 1 ${cx+R*Math.cos(a1)} ${cy-R*Math.sin(a1)}" stroke="${colr}" stroke-width="14" fill="none"/>`};
   let s=arc(0,c.rating*.8,'#1f5c3d')+arc(c.rating*.8,c.rating,'#7a5a12')+arc(c.rating,max,'#6e2222');
@@ -444,8 +1155,8 @@ function drawGauge(c){
     <text x="${cx+(R+4)*Math.cos(ar)}" y="${cy-(R+12)*Math.sin(ar)}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">RATING</text>`;
   const an=ang(A.needle);
   s+=`<line x1="${cx}" y1="${cy}" x2="${cx+(R-14)*Math.cos(an)}" y2="${cy-(R-14)*Math.sin(an)}" stroke="${ACC}" stroke-width="5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="9" fill="${ACC}"/>
-    <text x="${cx}" y="${cy-34}" text-anchor="middle" font-size="22" font-weight="800" fill="${TEXT}">${wt(c.T*smooth(0,.3,S.lift))}</text>
-    <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="12" letter-spacing="1.5" font-weight="700" fill="${MUTED}">LOAD CELL · ONE LEG</text>`;
+    <text x="${cx}" y="${cy-34}" text-anchor="middle" font-size="22" font-weight="800" fill="${TEXT}">${wt(c.T*(S.mode==='hardware'?1:smooth(0,.3,S.lift)))}</text>
+    <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="12" letter-spacing="1.5" font-weight="700" fill="${MUTED}">${S.mode==='cg'?'LOAD CELL · HEAVIER LEG':S.mode==='hardware'?'LOAD ON THE PART':'LOAD CELL · ONE LEG'}</text>`;
   $('gauge').innerHTML=s;
 }
 
@@ -512,7 +1223,7 @@ function step(ms){
   T+=ms;
   tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
   tweens=tweens.filter(t=>t.t<t.dur);
-  const c=calc(), k=smooth(0,.3,S.lift);
+  const c=calc(), k=S.mode==='hardware'?1:smooth(0,.3,S.lift);
   // load path flow speed ∝ utilization
   A.flow-=dt*(30+190*Math.min(1.6,c.util))*k;
   A.chokeSlide=(A.chokeSlide||0)+dt*(S.hitch==='choker'?18+40*Math.min(1.6,c.util):0)*k;
@@ -530,7 +1241,7 @@ function step(ms){
       A.bounceV+=(-140*A.bounce-6*A.bounceV)*h; A.bounce+=A.bounceV*h;}
   }
   A.sway=clamp(A.sway,-4,4);
-  const drift=k*.35*Math.sin(T/1700)*smooth(.3,1,S.lift);
+  const drift=k*(S.mode==='hitch'&&!S.tags?2.6:.35)*Math.sin(T/1700)*smooth(.3,1,S.lift);   // no tag lines: free to swing
   A.swayShown=A.sway+drift;
   // overlays draw on / fade
   const toward=(v,goal,rate)=>v+clamp(goal-v,-rate*dt,rate*dt);
@@ -538,13 +1249,19 @@ function step(ms){
   if(c.row>=0)A.rowY+=(c.row-A.rowY)*Math.min(1,dt*6);
   // sheave rotation follows hook travel
   if(A.curHook!=null){if(A.lastHook!=null)A.hookTravel+=(A.lastHook-A.curHook);A.lastHook=A.curHook;}
+  if(S.mode!=='sling')animModes(c,dt,toward);
   return c;
 }
 function frame(ms){
   const c=step(ms);
-  const sv=A.sway; A.sway=A.swayShown??A.sway; draw(c); A.sway=sv;
-  drawGauge(c); panel(c);
-  $('formula').textContent=formula(c);
+  layoutMode();
+  const sv=A.sway; A.sway=A.swayShown??A.sway;
+  if(S.mode==='cg')drawCG(c); else if(S.mode==='hardware')drawHW(c); else draw(c);
+  A.sway=sv;
+  drawGauge(c);
+  if(S.mode==='sling'||S.mode==='hitch')panel(c);
+  if(S.mode!=='sling')panelModes(c);
+  if(S.mode==='sling')$('formula').textContent=formula(c); else $('formula').innerHTML=formulaHTML(c);
   callouts.forEach(co=>co.age+=ms);
   renderCallouts();
 }
@@ -552,11 +1269,10 @@ function set(p,dur=0){
   p={...p};
   // switching units on its own converts the current values so the physical rig stays the same
   if(p.units&&p.units!==S.units){
-    const toKg=p.units==='kg', fw=toKg?LB_TO_KG:1/LB_TO_KG, fl=toKg?FT_TO_M:1/FT_TO_M;
-    tweens=tweens.filter(t=>!['load','wll','sling'].includes(t.key));
-    if(!('load' in p))S.load=S.load*fw;
-    if(!('wll' in p))S.wll=S.wll*fw;
-    if(!('sling' in p))S.sling=S.sling*fl;
+    const toKg=p.units==='kg', fw=toKg?LB_TO_KG:1/LB_TO_KG, fl=toKg?FT_TO_M:1/FT_TO_M, fs=toKg?25.4:1/25.4;
+    const conv=[...WKEYS.map(k=>[k,fw]),...LKEYS.map(k=>[k,fl]),...SKEYS.map(k=>[k,fs])];   // weights, long and short lengths
+    tweens=tweens.filter(t=>!conv.some(([k])=>k===t.key));
+    conv.forEach(([k,f])=>{if(!(k in p))S[k]=S[k]*f;});
     S.units=p.units; delete p.units;
   }
   const snap=p.snap; delete p.snap;
@@ -565,8 +1281,9 @@ function set(p,dur=0){
     if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
     else S[k]=v;
   }
-  if(snap){const c=calc();A.vec=S.vectors?1:0;A.ang=S.angles?1:0;A.dim=S.dims?1:0;A.needle=c.T*smooth(0,.3,S.lift);A.needleV=0;
-    A.sway=A.swayV=A.bounce=A.bounceV=0;A.lastLift=S.lift;if(c.row>=0)A.rowY=c.row;A.lastHook=null;}
+  if(snap){const c=calc();A.vec=S.vectors?1:0;A.ang=S.angles?1:0;A.dim=S.dims?1:0;A.needle=c.T*(S.mode==='hardware'?1:smooth(0,.3,S.lift));A.needleV=0;
+    A.sway=A.swayV=A.bounce=A.bounceV=0;A.lastLift=S.lift;if(c.row>=0&&S.mode==='sling'||c.row>=0&&S.mode==='hitch')A.rowY=c.row;A.lastHook=null;
+    if(S.mode!=='sling')snapModes(c);}
   if(!CAPTURE)frame(0);
 }
 function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
@@ -580,6 +1297,14 @@ document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
 }));
 ['load','wll','angle','sling','choke'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
 $('c-twoleg').addEventListener('change',e=>set({twoLeg:e.target.checked}));
+// rigging family controls: every new control carries data-k = the state key it drives
+$('c-mode').addEventListener('click',e=>{const b=e.target.closest('button');if(b)set({mode:b.dataset.v});});
+document.querySelectorAll('#p-cg [data-k], #p-hw [data-k], #p-hitch [data-k]').forEach(el=>{const k=el.dataset.k;
+  if(el.classList.contains('seg'))el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    if(k==='lift')set({lift:+b.dataset.v},2500); else set({[k]:b.dataset.v});});
+  else if(el.type==='checkbox')el.addEventListener('change',e=>set({[k]:e.target.checked}));
+  else el.addEventListener('input',e=>set({[k==='cgwll'?'wll':k]:+e.target.value}));});
+if(CAPTURE)$('c-mode').style.display='none';     // capture renders show the title only (episode 001 frames unchanged)
 addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 frame(0);
