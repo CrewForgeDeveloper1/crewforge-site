@@ -1,8 +1,13 @@
 <!doctype html>
 <html lang="en-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Free Pump Curve and Affinity Laws Simulator · CrewForge</title><meta name="description" content="Free interactive centrifugal pump simulator: pump and system curves, operating point, best efficiency point, affinity laws for speed and impeller trim, brake horsepower. Imperial and metric.">
-<meta property="og:title" content="Free Pump Curve and Affinity Laws Simulator · CrewForge"><meta property="og:description" content="Free interactive centrifugal pump simulator: pump and system curves, operating point, best efficiency point, affinity laws for speed and impeller trim, brake horsepower. Imperial and metric.">
-<meta property="og:type" content="website"><meta property="og:image" content="https://crewforge.ca/assets/og.jpg">
+<title>Pump Affinity Laws Calculator | CrewForge</title><meta name="description" content="Free pump affinity laws calculator: pump and system curves, operating point, best efficiency point, speed change, impeller trim and brake power.">
+<meta property="og:title" content="Pump Affinity Laws Calculator | CrewForge"><meta property="og:description" content="Free pump affinity laws calculator: pump and system curves, operating point, best efficiency point, speed change, impeller trim and brake power.">
+<link rel="canonical" href="https://crewforge.ca/simulator-pumps.html">
+<meta property="og:type" content="website"><meta property="og:url" content="https://crewforge.ca/simulator-pumps.html"><meta property="og:site_name" content="CrewForge">
+<meta property="og:locale" content="en_CA"><meta property="og:image" content="https://crewforge.ca/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Pump Affinity Laws Calculator | CrewForge">
+<meta name="twitter:description" content="Free pump affinity laws calculator: pump and system curves, operating point, best efficiency point, speed change, impeller trim and brake power."><meta name="twitter:image" content="https://crewforge.ca/assets/og.jpg">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","name":"Pump curves and affinity laws","headline":"Pump Affinity Laws Calculator | CrewForge","description":"Free pump affinity laws calculator: pump and system curves, operating point, best efficiency point, speed change, impeller trim and brake power.","url":"https://crewforge.ca/simulator-pumps.html","image":"https://crewforge.ca/assets/sim_pump-curves.jpg","applicationCategory":"EducationalApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript","inLanguage":"en-CA","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CAD"},"provider":{"@type":"Organization","@id":"https://crewforge.ca/#org","name":"CrewForge","url":"https://crewforge.ca/","logo":"https://crewforge.ca/assets/crewforge_logo.png","sameAs":["https://www.youtube.com/channel/UCSt1IDEh0R28p2qHrRbNz_A"]},"installUrl":"https://crewforge.ca/simulators/pump-curves/index.html"}]}</script>
 <link rel="icon" href="assets/crewforge_favicon_32.png"><link rel="stylesheet" href="assets/site.css?v=a243e6f5">
 </head><body data-signup-endpoint="" data-blocked-regions="New Brunswick">
 <header class="site">
@@ -39,8 +44,8 @@
   </div>
 </header>
 <main>
-<!--title: Free Pump Curve and Affinity Laws Simulator · CrewForge-->
-<!--description: Free interactive centrifugal pump simulator: pump and system curves, operating point, best efficiency point, affinity laws for speed and impeller trim, brake horsepower. Imperial and metric.-->
+<!--title: Pump Affinity Laws Calculator | CrewForge-->
+<!--description: Free pump affinity laws calculator: pump and system curves, operating point, best efficiency point, speed change, impeller trim and brake power.-->
 <section class="page">
   <div class="wrap">
     <div class="kicker">Free simulator · Pumps</div>
@@ -51,6 +56,18 @@
     <iframe class="sim-frame" src="simulators/pump-curves/index.html?v=6718ee9d" title="Pump curves and affinity laws simulator" loading="lazy"></iframe>
     <p class="small muted" style="margin-top:12px"><a href="simulators/pump-curves/index.html?v=6718ee9d">Open full screen</a> · Exam preparation only: always use the pump maker's published curves and data.</p>
     <div class="note">Exam tip: flow changes with speed, head with speed squared and power with speed cubed, for the same pump at the same point on its curve.</div>
+    <div class="sim-about" style="max-width:820px">
+      <h2>What this calculator works out</h2>
+      <p>Where a centrifugal pump runs on its system curve (the operating point), how far that is from the best efficiency point, the brake power, and what the affinity laws predict when you change the speed or trim the impeller.</p>
+      <h2>The formula in words</h2>
+      <p>For the same pump at the same point on its curve, flow changes in proportion to speed, head with speed squared and power with speed cubed. Trimming the impeller diameter follows the same pattern for small trims. The affinity laws move points on the pump curve; with static head in the system, the new operating point is where the new pump curve crosses the system curve, which the simulator shows.</p>
+      <h2>Worked example</h2>
+      <ul>
+        <li><b>Imperial:</b> the teaching pump's best efficiency point at 1,750 rpm is 500 gpm, 120 ft and 18.94 hp. Slowed to 1,400 rpm (a ratio of 0.8): 500 × 0.8 = 400 gpm, 120 × 0.64 = 76.8 ft, 18.94 × 0.512 = 9.70 hp.</li>
+        <li><b>Metric:</b> the same point is 113.6 m³/h, 36.58 m and 14.15 kW. At 0.8 times the speed: 90.9 m³/h, 23.41 m and 7.24 kW.</li>
+      </ul>
+      <p>Watch the simulators explained on the <a href="https://www.youtube.com/channel/UCSt1IDEh0R28p2qHrRbNz_A">CrewForge YouTube channel</a>, or work through the <a href="lesson-sling-angles.html">free sample lesson</a> to see how a full CrewForge lesson is built.</p>
+    </div>
     <div class="two">
       <div class="card"><h3>Want the full lesson?</h3>
         <p>Every simulator in the program comes with a full lesson, worked exam questions, a scored challenge, a printable
