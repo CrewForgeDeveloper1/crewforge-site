@@ -1,4 +1,12 @@
 // CrewForge sample lesson: reading progress bar, table-of-contents highlight, practice quiz (window.CF_QUIZ).
+// A simulator iframe with data-mode opens on that mode's tab (the rigging simulator serves several lessons).
+document.querySelectorAll('iframe.sim-frame[data-mode]').forEach(f => f.addEventListener('load', () => {
+  try {
+    const d = f.contentDocument, m = f.dataset.mode;
+    const b = d && d.querySelector(`#c-mode button[data-v="${m}"]`);
+    if (b) b.click(); else if (f.contentWindow.sim) f.contentWindow.sim.set({ mode: m }, 0);
+  } catch (e) { /* cross-origin preview: the learner picks the tab */ }
+}));
 (() => {
   const bar = document.getElementById('lp-bar');
   const links = [...document.querySelectorAll('.toc-card a')];

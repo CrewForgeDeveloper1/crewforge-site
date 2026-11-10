@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mobile Crane Simulator: Load Charts, Signals, Lift Plans · CrewForge</title>
+<!--
+  CrewForge: Mobile Crane Simulator (hydraulic truck crane). Level 1, RSOS tasks B-9 and B-10.
+  Brand: charcoal #1F1D1A, off-white #F5F5F4, orange #F08A2B (accents only, never a warning).
+  THE LOAD CHART IS AN EXAMPLE FOR TRAINING. It is generated from a simple stability + boom-strength model of a
+  made-up 40-ton-class crane (NOTES.md). It is NOT any real crane's chart. Never lift from it.
+  PIPELINE CONTRACT:
+    window.sim.set(partialState, durationMs)   tween numeric values, set others instantly
+    window.sim.callout(targetId, text, {pos})   highlight an element with a label
+    window.sim.clear()                          remove all callouts
+    window.sim.advance(ms)                      advance the virtual clock (ALL motion runs off this)
+    window.sim.isIdle()                         always false: the signaller, wind and hoist lines move continuously
+    window.sim.ready                            true once loaded
+  Extras: sim.calc(), sim.get(), sim.failure(), sim.chart(units,outr,area) (the example chart table), sim.view
+  ?capture=1 → no requestAnimationFrame; the pipeline drives time through advance().
+
+  STATE (sim.set keys)
+    mode      'chart' (read the load chart) | 'signals' (hand signals, crane responds) | 'plan' (lift plan / critical lift)
+    units     'imp' (ft, lb, mph) | 'met' (m, kg, km/h). Switching converts every length, weight and wind value.
+    outr      'full' (outrigger beams fully extended) | 'ret' (beams retracted, floats down)
+    area      'side' (360° / over the side) | 'front' (over the front)
+    boom      boom length L, 32 … 96 ft (9.75 … 29.26 m)
+    radius    radius BEFORE loading (boom angle θ = acos(radius ÷ L)), kept between θ 10° and 78°
+    angle     convenience: sets radius = L × cos(angle)
+    load      net load (lb | kg)    hook  hook block weight    rigging  slings + shackles + spreader weight
+    ball      true → overhaul ball on the whip line (deduct)   jib  'none' | 'stowed' | 'erected' (deduct, example values)
+    lift      height of the load above the ground (ft | m); 0 = set down. Clamped below two-blocking.
+    signal    'none' | 'hoist' | 'lower' | 'main' | 'whip' | 'boomUp' | 'boomDown' | 'slow' | 'boomUpLowerLoad' |
+              'boomDownRaiseLoad' | 'swingL' | 'swingR' | 'stop' | 'estop' | 'dog' | 'extend' | 'retract'
+    quiz      true → the signal card hides the name ("What signal is this?"); reveal with quiz:false
+    slew      swing angle (deg, plan view)        line  'main' | 'whip' (set by the main / whip signals)
+    tandem    true → two cranes share one load (lift plan)   boomB, radiusB  crane B   span  pick-to-pick distance
+    cgA       load CG distance from crane A's pick   wind  wind speed (mph | km/h)
+    personnel true → people in a suspended work platform   power  true → load over / between energized conductors
+    snap      true → motion settles at once (use in scene setups)
+  FAILURE MODES (NOTES.md "Failure modes"):
+    fail      true → armed (default: true interactive, false in ?capture=1). With the load clear of the ground:
+              gross > tipping load at the loaded radius → the crane tips over the load-side outrigger (kind 'tip');
+              gross > 1.5 × the boom-strength rating (example value) first → the boom buckles (kind 'boom').
+              false, snap:true or a mode change restores the crane. sim.failure() → {on, kind, crane, t, caption, pct}
+-->
+<style>
+:root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
+--accent:#F08A2B;--ok:#3ddc84;--warn:#F2C230;--bad:#ff4d4d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+#app{display:grid;grid-template-columns:1fr 600px;height:100vh}
+#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--line);
+background:radial-gradient(ellipse at 40% 35%,#26231f 0%,#1F1D1A 55%,#141210 100%)}
+.brandbar{display:flex;align-items:center;gap:14px;padding:14px 26px;border-bottom:1px solid var(--line)}
+.brandbar .logo{height:44px;width:auto;display:block}
+.brandbar .t1{font-size:13px;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.brandbar .t2{font-size:26px;font-weight:700}
+#svgwrap{flex:1;min-height:0;position:relative}
+#svg{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px)}
+#vm2wrap{display:none;position:relative}
+#svg2{position:absolute;inset:0;width:100%;height:100%}
+#formula{margin:0 22px 16px;padding:10px 20px;background:linear-gradient(180deg,#2e2a26,#272420);border:1px solid var(--line);
+border-left:5px solid var(--accent);border-radius:8px;font-size:21px;font-variant-numeric:tabular-nums;line-height:1.45;
+font-family:"SF Mono",Menlo,Consolas,monospace}
+#formula div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel{background:linear-gradient(180deg,#2c2925,#262320);padding:12px 22px;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+.sec h3{margin:0 0 5px;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:44px;padding:6px 6px;border-radius:7px;border:1px solid var(--line);
+background:linear-gradient(180deg,#3a3530,#302c28);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+.seg button.on{background:linear-gradient(180deg,#f59a45,#e07c1f);color:#141414;border-color:var(--accent)}
+.sig button{flex:0 0 calc(25% - 5px);font-size:13px;padding:6px 3px}
+button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.ctl{margin-top:4px}
+.ctl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:0}
+.ctl label b{color:var(--text);font-variant-numeric:tabular-nums}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+input[type=range]{width:100%;accent-color:var(--accent);margin:1px 0}
+.hide{display:none!important}
+.ro{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.ro div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;min-width:0}
+.ro span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro b{font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ro .big b{font-size:27px}
+#status{padding:9px;border-radius:8px;font-weight:800;font-size:17px;text-align:center;letter-spacing:.03em;border:1px solid var(--line)}
+#co{position:fixed;inset:0;pointer-events:none;z-index:10}
+.ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
+.clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
+line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+@media (max-width:1000px){
+  #app{grid-template-columns:1fr;height:auto}
+  #stage{border-right:0}
+  #svgwrap{height:106vw;min-height:300px}
+  #app.sigmode #svgwrap{height:72vw}
+  #vm2wrap{display:block;height:calc((100vw - 8px)*1.96);margin:0 4px 8px}
+  #app.sigmode #vm2wrap{display:none}
+  #formula{font-size:12px;margin:0 8px 10px;padding:8px 10px}
+  #formula div{white-space:normal}
+  #panel{overflow:visible;padding:12px}
+  .brandbar{padding:10px 12px}.brandbar .t2{font-size:18px}.brandbar .logo{height:34px}
+  .ro{grid-template-columns:1fr 1fr}
+  .ro b{font-size:16px}.ro .big b{font-size:22px}
+  .seg button{font-size:13px;padding:7px 3px;min-width:36px}
+  .sig button{flex:0 0 calc(33% - 5px)}
+  .clabel{font-size:15px;max-width:240px;padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2" id="title">Mobile Crane Simulator</div></div></div>
+    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mobile crane drawing with the example load chart and pictures of the maths"></svg></div>
+    <div id="vm2wrap"><svg id="svg2" viewBox="836 0 464 900" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Example load chart and maths cards"></svg></div>
+    <div id="formula"><div id="f1"></div><div id="f2"></div></div>
+  </section>
+  <aside id="panel">
+    <div class="sec"><h3>MODE</h3>
+      <div class="row2"><div class="seg" id="c-mode" style="flex:3"><button data-v="chart">Load chart</button><button data-v="signals">Signals</button><button data-v="plan">Lift plan</button></div>
+      <div class="seg" id="c-units" style="flex:2"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div></div>
+    </div>
+    <div class="sec" id="w-setup"><h3>CRANE SET-UP</h3>
+      <div class="row2"><div class="seg" id="c-outr"><button data-v="full">Outriggers full</button><button data-v="ret">Retracted</button></div>
+      <div class="seg" id="c-area"><button data-v="side">360° (side)</button><button data-v="front">Over front</button></div></div>
+      <div class="ctl"><label>Boom length (L) <b id="l-boom"></b></label><input id="c-boom" type="range"></div>
+      <div class="ctl"><label>Radius before loading (R) <b id="l-radius"></b></label><input id="c-radius" type="range"></div>
+    </div>
+    <div class="sec" id="w-load"><h3>LOAD AND DEDUCTIONS</h3>
+      <div class="ctl"><label>Net load (W) <b id="l-load"></b></label><input id="c-load" type="range"></div>
+      <div class="row2"><div class="ctl"><label>Hook block <b id="l-hook"></b></label><input id="c-hook" type="range"></div>
+      <div class="ctl"><label>Slings + shackles <b id="l-rigging"></b></label><input id="c-rigging" type="range"></div></div>
+      <div class="row2" style="margin-top:5px"><div class="seg" id="c-ball"><button data-v="1">Whip ball on</button><button data-v="0">Off</button></div>
+      <div class="seg" id="c-jib"><button data-v="none">No jib</button><button data-v="stowed">Stowed</button><button data-v="erected">Erected</button></div></div>
+      <div class="seg" id="c-lift" style="margin-top:5px"><button data-v="down">Set down</button><button data-v="up">Lift it</button></div>
+    </div>
+    <div class="sec hide" id="w-plan"><h3>LIFT PLAN</h3>
+      <div class="row2"><div class="seg" id="c-tandem"><button data-v="0">One crane</button><button data-v="1">Two cranes</button></div>
+      <div class="seg" id="c-flags"><button data-v="personnel">Work platform</button><button data-v="power">Over power lines</button></div></div>
+      <div id="w-tandem" class="hide">
+        <div class="row2"><div class="ctl"><label>Crane B boom <b id="l-boomB"></b></label><input id="c-boomB" type="range"></div>
+        <div class="ctl"><label>Crane B radius <b id="l-radiusB"></b></label><input id="c-radiusB" type="range"></div></div>
+        <div class="row2"><div class="ctl"><label>Pick to pick <b id="l-span"></b></label><input id="c-span" type="range"></div>
+        <div class="ctl"><label>CG from pick A <b id="l-cgA"></b></label><input id="c-cgA" type="range"></div></div>
+      </div>
+      <div class="ctl"><label>Wind speed <b id="l-wind"></b></label><input id="c-wind" type="range"></div>
+    </div>
+    <div class="sec hide" id="w-signals"><h3>HAND SIGNALS (OSHA 1926 SUBPART CC APPENDIX A)</h3>
+      <div class="seg sig" id="c-signal">
+        <button data-v="hoist">Hoist</button><button data-v="lower">Lower</button><button data-v="main">Main hoist</button><button data-v="whip">Whipline</button>
+        <button data-v="boomUp">Boom up</button><button data-v="boomDown">Boom down</button><button data-v="slow">Move slowly</button><button data-v="swingL">Swing left</button>
+        <button data-v="boomUpLowerLoad">Boom up, load down</button><button data-v="boomDownRaiseLoad">Boom down, load up</button><button data-v="extend">Extend boom</button><button data-v="swingR">Swing right</button>
+        <button data-v="retract">Retract boom</button><button data-v="stop">Stop</button><button data-v="estop">Emergency stop</button><button data-v="dog">Dog everything</button>
+      </div>
+      <div class="seg" id="c-quiz" style="margin-top:6px"><button data-v="0">Show the name</button><button data-v="1">Quiz me</button></div>
+    </div>
+    <div class="sec"><h3>READOUTS</h3>
+      <div class="ro">
+        <div class="big" id="ro-gross-box"><span id="ro-gross-lbl">Gross load</span><b id="ro-gross"></b></div>
+        <div class="big" id="ro-pct-box"><span id="ro-pct-lbl">% of chart</span><b id="ro-pct"></b></div>
+        <div class="big" id="ro-cap-box"><span id="ro-cap-lbl">Chart capacity</span><b id="ro-cap"></b></div>
+        <div id="ro-rad-box"><span>Loaded radius</span><b id="ro-rad"></b></div>
+        <div id="ro-ang-box"><span>Boom angle</span><b id="ro-ang"></b></div>
+        <div id="ro-defl-box"><span>Boom deflection</span><b id="ro-defl"></b></div>
+        <div id="ro-cell-box"><span>Chart cell (row · column)</span><b id="ro-cell"></b></div>
+        <div id="ro-tip-box"><span id="ro-tip-lbl">Tipping load</span><b id="ro-tip"></b></div>
+        <div id="ro-lift-box"><span>Load height</span><b id="ro-lift"></b></div>
+      </div>
+    </div>
+    <div id="status"></div>
+  </aside>
+</div>
+<div id="co"></div>
+<script>
+(()=>{
+const CAPTURE=new URLSearchParams(location.search).has('capture');
+const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',STEEL='#9fb0bc',TEXT='#F5F5F4';
+// Visual-maths colours: one colour per symbol, the same in the drawing, the cards and the formula bar
+const COL={L:'#59b7ff',R:'#7fd6c2',th:ACC,W:'#d9d3c7',hook:'#b48af0',rig:'#ff9ecf',ball:'#8fb3c9',jib:'#d6a86b',
+  gross:'#ffffff',cap:'#59b7ff',defl:'#ffc89a',mom:'#ff9ecf'};
+const LB=0.45359237, FT=0.3048, KMH=1.609344;
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const D2R=Math.PI/180;
+const rnd=(i,sd=0)=>{const x=Math.sin(i*12.9898+sd*78.233)*43758.5453;return x-Math.floor(x);};
+
+/* =====================================================================
+   EXAMPLE CRANE (made up for training; NOTES.md "Example crane"). Model units: ft and lb.
+   Carrier 36,000 lb (CG over the centre of rotation side to side; 2 ft toward the front over the front).
+   Upperstructure without boom 24,000 lb, CG 5 ft behind the centre of rotation (counterweight side).
+   Boom (telescopic, 32 → 96 ft): weight 11,000 + 90 × (L − 32) lb, CG at 0.45 L. Boom foot pin over the centre
+   of rotation, 9 ft up, so the radius before loading is R = L × cos θ.
+   Tipping fulcrum f (from the centre of rotation, on the load side): over the side = half the outrigger spread
+   (11 ft fully extended, 4 ft retracted); over the front = the front outrigger jack, 7 ft ahead.
+   TIPPING LOAD  Wtip = [Wc (f + dc) + Wu (f + 5) − Wb (0.45 R − f)] ÷ (R − f)       (moments about the fulcrum)
+   STABILITY RATING  = 85 % of Wtip   (rated loads on outriggers ≤ 85 % of tipping: SAE J765 as quoted on maker charts)
+   BOOM-STRENGTH RATING  Cs = 80,000 × (32 ÷ L)^1.2 ÷ (1 + 0.02 × (R − 10))  (made-up structural curve)
+   CHART VALUE = the smaller of the two (max 80,000 lb), rounded DOWN to 100 lb (metric chart: 50 kg).
+   Cells where Cs governs are structural: marked * and shaded. Blank cells: boom angle outside 10° … 78° or < 1,000 lb.
+   ===================================================================== */
+const M={Wc:36000,Wu:24000,xu:5,hf:9,cmax:80000,K3EI:1.43e9,SF:1.5};
+const Wb=L=>11000+90*(L-32);
+const fulc=(outr,area)=>area==='front'?{f:7,dc:-2}:{f:outr==='ret'?4:11,dc:0};
+function wtipLb(Rft,Lft,outr,area){
+  const {f,dc}=fulc(outr,area); if(Rft<=f)return Infinity;
+  const Ms=M.Wc*(f+dc)+M.Wu*(f+M.xu);
+  return (Ms-Wb(Lft)*(0.45*Rft-f))/(Rft-f);
+}
+const csLb=(Lft,Rft)=>M.cmax*Math.pow(32/Lft,1.2)/(1+0.02*Math.max(0,Rft-10));
+const ANG_MIN=10, ANG_MAX=78, RMIN=Math.cos(ANG_MAX*D2R), RMAX=Math.cos(ANG_MIN*D2R);
+const CH={imp:{booms:[32,48,64,80,96],radii:[10,12,15,20,25,30,35,40,50,60,70,80],step:100,min:1000,toFt:1},
+          met:{booms:[9.75,14.63,19.51,24.38,29.26],radii:[3,3.5,4.5,6,7.5,9,10.5,12,15,18,21,24],step:50,min:450,toFt:1/FT}};
+// Example deductions (made-up chart notes). Terex RT555 note 6: hook block, slings and lifting devices are part of the load.
+const DED={imp:{ball:350,jib:{none:0,stowed:1200,erected:3800}},met:{ball:160,jib:{none:0,stowed:545,erected:1725}}};
+const WIND_LIMIT={imp:20,met:32};            // example chart note: derate above 20 mph (Terex RT555 note 9 uses 20 mph)
+const chartArea=(outr,area)=>outr==='ret'?'side':area;   // retracted beams: one 360° chart
+const TBL={};
+function table(units,outr,area){
+  area=chartArea(outr,area); const key=units+outr+area; if(TBL[key])return TBL[key];
+  const C=CH[units], cap=[], sh=[];
+  C.radii.forEach((r,i)=>{cap[i]=[];sh[i]=[];
+    C.booms.forEach((b,j)=>{
+      const Rft=r*C.toFt, Lft=b*C.toFt, q=r/b;
+      if(q<RMIN-1e-9||q>RMAX+1e-9){cap[i][j]=null;sh[i][j]=false;return;}
+      const st=.85*wtipLb(Rft,Lft,outr,area), s=csLb(Lft,Rft);
+      let v=Math.min(st,s,M.cmax); if(units==='met')v*=LB;
+      v=Math.floor(v/C.step+1e-9)*C.step;
+      cap[i][j]=v<C.min?null:v; sh[i][j]=s<st;});});
+  return TBL[key]={booms:C.booms,radii:C.radii,cap,sh,area,outr};
+}
+/* Between listed values use the SMALLER rating (Terex RT555 operation note 2): on this chart that is the next longer
+   boom and the next greater radius. Off the chart (blank or past the last row) = no capacity: do not lift. */
+function lookup(units,outr,area,L,R){
+  const t=table(units,outr,area);
+  const bi=t.booms.findIndex(b=>b>=L-1e-6); if(bi<0)return {off:'boom',t};
+  const ri=t.radii.findIndex(r=>r>=R-1e-6); if(ri<0)return {off:'radius',bi,t};
+  const cap=t.cap[ri][bi]; if(cap==null)return {off:'blank',bi,ri,t};
+  return {bi,ri,cap,shaded:t.sh[ri][bi],t};
+}
+function maxRadius(units,outr,area,bi){const t=table(units,outr,area);let m=0;t.radii.forEach((r,i)=>{if(t.cap[i][bi]!=null)m=r;});return m;}
+
+/* ---------- signals (wording paraphrased from OSHA 1926 Subpart CC Appendix A). Canadian charts differ on some signals:
+   IHSA (Ontario) and WorkSafeBC TG 07-29 show ONE stop (one arm, palm down, hand moved back and forth) and no separate
+   emergency stop; CCOHS shows stop = one arm held still, emergency stop = one arm, hand moved rapidly side to side.
+   Dog everything (hands clasped in front) is the same in all four. ---------- */
+const SIG={
+  none:{n:'Ready',d:'Signaller in clear view of the operator, arms at the sides.',r:'Crane waits.'},
+  hoist:{n:'Hoist',d:'Forearm vertical, index finger pointing up, small horizontal circles.',r:'Hoist line up: the load rises.'},
+  lower:{n:'Lower',d:'Arm extended down, index finger pointing down, small horizontal circles.',r:'Hoist line down: the load lowers.'},
+  main:{n:'Use main hoist',d:'Tap a fist on top of the head, then give the regular signals.',r:'Operator selects the main hoist line.'},
+  whip:{n:'Use whipline (auxiliary hoist)',d:'Tap the elbow with the other hand, then give the regular signals.',r:'Operator selects the whipline (ball).'},
+  boomUp:{n:'Raise boom',d:'Arm extended, fingers closed, thumb pointing up.',r:'Boom angle up: the radius gets shorter.'},
+  boomDown:{n:'Lower boom',d:'Arm extended, fingers closed, thumb pointing down.',r:'Boom angle down: the radius gets longer.'},
+  slow:{n:'Move slowly',d:'One hand gives the motion signal; the other hand is held still in front of it.',r:'Hoist, slowly.'},
+  boomUpLowerLoad:{n:'Raise the boom and lower the load',d:'Arm extended, thumb up, fingers open and close while the load moves.',r:'Boom up, line down: the load comes in at the same height.'},
+  boomDownRaiseLoad:{n:'Lower the boom and raise the load',d:'Arm extended, thumb down, fingers open and close while the load moves.',r:'Boom down, line up: the load goes out at the same height.'},
+  swingL:{n:'Swing',d:'Arm extended, index finger pointing the way the boom is to swing.',r:'The house swings toward the pointed side.'},
+  swingR:{n:'Swing',d:'Arm extended, index finger pointing the way the boom is to swing.',r:'The house swings toward the pointed side.'},
+  stop:{n:'Stop',d:'Arm extended, palm down, arm swung back and forth level.',r:'Every motion stops.'},
+  estop:{n:'Emergency stop',d:'Both arms extended, palms down, swung back and forth level.',r:'Every motion stops at once.'},
+  dog:{n:'Dog everything',d:'Hands clasped in front of the body at the waist.',r:'All motions stopped and the brakes set.'},
+  extend:{n:'Extend boom (telescoping)',d:'Both fists in front of the body, thumbs pointing outward.',r:'Boom telescopes out: longer boom, longer radius.'},
+  retract:{n:'Retract boom (telescoping)',d:'Both fists in front of the body, thumbs pointing toward each other.',r:'Boom telescopes in: shorter boom, shorter radius.'}};
+// target speeds per signal: hook (ft/s), boom angle (deg/s), swing (deg/s), telescope (ft/s)
+const RATE={hook:1.5,ang:3,slew:8,tel:1.5};
+
+const S={mode:'chart',units:'imp',outr:'full',area:'side',boom:64,radius:30,load:8000,hook:650,rigging:150,ball:true,jib:'stowed',
+  lift:0,signal:'none',quiz:false,slew:0,line:'main',tandem:false,boomB:64,radiusB:25,span:30,cgA:15,wind:8,personnel:false,power:false};
+S.fail=!CAPTURE;
+const NUMERIC=['boom','radius','load','hook','rigging','lift','slew','boomB','radiusB','span','cgA','wind'];
+const LENS=['boom','radius','lift','boomB','radiusB','span','cgA'], WTS=['load','hook','rigging'];
+const toFt=v=>S.units==='imp'?v:v/FT, toLb=v=>S.units==='imp'?v:v/LB;
+const fromFt=v=>S.units==='imp'?v:v*FT;
+
+/* =====================================================================
+   PHYSICS: every number on screen comes from calc().
+     Gross load = net load + hook block + rigging + whip ball + jib deduction.
+     Boom deflection (made-up stiffness): with the load clear of the ground the tip moves out by
+        Δ = gross × cos θ × sin θ × L³ ÷ 3EI   (3EI = 1.43 × 10⁹ lb·ft²) → loaded radius = R + Δ.
+     Chart capacity at the LOADED radius (Terex RT555 definition 1: radius is measured with the load applied).
+     % of chart = gross ÷ chart capacity.  Tipping load and boom strength from the model above (at the loaded radius).
+   LIFT PLAN (WorkSafeBC OHS Regulation s.14.1 "critical lift"; Alberta OHS Code s.68.1):
+     single crane: over 90 % of the chart AND loaded radius more than half the chart's maximum radius → critical
+     tandem: either crane over 75 % of its chart → critical. Work platform with people, or over/between energized
+     conductors → critical. Over 75 % → Alberta wants a written lift calculation. Over 100 %, off chart, or wind past
+     the chart's limit → do not lift.
+   ===================================================================== */
+function geomFt(st,Lu,Ru){            // boom length and radius (current units) → ft, angle
+  const L=toFt(Lu), R=toFt(Ru), th=Math.acos(clamp(R/L,-1,1));
+  return {L,R,th};
+}
+function crane1(st,Lu,Ru,share,susp,useDefl){
+  const imp=st.units==='imp', g=geomFt(st,Lu,Ru);
+  const ded=DED[st.units], parts={load:share,hook:st.hook,rig:st.rigging,ball:st.ball?ded.ball:0,jib:ded.jib[st.jib]};
+  const gross=parts.load+parts.hook+parts.rig+parts.ball+parts.jib, grossLb=toLb(gross);
+  const deflFt=useDefl?susp*grossLb*Math.cos(g.th)*Math.sin(g.th)*Math.pow(g.L,3)/M.K3EI:0;
+  const R1ft=g.R+deflFt, R1=fromFt(R1ft);
+  const tipHft=M.hf+Math.sqrt(Math.max(0,g.L*g.L-R1ft*R1ft));
+  const th1=Math.atan2(tipHft-M.hf,R1ft);
+  const lk=lookup(st.units,st.outr,st.area,Lu,R1);
+  const cap=lk.off?0:lk.cap, pct=cap>0?gross/cap:Infinity;
+  const wtipU=wtipLb(R1ft,g.L,st.outr,st.area)*(imp?1:LB), csU=csLb(g.L,R1ft)*(imp?1:LB), brk=csU*M.SF;
+  const cfgA=chartArea(st.outr,st.area);
+  const mr=lk.bi!=null?maxRadius(st.units,st.outr,cfgA,lk.bi):0;
+  let failKind=null;
+  if(susp>=1){const a=gross/wtipU, b=gross/brk; if(wtipU<=0||a>1||b>1)failKind=(wtipU<=0||a>=b)?'tip':'boom';}
+  return {Lu,R0:Ru,th0:g.th/D2R,Lft:g.L,R0ft:g.R,parts,gross,deflFt,defl:fromFt(deflFt),R1,R1ft,tipHft,th1:th1/D2R,lk,cap,pct,
+    wtip:wtipU,cs:csU,brk,tipPct:wtipU>0?gross/wtipU:Infinity,failKind,maxRad:mr,f:fulc(st.outr,st.area).f};
+}
+function calc(st=S){
+  const imp=st.units==='imp';
+  const susp=clamp(st.lift/(imp?.5:.15),0,1);
+  const c={imp,units:st.units,mode:st.mode,susp,lift:st.lift};
+  if(st.mode==='plan'&&st.tandem){
+    const a=st.span>0?clamp(st.cgA,0,st.span):0, sA=st.span>0?st.load*(st.span-a)/st.span:st.load/2, sB=st.load-sA;
+    c.tandem=true; c.a=a; c.b=st.span-a; c.shareA=sA; c.shareB=sB;
+    c.A=crane1(st,st.boom,st.radius,sA,susp,false); c.B=crane1(st,st.boomB,st.radiusB,sB,susp,false);
+    Object.assign(c,{gross:c.A.gross+c.B.gross,pct:Math.max(c.A.pct,c.B.pct)});
+    c.main=c.A.pct>=c.B.pct?c.A:c.B;
+  } else {
+    c.tandem=false; c.A=crane1(st,st.boom,st.radius,st.load,susp,true); c.main=c.A;
+    Object.assign(c,{gross:c.A.gross,pct:c.A.pct});
+  }
+  const m=c.main;
+  c.off=!!(c.A.lk.off||(c.B&&c.B.lk.off));
+  c.level=c.off||c.pct>1?'bad':c.pct>=.9?'warn':'ok';
+  // two-block limit (ft): block top 2 ft under the head sheave; block 3 ft, hook 1.2 ft, slings 5 ft, load 4 ft
+  c.maxLiftFt=Math.max(0,c.A.tipHft-15.2-(c.B?0:0)); if(c.B)c.maxLiftFt=Math.min(c.maxLiftFt,c.B.tipHft-15.2);
+  // lift plan criteria
+  const P={};
+  P.windLimit=WIND_LIMIT[st.units]; P.windOver=st.wind>P.windLimit+1e-9;
+  P.over75=c.A.pct>.75||(c.B&&c.B.pct>.75);
+  P.crit90=!c.tandem&&m.pct>.9&&m.R1>.5*m.maxRad;
+  P.critTandem=c.tandem&&(c.A.pct>.75||c.B.pct>.75);
+  P.critical=P.crit90||P.critTandem||st.personnel||st.power;
+  P.stop=c.off||c.pct>1||P.windOver;
+  P.verdict=P.stop?'stop':P.critical?'critical':'routine';
+  c.plan=P;
+  // in the lift plan the readout and formula colours follow the verdict: red do not lift, yellow critical (never orange)
+  if(st.mode==='plan'&&c.level!=='bad')c.level=P.verdict==='stop'?'bad':P.verdict==='critical'?'warn':c.level;
+  c.failKind=null; c.failCrane=null;
+  {
+    if(c.A.failKind){c.failKind=c.A.failKind;c.failCrane='A';}
+    else if(c.B&&c.B.failKind){c.failKind=c.B.failKind;c.failCrane='B';}
+  }
+  return c;
+}
+
+/* ---------- formatting ---------- */
+const nf=(v,d=0)=>(+v).toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});
+const wu=()=>S.units==='imp'?'lb':'kg', lu=()=>S.units==='imp'?'ft':'m';
+const wt=v=>isFinite(v)?nf(Math.round(v))+' '+wu():'—';
+const len=(v,d)=>nf(v,d==null?(S.units==='imp'?1:2):d)+' '+lu();
+const lenC=v=>S.units==='imp'?nf(v,0)+' ft':nf(v,v<10&&v%1?2:1).replace(/\.0$/,'')+' m';     // chart headings
+// lengths inside shown arithmetic: as many decimals as the value has (max 2), so the printed sum is the one computed
+const mlen=v=>{const r=Math.round(v*100)/100, d=Math.abs(r-Math.round(r))<1e-6?0:Math.abs(r*10-Math.round(r*10))<1e-6?1:2; return nf(r,d);};
+const pct=v=>isFinite(v)?nf(v*100,1)+' %':'—';
+const wind=v=>nf(v,0)+(S.units==='imp'?' mph':' km/h');
+const sp=(col,t)=>`<span style="color:${col}">${t}</span>`;
+const tsp=(col,t)=>`<tspan fill="${col}">${t}</tspan>`;
+const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
+
+/* ---------- animation state (virtual clock only) ---------- */
+let T=0,tweens=[],callouts=[];
+const A={vHook:0,vAng:0,vSlew:0,vTel:0,ballDrop:14,dogged:false,sway:0,swayV:0,windX:0,lastSig:'none',sigT:0,flow:0};
+let F={on:false,t:0};
+
+/* ---------- drawing helpers ---------- */
+function arrow(id,x1,y1,x2,y2,col,w=6){
+  const a=Math.atan2(y2-y1,x2-x1),h=16;
+  return `<g id="${id}"><line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${(x2-Math.cos(a)*h*.6).toFixed(1)}" y2="${(y2-Math.sin(a)*h*.6).toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
+  <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-h*Math.cos(a-.42)).toFixed(1)},${(y2-h*Math.sin(a-.42)).toFixed(1)} ${(x2-h*Math.cos(a+.42)).toFixed(1)},${(y2-h*Math.sin(a+.42)).toFixed(1)}" fill="${col}"/></g>`;
+}
+function pill(id,x,y,text,col,fs=18,anchor='middle'){
+  const w=text.length*fs*.58+20, x0=anchor==='start'?x:anchor==='end'?x-w:x-w/2;
+  return `<g id="${id}"><rect x="${x0.toFixed(1)}" y="${(y-fs*.9).toFixed(1)}" width="${w.toFixed(1)}" height="${fs*1.8}" rx="${fs*.9}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
+  <text x="${(x0+w/2).toFixed(1)}" y="${(y+fs*.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${col}">${text}</text></g>`;
+}
+function card(id,x,y,w,h,title,sub){
+  return `<g id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#26231F" stroke="#45403A" stroke-width="2"/>
+  <text x="${x+16}" y="${y+26}" font-size="15" font-weight="800" fill="${MUTED}" letter-spacing="1.2">${title}</text>${sub?`<text x="${x+16}" y="${y+48}" font-size="15" font-weight="700" fill="${TEXT}">${sub}</text>`:''}`;
+}
+const poly=(pts)=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+
+/* ---------- the crane (side view). World ft: x toward the load (dir), y up. ---------- */
+function craneSVG(o){
+  // o: {cx,gy,s,dir,outr,area,L,R1,tipH,R0,ghost,jib,ball,ballDrop,lift(ft),loadLabel,p (id prefix),tilt(deg),buckle(0..1),loadDrop(ft),slack,showFul}
+  const X=x=>o.cx+o.dir*x*o.s, Y=y=>o.gy-y*o.s, s=o.s, p=o.p||'';
+  const {f}=fulc(o.outr,o.area);
+  let body='';
+  // ---- carrier
+  const up=.35;                                   // tyres lifted on outriggers
+  if(o.area==='side'){
+    const fs=o.outr==='ret'?4:11;
+    body+=`<rect x="${Math.min(X(-4),X(4))}" y="${Y(6.4)}" width="${8*s}" height="${2.8*s}" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>`;
+    [-3.1,3.1].forEach(x=>body+=`<rect x="${Math.min(X(x-1.1),X(x+1.1))}" y="${Y(3.6+up)}" width="${2.2*s}" height="${3.6*s}" rx="${.5*s}" fill="#151311" stroke="#3a3631" stroke-width="2"/>`);
+    // outrigger beams + jacks + floats + mats; load-side float = fulcrum
+    body+=`<rect x="${Math.min(X(-fs),X(fs))}" y="${Y(5.2)}" width="${2*fs*s}" height="${1*s}" fill="#C05A00" stroke="#7a3a00" stroke-width="1.5"/>`;
+    [-fs,fs].forEach((x,i)=>{body+=`<g id="${p}${i?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${4.6*s}" fill="#7a7068"/>
+      <rect x="${X(x)-1.1*s}" y="${Y(.75)}" width="${2.2*s}" height="${.45*s}" fill="#9a9086"/><rect x="${X(x)-2.1*s}" y="${Y(.3)}" width="${4.2*s}" height="${.3*s}" fill="#6b4f2f"/></g>`;});
+  } else {
+    body+=`<rect x="${Math.min(X(-22),X(12))}" y="${Y(6.2)}" width="${34*s}" height="${2.6*s}" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>
+      <path d="M${X(8)} ${Y(6.2)} L${X(8)} ${Y(10)} L${X(11.8)} ${Y(10)} L${X(13)} ${Y(7)} L${X(13)} ${Y(6.2)} Z" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>
+      <rect x="${Math.min(X(9),X(11.4))}" y="${Y(9.5)}" width="${2.4*s}" height="${1.8*s}" fill="#2b4a5a"/>`;
+    [-16,-12.2,10].forEach(x=>body+=`<circle cx="${X(x)}" cy="${Y(1.9+up)}" r="${1.9*s}" fill="#151311" stroke="#3a3631" stroke-width="3"/><circle cx="${X(x)}" cy="${Y(1.9+up)}" r="${.8*s}" fill="#5d5750"/>`);
+    [-18,7].forEach((x,i)=>{body+=`<g id="${p}${i?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.8*s}" y="${Y(6.4)}" width="${1.6*s}" height="${1.4*s}" fill="#C05A00"/><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${4.6*s}" fill="#7a7068"/>
+      <rect x="${X(x)-1.1*s}" y="${Y(.75)}" width="${2.2*s}" height="${.45*s}" fill="#9a9086"/><rect x="${X(x)-2.1*s}" y="${Y(.3)}" width="${4.2*s}" height="${.3*s}" fill="#6b4f2f"/></g>`;});
+  }
+  // ---- upperstructure: house, counterweight (behind), operator cab
+  body+=`<g id="${p}house"><rect x="${Math.min(X(-6),X(3.5))}" y="${Y(11.4)}" width="${9.5*s}" height="${3.2*s}" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>
+    <rect x="${Math.min(X(-8.6),X(-5.2))}" y="${Y(11)}" width="${3.4*s}" height="${4*s}" rx="${.4*s}" fill="#4D4842" stroke="#2f2b27" stroke-width="2"/>
+    <text x="${X(-6.9)}" y="${Y(8.6)}" text-anchor="middle" font-size="${Math.max(9,1.3*s)}" font-weight="800" fill="#b8ad9f">CWT</text>
+    <rect x="${Math.min(X(.6),X(3.4))}" y="${Y(13.8)}" width="${2.8*s}" height="${2.6*s}" rx="${.4*s}" fill="#3A3631" stroke="#7a3a00" stroke-width="2"/>
+    <rect x="${Math.min(X(1),X(3.1))}" y="${Y(13.4)}" width="${2.1*s}" height="${1.4*s}" fill="#2b4a5a"/></g>`;
+  // ---- boom (telescopic sections), lift cylinder, jib
+  const fx=X(0), fy=Y(M.hf);
+  const phi=Math.atan2(o.tipH-M.hf,o.R1), Lv=Math.hypot(o.tipH-M.hf,o.R1);
+  const kink=.55*Lv, beta=(o.buckle||0)*Math.min(75*D2R,phi+60*D2R);
+  const along=(d,off=0,ang=phi)=>{       // point d ft along the boom (with the buckle), off ft perpendicular (up)
+    if(d<=kink||!beta){return [X(d*Math.cos(phi)-off*Math.sin(phi)),Y(M.hf+d*Math.sin(phi)+off*Math.cos(phi))];}
+    const kx=kink*Math.cos(phi), ky=M.hf+kink*Math.sin(phi), a2=phi-beta, e=d-kink;
+    return [X(kx+e*Math.cos(a2)-off*Math.sin(a2)),Y(ky+e*Math.sin(a2)+off*Math.cos(a2))];
+  };
+  if(o.ghost&&o.R0!=null&&!o.buckle&&!o.tilt){
+    const th0=Math.acos(clamp(o.R0/o.L,-1,1)), gx=X(o.R0), gyy=Y(M.hf+o.L*Math.sin(th0));
+    body+=`<line id="${p}boom-ghost" x1="${fx}" y1="${fy}" x2="${gx.toFixed(1)}" y2="${gyy.toFixed(1)}" stroke="${COL.defl}" stroke-width="2.5" stroke-dasharray="8 7" opacity=".85"/>`;
+  }
+  // lift cylinder from the house to 40 % of the base section
+  const cyl=along(12.8,-1.4);
+  body+=`<line x1="${X(1.8)}" y1="${Y(7.4)}" x2="${cyl[0].toFixed(1)}" y2="${cyl[1].toFixed(1)}" stroke="#d9d3c7" stroke-width="${.7*s}" stroke-linecap="round"/>`;
+  // sections: base 32 ft then three equal fly sections
+  const secs=[[0,32,1.35],[32-3,32+(o.L-32)/3,1.15],[32+(o.L-32)/3-3,32+2*(o.L-32)/3,.98],[32+2*(o.L-32)/3-3,o.L,.82]];
+  let boom='';
+  const lenScale=Lv/o.L;
+  secs.forEach(([a,b,hw],i)=>{
+    a*=lenScale;b*=lenScale; if(b-a<.5)return;
+    const segs=[];
+    if(beta&&a<kink&&b>kink){segs.push([a,kink]);segs.push([kink,b]);} else segs.push([a,b]);
+    segs.forEach(([u,v])=>{const pts=[along(u,hw),along(v,hw),along(v,-hw),along(u,-hw)];
+      boom+=`<polygon points="${poly(pts)}" fill="${i?'#d9822b':'#C05A00'}" stroke="#7a3a00" stroke-width="2"/>`;});
+  });
+  const tip=along(Lv);
+  boom+=`<circle cx="${along(0)[0]}" cy="${along(0)[1]}" r="${.9*s}" fill="#2f2b27" stroke="${STEEL}" stroke-width="2"/>`;
+  boom+=`<circle id="${p}head-sheave" cx="${tip[0].toFixed(1)}" cy="${tip[1].toFixed(1)}" r="${1.25*s}" fill="#2F2B27" stroke="${STEEL}" stroke-width="2.5"/>`;
+  let jib='';
+  if(o.jib==='stowed'){const a=along(5*lenScale,-1.9), b=along(29*lenScale,-1.9), a2=along(5*lenScale,-2.9), b2=along(29*lenScale,-2.9);
+    jib=`<g id="${p}jib"><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${COL.jib}" stroke-width="3"/><line x1="${a2[0]}" y1="${a2[1]}" x2="${b2[0]}" y2="${b2[1]}" stroke="${COL.jib}" stroke-width="3"/>`;
+    for(let k=0;k<8;k++){const u=along((5+k*3)*lenScale,-1.9), v=along((6.5+k*3)*lenScale,-2.9);jib+=`<line x1="${u[0].toFixed(1)}" y1="${u[1].toFixed(1)}" x2="${v[0].toFixed(1)}" y2="${v[1].toFixed(1)}" stroke="${COL.jib}" stroke-width="2"/>`;}
+    jib+=`</g>`;}
+  if(o.jib==='erected'&&!o.buckle){const ja=phi-15*D2R, jl=28, tx=Math.cos(phi)*Lv, ty=M.hf+Math.sin(phi)*Lv;
+    const P=(d,off)=>[X(tx+d*Math.cos(ja)-off*Math.sin(ja)),Y(ty+d*Math.sin(ja)+off*Math.cos(ja))];
+    jib=`<g id="${p}jib"><polygon points="${poly([P(0,.6),P(jl,.25),P(jl,-.25),P(0,-.6)])}" fill="none" stroke="${COL.jib}" stroke-width="3"/>`;
+    for(let k=0;k<9;k++){const u=P(k*3,.5),v=P(k*3+1.5,-.5);jib+=`<line x1="${u[0].toFixed(1)}" y1="${u[1].toFixed(1)}" x2="${v[0].toFixed(1)}" y2="${v[1].toFixed(1)}" stroke="${COL.jib}" stroke-width="2"/>`;}
+    jib+=`</g>`;}
+  body+=`<g id="${p}boom">${boom}</g>${jib}`;
+  // ---- wrap the machine in the tipping rotation
+  const fpx=X(f), tilt=(o.tilt||0)*o.dir;
+  let out=`<g id="${p}crane" transform="rotate(${tilt.toFixed(2)} ${fpx.toFixed(1)} ${o.gy})">${body}</g>`;
+  // rotated tip position (screen)
+  const rot=(x,y)=>{const a=tilt*D2R,dx=x-fpx,dy=y-o.gy;return [fpx+dx*Math.cos(a)-dy*Math.sin(a),o.gy+dx*Math.sin(a)+dy*Math.cos(a)];};
+  const tp=rot(tip[0],tip[1]);
+  if(o.noHang)return {svg:out,tip:tp,lx:tp[0],X,Y,fpx,phi,Lv};
+  // ---- hoist line, hook block, slings, load (hang plumb from the tip; drop to the ground on failure)
+  const liftFt=Math.max(0,(o.lift||0)-(o.loadDrop||0)), sway=(o.sway||0);
+  const loadTop=liftFt+4, hookY=loadTop+5, blkB=hookY+1.2, blkT=blkB+3;
+  const lx=o.slack?X(o.R1):tp[0]+sway*s;           // load hangs under the tip (or lies where it landed)
+  const bTop=Y(blkT), bBot=Y(blkB);
+  let hang='';
+  const ropeTo=o.slack?`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Q${((tp[0]+lx)/2+20).toFixed(1)} ${(Math.max(tp[1],bTop)+40).toFixed(1)} ${lx.toFixed(1)} ${bTop.toFixed(1)}`
+                     :`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} L${lx.toFixed(1)} ${bTop.toFixed(1)}`;
+  const nParts=3;
+  for(let k=0;k<nParts;k++){const dx=(k-1)*.45*s;
+    hang+=`<path d="${ropeTo.replace(/L([\d.]+) /,(m,x)=>'L'+(+x+dx).toFixed(1)+' ')}" stroke="#9aa7b1" stroke-width="2.2" fill="none"/>`;
+    hang+=`<path d="${ropeTo.replace(/L([\d.]+) /,(m,x)=>'L'+(+x+dx).toFixed(1)+' ')}" stroke="#d6dde2" stroke-width="1" fill="none" stroke-dasharray="5 5" stroke-dashoffset="${(A.flow*(k%2?1:-1)).toFixed(1)}"/>`;}
+  hang+=`<g id="${p}hook-block"><rect x="${(lx-1.4*s).toFixed(1)}" y="${bTop.toFixed(1)}" width="${2.8*s}" height="${3*s}" rx="${.5*s}" fill="#3A3631" stroke="${COL.hook}" stroke-width="2.5"/>
+    <circle cx="${lx.toFixed(1)}" cy="${(bTop+1.2*s).toFixed(1)}" r="${.8*s}" fill="none" stroke="${STEEL}" stroke-width="2"/>
+    <path d="M${lx.toFixed(1)} ${bBot.toFixed(1)} l0 ${(.5*s).toFixed(1)} c0 ${(.8*s).toFixed(1)} ${(.9*s).toFixed(1)} ${(.8*s).toFixed(1)} ${(.8*s).toFixed(1)} ${(.2*s).toFixed(1)}" stroke="${STEEL}" stroke-width="${Math.max(3,.35*s)}" fill="none"/></g>`;
+  const ly0=Y(loadTop), lyB=Y(liftFt), hk=Y(hookY);
+  hang+=`<g id="${p}slings"><line x1="${lx}" y1="${hk}" x2="${lx-3.6*s}" y2="${ly0}" stroke="${COL.rig}" stroke-width="3"/><line x1="${lx}" y1="${hk}" x2="${lx+3.6*s}" y2="${ly0}" stroke="${COL.rig}" stroke-width="3"/></g>`;
+  hang+=`<ellipse cx="${lx}" cy="${o.gy+3}" rx="${(4.5-Math.min(3,liftFt*.12))*s}" ry="4" fill="#000" opacity="${clamp(.45-liftFt*.02,.1,.45)}"/>`;
+  hang+=`<g id="${p}load"><rect x="${(lx-4*s).toFixed(1)}" y="${ly0.toFixed(1)}" width="${8*s}" height="${4*s}" rx="3" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
+    <rect x="${(lx-4*s).toFixed(1)}" y="${ly0.toFixed(1)}" width="${8*s}" height="${.5*s}" fill="#5d5750"/>
+    ${o.loadLabel?`<text x="${lx}" y="${(lyB-1.4*s).toFixed(1)}" text-anchor="middle" font-size="${clamp(1.45*s,11,22)}" font-weight="800" fill="${COL.W}">${o.loadLabel}</text>`:''}</g>`;
+  if(o.ball){const bt=rot(along(Lv+.9)[0],along(Lv+.9)[1]), bd=o.ballDrop||12, by=Math.min(tp[1]+bd*s,o.gy-1*s);
+    hang+=`<g id="${p}ball"><line x1="${bt[0].toFixed(1)}" y1="${bt[1].toFixed(1)}" x2="${(bt[0]+2*s+sway*s).toFixed(1)}" y2="${by.toFixed(1)}" stroke="#9aa7b1" stroke-width="2"/>
+      <circle cx="${(bt[0]+2*s+sway*s).toFixed(1)}" cy="${(by+.9*s).toFixed(1)}" r="${.9*s}" fill="${COL.ball}" stroke="#1F1D1A" stroke-width="2"/></g>`;}
+  out+=hang;
+  return {svg:out,tip:tp,lx,X,Y,fpx,phi,Lv,loadY:ly0,hookY:hk};
+}
+
+/* ---------- FAILURE MODES ---------- */
+function updateFail(c,ms){
+  if(!S.fail){if(F.on)F={on:false,t:0};return;}
+  if(!F.on){
+    if(c.failKind){const m=c.failCrane==='B'?c.B:c.A;
+      F={on:true,t:0,kind:c.failKind,crane:c.failCrane,lift:toFt(S.lift),pct:m.pct,gross:m.gross,wtip:m.wtip,cs:m.cs,R1:m.R1,
+         caption:c.failKind==='tip'?`${pct(m.pct)} of chart: the crane tips over the outrigger`:`${pct(m.pct)} of chart in the structural zone: the boom buckles`};}
+    return;
+  }
+  F.t+=ms;
+}
+// deterministic offsets for this frame (pure functions of F.t)
+function failAnim(o){                       // o: crane geometry {R1,tipH,f}
+  if(!F.on)return {tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
+  const t=F.t/1000;
+  const drop=Math.min(F.lift,.5*32.2*Math.max(0,t-.25)**2), land=F.lift>0?(t-.25-Math.sqrt(2*F.lift/32.2)):t-.25;
+  if(F.kind==='tip'){
+    const phiHit=Math.atan2(o.tipH,o.R1-o.f)/D2R, pmax=Math.min(phiHit,62), T1=1.9;
+    const tilt=t<T1?pmax*(t/T1)**2:pmax-Math.exp(-(t-T1)/.12)*1.6*Math.abs(Math.sin((t-T1)*22));
+    return {tilt:Math.max(0,tilt),buckle:0,drop,slack:true,land,crash:t-T1};
+  }
+  const T1=1.2, u=t<T1?(t/T1)**2:1-Math.exp(-(t-T1)/.1)*.05*Math.abs(Math.sin((t-T1)*25));
+  return {tilt:0,buckle:t<.15?0:clamp(u,0,1),drop,slack:t>.15,land,crash:t-T1};
+}
+function dust(x,y,span,u,seed){
+  if(u<0||u>1.8)return '';
+  let s=`<g id="fail-dust${seed}">`;
+  for(let i=0;i<22;i++){const r1=rnd(i,seed),r2=rnd(i+40,seed),r3=rnd(i+80,seed);
+    const x0=x+(r1-.5)*span, vx=(x0-x)/Math.max(1,span/2)*220+(r2-.5)*140, vy=-(50+r3*200), f=(1-Math.exp(-u/.45))*.45;
+    const px=x0+vx*f, py=y-4+vy*f+50*u*u, rr=5+u*(12+20*r2), op=.5*(1-u/1.8);
+    s+=`<circle cx="${px.toFixed(1)}" cy="${Math.min(py,y).toFixed(1)}" r="${rr.toFixed(1)}" fill="#8a7f72" opacity="${op.toFixed(3)}"/>`;}
+  return s+`</g>`;
+}
+function failCard(x0,y0,w){
+  const op=clamp(F.t/250,0,1), X=x0+18; let y=y0+34, b='';
+  const tip=F.kind==='tip';
+  b+=`<text x="${X}" y="${y}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${tip?'FAILURE · STABILITY':'FAILURE · BOOM STRENGTH'}${F.crane&&S.tandem&&S.mode==='plan'?' · CRANE '+F.crane:''}</text>`; y+=52;
+  b+=`<text id="fail-big" x="${X}" y="${y}" font-size="46" font-weight="800" fill="${TEXT}">${pct(F.pct)} of chart</text>`; y+=42;
+  const lines=tip?[`Gross ${wt(F.gross)}`,`Tipping load ${wt(F.wtip)} at ${len(F.R1)}`,'The load moment beat the crane\'s',' own weight about the outrigger.']
+                 :[`Gross ${wt(F.gross)} in the * (structural)`,'zone. The boom runs out of strength',`before the crane gets light: the`,'outriggers never warn you.'];
+  lines.forEach((l,i)=>{b+=`<text x="${X}" y="${y}" font-size="${i<2?22:19}" font-weight="${i<2?800:700}" fill="${i<2?TEXT:'#d9d3c7'}">${l}</text>`;y+=i<2?32:27;});
+  y+=14; b+=`<g id="fail-verdict">`;(tip?['THE CRANE TIPS OVER','THE OUTRIGGER']:['THE BOOM BUCKLES','AND THE LOAD DROPS']).forEach(l=>{b+=`<text x="${X}" y="${y}" font-size="30" font-weight="800" fill="${BAD}">${l}</text>`;y+=38;});b+=`</g>`;
+  b+=`<g id="fail-tag"><rect x="${X}" y="${y}" width="${w-36}" height="46" rx="8" fill="${BAD}"/><text x="${X+(w-36)/2}" y="${y+31}" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">NEVER DO THIS ON THE JOB</text></g>`;
+  y+=64;
+  return `<g id="fail-card" opacity="${op.toFixed(3)}"><rect id="fail-card-box" x="${x0}" y="${y0}" width="${w}" height="${y-y0}" rx="10" fill="#2a1717" stroke="${BAD}" stroke-width="3"/>${b}</g>`;
+}
+function failInfo(){return F.on?{on:true,kind:F.kind,crane:F.crane,t:F.t,caption:F.caption,pct:F.pct,landed:F.t>800}:{on:false};}
+
+/* ---------- LOAD CHART MODE ---------- */
+const CX=272, GY=820, RC=842, RW=448;
+const pxFor=Lft=>clamp(560/(Lft+8),5.6,8.5);       // px per ft: the crane fills the stage at every boom length          // crane origin, ground, px per ft; right column x and width
+function chartCard(c,y0,h,m){
+  const lk=m.lk, t=lk.t, cfg=t.outr==='ret'?'Outriggers retracted · 360°':t.area==='front'?'Outriggers fully extended · over the front':'Outriggers fully extended · 360° (over the side)';
+  let s=card('chart-card',RC,y0,RW,h,'EXAMPLE LOAD CHART · TRAINING ONLY',`${cfg} · ${wu()}`);
+  const x0=RC+12, cw=74, c0=70, top=y0+60, rh=Math.min(25,(h-140)/(t.radii.length+1));
+  s+=`<text x="${x0+4}" y="${top+rh*.7}" font-size="12" font-weight="700" fill="${MUTED}">R ${lu()} \\ L</text>`;
+  t.booms.forEach((b,j)=>{const x=x0+c0+j*cw, on=lk.bi===j;
+    s+=`<g id="chart-col-${j}">${on?`<rect id="chart-col" x="${x+1}" y="${top}" width="${cw-2}" height="${rh*(t.radii.length+1)}" fill="${COL.L}" opacity=".13"/>`:''}
+      <text x="${x+cw/2}" y="${top+rh*.72}" text-anchor="middle" font-size="15" font-weight="800" fill="${on?COL.L:TEXT}">${mlen(b)}</text></g>`;});
+  t.radii.forEach((r,i)=>{const y=top+rh*(i+1), on=lk.ri===i;
+    if(on)s+=`<rect id="chart-row" x="${x0}" y="${y+1}" width="${c0+cw*t.booms.length}" height="${rh-2}" fill="${COL.R}" opacity=".13"/>`;
+    s+=`<text x="${x0+c0-12}" y="${y+rh*.72}" text-anchor="end" font-size="15" font-weight="800" fill="${on?COL.R:TEXT}">${mlen(r)}</text>`;
+    t.booms.forEach((b,j)=>{const x=x0+c0+j*cw, v=t.cap[i][j], shd=t.sh[i][j];
+      if(v==null)return;
+      if(shd)s+=`<rect x="${x+3}" y="${y+2}" width="${cw-6}" height="${rh-4}" rx="3" fill="#5a5148" opacity=".7"/>`;
+      const hit=lk.bi===j&&lk.ri===i;
+      s+=`<text ${hit?'id="chart-val"':''} x="${x+cw-8}" y="${y+rh*.72}" text-anchor="end" font-size="${hit?16:14}" font-weight="${hit?900:600}" fill="${hit?TEXT:'#d9d3c7'}">${nf(v)}${shd?'*':''}</text>`;
+      if(hit)s+=`<rect id="chart-cell" x="${x+1}" y="${y}" width="${cw-2}" height="${rh}" rx="4" fill="none" stroke="${ACC}" stroke-width="3"/>`;
+    });});
+  const yb=top+rh*(t.radii.length+1)+20;
+  s+=`<rect x="${x0}" y="${yb-12}" width="22" height="14" rx="3" fill="#5a5148"/><text x="${x0+30}" y="${yb}" font-size="14" font-weight="700" fill="${TEXT}">* shaded: boom strength (structural) limits</text>
+      <text x="${x0}" y="${yb+20}" font-size="14" font-weight="700" fill="${TEXT}">Unshaded: stability, 85 % of the tipping load</text>
+      <text id="chart-rule" x="${x0}" y="${yb+40}" font-size="14" font-weight="700" fill="${MUTED}">Between values: use the smaller rating (next</text>
+      <text x="${x0}" y="${yb+57}" font-size="14" font-weight="700" fill="${MUTED}">longer boom, next greater radius). Gross capacity.</text>`;
+  return s+`</g>`;
+}
+function stabCard(c,y0,h,m){
+  let s=card('stab-card',RC,y0,RW,h,'WHERE THE CHART NUMBER COMES FROM');
+  const x0=RC+16, W=RW-32;
+  // stability bar: 0 … tipping × 1.2
+  const bar=(id,y,label,gross,limit,ratingMark,ratingLbl,limitLbl)=>{
+    const top=Math.max(gross,limit)*1.12||1, Xv=v=>x0+W*clamp(v/top,0,1);
+    const col=gross>limit?BAD:gross>ratingMark?WARN:OK;
+    let b=`<g id="${id}"><text x="${x0}" y="${y}" font-size="16" font-weight="800" fill="${TEXT}">${label}</text>
+      <rect x="${x0}" y="${y+10}" width="${W}" height="22" rx="4" fill="#2f2b27"/><rect x="${x0}" y="${y+10}" width="${(Xv(gross)-x0).toFixed(1)}" height="22" rx="4" fill="${col}" opacity=".85"/>`;
+    if(isFinite(limit)){b+=`<line x1="${Xv(limit)}" y1="${y+4}" x2="${Xv(limit)}" y2="${y+38}" stroke="${BAD}" stroke-width="3"/>
+      <text x="${Math.min(Xv(limit),x0+W-4)}" y="${y+56}" text-anchor="end" font-size="13" font-weight="700" fill="${BAD}">${limitLbl}</text>`;}
+    if(isFinite(ratingMark)){b+=`<line x1="${Xv(ratingMark)}" y1="${y+4}" x2="${Xv(ratingMark)}" y2="${y+38}" stroke="${COL.cap}" stroke-width="3" stroke-dasharray="5 3"/>
+      <text x="${Math.max(Xv(ratingMark)-4,x0+150)}" y="${y+56}" text-anchor="end" font-size="13" font-weight="700" fill="${COL.cap}">${ratingLbl}</text>`;}
+    return b+`</g>`;};
+  const y=y0+52;
+  if(m.wtip>0&&isFinite(m.wtip))s+=bar('stab-tip',y,`Stability: gross ${wt(m.gross)} vs tipping ${wt(m.wtip)}`,m.gross,m.wtip,.85*m.wtip,'85 %','tips');
+  else s+=`<g id="stab-tip"><text x="${x0}" y="${y}" font-size="16" font-weight="800" fill="${TEXT}">Stability: radius inside the outrigger.</text><text x="${x0}" y="${y+24}" font-size="15" font-weight="700" fill="${MUTED}">The crane cannot tip toward the load here.</text></g>`;
+  s+=bar('stab-struct',y+86,`Boom strength: rating ${wt(m.cs)}`,m.gross,m.brk,m.cs,'rating','buckles (example)');
+  const gov=m.lk.off?'Off the chart: no rating at all.':m.lk.shaded?'This cell is * : boom strength governs.':'This cell: stability (tipping) governs.';
+  const govCol=m.lk.off?BAD:m.lk.shaded?WARN:TEXT;   // status colours: yellow caution, red off the chart; orange is never a warning
+  s+=`<text id="stab-gov" x="${x0}" y="${y+172}" font-size="17" font-weight="800" fill="${govCol}">${gov}</text>`;
+  if(h>230)s+=`<text x="${x0}" y="${y+196}" font-size="14" font-weight="700" fill="${MUTED}">The 15 % between 85 % and tipping is not yours to use.</text>`;
+  return s+`</g>`;
+}
+function stackCard(c,m,x0,y0,w,h){
+  const P=m.parts, items=[['load','Load',P.load,COL.W],['hook','Hook block',P.hook,COL.hook],['rig','Slings, shackles',P.rig,COL.rig],['ball','Whip ball',P.ball,COL.ball],['jib',`Jib (${S.jib})`,P.jib,COL.jib]];
+  let s=card('stack-card',x0,y0,w,h,'GROSS LOAD','what the chart must hold');
+  const bx=x0+18, bw=62, base=y0+h-56, top=y0+80, cap=m.cap>0?m.cap:0, mx=Math.max(m.gross,cap)*1.05||1, sc=(base-top)/mx;
+  let y=base; const labs=[];
+  items.forEach(([k,n,v,col])=>{if(v<=0)return; const hh=Math.max(5,v*sc);
+    s+=`<rect id="stack-${k}" x="${bx}" y="${(y-hh).toFixed(1)}" width="${bw}" height="${hh.toFixed(1)}" fill="${col}" opacity=".9" stroke="#1F1D1A" stroke-width="1.5"/>`;
+    labs.push([y-hh/2,n,v,col]); y-=hh;});
+  // labels, pushed apart so they never touch
+  let last=1e9; labs.forEach(l=>{l[0]=Math.min(l[0],last-34);last=l[0];});
+  let first=top-10; for(let i=labs.length-1;i>=0;i--){labs[i][0]=Math.max(labs[i][0],first);first=labs[i][0]+34;}   // keep inside the card
+  labs.forEach(([ly,n,v,col])=>{s+=`<text x="${bx+bw+12}" y="${(ly-2).toFixed(1)}" font-size="14" font-weight="700" fill="${col}">${n}</text><text x="${bx+bw+12}" y="${(ly+15).toFixed(1)}" font-size="15" font-weight="800" fill="${col}">${wt(v)}</text>`;});
+  if(cap>0){const cy=base-cap*sc;
+    s+=`<g id="stack-cap"><line x1="${bx-8}" y1="${cy.toFixed(1)}" x2="${bx+bw+8}" y2="${cy.toFixed(1)}" stroke="${COL.cap}" stroke-width="3" stroke-dasharray="7 4"/>
+      <text x="${bx-6}" y="${(cy-6).toFixed(1)}" font-size="13" font-weight="800" fill="${COL.cap}">chart</text></g>`;}
+  const col=levelCol(c.level);
+  s+=`<g id="stack-gross"><text x="${x0+16}" y="${base+24}" font-size="17" font-weight="800" fill="${COL.gross}">${wt(m.gross)} gross</text>
+     <text x="${x0+16}" y="${base+46}" font-size="17" font-weight="800" fill="${col}">${m.lk.off?'off the chart':pct(m.pct)+' of '+wt(cap)}</text></g>`;
+  return s+`</g>`;
+}
+function geometryMarks(g,m,showFul){
+  // radius dimension, loaded radius extension, boom length label, angle arc, fulcrum and load-moment arm
+  let s='';
+  const {X,Y}=g, yd=GY+22;
+  s+=`<g id="radius-dim"><line x1="${X(0)}" y1="${yd}" x2="${X(m.R0ft)}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/>
+    <line x1="${X(0)}" y1="${yd-10}" x2="${X(0)}" y2="${yd+10}" stroke="${COL.R}" stroke-width="3"/><line x1="${X(m.R0ft)}" y1="${yd-10}" x2="${X(m.R0ft)}" y2="${yd+10}" stroke="${COL.R}" stroke-width="3"/>
+    <text x="${(X(0)+X(m.R0ft))/2}" y="${yd+25}" text-anchor="middle" font-size="18" font-weight="800" fill="${COL.R}">R = ${len(m.R0)}</text></g>`;
+  if(m.deflFt>.02)s+=`<g id="defl-dim"><line x1="${X(m.R0ft)}" y1="${yd}" x2="${X(m.R1ft)}" y2="${yd}" stroke="${COL.defl}" stroke-width="7"/>
+    <text x="${X(m.R1ft)+8}" y="${yd-12}" font-size="16" font-weight="800" fill="${COL.defl}">+${len(m.defl,2)} deflection</text></g>`;
+  // centre of rotation
+  s+=`<g id="cor"><line x1="${X(0)}" y1="${GY-4}" x2="${X(0)}" y2="${yd+10}" stroke="${MUTED}" stroke-width="2" stroke-dasharray="4 4"/></g>`;
+  // angle arc at the boom foot
+  const fx=X(0), fy=Y(M.hf), r=70, a=g.phi;
+  s+=`<g id="angle-arc"><path d="M${fx+r} ${fy} A${r} ${r} 0 0 0 ${(fx+r*Math.cos(a)).toFixed(1)} ${(fy-r*Math.sin(a)).toFixed(1)}" stroke="${COL.th}" stroke-width="3" fill="none"/>
+    <line x1="${fx}" y1="${fy}" x2="${fx+r+18}" y2="${fy}" stroke="${COL.th}" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="${fx+r+8}" y="${(fy-r*Math.sin(a/2)*.55).toFixed(1)}" font-size="18" font-weight="800" fill="${COL.th}">θ ${nf(m.th0,1)}°</text></g>`;
+  // boom length label along the boom
+  const mid=[(fx+g.tip[0])/2,(fy+g.tip[1])/2], ang=-a/D2R;
+  s+=`<g id="boom-label"><text transform="translate(${(mid[0]-Math.sin(a)*34).toFixed(1)} ${(mid[1]-Math.cos(a)*34).toFixed(1)}) rotate(${ang.toFixed(1)})" text-anchor="middle" font-size="19" font-weight="800" fill="${COL.L}">L = ${len(m.Lu,S.units==='imp'?0:2)}</text></g>`;
+  if(showFul&&isFinite(m.wtip)&&m.R1ft>m.f){
+    const fx2=X(m.f), y2=GY-6;
+    s+=`<g id="tip-fulcrum"><polygon points="${fx2},${GY-2} ${fx2-12},${GY+18} ${fx2+12},${GY+18}" fill="${BAD}"/>
+      <line x1="${fx2}" y1="${GY+68}" x2="${X(m.R1ft)}" y2="${GY+68}" stroke="${COL.mom}" stroke-width="3"/>
+      <line x1="${fx2}" y1="${GY+18}" x2="${fx2}" y2="${GY+76}" stroke="${COL.mom}" stroke-width="2" stroke-dasharray="3 3"/><line x1="${X(m.R1ft)}" y1="${GY+60}" x2="${X(m.R1ft)}" y2="${GY+76}" stroke="${COL.mom}" stroke-width="3"/>
+      <text x="${X(m.R1ft)+10}" y="${GY+74}" font-size="15" font-weight="800" fill="${COL.mom}">tipping arm R − f = ${len(m.R1-fromFt(m.f))}</text></g>`;
+  }
+  return s;
+}
+function drawChartMode(c){
+  const m=c.A, fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f});
+  const swayFt=A.sway;
+  const PX=pxFor(m.Lft);
+  const g=craneSVG({cx:CX,gy:GY,s:PX,dir:1,outr:S.outr,area:S.area,L:m.Lft,R1:m.R1ft,tipH:m.tipHft,R0:m.R0ft,ghost:m.deflFt>.02,
+    jib:S.jib,ball:S.ball,ballDrop:14,lift:toFt(S.lift),loadLabel:wt(S.load),tilt:fa.tilt,buckle:fa.buckle,loadDrop:fa.drop,slack:fa.slack,sway:swayFt});
+  let s=g.svg;
+  if(!F.on)s+=geometryMarks(g,m,true);
+  if(F.on){s+=dust(g.lx,GY,180,fa.land,1); if(fa.crash>=0)s+=dust(F.kind==='tip'?g.tip[0]:g.tip[0],GY,220,fa.crash,2);}
+  if(S.mode==='plan')s+=windStreaks(c);
+  const cards=F.on?failCard(RC,10,RW):S.mode==='plan'?checkCard(c)+critCard(c):chartCard(c,8,560,m)+stabCard(c,578,312,m);
+  const left=S.mode==='plan'||!F.on?stackCard(c,m,12,12,236,S.mode==='plan'?430:540):stackCard(c,m,12,12,236,540);
+  return {crane:s+left,cards};
+}
+
+/* ---------- LIFT PLAN MODE ---------- */
+function windStreaks(c){
+  const v=toFt(1)*S.wind*(S.units==='imp'?1:1/KMH*FT/FT); // display only
+  const mph=S.units==='imp'?S.wind:S.wind/KMH; let s='<g id="wind-streaks" opacity=".55">';
+  for(let i=0;i<14;i++){const y=60+rnd(i,3)*560, sp=40+mph*14, x=((A.windX*sp/40+rnd(i,4)*900)%900)-60, l=20+mph*2.4;
+    if(mph<.5)break; s+=`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x+l).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#bfd6e6" stroke-width="2" stroke-linecap="round"/>`;}
+  return s+'</g>';
+}
+function checkCard(c){
+  const P=c.plan, m=c.main, h=600; let s=card('check-card',RC,8,RW,h,'LIFT PLAN CHECKLIST (EXAMPLE)');
+  const ic=(k)=>k==='ok'?['✓',OK]:k==='warn'?['!',WARN]:k==='bad'?['✗',BAD]:['•',MUTED];
+  const rows=[];
+  if(!c.tandem){
+    rows.push(['ok',`Load ${wt(S.load)} (drawing, scale ticket, calc)`]);
+    rows.push(['ok',`Gross ${wt(m.gross)}: load + hook + rigging + deducts`]);
+    rows.push([m.lk.off?'bad':'ok',`Loaded radius ${len(m.R1)} · L ${len(m.Lu,S.units==='imp'?0:2)} · chart ${m.lk.off?'none':wt(m.cap)}`]);
+    rows.push([c.pct>1||m.lk.off?'bad':P.over75?'warn':'ok',`${m.lk.off?'Off the chart':pct(m.pct)+' of chart'}${P.over75&&!(c.pct>1)?' · over 75 %: lift calc (AB)':''}`]);
+    rows.push([P.crit90?'warn':'ok',`Over 90 % beyond half max radius (${mlen(m.maxRad/2)} ${lu()}): ${P.crit90?'CRITICAL':'no'}`]);
+  } else {
+    rows.push(['ok',`Load ${wt(S.load)}, CG ${len(c.a)} from pick A of ${len(S.span)}`]);
+    rows.push([c.A.pct>.75?'warn':'ok',`Crane A: ${wt(c.A.gross)} gross · ${c.A.lk.off?'off chart':pct(c.A.pct)}`]);
+    rows.push([c.B.pct>.75?'warn':'ok',`Crane B: ${wt(c.B.gross)} gross · ${c.B.lk.off?'off chart':pct(c.B.pct)}`]);
+    rows.push([P.critTandem?'warn':'ok',`Tandem, a crane over 75 %: ${P.critTandem?'CRITICAL':'no'}`]);
+    rows.push(['info','Lift directed by a supervisor not running a crane']);
+  }
+  rows.push([S.personnel?'warn':'ok',`People in a work platform: ${S.personnel?'CRITICAL':'no'}`]);
+  rows.push([S.power?'warn':'ok',`Over or between live power lines: ${S.power?'CRITICAL':'no'}`]);
+  rows.push([P.windOver?'bad':'ok',`Wind ${wind(S.wind)} · chart limit ${wind(P.windLimit)}${P.windOver?': STOP':''}`]);
+  rows.push(['info','Outriggers set, mats, ground checked']);
+  rows.push(['info','Exclusion zone set; nobody under the load']);
+  rows.push(['info','Signaller named; line of sight or radio']);
+  let y=58;
+  rows.forEach((r,i)=>{const [g,col]=ic(r[0]);
+    s+=`<g id="check-${i}"><text x="${RC+20}" y="${8+y}" font-size="19" font-weight="900" fill="${col}">${g}</text><text x="${RC+44}" y="${8+y}" font-size="15" font-weight="700" fill="${r[0]==='info'?MUTED:TEXT}">${r[1]}</text></g>`; y+=33;});
+  const vcol=P.verdict==='stop'?BAD:P.verdict==='critical'?WARN:OK;
+  const vtxt=P.verdict==='stop'?'DO NOT LIFT':P.verdict==='critical'?'CRITICAL LIFT':'ROUTINE LIFT';
+  const vsub=P.verdict==='stop'?(P.windOver&&!(c.pct>1||c.off)?'Wind is past the chart limit.':'Past the chart. Re-plan the lift.'):P.verdict==='critical'?'Written lift plan, signed; pre-lift meeting.':'Standard checks and the site lift plan.';
+  s+=`<g id="verdict"><rect x="${RC+14}" y="${8+h-92}" width="${RW-28}" height="78" rx="9" fill="${vcol}"/>
+    <text x="${RC+RW/2}" y="${8+h-58}" text-anchor="middle" font-size="27" font-weight="900" fill="${P.verdict==='stop'?'#fff':'#1F1D1A'}">${vtxt}</text>
+    <text x="${RC+RW/2}" y="${8+h-30}" text-anchor="middle" font-size="16" font-weight="800" fill="${P.verdict==='stop'?'#fff':'#1F1D1A'}">${vsub}</text></g>`;
+  return s+`</g>`;
+}
+function gauge(id,x,y,w,label,v,marks,col){
+  const top=Math.max(1.2,v*1.05), X=q=>x+w*clamp(q/top,0,1);
+  let s=`<g id="${id}"><text x="${x}" y="${y}" font-size="15" font-weight="800" fill="${TEXT}">${label}</text>
+    <rect x="${x}" y="${y+8}" width="${w}" height="20" rx="4" fill="#2f2b27"/><rect x="${x}" y="${y+8}" width="${(X(v)-x).toFixed(1)}" height="20" rx="4" fill="${col}"/>`;
+  marks.forEach(([q,t,cl])=>{s+=`<line x1="${X(q)}" y1="${y+2}" x2="${X(q)}" y2="${y+34}" stroke="${cl}" stroke-width="3"/><text x="${X(q)}" y="${y+50}" text-anchor="middle" font-size="12" font-weight="800" fill="${cl}">${t}</text>`;});
+  return s+`</g>`;
+}
+function critCard(c){
+  const P=c.plan, y0=618, h=272; let s=card('crit-card',RC,y0,RW,h,'CRITICAL-LIFT TRIGGERS (BC s.14.1 · AB s.68.1)');
+  const x=RC+18, w=RW-36;
+  const pc=v=>v>1?BAD:v>.9?WARN:v>.75?WARN:OK;
+  if(!c.tandem)s+=gauge('gauge-pct',x,y0+56,w,`% of chart: ${c.main.lk.off?'off chart':pct(c.main.pct)}`,isFinite(c.main.pct)?c.main.pct:1.25,[[.75,'75',MUTED],[.9,'90',WARN],[1,'100',BAD]],pc(c.main.pct));
+  else {s+=gauge('gauge-a',x,y0+50,w,`Crane A: ${pct(c.A.pct)} of its chart`,isFinite(c.A.pct)?c.A.pct:1.25,[[.75,'75',WARN],[1,'100',BAD]],pc(c.A.pct));
+        s+=gauge('gauge-b',x,y0+118,w,`Crane B: ${pct(c.B.pct)} of its chart`,isFinite(c.B.pct)?c.B.pct:1.25,[[.75,'75',WARN],[1,'100',BAD]],pc(c.B.pct));}
+  const wl=P.windLimit, wv=S.wind/wl;
+  s+=gauge('wind-gauge',x,y0+(c.tandem?186:130),w,`Wind ${wind(S.wind)} (example chart limit ${wind(wl)})`,wv,[[1,'limit',BAD]],P.windOver?BAD:wv>.8?WARN:OK);
+  if(!c.tandem)s+=`<text x="${x}" y="${y0+236}" font-size="13" font-weight="700" fill="${MUTED}">Your province, owner and site plan set the triggers.</text>`;
+  return s+`</g>`;
+}
+function drawPlanMode(c){
+  if(!c.tandem)return drawChartMode(c);
+  // tandem: crane A faces right, crane B faces left; each pick under its own hook
+  const a=c.A,b=c.B, spanFt=toFt(S.span), tot=a.R1ft+spanFt+b.R1ft;
+  const s0=Math.min(7.5,790/(tot+26)), cxA=14+12*s0, cxB=cxA+tot*s0;
+  const fa=F.on&&F.crane==='A'?failAnim({R1:a.R1ft,tipH:a.tipHft,f:a.f}):{tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
+  const fb=F.on&&F.crane==='B'?failAnim({R1:b.R1ft,tipH:b.tipHft,f:b.f}):{tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
+  const drop=Math.max(fa.drop,fb.drop), liftFt=toFt(S.lift);
+  const gA=craneSVG({cx:cxA,gy:GY,s:s0,dir:1,outr:S.outr,area:S.area,L:a.Lft,R1:a.R1ft,tipH:a.tipHft,jib:'none',ball:false,noHang:true,tilt:fa.tilt,buckle:fa.buckle,p:'a-'});
+  const gB=craneSVG({cx:cxB,gy:GY,s:s0,dir:-1,outr:S.outr,area:S.area,L:b.Lft,R1:b.R1ft,tipH:b.tipHft,jib:'none',ball:false,noHang:true,tilt:fb.tilt,buckle:fb.buckle,p:'b-'});
+  // strip the default hanging parts (lift -99 puts them underground) by clipping to above ground
+  let s=gA.svg+gB.svg;
+  // the beam
+  const yB=liftFt-drop, xa=gA.X(a.R1ft), xb=gB.X(b.R1ft), beamTop=GY-(yB+3)*s0, beamH=3*s0;
+  const hookA=gA.tip, hookB=gB.tip, blk=y=>y;
+  const hy=beamTop-6*s0;
+  [[hookA,xa,'a'],[hookB,xb,'b']].forEach(([t,x,k])=>{
+    s+=`<line x1="${t[0].toFixed(1)}" y1="${t[1].toFixed(1)}" x2="${x.toFixed(1)}" y2="${(hy-3*s0).toFixed(1)}" stroke="#9aa7b1" stroke-width="3"/>
+      <g id="${k}-hook-block"><rect x="${(x-1.3*s0).toFixed(1)}" y="${(hy-3*s0).toFixed(1)}" width="${2.6*s0}" height="${3*s0}" rx="3" fill="#3A3631" stroke="${COL.hook}" stroke-width="2"/></g>
+      <line x1="${x.toFixed(1)}" y1="${hy.toFixed(1)}" x2="${x.toFixed(1)}" y2="${beamTop.toFixed(1)}" stroke="${COL.rig}" stroke-width="3"/>`;});
+  s+=`<g id="tandem-beam"><rect x="${(xa-1.5*s0).toFixed(1)}" y="${beamTop.toFixed(1)}" width="${(xb-xa+3*s0).toFixed(1)}" height="${beamH.toFixed(1)}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
+    <text x="${(xa+(xb-xa)*.75).toFixed(1)}" y="${(beamTop+beamH*.72).toFixed(1)}" text-anchor="middle" font-size="${clamp(beamH*.7,11,18)}" font-weight="800" fill="${COL.W}">${wt(S.load)}</text></g>`;
+  // CG marker and the two shares (visual maths: R_A = W × b ÷ span)
+  const xcg=xa+(xb-xa)*(c.a/S.span||0);
+  s+=`<g id="cg-mark"><circle cx="${xcg.toFixed(1)}" cy="${(beamTop+beamH/2).toFixed(1)}" r="10" fill="#fff" stroke="#1F1D1A" stroke-width="2"/><path d="M${xcg} ${beamTop+beamH/2-10} A10 10 0 0 1 ${xcg+10} ${beamTop+beamH/2} L${xcg} ${beamTop+beamH/2} Z M${xcg} ${beamTop+beamH/2+10} A10 10 0 0 1 ${xcg-10} ${beamTop+beamH/2} L${xcg} ${beamTop+beamH/2} Z" fill="#1F1D1A"/>
+    <text x="${xcg.toFixed(1)}" y="${(beamTop+beamH+24).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="800" fill="${TEXT}">CG</text></g>`;
+  const yd=GY+28;
+  s+=`<g id="span-dim"><line x1="${xa}" y1="${yd}" x2="${xcg}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/><line x1="${xcg}" y1="${yd}" x2="${xb}" y2="${yd}" stroke="${COL.th}" stroke-width="3"/>
+    <text x="${(xa+xcg)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">a ${len(c.a)}</text><text x="${(xcg+xb)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.th}">b ${len(c.b)}</text></g>`;
+  const al=v=>20+120*clamp(v/Math.max(S.load,1),0,1);
+  if(!F.on){s+=arrow('share-a-arrow',xa,beamTop-8*s0-al(c.shareA)-6,xa,beamTop-8*s0-6,'#fff',6)+pill('share-a',xa,beamTop-8*s0-al(c.shareA)-24,`A ${wt(c.shareA)}`,COL.W,16);
+    s+=arrow('share-b-arrow',xb,beamTop-8*s0-al(c.shareB)-6,xb,beamTop-8*s0-6,'#fff',6)+pill('share-b',xb,beamTop-8*s0-al(c.shareB)-24,`B ${wt(c.shareB)}`,COL.W,16);}
+  if(F.on){const gx=F.crane==='A'?gA.tip[0]:gB.tip[0]; s+=dust((xa+xb)/2,GY,200,Math.max(fa.land,fb.land),1); if(Math.max(fa.crash,fb.crash)>=0)s+=dust(gx,GY,200,Math.max(fa.crash,fb.crash),2);}
+  s+=`<text x="${cxA}" y="${GY+66}" text-anchor="middle" font-size="18" font-weight="800" fill="${TEXT}">CRANE A</text><text x="${cxB}" y="${GY+66}" text-anchor="middle" font-size="18" font-weight="800" fill="${TEXT}">CRANE B</text>`;
+  s+=windStreaks(c);
+  const cards=F.on?failCard(RC,10,RW):checkCard(c)+critCard(c);
+  return {crane:s,cards};
+}
+
+/* ---------- SIGNALS MODE ---------- */
+// two-link arm by inverse kinematics: shoulder S, wrist target W, bend side +1/-1
+function ik(sx,sy,wx,wy,l1,l2,side){
+  let dx=wx-sx,dy=wy-sy,d=Math.hypot(dx,dy); const dm=l1+l2-.5; if(d>dm){wx=sx+dx/d*dm;wy=sy+dy/d*dm;dx=wx-sx;dy=wy-sy;d=dm;}
+  const a=Math.atan2(dy,dx), cb=clamp((l1*l1+d*d-l2*l2)/(2*l1*d),-1,1), b=Math.acos(cb);
+  const ea=a+side*b; return {ex:sx+l1*Math.cos(ea),ey:sy+l1*Math.sin(ea),wx,wy};
+}
+function hand(x,y,dir,kind,id,t){
+  // dir: forearm direction (rad). kind: fist | point | thumbUp | thumbDown | palm | flex
+  // k = hand scale: the 1300-wide scene shrinks to about 0.3 on a 390 px phone, so hands and fingers are drawn larger there
+  const k=matchMedia('(max-width:1000px)').matches?2.2:1.5;
+  const hx=x+Math.cos(dir)*8*k, hy=y+Math.sin(dir)*8*k, G='#d8b07a', E='#7a5a2e';
+  let s=`<g id="${id}">`;
+  if(kind==='palm'){s+=`<ellipse cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" rx="${22*k}" ry="${8*k}" fill="${G}" stroke="${E}" stroke-width="${2*k}"/>`;return s+'</g>';}
+  s+=`<circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="${13*k}" fill="${G}" stroke="${E}" stroke-width="${2*k}"/>`;
+  const dig=(ang,l,w)=>{l*=k;w*=k;const x2=(hx+Math.cos(ang)*l).toFixed(1), y2=(hy+Math.sin(ang)*l).toFixed(1);
+    return `<line x1="${hx.toFixed(1)}" y1="${hy.toFixed(1)}" x2="${x2}" y2="${y2}" stroke="${E}" stroke-width="${w+2*k}" stroke-linecap="round"/><line x1="${hx.toFixed(1)}" y1="${hy.toFixed(1)}" x2="${x2}" y2="${y2}" stroke="${G}" stroke-width="${w}" stroke-linecap="round"/>`;};
+  if(kind==='point')s+=dig(dir,30,8);
+  if(kind==='pointUp')s+=dig(-Math.PI/2,30,8);
+  if(kind==='pointDown')s+=dig(Math.PI/2,30,8);
+  if(kind==='thumbUp'||kind==='flexUp')s+=dig(-Math.PI/2,26,9);
+  if(kind==='thumbDown'||kind==='flexDown')s+=dig(Math.PI/2,26,9);
+  if(kind==='thumbOut')s+=dig(dir>Math.PI/2||dir<-Math.PI/2?Math.PI:0,24,9);
+  if(kind==='thumbIn')s+=dig(dir>Math.PI/2||dir<-Math.PI/2?0:Math.PI,24,9);
+  if(kind==='flexUp'||kind==='flexDown'){const o=(Math.sin(t*9)+1)/2; s+=dig(dir+(kind==='flexUp'?.3:-.3),10+16*o,7);}
+  return s+'</g>';
+}
+function signaller(cx,gy,sig,t){
+  // front view; viewer-left arm (signaller's right hand) is the signalling arm
+  const sh=gy-300, hip=gy-160, sw=50, l1=82, l2=74;
+  const SL=[cx-sw,sh], SR=[cx+sw,sh], head=[cx,sh-48];
+  const w=t*2*Math.PI;
+  let L={x:cx-sw-14,y:sh+150,side:1,k:'fist'}, R={x:cx+sw+14,y:sh+150,side:-1,k:'fist'}; // arms down
+  const circ=(x,y)=>[x+13*Math.cos(w*1.1),y+5*Math.sin(w*1.1)];
+  switch(sig){
+    case 'hoist':{const [x,y]=circ(cx-sw-80,sh-56);L={x,y,e:[-80,18],k:'pointUp'};break;}
+    case 'slow':{const [x,y]=circ(cx-sw-44,sh-74);L={x,y,e:[-50,30],k:'pointUp'};R={x:cx-sw-40,y:sh-14,side:-1,k:'palm',still:true};break;}
+    case 'lower':{const [x,y]=circ(cx-sw-60,sh+138);L={x,y,side:1,k:'pointDown'};break;}
+    case 'main':{const tap=Math.abs(Math.sin(w*1.4));L={x:head[0]-4,y:head[1]-36-tap*18,side:-1,k:'fist'};break;}
+    case 'whip':{const tap=Math.abs(Math.sin(w*1.4));R={x:cx-6,y:sh+70,side:-1,k:'fist'};L={x:cx+sw-4-tap*8,y:sh+66-tap*14,side:-1,k:'fist'};break;}
+    case 'boomUp':L={x:cx-sw-154,y:sh+4,side:1,k:'thumbUp'};break;
+    case 'boomDown':L={x:cx-sw-154,y:sh+4,side:1,k:'thumbDown'};break;
+    case 'boomUpLowerLoad':L={x:cx-sw-154,y:sh+4,side:1,k:'flexUp'};break;
+    case 'boomDownRaiseLoad':L={x:cx-sw-154,y:sh+4,side:1,k:'flexDown'};break;
+    case 'swingL':L={x:cx-sw-154,y:sh+2,side:1,k:'point'};break;
+    case 'swingR':R={x:cx+sw+154,y:sh+2,side:-1,k:'point'};break;
+    // arm(s) straight out to the side at shoulder height (upper arm level, e = elbow direction), swung back and forth
+    case 'stop':{const u=Math.sin(w*1.3);L={x:cx-sw-120-34*u,y:sh+4+10*u,e:[-1,.02],k:'palm'};break;}
+    case 'estop':{const u=Math.sin(w*1.3);L={x:cx-sw-120-34*u,y:sh+4+10*u,e:[-1,.02],k:'palm'};R={x:cx+sw+120+34*u,y:sh+4+10*u,e:[1,.02],k:'palm'};break;}
+    case 'dog':L={x:cx-8,y:hip+4,side:1,k:'fist'};R={x:cx+8,y:hip+4,side:-1,k:'fist'};break;
+    case 'extend':L={x:cx-34,y:sh+92,side:1,k:'thumbOut'};R={x:cx+34,y:sh+92,side:-1,k:'thumbOut'};break;
+    case 'retract':L={x:cx-34,y:sh+92,side:1,k:'thumbIn'};R={x:cx+34,y:sh+92,side:-1,k:'thumbIn'};break;
+  }
+  const VEST='#ff6a13', SLEEVE='#3d5a80';   // Ontario O. Reg. 213/91 s.106(1.1): fluorescent blaze / international orange, yellow retro-reflective stripes
+  let s=`<g id="signaller">`;
+  // legs and boots
+  s+=`<line x1="${cx-20}" y1="${hip}" x2="${cx-30}" y2="${gy-8}" stroke="#2f3e52" stroke-width="30" stroke-linecap="round"/><line x1="${cx+20}" y1="${hip}" x2="${cx+30}" y2="${gy-8}" stroke="#2f3e52" stroke-width="30" stroke-linecap="round"/>
+    <rect x="${cx-56}" y="${gy-16}" width="40" height="16" rx="6" fill="#3a2a1a"/><rect x="${cx+16}" y="${gy-16}" width="40" height="16" rx="6" fill="#3a2a1a"/>`;
+  // torso with hi-vis vest
+  s+=`<path d="M${cx-sw-6} ${sh-6} L${cx+sw+6} ${sh-6} L${cx+42} ${hip+6} L${cx-42} ${hip+6} Z" fill="${SLEEVE}"/>
+    <path d="M${cx-sw} ${sh} L${cx-14} ${sh} L${cx-10} ${hip+6} L${cx-40} ${hip+6} Z" fill="${VEST}"/><path d="M${cx+sw} ${sh} L${cx+14} ${sh} L${cx+10} ${hip+6} L${cx+40} ${hip+6} Z" fill="${VEST}"/>
+    <rect x="${cx-46}" y="${sh+70}" width="34" height="9" fill="#f2f26b"/><rect x="${cx+12}" y="${sh+70}" width="34" height="9" fill="#f2f26b"/><rect x="${cx-44}" y="${sh+108}" width="32" height="9" fill="#f2f26b"/><rect x="${cx+12}" y="${sh+108}" width="32" height="9" fill="#f2f26b"/>`;
+  // head + hard hat
+  s+=`<rect x="${cx-9}" y="${sh-24}" width="18" height="20" fill="#c99a6b"/><circle cx="${head[0]}" cy="${head[1]}" r="30" fill="#d9a877"/>
+    <circle cx="${cx-10}" cy="${head[1]-2}" r="3" fill="#2a1f14"/><circle cx="${cx+10}" cy="${head[1]-2}" r="3" fill="#2a1f14"/>
+    <path d="M${cx-36} ${head[1]-14} Q${cx} ${head[1]-62} ${cx+36} ${head[1]-14} Z" fill="#f5f5f4"/><rect x="${cx-42}" y="${head[1]-16}" width="84" height="7" rx="3" fill="#f5f5f4"/>`;
+  const arm=(Sh,P,id)=>{let k;
+    if(P.e){const el=Math.hypot(P.e[0],P.e[1]), ex=Sh[0]+P.e[0]/el*l1, ey=Sh[1]+P.e[1]/el*l1, d=Math.hypot(P.x-ex,P.y-ey)||1;
+      k={ex,ey,wx:ex+(P.x-ex)/d*l2,wy:ey+(P.y-ey)/d*l2};}
+    else k=ik(Sh[0],Sh[1],P.x,P.y,l1,l2,P.side);
+    const dir=Math.atan2(k.wy-k.ey,k.wx-k.ex);
+    return `<g id="${id}"><line x1="${Sh[0]}" y1="${Sh[1]}" x2="${k.ex.toFixed(1)}" y2="${k.ey.toFixed(1)}" stroke="${SLEEVE}" stroke-width="24" stroke-linecap="round"/>
+      <line x1="${k.ex.toFixed(1)}" y1="${k.ey.toFixed(1)}" x2="${k.wx.toFixed(1)}" y2="${k.wy.toFixed(1)}" stroke="${SLEEVE}" stroke-width="20" stroke-linecap="round"/>
+      <path d="M${Sh[0]-8} ${Sh[1]-8} L${(k.ex*.5+Sh[0]*.5).toFixed(1)} ${(k.ey*.5+Sh[1]*.5).toFixed(1)}" stroke="${VEST}" stroke-width="10" stroke-linecap="round"/>
+      ${hand(k.wx,k.wy,dir,P.k,id==='sig-arm'?'sig-hand':'sig-hand2',t)}</g>`;};
+  // draw the non-signalling arm first unless it is the "still" hand in front
+  if(R.still)s+=arm(SL,L,'sig-arm')+arm(SR,R,'sig-arm2'); else s+=arm(SR,R,'sig-arm2')+arm(SL,L,'sig-arm');
+  return s+`</g>`;
+}
+function drawSignalsMode(c){
+  const m=c.A, sCx=700, s0=5.4, sig=S.signal;
+  const fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f});
+  const g=craneSVG({cx:sCx,gy:GY,s:s0,dir:1,outr:S.outr,area:'side',L:m.Lft,R1:m.R1ft,tipH:m.tipHft,jib:S.jib,ball:S.ball,ballDrop:A.ballDrop,lift:toFt(S.lift),loadLabel:wt(S.load),
+    tilt:fa.tilt,buckle:fa.buckle,loadDrop:fa.drop,slack:fa.slack});
+  let s=g.svg;
+  // line of sight from the signaller to the operator cab
+  const SX=300;   // signaller centre: far enough from the left edge that an arm straight out (plus the large hands) stays on screen
+  const cab=[g.X(2),g.Y(12.6)], eye=[SX,GY-348];
+  s+=`<line id="sight-line" x1="${eye[0]}" y1="${eye[1]}" x2="${cab[0]}" y2="${cab[1]}" stroke="${COL.R}" stroke-width="2.5" stroke-dasharray="10 8" stroke-dashoffset="${(-A.flow).toFixed(1)}" opacity=".8"/>
+    <text x="${(eye[0]+cab[0])/2}" y="${(eye[1]+cab[1])/2-12}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">line of sight</text>
+    <text x="${cab[0]}" y="${cab[1]-48}" text-anchor="middle" font-size="15" font-weight="800" fill="${MUTED}">OPERATOR</text>`;
+  // motion arrows on the crane (what the operator is doing)
+  const mv=[];
+  if(Math.abs(A.vHook)>.05)mv.push(arrow('move-hook',g.lx+56,g.hookY,g.lx+56,g.hookY-Math.sign(A.vHook)*60,ACC,6));
+  if(Math.abs(A.vAng)>.05){const r=100,a0=g.phi,a1=g.phi+Math.sign(A.vAng)*.25,fx=g.X(0),fy=g.Y(M.hf);
+    mv.push(`<g id="move-boom"><path d="M${(fx+r*Math.cos(a0)).toFixed(1)} ${(fy-r*Math.sin(a0)).toFixed(1)} A${r} ${r} 0 0 ${A.vAng>0?0:1} ${(fx+r*Math.cos(a1)).toFixed(1)} ${(fy-r*Math.sin(a1)).toFixed(1)}" stroke="${ACC}" stroke-width="6" fill="none"/></g>`);}
+  if(Math.abs(A.vTel)>.05){const t=g.tip;mv.push(arrow('move-tele',t[0]-Math.cos(g.phi)*40*Math.sign(A.vTel),t[1]+Math.sin(g.phi)*40*Math.sign(A.vTel),t[0]+Math.cos(g.phi)*30*Math.sign(A.vTel),t[1]-Math.sin(g.phi)*30*Math.sign(A.vTel),ACC,6));}
+  s+=mv.join('');
+  if(A.dogged){s+=`<g id="dog-locks">${[[g.X(0),g.Y(M.hf)],[g.tip[0],g.tip[1]],[g.X(-2),g.Y(7)]].map(([x,y])=>`<g transform="translate(${x.toFixed(1)} ${(y-34).toFixed(1)})"><rect x="-14" y="0" width="28" height="22" rx="4" fill="${OK}"/><path d="M-8 0 v-8 a8 8 0 0 1 16 0 v8" stroke="${OK}" stroke-width="4" fill="none"/></g>`).join('')}</g>`;}
+  // plan view inset: swing
+  const px=1150,py=170,pr=112, sl=-S.slew*D2R;
+  s+=`<g id="plan-view"><circle cx="${px}" cy="${py}" r="${pr+16}" fill="#26231F" stroke="#45403A" stroke-width="2"/>
+    <text x="${px}" y="${py-pr-24}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}" letter-spacing="1">PLAN VIEW (FROM ABOVE)</text>
+    <rect x="${px-16}" y="${py-50}" width="32" height="100" rx="4" fill="#3A3631" stroke="#5a534b"/>
+    <g transform="rotate(${(S.slew).toFixed(2)} ${px} ${py})"><rect x="${px-26}" y="${py-18}" width="40" height="36" rx="5" fill="#C05A00"/>
+    <line x1="${px}" y1="${py}" x2="${px+Math.min(pr-6,m.R1ft*1.1)}" y2="${py}" stroke="#d9822b" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="${px+Math.min(pr-6,m.R1ft*1.1)}" cy="${py}" r="9" fill="${COL.W}"/></g>
+    <circle cx="${px}" cy="${py+pr+4}" r="7" fill="#ff6a13"/><text x="${px+12}" y="${py+pr+9}" font-size="12" font-weight="700" fill="${MUTED}">signaller</text>
+    ${Math.abs(A.vSlew)>.05?`<path id="move-swing" d="M${px+70*Math.cos(sl)} ${py+70*Math.sin(sl)} A70 70 0 0 ${A.vSlew>0?0:1} ${px+70*Math.cos(sl-Math.sign(A.vSlew)*.5)} ${py+70*Math.sin(sl-Math.sign(A.vSlew)*.5)}" stroke="${ACC}" stroke-width="6" fill="none"/>`:''}</g>`;
+  // signal card
+  const d=SIG[sig]||SIG.none, hide=S.quiz&&sig!=='none';
+  const wrap=(t,n)=>{const w=t.split(' '),o=[];let l='';w.forEach(x=>{if((l+' '+x).trim().length>n){o.push(l.trim());l=x;}else l+=' '+x;});o.push(l.trim());return o;};
+  let cs=card('sig-card',16,14,560,300,hide?'QUIZ · WHAT SIGNAL IS THIS?':'HAND SIGNAL');
+  cs+=`<text id="sig-name" x="34" y="${14+82}" font-size="38" font-weight="900" fill="${hide?ACC:TEXT}">${hide?'?':d.n}</text>`;
+  (hide?['Watch the hands. Name the signal,','then see what the crane does.']:wrap(d.d,46)).forEach((l,i)=>cs+=`<text x="34" y="${14+122+i*28}" font-size="21" font-weight="700" fill="#d9d3c7">${l}</text>`);
+  wrap((hide?'Crane: ':'Crane: ')+(hide?'watch it respond.':d.r),46).forEach((l,i)=>cs+=`<text id="${i?'':'sig-resp'}" x="34" y="${14+222+i*27}" font-size="20" font-weight="800" fill="${ACC}">${l}</text>`);
+  cs+='</g>';
+  // source line: the drawn forms are OSHA's; Canadian charts (IHSA, WorkSafeBC, CCOHS) show stop / emergency stop differently
+  cs+=`<g id="sig-src"><text x="34" y="342" font-size="16" font-weight="700" fill="${MUTED}">Signals per OSHA 1926 Subpart CC App. A. Canadian charts differ</text>
+    <text x="34" y="364" font-size="16" font-weight="700" fill="${MUTED}">for some signals (STOP, EMERGENCY STOP): use your site's chart</text>
+    <text x="34" y="386" font-size="16" font-weight="700" fill="${MUTED}">and agree on it with the operator before the lift.</text></g>`;
+  if(F.on){s+=dust(g.lx,GY,180,fa.land,1); if(fa.crash>=0)s+=dust(g.tip[0],GY,220,fa.crash,2); cs=failCard(16,14,560);}
+  s+=cs+signaller(SX,GY+8,sig,A.sigT/1000);
+  s+=`<text x="${SX}" y="${GY+48}" text-anchor="middle" font-size="14" font-weight="700" fill="${MUTED}">One signaller at a time · anyone can call STOP</text>`;
+  return {crane:s,cards:''};
+}
+
+/* ---------- draw ---------- */
+function draw(c){
+  let s='';
+  for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
+  for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
+  s+=`<rect x="0" y="${GY}" width="1300" height="80" fill="#191714"/><line x1="0" y1="${GY}" x2="1300" y2="${GY}" stroke="#45403A" stroke-width="3"/>`;
+  const r=S.mode==='signals'?drawSignalsMode(c):S.mode==='plan'?drawPlanMode(c):drawChartMode(c);
+  let shake='';
+  if(F.on){const t=F.t/1000, k=F.kind==='tip'?1.9:1.2; if(t>k&&t<k+.6){const a=Math.exp(-(t-k)/.15)*6;shake=`transform="translate(${(a*Math.sin(t*90)).toFixed(2)} ${(a*Math.cos(t*70)).toFixed(2)})"`;}}
+  s+=`<g id="scene" ${shake}>${r.crane}</g>`;
+  const phone=matchMedia('(max-width:1000px)').matches;
+  $('app').classList.toggle('sigmode',S.mode==='signals');
+  if(S.mode==='signals'){$('svg').setAttribute('viewBox','0 0 1300 900');$('svg').innerHTML=s;$('svg2').innerHTML='';return;}
+  $('svg').setAttribute('viewBox',phone?'0 0 836 900':'0 0 1300 900');
+  $('svg').innerHTML=phone?s:s+r.cards; $('svg2').innerHTML=phone?r.cards:'';
+}
+
+function formula(c){
+  if(S.mode==='signals'){const d=SIG[S.signal]||SIG.none, hide=S.quiz&&S.signal!=='none';
+    return [hide?'What signal is this? Watch the hands.':`${sp(ACC,d.n)} · ${d.r}`,`One signaller at a time · obey a ${sp(BAD,'STOP')} from anyone · radio without line of sight`];}
+  if(S.mode==='plan'&&c.tandem){
+    return [`${sp(COL.W,'A')} = W × ${sp(COL.th,'b')} ÷ span = ${nf(Math.round(S.load))} × ${sp(COL.th,mlen(+c.b.toFixed(2)))} ÷ ${mlen(S.span)} = ${sp(COL.W,wt(c.shareA))}   ·   ${sp(COL.W,'B')} = W × ${sp(COL.R,'a')} ÷ span = ${sp(COL.W,wt(c.shareB))}`,
+      `Crane A ${wt(c.A.gross)} ÷ ${c.A.lk.off?'—':wt(c.A.cap)} = ${pct(c.A.pct)}   ·   Crane B ${wt(c.B.gross)} ÷ ${c.B.lk.off?'—':wt(c.B.cap)} = ${pct(c.B.pct)}`];}
+  const m=c.A, P=m.parts, d=S.units==='imp'?1:2;
+  const row=m.lk.ri!=null?mlen(m.lk.t.radii[m.lk.ri])+' '+lu():'none', col=m.lk.bi!=null?mlen(m.lk.t.booms[m.lk.bi])+' '+lu():'none';
+  const f1=`${sp(COL.R,'R')} = ${sp(COL.L,'L')} × cos ${sp(COL.th,'θ')} = ${sp(COL.L,mlen(+m.Lu.toFixed(2)))} × cos ${sp(COL.th,nf(m.th0,1)+'°')} = ${sp(COL.R,len(m.R0))}`+
+    (m.deflFt>.005?` + ${sp(COL.defl,len(m.defl,2))} = ${sp(COL.R,len(m.R1))} loaded`:'')+`  →  row ${sp(COL.R,row)}, column ${sp(COL.L,col)}`;
+  const terms=[[P.load,COL.W],[P.hook,COL.hook],[P.rig,COL.rig],[P.ball,COL.ball],[P.jib,COL.jib]].filter(t=>t[0]>0).map(([v,cl])=>sp(cl,nf(Math.round(v)))).join(' + ');
+  const f2=`Gross = ${terms} = ${sp(COL.gross,wt(m.gross))}   ·   ${m.lk.off?sp(BAD,'off the chart: no capacity'):`${nf(Math.round(m.gross))} ÷ ${sp(COL.cap,nf(m.cap))} = ${sp(levelCol(c.level),pct(m.pct))} of chart`}`;
+  return [f1,f2];
+}
+
+/* ---------- panel ---------- */
+const RANGES={imp:{boom:[32,96,.5],load:[0,60000,100],hook:[0,1500,10],rigging:[0,1000,10],span:[10,80,1],wind:[0,40,1]},
+              met:{boom:[9.75,29.26,.05],load:[0,27000,50],hook:[0,700,5],rigging:[0,450,5],span:[3,24,.5],wind:[0,64,1]}};
+function panel(c){
+  const set=(id,v)=>{$(id).textContent=v};
+  const m=c.main, sig=S.mode==='signals', plan=S.mode==='plan';
+  $('w-setup').classList.toggle('hide',sig); $('w-load').classList.toggle('hide',sig);
+  $('w-plan').classList.toggle('hide',!plan); $('w-signals').classList.toggle('hide',!sig); $('w-tandem').classList.toggle('hide',!S.tandem);
+  set('ro-gross',wt(c.tandem?c.A.gross+c.B.gross:m.gross)); $('ro-gross-lbl').textContent=c.tandem?'Gross, both cranes':'Gross load';
+  set('ro-pct',m.lk.off?'off chart':pct(m.pct)); $('ro-pct-lbl').textContent=c.tandem?'% of chart (worst crane)':'% of chart';
+  $('ro-pct').style.color=levelCol(c.level);
+  set('ro-cap',m.lk.off?'—':wt(m.cap)); set('ro-rad',len(m.R1)); set('ro-ang',nf(m.th0,1)+'°'); set('ro-defl',len(m.defl,2));
+  set('ro-cell',m.lk.ri!=null&&m.lk.bi!=null?`${mlen(m.lk.t.radii[m.lk.ri])} · ${mlen(m.lk.t.booms[m.lk.bi])} ${lu()}`:'off chart');
+  set('ro-tip',m.wtip>0&&isFinite(m.wtip)?wt(m.wtip):m.wtip<=0?'tips empty':'n/a'); set('ro-lift',len(S.lift));
+  const st=$('status');
+  let txt,col;
+  if(F.on){col=BAD;txt=(F.kind==='tip'?'CRANE TIPPED':'BOOM BUCKLED')+': NEVER DO THIS ON THE JOB';}
+  else if(sig){col='#34302B';txt=S.quiz&&S.signal!=='none'?'QUIZ: NAME THE SIGNAL':(A.dogged?'DOGGED: ALL MOTIONS STOPPED, BRAKES SET':`SIGNAL: ${(SIG[S.signal]||SIG.none).n.toUpperCase()}`);}
+  else if(plan){const v=c.plan.verdict;col=v==='stop'?BAD:v==='critical'?WARN:OK;txt=v==='stop'?'DO NOT LIFT':v==='critical'?'CRITICAL LIFT: WRITTEN LIFT PLAN REQUIRED':'ROUTINE LIFT';}
+  else {col=levelCol(c.level);txt=m.lk.off?'NOT ON THE CHART: DO NOT LIFT':m.pct>1?`OVER THE CHART (${pct(m.pct)}): DO NOT LIFT`:m.pct>=.9?`CAUTION: ${pct(m.pct)} OF CHART`:`WITHIN THE CHART (${pct(m.pct)})`;}
+  st.style.background=col;st.style.borderColor=col;st.style.color=col===OK?'#0b2416':col===WARN?'#2a2203':col==='#34302B'?TEXT:'#fff';st.textContent=txt;
+  segSync('c-mode',S.mode);segSync('c-units',S.units);segSync('c-outr',S.outr);segSync('c-area',S.area);segSync('c-ball',S.ball?'1':'0');segSync('c-jib',S.jib);
+  segSync('c-lift',S.lift>0?'up':'down');segSync('c-tandem',S.tandem?'1':'0');segSync('c-signal',S.quiz?'':S.signal);segSync('c-quiz',S.quiz?'1':'0');
+  document.querySelectorAll('#c-flags button').forEach(b=>b.classList.toggle('on',!!S[b.dataset.v]));
+  const R=RANGES[S.units];
+  const rng=(k,a)=>{const e=$('c-'+k);[e.min,e.max,e.step]=a;e.value=S[k];};
+  rng('boom',R.boom); rng('load',R.load); rng('hook',R.hook); rng('rigging',R.rigging); rng('span',R.span); rng('wind',R.wind);
+  rng('boomB',R.boom); rng('radius',[S.boom*RMIN,S.boom*RMAX,S.units==='imp'?.5:.1]); rng('radiusB',[S.boomB*RMIN,S.boomB*RMAX,S.units==='imp'?.5:.1]);
+  rng('cgA',[0,S.span,S.units==='imp'?.5:.1]);
+  set('l-boom',len(S.boom,S.units==='imp'?1:2)); set('l-radius',`${len(S.radius)} · θ ${nf(m.th0,1)}°`); set('l-load',wt(S.load)); set('l-hook',wt(S.hook)); set('l-rigging',wt(S.rigging));
+  set('l-boomB',len(S.boomB,S.units==='imp'?1:2)); set('l-radiusB',len(S.radiusB)); set('l-span',len(S.span)); set('l-cgA',len(S.cgA)); set('l-wind',wind(S.wind));
+}
+function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
+
+/* ---------- callouts (pulse + fade on the virtual clock) ---------- */
+function renderCallouts(){
+  const host=$('co'); host.innerHTML='';
+  callouts.forEach(co=>{
+    const el=$(co.target); if(!el)return;
+    const r=el.getBoundingClientRect(), pad=10, op=Math.min(1,co.age/300);
+    const pulse=co.age<1800?1+0.04*Math.sin(co.age/110):1;
+    const w=(r.width+2*pad)*pulse,h=(r.height+2*pad)*pulse;
+    const ring=document.createElement('div'); ring.className='ring';
+    Object.assign(ring.style,{left:(r.left+r.width/2-w/2)+'px',top:(r.top+r.height/2-h/2)+'px',width:w+'px',height:h+'px',opacity:op});
+    host.appendChild(ring);
+    if(co.text){const lb=document.createElement('div');lb.className='clabel';lb.textContent=co.text;lb.style.opacity=op;host.appendChild(lb);
+      const lw=lb.offsetWidth,lh=lb.offsetHeight,vw=innerWidth,vh=innerHeight, slide=(1-op)*14;
+      const pos=co.pos||(r.left>vw*0.55?'left':'right'); let x,y;
+      const inPanel=$('panel').contains(el)&&innerWidth>1000, edge=inPanel?$('panel').getBoundingClientRect().left:r.left;
+      if(pos==='left'){x=edge-pad-lw-18-slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='right'){x=r.right+pad+18+slide;y=r.top+r.height/2-lh/2}
+      else if(pos==='top'){x=r.left+r.width/2-lw/2;y=r.top-pad-lh-18-slide}
+      else {x=r.left+r.width/2-lw/2;y=r.bottom+pad+18+slide}
+      lb.style.left=clamp(x,12,vw-lw-12)+'px'; lb.style.top=clamp(y,12,vh-lh-12)+'px';}
+  });
+}
+
+/* ---------- limits ---------- */
+function limits(){
+  S.boom=clamp(S.boom,RANGES[S.units].boom[0],RANGES[S.units].boom[1]); S.boomB=clamp(S.boomB,RANGES[S.units].boom[0],RANGES[S.units].boom[1]);
+  S.radius=clamp(S.radius,S.boom*RMIN,S.boom*RMAX); S.radiusB=clamp(S.radiusB,S.boomB*RMIN,S.boomB*RMAX);
+  ['load','hook','rigging','wind'].forEach(k=>S[k]=Math.max(0,S[k])); S.span=Math.max(RANGES[S.units].span[0]*.5,S.span); S.cgA=clamp(S.cgA,0,S.span);
+  const c=calc(); S.lift=clamp(S.lift,0,fromFt(c.maxLiftFt));
+}
+
+/* ---------- virtual clock: ALL motion advances here ---------- */
+function signalStep(ms){
+  const dt=ms/1000, sig=S.signal; A.sigT+=ms;
+  if(sig!==A.lastSig){A.lastSig=sig; if(sig==='main')S.line='main'; if(sig==='whip')S.line='whip'; A.dogged=sig==='dog';}
+  let tH=0,tA=0,tS=0,tT=0;
+  const k={hoist:1,lower:-1,slow:.3}[sig]; if(k)tH=k*RATE.hook;
+  if(sig==='boomUp'||sig==='boomUpLowerLoad')tA=RATE.ang; if(sig==='boomDown'||sig==='boomDownRaiseLoad')tA=-RATE.ang;
+  if(sig==='swingL')tS=RATE.slew; if(sig==='swingR')tS=-RATE.slew; if(sig==='extend')tT=RATE.tel; if(sig==='retract')tT=-RATE.tel;
+  if(F.on){tH=tA=tS=tT=0;}
+  const tau=F.on||sig==='estop'||sig==='dog'?.06:sig==='stop'?.45:.35, kf=1-Math.exp(-dt/tau);
+  A.vHook+=(tH-A.vHook)*kf; A.vAng+=(tA-A.vAng)*kf; A.vSlew+=(tS-A.vSlew)*kf; A.vTel+=(tT-A.vTel)*kf;
+  // apply (lengths in ft internally)
+  const L=toFt(S.boom); let th=Math.acos(clamp(toFt(S.radius)/L,-1,1));
+  const tipH0=M.hf+L*Math.sin(th);
+  th=clamp(th+A.vAng*D2R*dt,ANG_MIN*D2R,ANG_MAX*D2R);
+  let L2=clamp(L+A.vTel*dt,toFt(RANGES[S.units].boom[0]),toFt(RANGES[S.units].boom[1]));
+  S.boom=fromFt(L2); S.radius=fromFt(L2*Math.cos(th));
+  const tipH1=M.hf+L2*Math.sin(th);
+  let dh=A.vHook*dt;
+  if(sig==='boomUpLowerLoad'||sig==='boomDownRaiseLoad')dh=-(tipH1-tipH0)*Math.min(1,Math.abs(A.vAng)/RATE.ang);  // load holds its height
+  if(S.line==='whip'&&sig!=='boomUpLowerLoad'&&sig!=='boomDownRaiseLoad')A.ballDrop=clamp(A.ballDrop-dh,4,40);
+  else S.lift=S.lift+fromFt(dh);
+  S.slew=S.slew+A.vSlew*dt;
+}
+function step(ms){
+  const dt=ms/1000; T+=ms;
+  tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
+  tweens=tweens.filter(t=>t.t<t.dur);
+  if(S.mode==='signals')signalStep(ms); else {A.vHook=A.vAng=A.vSlew=A.vTel=0;}
+  limits();
+  const c=calc();
+  updateFail(c,ms);
+  A.flow+=dt*30*(1+Math.abs(A.vHook)*3); A.windX+=ms/1000*60;
+  // load sway (pendulum) driven by the wind in plan mode
+  const mph=S.mode==='plan'?(S.units==='imp'?S.wind:S.wind/KMH):0, target=.0035*mph*mph;
+  if(ms>0&&ms<200){const sub=Math.ceil(ms/8),h=dt/sub;for(let i=0;i<sub;i++){const gust=target*(1+.25*Math.sin(T/700+i*.01));const acc=2.2*(gust-A.sway)-0.5*A.swayV;A.swayV+=acc*h;A.sway+=A.swayV*h;}}
+  else if(ms>=200){A.sway=target;A.swayV=0;}
+  return c;
+}
+function frame(ms){
+  const c=step(ms);
+  draw(c); panel(c);
+  const f=formula(c); $('f1').innerHTML=f[0]; $('f2').innerHTML=f[1];
+  callouts.forEach(co=>co.age+=ms);
+  renderCallouts();
+}
+function set(p,dur=0){
+  p={...p};
+  if(p.units&&p.units!==S.units){
+    const toMet=p.units==='met', fw=toMet?LB:1/LB, fl=toMet?FT:1/FT, fv=toMet?KMH:1/KMH;
+    tweens=tweens.filter(t=>![...LENS,...WTS,'wind'].includes(t.key));
+    LENS.forEach(k=>{if(!(k in p))S[k]*=fl;}); WTS.forEach(k=>{if(!(k in p))S[k]*=fw;}); if(!('wind' in p))S.wind*=fv;
+    S.units=p.units; delete p.units;
+  }
+  const snap=p.snap; delete p.snap;
+  if('angle' in p){const L=('boom' in p)?p.boom:S.boom; p.radius=L*Math.cos(p.angle*D2R); delete p.angle;}
+  if('mode' in p&&p.mode!==S.mode){A.vHook=A.vAng=A.vSlew=A.vTel=0;A.dogged=false;}
+  for(const [k,v] of Object.entries(p)){
+    tweens=tweens.filter(t=>t.key!==k);
+    if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
+    else S[k]=v;
+  }
+  if('signal' in p){A.sigT=0;}
+  if(snap){A.vHook=A.vAng=A.vSlew=A.vTel=0;A.ballDrop=14;A.sway=0;A.swayV=0;A.lastSig=S.signal;A.dogged=S.signal==='dog';S.line=S.signal==='whip'?'whip':'main';}
+  if(snap||'mode' in p||p.fail===false)F={on:false,t:0};
+  if(!dur)limits();
+  if(!CAPTURE)frame(0);
+}
+function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
+function clear(){callouts=[];if(!CAPTURE)frame(0);}
+
+/* ---------- user controls ---------- */
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;const v=b.dataset.v;
+  ({'c-mode':()=>set({mode:v,lift:v==='signals'?fromFt(4):S.lift}),'c-units':()=>set({units:v}),'c-outr':()=>set({outr:v}),'c-area':()=>set({area:v}),
+    'c-ball':()=>set({ball:v==='1'}),'c-jib':()=>set({jib:v}),'c-tandem':()=>set({tandem:v==='1'}),
+    'c-flags':()=>set({[v]:!S[v]}),'c-signal':()=>set({signal:v}),'c-quiz':()=>set({quiz:v==='1'}),
+    'c-lift':()=>{const to=v==='up'?fromFt(4):0;set({lift:to},2500);}})[seg.id]?.();
+}));
+['boom','radius','load','hook','rigging','boomB','radiusB','span','cgA','wind'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
+addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
+
+frame(0);
+if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>JSON.parse(JSON.stringify(calc(),(k,v)=>k==='t'?undefined:(v===Infinity?1e99:v))),
+  get:()=>({...S}),get view(){return {...A}},failure:failInfo,chart:(u,o,a)=>{const t=table(u||S.units,o||S.outr,a||S.area);return {booms:t.booms,radii:t.radii,cap:t.cap,sh:t.sh};},ready:true};
+})();
+</script>
+</body>
+</html>
