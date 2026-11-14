@@ -33,7 +33,19 @@
     trap      true → show the common exam trap for the current mode beside the correct result
     predict   true → mode buttons ask for a prediction before switching (live use)
     tab       'readouts' | 'maths' | 'challenges'     challenge  index of the active challenge (0-4)
-    snap      true → needle, spool, relief poppet jump to rest (use in scene setups)
+    snap      true → needle, spool, relief poppet jump to rest (use in scene setups); also clears a failure
+    hose      '2sn' (default) | '1sn' | 'pushlok'   hose on the A and B lines (1/2 in, Parker catalogue values below)
+    jam       true → relief valve jammed shut: at dead-end / stall the pressure climbs until the hose bursts
+    oilT      oil temperature in °F (always °F; shown in °C in metric). Rises while flow crosses the relief.
+    view      phone camera: 'cyl' | 'load' | 'valve' | 'power' (ignored on wide screens, where the whole circuit shows)
+    fail      FAILURE MODES (CLAUDE.md). false → disarmed + any failure reset · true → armed: fails only past the real
+              limit (default true interactive, false in ?capture=1) · 'burst' | 'overheat' ('relief' = 'overheat') → force it now.
+              Limits: hose minimum burst = 4 × maximum working pressure (Parker 4:1 design factor, SAE J517 / EN 853);
+              oil over 180 °F (82 °C). sim.failure() → {on, kind, t, caption, reason, P, line}. Reset: fail:false,
+              fail:true (re-arm), snap:true or the Reset button. Caption ids: fail-card, fail-big, fail-reason, fail-tag.
+  LESSON API (docs/LESSON_READY_SIMS.md): sim.get() → {...state, rodOut, out:{key calc() results, fail}},
+    sim.onChange(fn) after user input, sim.lock(ids[]) / sim.unlock(ids[] | 'all') dim controls,
+    body.lesson-dock-right / body.lesson-dock-bottom shrink the layout for the lesson dialog.
 -->
 <style>
 :root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
@@ -138,8 +150,33 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
 #formula .sy{font-weight:800}
 #tipbox{position:fixed;z-index:20;max-width:300px;background:#141210;border:1px solid var(--accent);color:var(--text);font-size:14px;
 line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+/* failure caption (HTML so it stays readable at every width) */
+#fail-card{position:absolute;z-index:6;display:none;background:rgba(28,10,10,.94);border:3px solid var(--bad);border-radius:10px;
+padding:10px 14px;box-shadow:0 14px 40px rgba(0,0,0,.6);pointer-events:none}
+#fail-card.on{display:block}
+#fail-big{font-size:22px;font-weight:900;color:#fff;letter-spacing:.02em}
+#fail-reason{font-size:15px;font-weight:700;color:var(--text);line-height:1.3;margin-top:4px}
+#fail-tag{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:5px;background:var(--bad);color:#fff;font-weight:900;font-size:14px;letter-spacing:.08em}
+#fail-reset{pointer-events:auto;margin-left:10px;padding:4px 10px;border-radius:5px;border:1px solid var(--line);background:#3a3530;color:var(--text);font-weight:800;font-size:13px;cursor:pointer}
+.frow{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+.frow .seg{flex:1}.frow .seg button{font-size:13px;padding:5px 4px;min-width:0}
+/* phone camera: which part of the machine the phone shows */
+#c-view{display:none;margin:6px 8px 0}
+#c-view button{font-size:13px;padding:6px 2px;min-width:0}
+/* lesson-ready: locked controls are dimmed, never hidden (layout must not jump) */
+.locked{opacity:.38;pointer-events:none;filter:grayscale(.6)}
+/* lesson dock: a dialog panel takes 360 px on the right (landscape) or the bottom 38 % (portrait) */
+body.lesson-dock-right #app{width:calc(100vw - 360px);grid-template-columns:1fr clamp(360px,30vw,600px)}
+body.lesson-dock-right .ro b{font-size:clamp(15px,1.2vw,22px)}
+body.lesson-dock-right .ro .big b{font-size:clamp(18px,1.5vw,28px)}
+body.lesson-dock-right #formula{font-size:clamp(12px,1.05vw,22px)}
+@media (max-height:820px){#panel{gap:4px;padding:8px 16px}#tabbody{overflow:auto}.ro div{padding:3px 8px}.ro b{font-size:18px}.ro .big b{font-size:22px}
+  #formula{font-size:16px;margin:0 14px 8px}.brandbar{padding:8px 20px}.brandbar .logo{height:34px}.brandbar .t2{font-size:21px}
+  .ctl label{font-size:13px}input[type=range]{height:16px}#status{font-size:14px;padding:5px}.seg button{padding:5px 4px;font-size:14px}}
 @media (max-width:1000px){
   #app{grid-template-columns:1fr;height:auto}
+  #c-view{display:flex}
+  #fail-big{font-size:17px}#fail-reason{font-size:13px}#fail-tag{font-size:12px}
   #stage{border-right:0}
   #svgwrap{height:70vw;min-height:270px}
   #formula{font-size:12px;margin:0 8px 8px;padding:8px 10px}
@@ -157,12 +194,20 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
   #vmwrap summary{padding:9px 12px;font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--text);cursor:pointer}
   #vmsvg{display:block;width:100%;height:auto;aspect-ratio:330/846}
 }
+body.lesson-dock-bottom #app{height:62vh;overflow:hidden;grid-template-rows:auto minmax(0,1fr)}
+body.lesson-dock-bottom #stage{overflow:hidden}
+body.lesson-dock-bottom #svgwrap{height:auto;flex:none;aspect-ratio:600/420;max-height:34vh;min-height:0}
+body.lesson-dock-bottom #formula{font-size:11px;margin:0 6px 4px;padding:4px 8px}
+body.lesson-dock-bottom #vmwrap{display:none}
+body.lesson-dock-bottom #panel{overflow:auto}
+body.lesson-dock-bottom .brandbar{display:none}
 </style>
 </head>
 <body>
 <div id="app">
   <section id="stage">
     <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Hydraulic Cylinder Circuit</div></div></div>
+    <div class="seg" id="c-view" aria-label="Phone view"><button data-v="cyl">Cylinder</button><button data-v="load">Load</button><button data-v="valve">Valve</button><button data-v="power">Pump · relief</button></div>
     <div id="svgwrap">
       <svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hydraulic circuit: pump, relief valve, directional valve and cylinder">
         <defs>
@@ -190,6 +235,7 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
         <rect x="0" y="0" width="1300" height="900" fill="url(#gVig)" pointer-events="none"/>
       </svg>
       <div id="predict" role="dialog" aria-live="polite"></div>
+      <div id="fail-card" role="alert"><div id="fail-big"></div><div id="fail-reason"></div><span id="fail-tag">NEVER DO THIS ON THE JOB</span><button id="fail-reset" type="button">Reset</button></div>
     </div>
     <div id="formula"><div id="f1"></div><div id="f2"></div></div>
     <details id="vmwrap" open><summary>PICTURE THE MATHS</summary>
@@ -211,6 +257,9 @@ line-height:1.35;padding:8px 10px;border-radius:7px;pointer-events:none;display:
       <div class="ctl"><label><span class="tip" data-tip="Pump flow (Q): sets SPEED. Pressure does not set speed.">Pump flow (Q)</span> <b id="l-flow"></b></label><input id="c-flow" type="range" aria-label="Pump flow"></div>
       <div class="ctl"><label><span class="tip" data-tip="Relief valve setting: the highest pressure the system can make. At the end of stroke (dead-end), or if the load needs more, the relief opens and all pump flow goes to tank as heat.">Relief setting</span> <b id="l-relief"></b></label><input id="c-relief" type="range" aria-label="Relief setting"></div>
       <div class="ctl"><label><span class="tip" data-tip="Sliding (friction) load: it resists the rod's motion in either direction, so pressure rises until it can drag the load: P = F ÷ A. When the rod is stopped it pushes back with nothing.">Sliding load (friction)</span> <b id="l-load"></b></label><input id="c-load" type="range" aria-label="Load"></div>
+      <div class="frow"><span class="tip" data-tip="Hose on the A and B lines (1/2 in, Parker catalogue). Minimum burst = 4 × maximum working pressure (4:1 design factor). A low-pressure push-on hose bursts at about 1,200 psi.">Hose</span>
+        <div class="seg" id="c-hose"><button data-v="2sn" data-tip="SAE 100R2AT / EN 853 2SN, 2 steel braids: 4,000 psi (275 bar) working, 16,000 psi (1,100 bar) burst.">2-wire 4,000</button><button data-v="1sn" data-tip="SAE 100R1AT / EN 853 1SN, 1 steel braid: 2,325 psi (160 bar) working, 9,300 psi (640 bar) burst.">1-wire 2,325</button><button data-v="pushlok" data-tip="Push-on low-pressure hose (Parker 801): 300 psi (21 bar) working. Never on a pressure line.">Push-on 300</button></div>
+        <label data-tip="Relief valve jammed shut (or screwed all the way in). At the end of stroke the pressure has nowhere to go and climbs until the weakest part bursts."><input type="checkbox" id="c-jam">Relief jammed</label></div>
     </div>
     <div class="tabs" role="tablist" id="c-tab"><button role="tab" data-v="readouts">READOUTS</button><button role="tab" data-v="maths">SHOW THE MATHS</button><button role="tab" data-v="challenges">CHALLENGES</button></div>
     <div id="tabbody">
@@ -257,7 +306,23 @@ if(!CAPTURE)document.body.classList.add('live');
 const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',TEXT='#F5F5F4',BLUE='#59b7ff',IDLE='#6a635b';
 const IN=25.4, GAL=3.785411784, PSI_BAR=0.0689475729, LBF_KN=0.0044482216152605;   // imperial → metric
 const CONV={bore:IN,rod:IN,stroke:IN,flow:GAL,relief:PSI_BAR,load:LBF_KN};
-const S={units:'imp',mode:'extend',bore:4,rod:2,stroke:24,flow:10,relief:2000,load:15000,pos:0,trap:false,predict:!CAPTURE,tab:'readouts',challenge:0};
+const S={units:'imp',mode:'extend',bore:4,rod:2,stroke:24,flow:10,relief:2000,load:15000,pos:0,trap:false,predict:!CAPTURE,tab:'readouts',challenge:0,
+  hose:'2sn',jam:false,oilT:110,view:'cyl',fail:!CAPTURE};
+/* Hoses on the A and B lines, 1/2 in (-8). Maximum working pressure from the maker; minimum burst = 4 × working
+   (Parker 4:1 design factor, SAE J517 / EN 853). Sources:
+   - Parker 421SN-8 (SAE 100R1AT / EN 853 1SN): 160 bar / 2,325 psi working, 640 bar / 9,300 psi burst;
+     Parker 301SN-8 (SAE 100R2AT / EN 853 2SN): 275 bar / 4,000 psi working, 1,100 bar / 16,000 psi burst; "safety factor 4:1".
+     Parker R1AT & R2AT data sheet (Oudshoorn Hydraulics, Parker distributor), findynamica.nl/.../Product blad Parker slang R1at & R2at.pdf
+   - Parker 801-8 Push-Lok Plus (push-on, low pressure): 300 psi (2.1 MPa = 21 bar) working, Parker Catalog 4400 / ph.parker.com/us/en/801-8-blk.
+     Burst 1,200 psi = 4 × 300 is Parker's general 4:1 hose design factor applied, not a published 801 burst figure. */
+const HOSE={'2sn':{name:'2-wire braid (100R2AT / 2SN)',short:'2-wire',imp:4000,met:275},
+            '1sn':{name:'1-wire braid (100R1AT / 1SN)',short:'1-wire',imp:2325,met:160},
+            'pushlok':{name:'push-on low-pressure hose (Parker 801)',short:'Push-on',imp:300,met:21}};
+const BURST_FACTOR=4;                                   // minimum burst = 4 × maximum working pressure
+const OIL_MAX_F=180, OIL_START_F=110;                   // 180 °F (82 °C): common maximum for mineral hydraulic oil (see NOTES.md)
+const TIME_X=60;                                        // oil heating shown 60 × faster (1 s on screen = 1 min)
+const FL={on:false,kind:null,t:0,big:'',reason:'',P:0,line:'A',forced:false};
+const VIEWS={cyl:[140,96,600,420],valve:[150,330,600,420],power:[20,480,600,420]};   // phone camera boxes [x,y,w,h]
 const NUMERIC=['bore','rod','stroke','flow','relief','load'];
 const RANGES={imp:{bore:[1,8,.25],rod:[.5,6,.125],stroke:[4,60,1],flow:[1,50,.5],relief:[500,5000,50],load:[0,250000,250]},
               met:{bore:[25,200,5],rod:[12,160,1],stroke:[100,1500,10],flow:[4,190,1],relief:[35,345,5],load:[0,1100,.5]}};
@@ -340,6 +405,24 @@ function calc(st=S){
   c.Ptrap=0;                                                            // centre: friction load pushes 0 at rest
   c.PtrapIf=presFor(F,Acap);                                            // … if the load pushed the rod in instead
   c.level=!c.active?'idle':c.stall?'bad':c.deadEnd?'dead':c.util>.85?'warn':'ok';
+  // hose rating and the failure modes
+  const h=HOSE[st.hose]||HOSE['2sn'];
+  c.hoseWP=imp?h.imp:h.met; c.hoseBurst=BURST_FACTOR*c.hoseWP;
+  c.jammed=!!st.jam&&c.relOpen;                         // relief jammed shut: nothing caps the pressure
+  if(c.jammed){                                         // oil is (nearly) incompressible: pressure climbs at dP/dt = β·Q/V
+    c.relOpen=false; c.qRelief=0; c.heat=0; c.Pwork=Math.max(A.climb,c.Pneed&&isFinite(c.Pneed)?Math.min(c.Pneed,c.hoseBurst):0);
+    c.power=0; c.level='bad'; c.tag.pump=c.tag.P=c.Pwork; if(mode==='extend'){c.tag.A=c.tag.cap=c.Pwork;}else{c.tag.B=c.tag.rod=c.Pwork;}
+    c.Fpist=force(c.Pwork,c.Aact);
+  }
+  c.failed=FL.on; c.burstOn=FL.on&&FL.kind==='burst';
+  if(c.burstOn){                                        // hose split: pump flow pours out of it, no pressure can build, the rod stops
+    c.moving=false;c.v=0;c.v2=0;c.relOpen=false;c.deadEnd=false;c.stall=false;c.jammed=false;c.qRelief=0;c.heat=0;c.Pwork=0;c.power=0;
+    c.qin=0;c.qout=0;c.time=Infinity;c.Fpist=0;c.level='bad';c.util=0;for(const k in c.tag)c.tag[k]=0;
+  }
+  c.qLeak=c.burstOn?Q:0;
+  c.oilT=st.oilT==null?OIL_START_F:+st.oilT;           // °F
+  c.burstNow=c.active&&!c.burstOn&&c.Pwork>c.hoseBurst+1e-9;          // past the hose's minimum burst pressure
+  c.hotNow=c.oilT>OIL_MAX_F;
   // common exam traps (wrong working) for the trap card
   c.trapExt=imp?Math.PI*D*D:Math.PI*D*D/100;                           // forgot ÷ 4
   c.trapRet=force(Prel,Acap);                                           // cap area used for retract
@@ -361,9 +444,9 @@ const presCol=(P,rel)=>P<=rel*.005?BLUE:P>=rel*.999?BAD:P>rel*.85?WARN:OK;
 const MODE_NAME={extend:'EXTEND',retract:'RETRACT',neutral:'CENTRE (TANDEM)'};
 
 /* ---------- animation state (virtual clock only) ---------- */
-let T=0, tweens=[], callouts=[], seed=1;
+let T=0, tweens=[], callouts=[], seed=1, listeners=[];
 const rand=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;};   // deterministic
-const A={slow:1,spool:1,spoolV:0,needle:0,needleV:0,rel:0,relV:0,heat:0,rot:0,roll:0,
+const A={climb:0,spray:[],splat:[],leakVol:0,scream:0,spool:1,spoolV:0,needle:0,needleV:0,rel:0,relV:0,heat:0,rot:0,roll:0,
   off:{},parts:[],mathKey:'',mathAge:0,wasOpen:false,vmAct:0,vmBlk:1,vmUnits:S.units};
 const PRED={phase:null,from:null,to:null,ans:{speed:null,force:null},age:0,res:null};
 
@@ -383,11 +466,12 @@ function arrowHead(x1,y1,x2,y2,col,w=3){const a=Math.atan2(y2-y1,x2-x1),h=13;
   <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.4)},${y2-h*Math.sin(a-.4)} ${x2-h*Math.cos(a+.4)},${y2-h*Math.sin(a+.4)}" fill="${col}"/>`;}
 const blocked=(x,y,dir)=>`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+dir*16}" stroke="${TEXT}" stroke-width="3"/><line x1="${x-9}" y1="${y+dir*16}" x2="${x+9}" y2="${y+dir*16}" stroke="${TEXT}" stroke-width="3"/>`;
 // Pascal pressure tag: a pill on a line or in a chamber, filled with the pressure colour. ≈ 0 shows dark with blue text.
+let MINF=0;   // phone: smallest scene font (scene units) so text renders >= 11.5 px; 0 on wide screens
 function ptag(id,x,y,p,c,anc='middle'){
-  const z=!(p>c.Prel*.005), t=z?`≈ 0 ${U().P}`:`${fP(p)} ${U().P}`, w=Math.round(t.length*8.5+16);
+  const fs=Math.max(15,MINF), q=fs/15, z=!(p>c.Prel*.005), t=z?`≈ 0 ${U().P}`:`${fP(p)} ${U().P}`, w=Math.round(t.length*8.5*q+16);
   const x0=anc==='middle'?x-w/2:anc==='end'?x-w:x, fill=z?'#1d2a36':presCol(p,c.Prel), tc=z?BLUE:p>=c.Prel*.999?'#fff':'#141414';
-  return {w,s:`<g id="${id}"><rect x="${x0.toFixed(1)}" y="${y-13}" width="${w}" height="26" rx="13" fill="${fill}" stroke="#141210" stroke-width="2.5"/>
-    <text x="${(x0+w/2).toFixed(1)}" y="${y+5.5}" text-anchor="middle" font-size="15" font-weight="800" fill="${tc}" font-family="SF Mono,Menlo,Consolas,monospace">${t}</text></g>`};
+  return {w,s:`<g id="${id}"><rect x="${x0.toFixed(1)}" y="${(y-13*q).toFixed(1)}" width="${w}" height="${(26*q).toFixed(1)}" rx="${(13*q).toFixed(1)}" fill="${fill}" stroke="#141210" stroke-width="2.5"/>
+    <text x="${(x0+w/2).toFixed(1)}" y="${(y+5.5*q).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="800" fill="${tc}" font-family="SF Mono,Menlo,Consolas,monospace">${t}</text></g>`};
 }
 function spring(x,y,len,amp,n,vertical){let p=`M${x} ${y}`;for(let i=1;i<=n;i++){const t=i/n, o=(i%2?amp:-amp)*(i===n?0:1);
   p+=vertical?` L${x+o} ${y+len*t}`:` L${x+len*t} ${y+o}`;}return `<path d="${p}" stroke="${TEXT}" stroke-width="2.5" fill="none"/>`;}
@@ -400,6 +484,11 @@ const VX=425, VY=480, BW=100, BH=96, VT=VY-BH/2, VB=VY+BH/2;   // valve: active 
 const PA=VX-28, PB=VX+28;                                     // port x positions: A/P left, B/T right
 const YAB=360, YREL=722, YG=640;                              // y of the A/B cross runs · relief tee · gauge tee
 const CYL={x0:200,x1:650,cy:200,pMin:214,travel:376,rod:460};
+// Ports sit in the end caps (head and cap blocks), never in the barrel, so the piston can never cover one
+// (tie-rod cylinders, e.g. Parker Series 2H/3L, NFPA): cap-end port in the cap block, rod-end port in the head block.
+const PORT={cap:CYL.x0+1,rod:CYL.x1-1};
+const portY=c=>CYL.cy+(34+40*clamp((c.Din-1)/7,0,1))+22;          // underside of the end caps (scales with bore)
+const FLOOR_Y=CYL.cy+82;                                             // shop floor the load skids on
 const GA={x:210,y:YG,R:58}, RV={x:110,y:790}, PU={x:PA,y:800,r:30}, MO={x:282,y:800,r:26}, TK={x0:60,x1:700,y0:852,y1:893};
 const BOX_NAME={extend:'EXTEND',neutral:'CENTRE',retract:'RETRACT'};
 
@@ -476,24 +565,45 @@ function drawCylinder(c,L){
   const tc=ptag('tag-cap',0,0,c.tag.cap,c).w, tr=ptag('tag-rod',0,0,c.tag.rod,c).w;
   if(wCap>tc+10)s+=ptag('tag-cap',x0+14+wCap/2,cy,c.tag.cap,c).s;
   if(wRod>tr+10)s+=ptag('tag-rod',px+24+wRod/2,cy,c.tag.rod,c).s;
-  // ports
-  const yb=cy+hb+12;
-  s+=fitting(240,yb+4,12)+fitting(615,yb+4,12)+`</g>`;
-  // load block on rollers
-  const bx=rodEnd+12, bw=130, by=cy-60, bh=120;
-  s+=`<g id="load"><line x1="660" y1="${cy+82}" x2="1300" y2="${cy+82}" stroke="#4a443d" stroke-width="3"/>`;
-  for(let hx=660;hx<1300;hx+=28)s+=`<line x1="${hx}" y1="${cy+96}" x2="${hx+14}" y2="${cy+82}" stroke="#34302b" stroke-width="2"/>`;
-  s+=`<rect x="${rodEnd-6}" y="${cy-16}" width="20" height="32" rx="4" fill="url(#gSteel)"/>`;
-  s+=`<g filter="url(#fSh)"><rect id="load-box" x="${bx}" y="${by+shake*.5}" width="${bw}" height="${bh}" rx="6" fill="url(#gCast)" stroke="#6b645c" stroke-width="2"/></g>
+  // ports: in the end caps (SAE O-ring boss), with a hose fitting screwed into each
+  const yb=cy+hb+22;
+  [PORT.cap,PORT.rod].forEach(x=>{s+=`<rect x="${x-9}" y="${yb-2}" width="18" height="9" fill="url(#gSteel)" stroke="#2b3034"/>`+fitting(x,yb+12,11);});
+  s+=`<g id="port-cap"><circle cx="${PORT.cap}" cy="${yb+12}" r="1" fill="none"/></g><g id="port-rod"><circle cx="${PORT.rod}" cy="${yb+12}" r="1" fill="none"/></g>`;
+  s+=`<text x="1290" y="${FLOOR_Y+30}" text-anchor="end" font-size="12" font-weight="700" fill="${MUTED}" opacity=".8">not to scale</text>`;
+  // cap-end clevis (MP1 style) pinned to a two-ear bracket bolted to a column: the cylinder can swing, it cannot slide
+  const cx0=x0-14, py=cy;
+  s+=`<g id="mount-cap"><rect x="104" y="${cy-60}" width="22" height="${FLOOR_Y-cy+60}" fill="url(#gCastV)" stroke="#5d5750"/>
+    ${[cy-50,cy+40].map(y=>`<line x1="104" y1="${y}" x2="126" y2="${y+18}" stroke="#25221e" stroke-width="2"/>`).join('')}
+    <rect x="126" y="${py-26}" width="12" height="52" fill="url(#gSteel)" stroke="#2b3034"/>
+    <circle cx="132" cy="${py-18}" r="3.5" fill="#1b1b1b"/><circle cx="132" cy="${py+18}" r="3.5" fill="#1b1b1b"/>
+    <path d="M138 ${py-22} L164 ${py-15} L164 ${py+15} L138 ${py+22} Z" fill="url(#gCast)" stroke="#5d5750"/>
+    <rect x="${cx0-30}" y="${py-11}" width="30" height="22" rx="3" fill="url(#gSteel)" stroke="#2b3034"/>
+    <circle cx="160" cy="${py}" r="10" fill="url(#gSteel)" stroke="#2b3034" stroke-width="1.5"/><circle cx="160" cy="${py}" r="4.5" fill="url(#gBrass)"/></g>`;
+  s+=`</g>`;
+  // load: a steel block on skid runners, sliding on the shop floor (friction). Rod eye pinned in a lug welded to it.
+  const eyeX=rodEnd+12, bx=rodEnd+32, bw=120, by=cy-62, bh=FLOOR_Y-(cy-62)-10;
+  s+=`<g id="load"><line x1="660" y1="${FLOOR_Y}" x2="1300" y2="${FLOOR_Y}" stroke="#4a443d" stroke-width="3"/>`;
+  for(let hx=660;hx<1300;hx+=28)s+=`<line x1="${hx}" y1="${FLOOR_Y+14}" x2="${hx+14}" y2="${FLOOR_Y}" stroke="#34302b" stroke-width="2"/>`;
+  // scuff marks left behind on the floor where the skid has been dragged
+  const sx0=Math.min(bx,CYL.pMin+24+CYL.rod+52), sx1=bx;
+  if(sx1>sx0+4)s+=`<rect x="${sx0}" y="${FLOOR_Y-2}" width="${sx1-sx0}" height="3" fill="#6b645c" opacity=".35"/>`;
+  s+=`<g id="rod-eye"><rect x="${rodEnd-6}" y="${cy-rh*.9}" width="${eyeX-rodEnd}" height="${rh*1.8}" fill="url(#gSteel)"/>
+    <circle cx="${eyeX}" cy="${cy}" r="17" fill="url(#gSteel)" stroke="#2b3034" stroke-width="1.5"/></g>
+    <g id="load-lug"><path d="M${eyeX-4} ${cy-24} L${bx} ${cy-30} L${bx} ${cy+30} L${eyeX-4} ${cy+24} Z" fill="url(#gCast)" stroke="#6b645c" stroke-width="1.5" opacity=".92"/>
+    <line x1="${bx}" y1="${cy-30}" x2="${bx}" y2="${cy+30}" stroke="#c9b48a" stroke-width="3" stroke-dasharray="2 3"/>
+    <circle cx="${eyeX}" cy="${cy}" r="7" fill="url(#gBrass)" stroke="#5a3e0f"/></g>`;
+  s+=`<g filter="url(#fSh)"><rect id="load-box" x="${bx}" y="${by+shake*.5}" width="${bw}" height="${bh}" rx="5" fill="url(#gCast)" stroke="#6b645c" stroke-width="2"/></g>
     <rect x="${bx+4}" y="${by+4}" width="${bw-8}" height="4" fill="#fff" opacity=".12"/>
-    <text x="${bx+bw/2}" y="${by+40}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}" letter-spacing="2">LOAD</text>
-    <text x="${bx+bw/2}" y="${by+60}" text-anchor="middle" font-size="12" font-weight="700" fill="${MUTED}">sliding (friction)</text>
+    <rect x="${bx-4}" y="${FLOOR_Y-10}" width="${bw+8}" height="10" rx="2" fill="url(#gSteel)" stroke="#2b3034"/>
+    <text x="${bx+bw/2}" y="${by+38}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}" letter-spacing="2">LOAD</text>
+    <text x="${bx+bw/2}" y="${by+58}" text-anchor="middle" font-size="12" font-weight="700" fill="${MUTED}">sliding (friction)</text>
     <text x="${bx+bw/2}" y="${by+88}" text-anchor="middle" font-size="19" font-weight="800" fill="${ACC}">${fF(S.load)} ${U().F}</text>`;
-  [bx+28,bx+bw-28].forEach(rx0=>{const ry=cy+71;s+=`<circle cx="${rx0}" cy="${ry}" r="11" fill="#3a3632" stroke="#8a8278" stroke-width="2"/>`;
-    for(let k2=0;k2<3;k2++){const a=A.roll+k2*Math.PI/3;s+=`<line x1="${rx0-9*Math.cos(a)}" y1="${ry-9*Math.sin(a)}" x2="${rx0+9*Math.cos(a)}" y2="${ry-9*Math.sin(a)}" stroke="#8a8278" stroke-width="2"/>`;}});
+  // dust kicked up at the skid while it is being dragged
+  if(c.moving)for(let k2=0;k2<5;k2++){const ph=((T/500+k2/5)%1), dir=S.mode==='retract'?1:-1, ex=(dir<0?bx:bx+bw)+dir*ph*40;
+    s+=`<circle cx="${ex.toFixed(1)}" cy="${(FLOOR_Y-4-ph*14).toFixed(1)}" r="${(2+ph*4).toFixed(1)}" fill="#8a8278" opacity="${(.35*(1-ph)).toFixed(2)}"/>`;}
   // load force arrow: always opposes the motion
   if(S.load>0){const pull=S.mode==='retract', op=c.moving||c.stall?1:.3, col=c.stall?BAD:'#d8d2c8';   // friction only pushes back while it is being dragged
-    s+=pull?`<g opacity="${op}">${arrowHead(bx+bw+6,cy,bx+bw+76,cy,col,7)}</g>`:`<g opacity="${op}">${arrowHead(bx+bw+76,cy,bx+bw+6,cy,col,7)}</g>`;}
+    s+=pull?`<g opacity="${op}">${arrowHead(bx+bw+6,cy,bx+bw+60,cy,col,7)}</g>`:`<g opacity="${op}">${arrowHead(bx+bw+60,cy,bx+bw+6,cy,col,7)}</g>`;}
   s+=`</g>`;
   return {s,yb,px};
 }
@@ -509,7 +619,8 @@ function drawGauge(c){
   let s=`<g id="gauge"><g filter="url(#fSh)"><circle cx="${x}" cy="${y}" r="${R+8}" fill="url(#gSteel)"/></g><circle cx="${x}" cy="${y}" r="${R}" fill="url(#gFace)"/>`;
   s+=arc(0,c.Prel*.85,'#1f7a4d')+arc(c.Prel*.85,c.Prel,'#a8851a')+arc(c.Prel,max,'#8e2a2a');
   for(let i=0;i<=10;i++){const v=max*i/10,[ax,ay]=pt(v,R-20),[bx2,by2]=pt(v,R-5);s+=`<line x1="${ax}" y1="${ay}" x2="${bx2}" y2="${by2}" stroke="${TEXT}" stroke-width="${i%5?1.5:3}"/>`;}
-  [0,max/2,max].forEach(v=>{const [tx,ty]=pt(v,R-32);s+=`<text x="${tx}" y="${ty+5}" text-anchor="middle" font-size="13" font-weight="700" fill="${MUTED}">${nf(v)}</text>`;});
+  // scale numbers sit outside the bezel so the needle and hub never cover them
+  [[0,'end'],[max/2,'middle'],[max,'start']].forEach(([v,anc])=>{const [tx,ty]=pt(v,R+14);s+=`<text x="${tx.toFixed(1)}" y="${(ty+(v===max/2?-2:10)).toFixed(1)}" text-anchor="${anc}" font-size="13" font-weight="700" fill="${MUTED}">${nf(v)}</text>`;});
   const [rx1,ry1]=pt(c.Prel,R-24),[rx2,ry2]=pt(c.Prel,R+2);
   s+=`<line x1="${rx1}" y1="${ry1}" x2="${rx2}" y2="${ry2}" stroke="#fff" stroke-width="3"/>`;
   const na=ang(A.needle), nx=x+(R-16)*Math.cos(na), ny=y-(R-16)*Math.sin(na);
@@ -524,17 +635,29 @@ function drawGauge(c){
 }
 
 function drawRelief(c){
-  const {x,y}=RV, o=clamp(A.rel,0,1.15), ax=x+16*(1-Math.min(1,o));
-  let s=`<g id="relief"><g filter="url(#fSh)"><rect x="${x-32}" y="${y-40}" width="64" height="80" rx="4" fill="#211f1c" stroke="${o>.5?BAD:'#8a8278'}" stroke-width="${o>.5?3:2}"/></g>`;
+  // ISO 1219-1 pressure-relief valve: square envelope, flow arrow offset from the port line (normally closed),
+  // pilot (dashed) from the inlet to one end of the envelope, adjustable spring at the other end. Pilot pressure shifts
+  // the envelope toward the spring until the arrow lines up with the ports: the valve opens.
+  const {x,y}=RV, o=clamp(A.rel,0,1.15), ax=x-16*(1-Math.min(1,o)), hot=o>.5;
+  let s=`<g id="relief"><g filter="url(#fSh)"><rect x="${x-32}" y="${y-40}" width="64" height="80" rx="4" fill="#211f1c" stroke="${hot?BAD:'#8a8278'}" stroke-width="${hot?3:2}"/></g>`;
   s+=`<line x1="${x}" y1="${y-40}" x2="${x}" y2="${y-26}" stroke="${TEXT}" stroke-width="3"/><line x1="${x}" y1="${y+26}" x2="${x}" y2="${y+40}" stroke="${TEXT}" stroke-width="3"/>`;
-  s+=arrowHead(ax,y-24,ax,y+24,o>.5?BAD:TEXT,3);
-  s+=`<path d="M${x} ${y-36} L${x-22} ${y-36} L${x-22} ${y-6}" stroke="${TEXT}" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>`;   // pilot line
-  const sl=34-14*Math.min(1,o);                                                                                                      // spring compresses as poppet lifts
-  s+=spring(x+20,y+40-sl-2,sl,6,7,true)+`<line x1="${x+12}" y1="${y+40-sl-2}" x2="${x+28}" y2="${y+40-sl-2}" stroke="${TEXT}" stroke-width="2.5"/>`;
-  if(o>.5)s+=`<rect x="${x-36}" y="${y-44}" width="72" height="88" rx="6" fill="none" stroke="${BAD}" stroke-width="2" opacity="${(.3+.3*Math.sin(T/110)).toFixed(2)}"/>`;
-  s+=`<text x="${x+42}" y="${y-8}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${o>.5?BAD:MUTED}">RELIEF</text>
-    <text x="${x+42}" y="${y+11}" font-size="15" font-weight="800" fill="${o>.5?BAD:TEXT}">${fP(c.Prel)} ${U().P}</text>
-    <text x="${x+42}" y="${y+30}" font-size="14" font-weight="800" fill="${o>.5?BAD:MUTED}">${o>.5?'OPEN':'shut'}</text></g>`;
+  s+=arrowHead(ax,y-24,ax,y+24,hot?BAD:TEXT,3);
+  s+=`<path d="M${x} ${y-46} L${x-46} ${y-46} L${x-46} ${y} L${x-32} ${y}" stroke="${TEXT}" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>`;   // pilot: inlet → left end
+  const sl=24-10*Math.min(1,o);                                                                                                       // spring squeezes as it opens
+  s+=spring(x+32,y,sl,7,6,false)+`<line x1="${x+32+sl}" y1="${y-12}" x2="${x+32+sl}" y2="${y+12}" stroke="${TEXT}" stroke-width="2.5"/>`;
+  s+=arrowHead(x+24,y+16,x+60,y-16,TEXT,1.8);                                                                                         // adjustable
+  if(S.jam)s+=`<g id="relief-jam"><line x1="${x-30}" y1="${y-38}" x2="${x+30}" y2="${y+38}" stroke="${WARN}" stroke-width="4"/><line x1="${x+30}" y1="${y-38}" x2="${x-30}" y2="${y+38}" stroke="${WARN}" stroke-width="4"/>
+    <text x="${x}" y="${y+60}" text-anchor="middle" font-size="13" font-weight="900" fill="${WARN}">JAMMED</text></g>`;
+  if(hot){s+=`<rect x="${x-36}" y="${y-44}" width="72" height="88" rx="6" fill="none" stroke="${BAD}" stroke-width="2" opacity="${(.3+.3*Math.sin(T/110)).toFixed(2)}"/>`;
+    // relief scream: oil forced through a tiny gap at full pressure. Noise bars beside the valve (height ∝ heat power).
+    const lvl=clamp(c.heat/(imp()?15:11),.25,1);
+    s+=`<g id="relief-noise">`;for(let i=0;i<5;i++){const hgt=(10+30*lvl)*(.55+.45*Math.abs(Math.sin(T/(55+i*13)+i)));
+      s+=`<rect x="${x-62-i*9}" y="${(y+30-hgt).toFixed(1)}" width="6" height="${hgt.toFixed(1)}" rx="2" fill="${i<2?WARN:BAD}" opacity=".85"/>`;}
+    s+=`</g>`;}
+  if(MINF>0)return s+`<text x="${x-30}" y="${TK.y0+30}" font-size="14" font-weight="800" fill="${hot?BAD:TEXT}">RELIEF ${fP(c.Prel)} ${U().P} · ${S.jam?'jammed':hot?'OPEN':'shut'}</text></g>`;   // phone: one line over the tank
+  s+=`<text x="${x+68}" y="${y-8}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${hot?BAD:MUTED}">RELIEF</text>
+    <text x="${x+68}" y="${y+11}" font-size="15" font-weight="800" fill="${hot?BAD:TEXT}">${fP(c.Prel)} ${U().P}</text>
+    <text x="${x+68}" y="${y+30}" font-size="14" font-weight="800" fill="${hot?BAD:MUTED}">${S.jam?'jammed':hot?'OPEN':'shut'}</text></g>`;
   return s;
 }
 
@@ -561,11 +684,13 @@ function drawTank(c){
   w+=` L${x1-3} ${y1-3} Z`;
   const hc=A.heat; const oil=`rgb(${Math.round(60+150*hc)},${Math.round(120-40*hc)},${Math.round(190-130*hc)})`;
   s+=`<path d="${w}" fill="${oil}" opacity=".55"/>`;
- s+=`<text x="${x0+60}" y="${y1-12}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${TEXT}" opacity=".8">TANK</text>`;
+ s+=`<text x="${MINF>0?x0+340:x0+60}" y="${y1-8}" font-size="14" font-weight="800" letter-spacing="1.5" fill="${TEXT}" opacity=".8">TANK</text>`;
   // thermometer: rises while flow crosses the relief (qualitative, no number)
   const tx=x1-34, tH=36, lvl=4+28*hc;
   s+=`<rect x="${tx-4}" y="${y0-2}" width="8" height="${tH}" rx="4" fill="#111" stroke="#8a8278"/><rect x="${tx-2}" y="${y0-2+tH-lvl}" width="4" height="${lvl}" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>
     <circle cx="${tx}" cy="${y0+tH}" r="6" fill="${hc>.5?BAD:hc>.15?WARN:BLUE}"/>`;
+  const tF=S.oilT, tTxt=imp()?`${nf(tF)} °F`:`${nf((tF-32)/1.8)} °C`;
+  s+=`<text id="oil-temp" x="${tx-12}" y="${y0+20}" text-anchor="end" font-size="15" font-weight="800" fill="${tF>OIL_MAX_F?BAD:tF>150?WARN:TEXT}">OIL ${tTxt}</text>`;
   if(hc>.05)for(let i=0;i<4;i++){const hx=x0+470+i*22, ph=(T/1400+i*.27)%1;
     s+=`<path d="M${hx} ${y0-10-ph*60} q 6 -10 0 -20 q -6 -10 0 -20" stroke="${BAD}" stroke-width="2.5" fill="none" opacity="${hc*(1-ph)*.8}"/>`;}
   return s+`</g>`;
@@ -575,6 +700,7 @@ function drawTank(c){
 function lineState(c){
   const Q=c.Q, z={q:0,p:0}, L={suction:{q:Q,p:0},p1:{q:Q,p:c.Pwork},p2:{q:Q-c.qRelief,p:c.Pwork},gauge:{q:0,p:c.Pwork},
     rel:{q:c.qRelief,p:c.Pwork},relout:{q:c.qRelief,p:0},A:{...z},B:{...z},T:{...z}};
+  if(c.burstOn){const k=FL.line==='B'?'B':'A';L[k]={q:Q,p:0};return L;}       // all pump flow runs out of the split hose
   if(S.mode==='neutral'){L.T={q:Q,p:0};}
   else if(c.moving){
     if(S.mode==='extend'){L.A={q:c.qin,p:c.Pwork};L.B={q:-c.qout,p:0};L.T={q:c.qout,p:0};}
@@ -645,8 +771,8 @@ function vmForce(c,x0,y0,w,h){
     whole===0?`${tsp(COL.A,'A = '+fA(c.Aact)+' '+u.A)} = ${nf(frac,fd)} of one ${sq}${s>1?` of ${sqU}`:''}`:
     `${tsp(COL.A,'A = '+fA(c.Aact)+' '+u.A)} = ${whole} ${sq}${whole===1?'':'s'}${frac>.0005?' + '+nf(frac,fd):''}${s>1?` of ${sqU}`:''}`;
   o+=tx(x0+14,y0+183,cnt,13.5,TEXT,700);
-  // what each square pushes (imperial: 1 psi on 1 in² = 1 lb; metric: 1 bar on 1 cm² = 10 N)
-  if(c.active){const per=i?`${fP(Pd)} lb`:`${nf(rnd(Pd,1)*10*s,0)} N`;
+  // what each square pushes (imperial: 1 psi on 1 in² = 1 lbf; metric: 1 bar on 1 cm² = 10 N)
+  if(c.active){const per=i?`${fP(Pd)} lbf`:`${nf(rnd(Pd,1)*10*s,0)} N`;
     o+=tx(x0+14,y0+202,`Each ${sq}: ${tsp(pc,fP(Pd)+' '+u.P)} × ${tsp(COL.A,sqU)} = ${tsp(COL.F,per)}`,13.5,TEXT,700);}
   else o+=tx(x0+14,y0+202,`Pressure ≈ 0, so each ${sq} pushes ≈ 0`,13.5,MUTED,700);
   if(!i)o+=tx(x0+14,y0+218,'1 bar on 1 cm² pushes 10 N',11.5,MUTED,700);
@@ -675,7 +801,7 @@ function vmForce(c,x0,y0,w,h){
       o+=`<rect x="${(ax0+lp+1).toFixed(1)}" y="${ya-12}" width="6" height="24" fill="#8d99a2"/>`;
       o+=tx(ax0,yl-10,`End of stroke: the cylinder end takes it`,13,MUTED,700)+tx(ax0,yl+8,`${fQ(c.qRelief)} ${u.Q} over the relief, v = 0`,13,BAD,700);
     } else {
-      o+=tx(ax0,yl-10,c.stall?`${tsp(BAD,'Load '+fF(c.F)+' '+u.F)}: more than the push. STALL`:`Load ${fF(c.F)} ${u.F}: push = load, so it moves`,13,c.stall?BAD:MUTED,700);
+      o+=tx(ax0,yl-10,c.stall?`${tsp(BAD,'Load '+fF(c.F)+' '+u.F)}: more than the push. STALL`:c.burstOn?`${tsp(BAD,'Hose burst')}: no pressure, no push. Rod stopped`:`Load ${fF(c.F)} ${u.F}: push = load, so it moves`,13,c.stall?BAD:MUTED,700);
       o+=`<g id="vm-larrow">${hArrow(ax1-ll,ax1,yl,lc,8,-1)}</g>`;}
   } else {
     o+=tx(x0+14,y0+276,'A and B blocked: oil trapped, rod held.',13,TEXT,700);
@@ -764,10 +890,12 @@ function vmPower(c,x0,y0,w,h){
   return o+`</g>`;
 }
 
-function trapCard(c){
-  const x0=662,y0=298,w=306,h=124,u=U();      // sits in the gap between the load track and the valve
+function trapCard(c,ph){
+  // wide: sits in the gap between the load track and the valve. Phone: across the top of the camera box (clear of the valve), text scaled up
+  const f=ph?ph.mn/13.5:1, u=U();
+  const w=ph?ph.vb[2]-20:306, h=124*f, x0=ph?ph.vb[0]+10:662, y0=ph?ph.vb[1]+8:298;
   let s=`<g id="trap-card"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="10" fill="#24211E" stroke="${ACC}" stroke-width="2.5"/>`;
-  const t=(y,txt,col=TEXT,sz=13.5,wt=700)=>`<text x="${x0+12}" y="${y0+y}" font-size="${sz}" font-weight="${wt}" fill="${col}">${txt}</text>`;
+  const t=(y,txt,col=TEXT,sz=13.5,wt=700)=>`<text x="${x0+12}" y="${(y0+y*f).toFixed(1)}" font-size="${(sz*f).toFixed(1)}" font-weight="${wt}" fill="${col}">${txt}</text>`;
   s+=t(21,'COMMON EXAM TRAP',ACC,14,800);
   let lines;
   if(S.mode==='extend')lines=[['Forgot the ÷ 4 in the area:',TEXT],[`π × ${fLen(c.D)}² = ${fA(c.trapExt)} ${u.A} ✗ (4 × too big)`,BAD],['Correct: A = π × D² ÷ 4',TEXT],[`= ${fA(c.Acap)} ${u.A} ✓ · max push ${fF(c.Fext)} ${u.F}`,OK]];
@@ -780,10 +908,12 @@ function trapCard(c){
 
 function draw(c){
   const L=lineState(c), narrow=innerWidth<=1000, VW=1300;
+  let ph=null; if(narrow){const vb=viewBox(c), r=$('svg').getBoundingClientRect(), k=Math.min(r.width/vb[2],r.height/vb[3])||.6; ph={vb,k,mn:11.5/k};}
+  MINF=ph?ph.mn:0;
   let s='';
   for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#25221e"/>`;
   for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#25221e"/>`;
-  const cyl=drawCylinder(c,L), yb=cyl.yb+16;
+  const cyl=drawCylinder(c,L), yb=cyl.yb+12;
   const col=(st)=>st.p>0?presCol(st.p,c.Prel):(Math.abs(st.q)>1e-9?BLUE:IDLE);
   const fl=st=>Math.abs(st.q)>1e-9;
   // pipes (drawn in the + flow direction)
@@ -793,19 +923,28 @@ function draw(c){
   s+=pipe('gauge',`M${PU.x} ${GA.y} L${GA.x+GA.R+6} ${GA.y}`,col(L.gauge),false);
   s+=pipe('rel',`M${PU.x} ${YREL} L${RV.x} ${YREL} L${RV.x} ${RV.y-40}`,col(L.rel),fl(L.rel));
   s+=pipe('relout',`M${RV.x} ${RV.y+40} L${RV.x} ${TK.y0+4}`,col(L.relout),fl(L.relout));
-  s+=pipe('A',`M${PA} ${VT-16} L${PA} ${YAB} L240 ${YAB} L240 ${yb}`,col(L.A),fl(L.A));
-  s+=pipe('B',`M${PB} ${VT-16} L${PB} ${YAB} L615 ${YAB} L615 ${yb}`,col(L.B),fl(L.B));
+  s+=pipe('A',`M${PA} ${VT-16} L${PA} ${YAB} L${PORT.cap} ${YAB} L${PORT.cap} ${yb}`,col(L.A),fl(L.A));
+  s+=pipe('B',`M${PB} ${VT-16} L${PB} ${YAB} L${PORT.rod} ${YAB} L${PORT.rod} ${yb}`,col(L.B),fl(L.B));
   s+=pipe('T',`M${PB} ${VB+16} L${PB} ${TK.y0+4}`,col(L.T),fl(L.T));
   s+=fitting(PU.x,YREL,8)+fitting(PU.x,GA.y,8);
   s+=drawTank(c)+drawPump(c)+drawRelief(c)+drawGauge(c)+drawValve(c)+cyl.s;
+  // FAILURE: burst hose (split at the middle of the drop to the active port, torn braid wires, oil jet)
+  if(FL.on&&FL.kind==='burst'){const b=burstPt(c);
+    s+=`<g id="hose-burst"><rect x="${b.x-11}" y="${b.y-9}" width="22" height="18" fill="#1F1D1A"/>`;
+    for(let i=0;i<7;i++){const sgn=i%2?1:-1, dx=(i-3)*2.6, len=7+(i*5)%6;
+      s+=`<line x1="${b.x+dx}" y1="${b.y-9}" x2="${b.x+dx*1.8+sgn*2}" y2="${b.y-9+len*.55}" stroke="#b8c0c6" stroke-width="1.2"/><line x1="${b.x+dx}" y1="${b.y+9}" x2="${b.x+dx*1.8-sgn*2}" y2="${b.y+9-len*.55}" stroke="#b8c0c6" stroke-width="1.2"/>`;}
+    s+=`<ellipse cx="${b.x}" cy="${b.y-10}" rx="9" ry="4" fill="#2c2925" stroke="#5a5048"/><ellipse cx="${b.x}" cy="${b.y+10}" rx="9" ry="4" fill="#2c2925" stroke="#5a5048"/></g>`;}
+  // oil that has landed (stays put: puddles on whatever it hit) and oil in flight
+  if(A.splat.length){s+=`<g id="oil-splat">`;A.splat.forEach(p=>{s+=`<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="${p.r.toFixed(1)}" ry="${(p.r*.32).toFixed(1)}" fill="#7a5a12" opacity=".8"/>`;});s+=`</g>`;}
+  A.spray.forEach(p=>{s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.r.toFixed(1)}" fill="#d9a63a" opacity=".9"/>`;});
   // relief burst particles
   A.parts.forEach(p=>{s+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(2.5+2*p.life).toFixed(1)}" fill="${BAD}" opacity="${(p.life*.9).toFixed(2)}"/>`;});
   // flow labels under the A and B cross runs (show the differential flow)
-  if(c.moving){s+=`<text x="252" y="${YAB+34}" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
-    <text x="603" y="${YAB+34}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
+  if(c.moving){s+=`<text x="${PORT.cap+14}" y="${YAB+34}" font-size="16" font-weight="800" fill="${col(L.A)}">${fQ(Math.abs(L.A.q))} ${U().Q}</text>
+    <text x="${PORT.rod-14}" y="${YAB+34}" text-anchor="end" font-size="16" font-weight="800" fill="${col(L.B)}">${fQ(Math.abs(L.B.q))} ${U().Q}</text>`;}
   // Pascal's law: pressure tags on the pressure path and the return path (chamber tags are drawn with the cylinder)
   const tg=c.tag;
-  s+=ptag('tag-a',(240+PA)/2,YAB,tg.A,c).s+ptag('tag-b',(PB+615)/2,YAB,tg.B,c).s;
+  s+=ptag('tag-a',(PORT.cap+PA)/2,YAB,tg.A,c).s+ptag('tag-b',(PB+PORT.rod)/2,YAB,tg.B,c).s;
   s+=ptag('tag-p',PA-14,600,tg.P,c,'end').s+ptag('tag-pump',PA-14,684,tg.pump,c,'end').s+ptag('tag-t',PB+14,700,tg.T,c,'start').s;
   const nx=472, ny=578, nw=230;
   const nLine=!c.active?'Centre: pump side ≈ 0 (P → T).':
@@ -816,23 +955,55 @@ function draw(c){
     <text x="${nx+10}" y="${ny+56}" font-size="12.5" font-weight="700" fill="${TEXT}">in the connected oil.</text>
     <text x="${nx+10}" y="${ny+76}" font-size="12.5" font-weight="800" fill="${c.active?pCol(c):BLUE}">${nLine}</text></g>`;
   // banner
-  if(c.relOpen){const fl2=.82+.18*Math.sin(T/140), u=U();
+  if(c.burstOn||c.jammed){const u=U(), fl2=.82+.18*Math.sin(T/140);
+    const msg=c.burstOn?`HOSE BURST · ${fQ(c.qLeak)} ${u.Q} OF OIL ON THE FLOOR${narrow?'':' · NO PRESSURE, ROD STOPPED'}`:
+      `RELIEF JAMMED · PRESSURE CLIMBING ${fP(c.Pwork)} ${u.P}${narrow?'':` · HOSE BURSTS AT ${fP(c.hoseBurst)}`}`;
+    s+=`<g id="${c.burstOn?'burst-banner':'jam-banner'}"><rect x="20" y="14" width="${VW-40}" height="62" rx="10" fill="${BAD}" opacity="${fl2.toFixed(3)}"/>
+      <text x="${VW/2}" y="55" text-anchor="middle" font-size="25" font-weight="800" fill="#fff">${msg}</text></g>`;
+    if(!narrow)s+=`<text x="24" y="104" font-size="18" font-weight="700" fill="${MUTED}">${c.burstOn?'Pump flow pours out of the split hose: shut the pump down, never grab a leaking hose':'Nothing caps the pressure: it climbs until the weakest part fails (pressure rise shown slowed)'}</text>`;}
+  else if(c.relOpen){const fl2=.82+.18*Math.sin(T/140), u=U();
     const msg=c.stall?`STALLED · LOAD NEEDS ${fP(c.Pneed)} ${u.P} &gt; RELIEF ${fP(c.Prel)} ${u.P}${narrow?'':' · ALL FLOW OVER RELIEF = HEAT'}`:
       `DEAD-ENDED · RELIEF OPEN · ${fQ(c.qRelief)} ${u.Q} OVER RELIEF${narrow?'':` = ${fW(c.heat)} ${u.W} OF HEAT`}`;
     s+=`<g id="${c.stall?'stall-banner':'deadend-banner'}"><rect x="20" y="14" width="${VW-40}" height="62" rx="10" fill="${BAD}" opacity="${fl2.toFixed(3)}"/>
       <text x="${VW/2}" y="55" text-anchor="middle" font-size="25" font-weight="800" fill="#fff">${msg}</text></g>`;
-    s+=`<text x="24" y="104" font-size="18" font-weight="700" fill="${MUTED}">${c.stall?'Rod stopped mid-stroke: the load needs more than the relief allows':`End of stroke: oil has nowhere to go, so it all crosses the relief`}</text>`;}
+    if(!narrow)s+=`<text x="24" y="104" font-size="18" font-weight="700" fill="${MUTED}">${c.stall?'Rod stopped mid-stroke: the load needs more than the relief allows':`End of stroke: oil has nowhere to go, so it all crosses the relief`}</text>`;}
   else {s+=`<g id="mode-banner"><text x="24" y="52" font-size="30" font-weight="800" fill="${TEXT}">${MODE_NAME[S.mode]}</text>`;
     if(c.moving)s+=`<text x="24" y="84" font-size="20" font-weight="700" fill="${MUTED}">Rod speed <tspan fill="${ACC}">${fV(c.v)} ${U().V}</tspan> · pressure ${fP(c.Pwork)} ${U().P}${A.slow>1.01?` · motion shown ${nf(A.slow,1)}× slower`:''}</text>`;
     else s+=`<text x="24" y="84" font-size="20" font-weight="700" fill="${MUTED}">Pump unloads P → T · A and B blocked: trapped oil holds the rod</text>`;
     s+=`</g>`;}
   // visual maths: beside the circuit on wide screens, in its own panel (below the formula bar) on phones
   const vm=$('vmsvg');
-  if(S.trap)s+=trapCard(c);
+  if(S.trap&&!FL.on)s+=trapCard(c,ph);
   if(!narrow){s+=vmForce(c,975,318,315,330)+vmSpeed(c,975,658,315,232)+vmPower(c,712,640,253,250);if(vm.innerHTML)vm.innerHTML='';}
   else {vm.innerHTML=vmForce(c,8,6,314,330)+vmSpeed(c,8,346,314,232)+vmPower(c,8,588,314,250);}
+  // phone: the camera shows one part of the machine at a readable size; every scene label is at least ~11.5 px
+  const svg=$('svg');
+  if(narrow){const vbs=ph.vb.map(v=>v.toFixed(1)).join(' '); if(svg.getAttribute('viewBox')!==vbs)svg.setAttribute('viewBox',vbs);
+    s=minFont(s,ph.mn);
+    const vr=vm.getBoundingClientRect(); if(vr.width>0)vm.innerHTML=minFont(vm.innerHTML,11.5*330/vr.width);}
+  else if(svg.getAttribute('viewBox')!=='0 0 1300 900')svg.setAttribute('viewBox','0 0 1300 900');
   $('dyn').innerHTML=s;
+  placeFailCard(narrow);
 }
+/* phone camera box [x, y, w, h] in scene units; 'load' follows the rod end */
+function viewBox(c){
+  const v=S.view in VIEWS||S.view==='load'?S.view:'cyl';
+  if(v==='load'){const rodEnd=CYL.pMin+S.pos*CYL.travel+24+CYL.rod; return [clamp(rodEnd-330,140,700),40,600,420];}
+  return VIEWS[v];
+}
+const minFont=(h,mn)=>h.replace(/font-size="([\d.]+)"/g,(m,v)=>+v<mn?`font-size="${mn.toFixed(1)}"`:m);
+/* the failure caption sits over the circuit's right side (wide) or along the top of the scene (phone) */
+function placeFailCard(narrow){
+  const fc=$('fail-card'); fc.classList.toggle('on',FL.on);
+  if(!FL.on)return;
+  if($('fail-big').textContent!==FL.big||$('fail-reason').textContent!==FL.reason){$('fail-big').textContent=FL.big;$('fail-reason').textContent=FL.reason;}
+  const wrap=$('svgwrap').getBoundingClientRect(), r=$('svg').getBoundingClientRect();
+  if(narrow){Object.assign(fc.style,{position:'fixed',left:'4px',right:'4px',top:'auto',bottom:'4px',width:'auto',zIndex:15});return;}
+  const k=Math.min(r.width/1300,r.height/900), ox=r.left+(r.width-1300*k)/2-wrap.left, oy=r.top+(r.height-900*k)/2-wrap.top;
+  Object.assign(fc.style,{position:'absolute',left:(ox+700*k)+'px',top:(oy+296*k)+'px',width:(580*k)+'px',right:'auto',bottom:'auto',zIndex:6});
+}
+/* burst point: middle of the drop from the cross run to the active cylinder port */
+function burstPt(c){const x=FL.line==='B'?PORT.rod:PORT.cap; return {x,y:Math.round((YAB+portY(c)+12)/2)};}
 
 /* ---------- show the maths ---------- */
 function mathSteps(c){
@@ -976,6 +1147,8 @@ function renderPredict(){
 /* ---------- panel ---------- */
 function formula(c){
   const u=U(), i=imp(), pc=pCol(c), P=t=>hsp(pc,t), Fc=t=>hsp(COL.F,t), Ac=t=>hsp(COL.A,t), Qc=t=>hsp(COL.Q,t), Vc=t=>hsp(COL.V,t);
+  if(c.burstOn)return [`Hose burst: ${P('P')} ≈ 0, so ${Fc('F')} = ${P('P')} × ${Ac('A')} = 0 · the rod stops`,`Oil lost: all ${Qc(fQ(c.Q)+' '+u.Q)} of pump flow onto the floor · shut the pump down`];
+  if(c.jammed)return [`Relief jammed: ${P(fP(c.Pwork)+' '+u.P)} and climbing · nothing caps it`,`Hose burst = 4 × ${fP(c.hoseWP)} = ${P(fP(c.hoseBurst)+' '+u.P)}`];
   if(S.mode==='neutral')return [`Tandem centre: P → T at ≈ 0 ${u.P} · A and B blocked · cylinder held`,`Power ≈ 0 ${u.W} · pump flow ${Qc(fQ(c.Q)+' '+u.Q)} returns to tank`];
   if(c.deadEnd)return [`Dead-ended: ${Fc('F')} = ${P('P')} × ${Ac('A')} = ${P(fP(c.Prel)+' '+u.P)} × ${Ac(fA(c.Aact)+' '+u.A)}${i?'':' ÷ 100'} = ${Fc(fF(c.Fpist)+' '+u.F)} on the piston`,
     `Heat = ${P(fP(c.Prel))} × ${Qc(fQ(c.Q))} ÷ ${u.K} = ${fW(c.heat)} ${u.W} · all ${Qc(fQ(c.qRelief)+' '+u.Q)} over the relief`];
@@ -1004,7 +1177,7 @@ function panel(c){
   const uf=$('utilfill'); uf.style.width=Math.min(100,c.util*100)+'%'; uf.style.background=levelCol(c.level);
   const st=$('status'), col=c.level==='idle'?'#3a4a5a':levelCol(c.level);
   st.style.background=col; st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
-  st.textContent=c.level==='idle'?'CENTRE: PUMP UNLOADED, CYLINDER HELD':c.stall?'STALLED: FLOW OVER RELIEF · OIL HEATING':
+  st.textContent=c.burstOn?'HOSE BURST: NO PRESSURE · OIL ON THE FLOOR':c.jammed?'RELIEF JAMMED: PRESSURE CLIMBING':FL.on&&FL.kind==='overheat'?'OIL OVERHEATED: SHUT DOWN':c.level==='idle'?'CENTRE: PUMP UNLOADED, CYLINDER HELD':c.stall?'STALLED: FLOW OVER RELIEF · OIL HEATING':
     c.deadEnd?`DEAD-ENDED: ${fQ(c.qRelief)} ${u.Q} OVER RELIEF · HEAT`:c.level==='warn'?'CAUTION: NEAR RELIEF SETTING':'MOVING: WITHIN RELIEF SETTING';
   $('l-bore').textContent=`${fLen(S.bore)} ${u.L}`;$('l-rod').textContent=`${fLen(c.d)} ${u.L}`;$('l-stroke').textContent=`${fLen(S.stroke)} ${u.L}`;
   $('l-flow').textContent=`${fQ(S.flow)} ${u.Q}`;$('l-relief').textContent=`${fP(S.relief)} ${u.P}`;$('l-load').textContent=`${fF(S.load)} ${u.F}`;
@@ -1012,7 +1185,11 @@ function panel(c){
   const R=RANGES[S.units];
   NUMERIC.forEach(k=>{const e=$('c-'+k);let [mn,mx,sp]=R[k];if(k==='rod')mx=Math.max(mn,Math.floor(ROD_MAX*S.bore/sp+1e-9)*sp);
     if(+e.min!==mn)e.min=mn;if(+e.max!==mx)e.max=mx;if(+e.step!==sp)e.step=sp;if(document.activeElement!==e)e.value=k==='rod'?c.d:S[k];});
-  segSync('c-mode',S.mode);segSync('c-units',S.units);segSync('c-tab',S.tab);
+  segSync('c-mode',S.mode);segSync('c-units',S.units);segSync('c-tab',S.tab);segSync('c-hose',S.hose);segSync('c-view',S.view);
+  $('c-jam').checked=!!S.jam;
+  document.querySelectorAll('#c-hose button').forEach(b=>{const h=HOSE[b.dataset.v],t=`${h.short} ${nf(imp()?h.imp:h.met)}`;if(b.textContent!==t)b.textContent=t;});
+  // stalled / dead-ended / burst: the rod is not moving, so the active speed readout is dimmed
+  ['ro-vext','ro-vret'].forEach(id=>{const on=(id==='ro-vext'?S.mode==='extend':S.mode==='retract')&&!c.moving;$(id+'-box').classList.toggle('na',on);});
   $('c-predict').checked=!!S.predict;$('c-trap').checked=!!S.trap;
   ['readouts','maths','challenges'].forEach(t=>$('tab-'+t).classList.toggle('on',S.tab===t));
   if(S.tab==='maths')renderMaths(c);
@@ -1078,13 +1255,82 @@ function step(ms){
   if(open&&ms>0){const n=Math.round(dt*45+rand()*.5);for(let i=0;i<n;i++)A.parts.push({x:RV.x+(rand()-.5)*6,y:RV.y+42,vx:(rand()-.5)*60,vy:90+rand()*80,life:1});}
   A.parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.life-=dt*1.6;});
   A.parts=A.parts.filter(p=>p.life>0&&p.y<TK.y0+20);
-  A.heat=clamp(A.heat+dt*(c.relOpen?.09:-.035),0,1);
+  // relief jammed: pressure climbs (real rise is dP/dt = β·Q/V, a fraction of a second; shown over ~1.6 s)
+  if(c.jammed&&ms>0){A.climb=Math.max(A.climb,Math.min(c.Pneed,c.hoseBurst)||0)+c.hoseBurst/1.6*dt;
+    if(S.fail!==true)A.climb=Math.min(A.climb,c.hoseBurst);}          // not armed: holds at the burst rating, never fails
+  else if(!c.jammed)A.climb=0;
+  // oil temperature: all the heat over the relief goes into the oil. Reservoir = 3 × pump flow per minute (rule of thumb),
+  // mineral oil 0.87 kg/L, specific heat 1.88 kJ/(kg·K). Shown TIME_X (60) × faster. Cools back toward 110 °F otherwise.
+  if(ms>0){
+    if(c.heat>0){const kW=imp()?c.heat*0.7457:c.heat, L=3*(imp()?c.Q*GAL:c.Q), m=L*0.87;
+      S.oilT+=kW/(m*1.88)*1.8*TIME_X*dt;}
+    else S.oilT+=(OIL_START_F-S.oilT)*(1-Math.exp(-dt/25));
+  }
+  A.heat=clamp((S.oilT-OIL_START_F)/(OIL_MAX_F-OIL_START_F),0,1.2);
+  // FAILURE MODES: armed (fail:true) → trip only past the real limit; a string forces that failure now
+  if(!FL.on){
+    if(typeof S.fail==='string')trip(S.fail==='relief'?'overheat':S.fail,c,true);
+    else if(S.fail===true){if(c.burstNow)trip('burst',c,false);else if(c.hotNow&&c.relOpen)trip('overheat',c,false);}
+  }
+  if(FL.on)FL.t+=ms;
+  const cf=FL.on?calc():c;
+  sprayStep(cf,dt);
   // visual maths: the pushing squares sweep to the new count when the mode or size changes
   if(blk(c)!==A.vmBlk||S.units!==A.vmUnits){A.vmBlk=blk(c);A.vmUnits=S.units;A.vmAct=vmTarget(c);}
   else A.vmAct+=(vmTarget(c)-A.vmAct)*(1-Math.exp(-dt*4));
   A.mathAge+=ms;
   if(PRED.phase)PRED.age+=ms;
   return c;
+}
+/* trip a failure: freeze running tweens, record the reason in plain words with the numbers */
+function trip(kind,c,forced){
+  if(!['burst','overheat'].includes(kind))return;
+  tweens=[]; const u=U();
+  FL.on=true;FL.kind=kind;FL.t=0;FL.forced=forced;FL.line=S.mode==='retract'?'B':'A';
+  if(kind==='burst'){
+    FL.P=c.hoseBurst;
+    FL.big='THE HOSE BURSTS';
+    FL.reason=`Pressure passed ${fP(c.hoseBurst)} ${u.P}, the burst rating of a hose rated ${fP(c.hoseWP)} ${u.P} working (burst = 4 × working): the hose splits and sprays oil.`+
+      (S.jam?' The relief was jammed shut, so nothing capped the pressure.':S.hose==='pushlok'?' A push-on low-pressure hose never goes on a pressure line.':'');
+  } else {
+    if(S.oilT<=OIL_MAX_F)S.oilT=OIL_MAX_F+5;
+    const heat=imp()?c.Prel*c.Q/1714:c.Prel*c.Q/600, tTxt=imp()?`${nf(S.oilT)} °F`:`${nf((S.oilT-32)/1.8)} °C`;
+    FL.P=c.Prel;
+    FL.big='THE OIL OVERHEATS';
+    FL.reason=`Held over the relief: ${fQ(c.Q)} ${u.Q} at ${fP(c.Prel)} ${u.P} = ${fW(heat)} ${u.W} of heat. Oil at ${tTxt} is past the 180 °F (82 °C) limit: seals harden and leak, the oil breaks down.`;
+  }
+}
+function resetFail(){FL.on=false;FL.kind=null;FL.t=0;A.spray=[];A.splat=[];A.climb=0;S.oilT=OIL_START_F;A.heat=0;}
+/* oil spray from a burst hose (and weeping rod seal when cooked): ballistic drops that land on whatever is below and stay */
+function solids(c){
+  const hb=34+40*clamp((c.Din-1)/7,0,1), off=VX-BW/2-A.spool*BW, wide=innerWidth>1000;
+  const r=[[CYL.x0-14,CYL.cy-hb-22,CYL.x1+14,CYL.cy+hb+22],[off-82,VT-8,off+3*BW+82,VB+8],[GA.x-GA.R-98,GA.y-23,GA.x-GA.R-16,GA.y+23],
+    [RV.x-32,RV.y-40,RV.x+32,RV.y+40],[660,FLOOR_Y,1300,900],[PU.x-PU.r,PU.y-PU.r,PU.x+PU.r,PU.y+PU.r],[MO.x-MO.r,MO.y-MO.r,MO.x+MO.r,MO.y+MO.r],
+    [GA.x-GA.R*.75,GA.y-GA.R-8,GA.x+GA.R*.75,GA.y+GA.R]];
+  if(wide)r.push([472,578,702,666],[712,640,965,890]);
+  return r;
+}
+function sprayStep(c,dt){
+  if(dt<=0)return;
+  if(FL.on&&FL.kind==='burst'&&c.Q>0){
+    const b=burstPt(c), n=Math.min(12,Math.round(dt*(30+90*c.Q/RANGES[S.units].flow[1])+rand()*.6));
+    for(let i=0;i<n;i++){const side=rand()<.5?-1:1;
+      A.spray.push({x:b.x+side*8,y:b.y+(rand()-.5)*10,vx:side*(220+rand()*320),vy:-140+rand()*200,r:2+rand()*2.2});}
+  }
+  if(FL.on&&FL.kind==='overheat'&&rand()<dt*3){const hb=34+40*clamp((c.Din-1)/7,0,1), rh=Math.max(6,hb*c.d/c.D);
+    A.spray.push({x:CYL.x1+22+(rand()-.5)*6,y:CYL.cy+rh+9,vx:0,vy:10,r:2.4});}          // rod seal weeps
+  const R=solids(c);
+  A.spray.forEach(p=>{const py=p.y;p.vy+=900*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.x>TK.x0&&p.x<TK.x1&&p.y>TK.y0+6){p.dead=true;return;}                         // back into the tank
+    if(p.y>=896){p.y=896;p.land=true;}
+    for(const q of R){if(p.x>q[0]&&p.x<q[2]&&p.y>q[1]&&p.y<q[3]){
+      if(py<=q[1]+1){p.y=q[1];p.land=true;}                                              // came down onto the top: lands
+      else{p.x=p.vx>0?q[0]-1:q[2]+1;p.vx=0;}                                             // hit a side: runs down the face
+      break;}}
+    if(p.land){p.dead=true;const near=A.splat.find(s2=>Math.abs(s2.x-p.x)<10&&Math.abs(s2.y-p.y)<3);
+      if(near)near.r=Math.min(16,near.r+.35);else if(A.splat.length<120)A.splat.push({x:p.x,y:p.y,r:3});}
+  });
+  A.spray=A.spray.filter(p=>!p.dead&&p.x>-20&&p.x<1320).slice(-260);
 }
 function frame(ms){
   const c=step(ms);
@@ -1103,6 +1349,13 @@ function set(p,dur=0){
     S.units=p.units; delete p.units;
   }
   const snap=p.snap; delete p.snap;
+  if('fail' in p){const f=p.fail; delete p.fail;
+    if(f===false||f===true){if(FL.on)resetFail();S.fail=f;}
+    else if(typeof f==='string'){if(FL.on&&FL.kind!==(f==='relief'?'overheat':f))resetFail();S.fail=f;}}
+  if('hose' in p&&!HOSE[p.hose])delete p.hose;
+  if('view' in p&&!(p.view in VIEWS||p.view==='load'))delete p.view;
+  if('jam' in p)p.jam=!!p.jam;
+  if('oilT' in p){S.oilT=+p.oilT||OIL_START_F;delete p.oilT;}
   if('mode' in p)p.mode=MODES.includes(modeOf(p.mode))?modeOf(p.mode):S.mode;   // 'regen' (removed) → extend; unknown → ignored
   if('pos' in p){S.pos=clamp(+p.pos||0,0,1);delete p.pos;}
   let rodOut=null; if('rodOut' in p){rodOut=+p.rodOut||0;delete p.rodOut;}
@@ -1114,29 +1367,45 @@ function set(p,dur=0){
     else S[k]=v;
   }
   if(rodOut!=null)S.pos=clamp(rodOut/S.stroke,0,1);
-  if(snap)snapAll();
+  if(snap){if(FL.on)resetFail();snapAll();}
   if(!CAPTURE)frame(0);
 }
+/* user input: apply, then tell the lesson engine */
+function user(p){set(p);const g=get();listeners.forEach(fn=>{try{fn(g)}catch(e){console.error(e)}});}
+function get(){const c=calc();
+  return {...S,rodOut:S.pos*S.stroke,out:{Acap:c.Acap,Aann:c.Aann,Ar:c.Ar,Pneed:c.Pneed,Pwork:c.Pwork,v:c.v,vext:c.vext,vret:c.vret,
+    Fext:c.Fext,Fret:c.Fret,Fpist:c.Fpist,power:c.power,heat:c.heat,time:c.time,moving:c.moving,deadEnd:c.deadEnd,stall:c.stall,
+    relOpen:c.relOpen,jammed:c.jammed,hoseWP:c.hoseWP,hoseBurst:c.hoseBurst,oilT:S.oilT,level:c.level,fail:FL.on?FL.kind:false}};}
+/* lesson engine: dim (never hide) controls */
+const CTRL_IDS=()=>[...document.querySelectorAll('#panel [id^="c-"], #c-view')].map(e=>e.id);
+function lock(ids){(ids||[]).forEach(id=>{const e=$(id);if(e){e.classList.add('locked');e.setAttribute('aria-disabled','true');
+  e.querySelectorAll('button,input').forEach(b=>b.disabled=true);if(e.matches('button,input'))e.disabled=true;}});}
+function unlock(ids){(ids==='all'?CTRL_IDS():ids||[]).forEach(id=>{const e=$(id);if(e){e.classList.remove('locked');e.removeAttribute('aria-disabled');
+  e.querySelectorAll('button,input').forEach(b=>b.disabled=false);if(e.matches('button,input'))e.disabled=false;}});}
 function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
 function clear(){callouts=[];if(!CAPTURE)frame(0);}
 
 /* ---------- user controls ---------- */
 $('c-mode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(S.predict&&!PRED.phase)predict(b.dataset.v);else{PRED.phase=null;set({mode:b.dataset.v});}});
-$('c-units').addEventListener('click',e=>{const b=e.target.closest('button');if(b)set({units:b.dataset.v});});
-$('c-tab').addEventListener('click',e=>{const b=e.target.closest('button');if(b)set({tab:b.dataset.v});});
+  if(S.predict&&!PRED.phase)predict(b.dataset.v);else{PRED.phase=null;user({mode:b.dataset.v});}});
+$('c-units').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({units:b.dataset.v});});
+$('c-tab').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({tab:b.dataset.v});});
 $('c-tab').addEventListener('keydown',e=>{if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;const t=['readouts','maths','challenges'];
-  const i=(t.indexOf(S.tab)+(e.key==='ArrowRight'?1:2))%3;set({tab:t[i]});$('c-tab').children[i].focus();});
-NUMERIC.forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
-$('c-predict').addEventListener('change',e=>set({predict:e.target.checked}));
-$('c-trap').addEventListener('change',e=>set({trap:e.target.checked}));
+  const i=(t.indexOf(S.tab)+(e.key==='ArrowRight'?1:2))%3;user({tab:t[i]});$('c-tab').children[i].focus();});
+NUMERIC.forEach(k=>$('c-'+k).addEventListener('input',e=>user({[k]:+e.target.value})));
+$('c-predict').addEventListener('change',e=>user({predict:e.target.checked}));
+$('c-trap').addEventListener('change',e=>user({trap:e.target.checked}));
 $('ch-check').addEventListener('click',checkChallenge);
-$('ch-next').addEventListener('click',()=>set({challenge:(S.challenge+1)%CH.length}));
-$('ch-dots').addEventListener('click',e=>{const b=e.target.closest('button');if(b)set({challenge:+b.dataset.i});});
+$('ch-next').addEventListener('click',()=>user({challenge:(S.challenge+1)%CH.length}));
+$('ch-dots').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({challenge:+b.dataset.i});});
 $('predict').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.k){PRED.ans[b.dataset.k]=b.dataset.o;frame(0);}
   else if(b.dataset.act==='reveal')reveal();
-  else if(b.dataset.act==='skip'){const to=PRED.to;PRED.phase=null;set({mode:to});}});
+  else if(b.dataset.act==='skip'){const to=PRED.to;PRED.phase=null;user({mode:to});}});
+$('c-hose').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({hose:b.dataset.v});});
+$('c-jam').addEventListener('change',e=>user({jam:e.target.checked}));
+$('c-view').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({view:b.dataset.v});});
+$('fail-reset').addEventListener('click',()=>user({fail:S.fail===false?false:true,mode:'neutral',hose:'2sn',jam:false}));
 // tooltips: hover, keyboard focus or tap
 const tip=$('tipbox');
 const showTip=el=>{const r=el.getBoundingClientRect();tip.textContent=el.dataset.tip;tip.style.display='block';
@@ -1149,8 +1418,11 @@ addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 snapAll(); frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S,rodOut:S.pos*S.stroke}),predict,reveal,checkChallenge,
-  get view(){return {needle:A.needle,relief:A.rel,spool:A.spool};},   // read-only animation state (tests)
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get,predict,reveal,checkChallenge,
+  onChange:fn=>{if(typeof fn==='function')listeners.push(fn);},lock,unlock,
+  failure:()=>({on:FL.on,kind:FL.kind,t:FL.t,caption:FL.big,reason:FL.reason,P:FL.P,line:FL.line,forced:FL.forced}),
+  get view(){const R=solids(calc());return {needle:A.needle,relief:A.rel,spool:A.spool,spray:A.spray.length,splat:A.splat.length,
+    floating:A.splat.filter(p=>R.some(q=>p.x>q[0]+1&&p.x<q[2]-1&&p.y>q[1]+1&&p.y<q[3]-1)).length};},   // read-only animation state (tests)
   get challenge(){return {index:S.challenge,total:CH.length,solved:[...CHS.solved],attempts:[...CHS.attempts],score:CHS.solved.filter(Boolean).length};},
   ready:true};
 })();

@@ -31,7 +31,18 @@
     question  predict-question index (0–3): loads its starting state
     answer    predict answer index (0–2): runs the demonstration then reveals
     challenge challenge index (0–4): loads its starting state
-    snap      true → needle, dot and meters jump to rest (use in scene setups)
+    snap      true → needle, dot and meters jump to rest (use in scene setups); also clears a failure
+    valve     0 = shut (dead-headed: no flow) … 1 = fully open
+    suct      suction liquid level above (+, flooded) or below (−, suction lift) the pump centreline: ft (−20…40) or m (−6…12)
+    temp      water temperature: °F (40…210) or °C (5…98). Sets the vapour pressure, so NPSH available.
+    caseT     water temperature in the pump casing, °F (always °F inside). Rises when the pump runs dead-headed.
+    view      phone camera: 'pump' | 'discharge' (ignored on wide screens)
+    fail      FAILURE MODES (CLAUDE.md). false → disarmed + reset · true → armed (default interactive; false in ?capture=1):
+              cavitation when NPSHa < 1.1 × NPSHr (ANSI/HI 9.6.1 margin ratio), dead-head when the casing water reaches
+              212 °F (100 °C) · 'cavitation' | 'deadhead' → force it now. sim.failure() → {on, kind, t, caption, reason, sigma, caseT}.
+              Reset: fail:false, fail:true, snap:true or the Reset button. Ids: fail-card, fail-big, fail-reason, fail-tag.
+  LESSON API (docs/LESSON_READY_SIMS.md): sim.get() → {...state, out:{Q, H, eta, power, Ps, Pd, npshA, npshR, sigma, level, fail}},
+    sim.onChange(fn), sim.lock(ids[]) / sim.unlock(ids[] | 'all'), body.lesson-dock-right / -bottom.
 -->
 <style>
 :root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
@@ -105,8 +116,26 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
 #tipbox{position:fixed;z-index:20;max-width:320px;background:#F5F5F4;color:#1F1D1A;font-size:14px;line-height:1.35;padding:8px 11px;
 border-radius:7px;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:none;display:none}
+#fail-card{position:absolute;z-index:6;display:none;background:rgba(28,10,10,.94);border:3px solid var(--bad);border-radius:10px;
+padding:10px 14px;box-shadow:0 14px 40px rgba(0,0,0,.6);pointer-events:none;right:12px;top:40%;width:min(440px,34%)}
+#fail-card.on{display:block}
+#fail-big{font-size:22px;font-weight:900;color:#fff;letter-spacing:.02em}
+#fail-reason{font-size:15px;font-weight:700;color:var(--text);line-height:1.3;margin-top:4px}
+#fail-tag{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:5px;background:var(--bad);color:#fff;font-weight:900;font-size:14px;letter-spacing:.08em}
+#fail-reset{pointer-events:auto;margin-left:10px;padding:4px 10px;border-radius:5px;border:1px solid var(--line);background:#3a3530;color:var(--text);font-weight:800;font-size:13px;cursor:pointer}
+#c-view{display:none;margin:6px 8px 0}
+.locked{opacity:.38;pointer-events:none;filter:grayscale(.6)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+body.lesson-dock-right #app{width:calc(100vw - 360px);grid-template-columns:1fr clamp(360px,30vw,600px)}
+body.lesson-dock-right #formula{font-size:clamp(12px,1.05vw,22px)}
+body.lesson-dock-right .ro b{font-size:clamp(14px,1.15vw,21px)}
+@media (max-height:820px){#panel{gap:5px;padding:8px 16px;overflow:auto}.brandbar{padding:6px 20px}.brandbar .logo{height:32px}.brandbar .t2{font-size:21px}
+  #formula{font-size:16px;margin:0 14px 8px;padding:8px 14px}.ro b{font-size:17px}.ctl label{font-size:13px}#status{font-size:14px;padding:5px;min-height:0}}
 @media (max-width:1000px){
   #app{grid-template-columns:1fr;height:auto}
+  #c-view{display:flex}#c-view button{font-size:13px;padding:7px 2px;min-width:0}
+  .grid2{grid-template-columns:1fr}
+  #fail-card{position:fixed;left:4px;right:4px;transform:none;top:auto;bottom:4px;width:auto;z-index:15}#fail-big{font-size:17px}#fail-reason{font-size:13px}#fail-tag{font-size:12px}
   #stage{border-right:0;overflow:visible}
   #schemwrap{height:27vw;min-height:100px;flex:none}
   #chartwrap{height:auto;flex:none;flex-direction:column}
@@ -120,23 +149,34 @@ border-radius:7px;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:none;displ
   .step .eq{font-size:13px}
   .clabel{font-size:15px;max-width:240px;padding:8px 10px}
 }
+body.lesson-dock-bottom #app{height:62vh;overflow:hidden;grid-template-rows:auto minmax(0,1fr)}
+body.lesson-dock-bottom #stage{overflow:hidden}
+body.lesson-dock-bottom .brandbar,body.lesson-dock-bottom #chartwrap{display:none}
+body.lesson-dock-bottom #formula{font-size:11px;margin:0 6px 4px;padding:4px 8px}
+body.lesson-dock-bottom #panel{overflow:auto}
 </style>
 </head>
 <body>
 <div id="app">
   <section id="stage">
     <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Pump Curves and Affinity Laws</div></div></div>
+    <div class="seg" id="c-view" aria-label="Phone view"><button data-v="pump">Pump</button><button data-v="discharge">Valve · tank</button></div>
     <div id="schemwrap"><svg id="schem" viewBox="0 0 1300 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pumping system: suction tank, centrifugal pump and motor, discharge pipe with pressure gauge and throttling valve, elevated discharge tank"><defs id="defs1"></defs><g id="schem-dyn"></g></svg></div>
     <div id="chartwrap"><svg id="chart" viewBox="0 0 880 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Head–flow chart with pump curve, system curve, efficiency curve, best efficiency point and operating point"><g id="chart-dyn"></g></svg>
       <svg id="pics" viewBox="0 0 420 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The maths as pictures: affinity laws as a line, a square and a cube; brake power as a rectangle of flow times head"><g id="pics-dyn"></g></svg></div>
     <div id="formula"></div>
+    <div id="fail-card" role="alert"><div id="fail-big"></div><div id="fail-reason"></div><span id="fail-tag">NEVER DO THIS ON THE JOB</span><button id="fail-reset" type="button">Reset</button></div>
   </section>
   <aside id="panel">
     <div class="sec"><h3>CONTROLS</h3>
       <div class="ctl"><label for="c-speed"><span>Pump speed (<span data-tip="N: shaft speed. Changed with a variable frequency drive (VFD). Rated speed here is 1750 rpm (4-pole motor)." tabindex="0">N</span>)</span><b id="l-speed"></b></label><input id="c-speed" type="range" min="700" max="1780" step="10"></div>
       <div class="ctl"><label for="c-dia"><span>Impeller diameter (<span data-tip="D: impeller diameter. Trimming (machining down) the impeller lowers the pump curve. Keep trims small: about 10 % or less for the affinity laws to predict well. Check the maker's trim curves." tabindex="0">D</span>) · trim limit 10 %</span><b id="l-dia"></b></label><input id="c-dia" type="range"></div>
-      <div class="ctl"><label for="c-valve"><span><span data-tip="Throttling valve on the discharge. Closing it adds friction loss, which makes the system curve steeper. The pump curve does not change." tabindex="0">Discharge valve opening</span></span><b id="l-valve"></b></label><input id="c-valve" type="range" min="5" max="100" step="1"></div>
+      <div class="ctl"><label for="c-valve"><span><span data-tip="Throttling valve on the discharge. Closing it adds friction loss, which makes the system curve steeper. The pump curve does not change." tabindex="0">Discharge valve opening</span></span><b id="l-valve"></b></label><input id="c-valve" type="range" min="0" max="100" step="1"></div>
       <div class="ctl"><label for="c-hst"><span><span data-tip="Static head: the vertical lift from the suction liquid level to the discharge liquid level. The pump must supply it before any water moves. It does not change with flow." tabindex="0">Static head</span> (<span class="kst">H<sub>st</sub></span>)</span><b id="l-hst"></b></label><input id="c-hst" type="range"></div>
+      <div class="grid2">
+      <div class="ctl"><label for="c-suct"><span><span data-tip="Suction level: height of the suction liquid surface above (+, flooded suction) or below (−, suction lift) the pump centreline. A lift takes NPSH away." tabindex="0">Suction level</span></span><b id="l-suct"></b></label><input id="c-suct" type="range" aria-label="Suction level"></div>
+      <div class="ctl"><label for="c-temp"><span><span data-tip="Water temperature. Hotter water has a higher vapour pressure, so it boils (flashes) at a higher pressure: less NPSH available." tabindex="0">Water temperature</span></span><b id="l-temp"></b></label><input id="c-temp" type="range" aria-label="Water temperature"></div>
+      </div>
       <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units" style="flex:1"><button data-v="imperial">Imperial</button><button data-v="metric">Metric</button></div>
         <button class="btn" id="c-mistake" style="flex:1" aria-pressed="false">Show common mistakes</button></div>
     </div>
@@ -147,9 +187,12 @@ border-radius:7px;box-shadow:0 6px 24px rgba(0,0,0,.5);pointer-events:none;displ
         <div id="ro-pct-box"><span>% of <span data-tip="BEP: best efficiency point. The flow where the pump is most efficient and the hydraulic loads on the impeller and bearings are lowest." tabindex="0">BEP</span> flow</span><b id="ro-pct"></b></div>
         <div id="ro-eff-box"><span><span data-tip="Pump efficiency η = water power ÷ shaft power. Highest at the BEP, zero at shutoff." tabindex="0">Efficiency</span> (<span class="nt ke">η</span>)</span><b id="ro-eff"></b></div>
         <div id="ro-power-box"><span><span data-tip="Brake power: shaft power into the pump. Imperial: BHP = Q × H × SG ÷ (3960 × η). Metric: P = ρ g Q H ÷ η. Water, SG 1.0." tabindex="0"><span class="kp">Brake power</span></span></span><b id="ro-power"></b></div>
-        <div id="ro-dp-box"><span><span data-tip="Pressure rise across the pump for water: 1 ft of head = 0.433 psi; 1 m = 9.81 kPa. Gauge on the discharge reads this when the suction is at 0 gauge." tabindex="0">Pump ΔP</span></span><b id="ro-dp"></b></div>
+        <div id="ro-dp-box"><span><span data-tip="Pressure rise across the pump: discharge gauge minus suction gauge, ΔP = Pd − Ps. For water 1 ft of head = 0.433 psi; 1 m = 9.81 kPa." tabindex="0">Pump ΔP = Pd − Ps</span></span><b id="ro-dp"></b></div>
         <div id="ro-bep-box"><span>BEP flow</span><b id="ro-bep"></b></div>
         <div id="ro-bephead-box"><span>BEP head</span><b id="ro-bephead"></b></div>
+        <div id="ro-npsha-box"><span><span data-tip="NPSH available: absolute pressure head at the pump suction above the liquid's vapour pressure. = atmosphere + suction level − suction friction − vapour pressure." tabindex="0">NPSH avail.</span></span><b id="ro-npsha"></b></div>
+        <div id="ro-npshr-box"><span><span data-tip="NPSH required (maker's curve, NPSH3: the point where head drops 3 %). Rises with flow and with speed squared." tabindex="0">NPSH req'd</span></span><b id="ro-npshr"></b></div>
+        <div id="ro-sigma-box"><span><span data-tip="NPSH margin ratio = NPSHa ÷ NPSHr. ANSI/HI 9.6.1 suggests at least 1.1 for general service (more for many duties). Below 1.1: cavitation risk." tabindex="0">Margin ratio</span></span><b id="ro-sigma"></b></div>
         <div id="ro-shutoff-box"><span><span data-tip="Shutoff head: the head the pump makes at zero flow (valve closed). Scales with N² and D²." tabindex="0">Shutoff head</span></span><b id="ro-shutoff"></b></div>
       </div>
       <div id="status" role="status"></div>
@@ -209,23 +252,52 @@ const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
      yellow 0.40–0.70 or 1.20–1.30  outside the POR
      red    x < 0.40 (far below BEP), x > 1.30 (runout, past end of curve), or no flow (shutoff)
    ===================================================================== */
-const P0={N1:1750,D1:10.0,H0:150,a:1.2e-4,Qb:500,etaMax:0.80,kPipe:1.5e-4,kValve:0.3e-4,end:1.30};
+const P0={N1:1750,D1:10.0,H0:150,a:1.2e-4,Qb:500,etaMax:0.80,kPipe:1.5e-4,kValve:0.3e-4,end:1.30,
+  n0:4,n2:2e-5,kS:1e-5};
+/* SUCTION SIDE, NPSH AND THE FAILURE MODES
+   NPSHa = H_atm + suction level − suction friction − vapour pressure head   (ft of water, SG 1.0)
+     H_atm = 14.696 psia × 2.307 ft/psi = 33.9 ft (sea level)        suction friction = kS·Q², kS = 0.000010 ft/gpm²
+     vapour pressure from the steam tables (psia → ft: × 2.307), interpolated in °F (Engineering ToolBox, Water saturation pressure)
+   NPSHr (maker's NPSH3 curve, teaching values for this pump): 4 ft at zero flow + 0.000020·Q² → 9 ft at BEP, ∝ speed²
+     (affinity: NPSHr = n0·s² + n2·Q², corresponding points scale by s²)
+   Margin ratio σ = NPSHa ÷ NPSHr. ANSI/HI 9.6.1 (2012/2017 eds.) suggests a minimum margin ratio of 1.1 for general
+     service (more for many duties; the 2024 edition bases it on the maker's NPSHR). Below 1.1 → cavitation (failure armed).
+   Head breakdown (teaching model): none at σ ≥ 1.1, 3 % at σ = 1.0 (that is what NPSH3 means), then steeply:
+     drop = 0.03·(1.1 − σ)/0.1  for 1.0 ≤ σ < 1.1,   0.03 + 1.2·(1 − σ) below (max 60 %). Operating point re-solved with it.
+   Dead-head: valve shut, no flow. All shaft power heats the water in the casing (3 US gal, 25 lb for this size):
+     dT/dt [°F/s] = (P_loss [hp] × 0.7068 BTU/s per hp − ṁ·c·(T − T_in)) ÷ (25 lb × 1 BTU/lb·°F); shown 60 × faster.
+     At flow the steady rise is the textbook ΔT = BHP·(1 − η)·2545 ÷ (gpm × 500). Trip: casing water at 212 °F (100 °C):
+     it flashes to steam, the mechanical seal runs dry. */
+const HATM=33.9, PSIA_FT=2.307, MARGIN=1.1, CASE_LB=25, BOIL_F=212, TIME_X=60;
+const VAP=[[32,.0887],[40,.1217],[50,.1780],[60,.2563],[70,.3632],[80,.5073],[90,.6988],[100,.9503],[110,1.276],[120,1.695],[130,2.225],
+  [140,2.892],[150,3.722],[160,4.745],[170,5.996],[180,7.515],[190,9.343],[200,11.53],[210,14.13],[212,14.70]];   // °F, psia
+function vapPsia(tF){tF=clamp(tF,32,212);for(let i=1;i<VAP.length;i++)if(tF<=VAP[i][0]){const [t0,p0]=VAP[i-1],[t1,p1]=VAP[i];
+  return Math.exp(Math.log(p0)+(Math.log(p1)-Math.log(p0))*(tF-t0)/(t1-t0));}return VAP[VAP.length-1][1];}
+const cavDrop=sg=>sg>=MARGIN?0:sg>=1?.03*(MARGIN-sg)/(MARGIN-1):Math.min(.6,.03+1.2*(1-sg));
+const FL={on:false,kind:null,t:0,big:'',reason:'',sigma:0,caseT:0};
+let MINF=0, listeners=[];
 const GPM_M3H=0.2271247, FT_M=0.3048, IN_MM=25.4, HP_KW=0.7457, PSI_FT=0.433, RHO=1000, G=9.81;
-const S={speed:1750,dia:10,valve:.5,hst:40,units:'imperial',mistake:false,tab:'maths'};
-const NUMERIC=['speed','dia','valve','hst'];
+const S={speed:1750,dia:10,valve:.5,hst:40,units:'imperial',mistake:false,tab:'maths',suct:5,temp:68,caseT:68,view:'pump',fail:!CAPTURE};
+const NUMERIC=['speed','dia','valve','hst','suct','temp'];
 
 function calc(st=S){
   const met=st.units==='metric';
   const N=st.speed;
   const D=clamp(met?st.dia/IN_MM:st.dia, 0.9*P0.D1, P0.D1);          // inches; trim limit 10 %
   const Hst=Math.max(0,met?st.hst/FT_M:st.hst);                      // ft
-  const xv=clamp(st.valve,.05,1);
+  const xv=clamp(st.valve,0,1), closed=xv<.005;                      // valve shut = dead-headed
   const rN=N/P0.N1, rD=D/P0.D1, s=rN*rD;                              // affinity ratio
   const Hshut=P0.H0*s*s;                                             // shutoff head, ft
-  const k=P0.kPipe+P0.kValve/(xv*xv), kv=P0.kValve/(xv*xv);          // system resistance, ft/gpm²
-  const noFlow=Hshut<=Hst;
-  const Q=noFlow?0:Math.sqrt((Hshut-Hst)/(P0.a+k));                  // gpm
-  const H=noFlow?Hshut:Hst+k*Q*Q;                                    // ft
+  const kv=closed?Infinity:P0.kValve/(xv*xv), k=P0.kPipe+kv;         // system resistance, ft/gpm²
+  // suction side: NPSH available vs required (see the block above P0)
+  const suct=met?(st.suct==null?5*FT_M:st.suct)/FT_M:(st.suct==null?5:st.suct), tempF=met?(st.temp==null?20:st.temp)*1.8+32:(st.temp==null?68:st.temp);
+  const Hvp=vapPsia(tempF)*PSIA_FT;
+  const npA=q=>HATM+suct-P0.kS*q*q-Hvp, npR=q=>P0.n0*s*s+P0.n2*q*q;
+  let drop=0, Q=0, noFlow=closed||Hshut<=Hst;
+  if(!noFlow)for(let i=0;i<14;i++){const hs=Hshut*(1-drop);if(hs<=Hst){Q=0;break;}
+    Q=Math.sqrt((hs-Hst)/(P0.a*(1-drop)+k));drop=.5*drop+.5*cavDrop(npA(Q)/npR(Q));}
+  if(!closed&&Q<=1e-9)noFlow=true;                                    // vapour-bound: cavitation took all the head
+  const H=noFlow?Hshut*(1-drop):Hst+k*Q*Q;                           // ft
   const Qbep=P0.Qb*s, Hbep=Hshut-P0.a*Qbep*Qbep;                     // BEP moves with s and s²
   const x=Q/Qbep;                                                     // fraction of BEP flow
   const eta=P0.etaMax*x*(2-x);
@@ -235,14 +307,18 @@ function calc(st=S){
   const Qm=Q*GPM_M3H, Hm=H*FT_M, Qbm=Qbep*GPM_M3H, Hbm=Hbep*FT_M;
   const kW=RHO*G*Hm*(s*P0.Qb*GPM_M3H/3600)/(1000*P0.etaMax*(2-x));    // = ρgQH/(1000η)
   const kWBep=RHO*G*(Qbm/3600)*Hbm/(1000*P0.etaMax);
-  const hv=kv*Q*Q;                                                    // head burned across the valve, ft
+  const hv=closed?0:kv*Q*Q;                                                    // head burned across the valve, ft
+  const npshA=npA(Q), npshR=npR(Q), sigma=npshA/npshR, cav=Q>0&&sigma<MARGIN;
+  const Ps=suct-P0.kS*Q*Q, Pd=Ps+H;                                   // gauge heads at the suction and discharge flanges, ft
   let level='ok',why='por';
-  if(noFlow){level='bad';why='shutoff';}
+  if(closed){level='bad';why='deadhead';}
+  else if(noFlow){level='bad';why='shutoff';}
   else if(x<.40){level='bad';why='low';}
   else if(x>P0.end){level='bad';why='runout';}
   else if(x<.70||x>1.20){level='warn';why=x<.7?'below':'above';}
-  return {met,N,D,Hst,xv,rN,rD,s,Hshut,k,kv,hv,noFlow,Q,H,Qbep,Hbep,x,eta,bhp,bhpBep,Qm,Hm,kW,kWBep,
-          psi:H*PSI_FT,kPa:Hm*G,level,why};
+  if(cav&&!(level==='bad'&&why!=='por')){level=sigma<1?'bad':level==='bad'?'bad':'warn';why='cavitation';}
+  return {met,N,D,Hst,xv,rN,rD,s,Hshut,k,kv,hv,noFlow,closed,Q,H,Qbep,Hbep,x,eta,bhp,bhpBep,Qm,Hm,kW,kWBep,
+          psi:H*PSI_FT,kPa:Hm*G,level,why,suct,tempF,Hvp,npshA,npshR,sigma,cav,drop,Ps,Pd,npA,npR};
 }
 
 /* ---------- units & formatting ---------- */
@@ -265,7 +341,7 @@ const KQ=()=>met()?FT_M/(GPM_M3H*GPM_M3H):1;     // ft/gpm² → m/(m³/h)²
 
 /* ---------- animation state (virtual clock only) ---------- */
 let T=0, tweens=[], callouts=[];
-const A={imp:0,flowS:0,flowD:0,needle:0,needleV:0,dq:null,dh:null,mEta:0,mP:0,valveTurn:0,pulse:0,demo:null};
+const A={sumpY:null,needleS:0,needleSV:0,erosion:0,imp:0,flowS:0,flowD:0,needle:0,needleV:0,dq:null,dh:null,mEta:0,mP:0,valveTurn:0,pulse:0,demo:null};
 
 /* ---------- static SVG defs (gradients, filters): built once ---------- */
 $('defs1').innerHTML=`
@@ -323,61 +399,119 @@ function boreColour(hft){const t=clamp(hft/160,0,1);const r=Math.round(16+30*t),
 
 function drawSchematic(c){
   const F=narrow()?1.6:1;
-  const lvl=SUMP_LVL-c.Hst*1.12;                         // discharge tank liquid level (1.12 px per ft)
+  // END-SUCTION CENTRIFUGAL PUMP, SIDE ELEVATION: suction enters the impeller eye along the shaft axis, the volute
+  // discharges straight up, the bearing frame, coupling and motor sit on the same axis behind it.
+  const {x:px,y:py,r:pr}=PUMP, cxL=px-36, cxR=px+36;                 // casing faces (side view)
+  const sY=clamp(py-c.suct*1.12,204,300); A.sumpY=sY;                // suction liquid level (1.12 px per ft, as the lift)
+  const lvl=sY-c.Hst*1.12;                                            // discharge tank liquid level
   const tankX=1070,tankW=200,inletY=lvl+48;
-  const suction=[[208,SUCT_Y],[PUMP.x-PUMP.r+6,SUCT_Y]];
-  const disch=[[DIS_X,PUMP.y-PUMP.r+8],[DIS_X,DIS_Y],[RISER_X,DIS_Y],[RISER_X,inletY],[tankX+6,inletY]];
-  const hAfter=Math.max(c.Hst,c.H-c.hv);                 // head left after the valve
+  const SFX=cxL-20;                                                   // suction flange
+  const suction=[[115,300],[115,py],[SFX,py]];
+  const disch=[[DIS_X,py-pr+8],[DIS_X,DIS_Y],[RISER_X,DIS_Y],[RISER_X,inletY],[tankX+6,inletY]];
+  const hAfter=Math.max(c.Hst,c.H-c.hv);
   let s='';
-  // floor
   s+=`<rect x="0" y="322" width="1300" height="18" fill="#171512"/><line x1="0" y1="322" x2="1300" y2="322" stroke="#3a3530" stroke-width="2"/>`;
-  // suction sump (open tank), ripple on the surface
   const rip=(x0,x1,y,amp)=>{let p=`M${x0} ${y}`;for(let x=x0;x<=x1;x+=10)p+=` L${x} ${(y+amp*Math.sin(x/17+T/380)).toFixed(1)}`;return p;};
-  s+=`<g id="sump" filter="url(#shadow)"><rect x="18" y="150" width="194" height="172" fill="url(#tankG)" rx="4"/>
-    <path d="${rip(26,204,SUMP_LVL,1.6)} L204 314 L26 314 Z" fill="url(#water)"/><rect x="26" y="150" width="178" height="${SUMP_LVL-150}" fill="#1a1815" opacity=".55"/></g>`;
-  s+=`<text x="115" y="176" text-anchor="middle" font-size="${16*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.5">SUCTION</text>`;
-  // discharge tank on a stand: rises and falls with static head
+  // suction sump: open tank, level moves with the suction setting
+  s+=`<g id="sump" filter="url(#shadow)"><rect x="18" y="196" width="194" height="126" fill="url(#tankG)" rx="4"/>
+    <rect x="26" y="200" width="178" height="${sY-200}" fill="#1a1815" opacity=".55"/>
+    <path d="${rip(26,204,sY,1.6)} L204 314 L26 314 Z" fill="url(#water)"/></g>`;
+  const suctDim=()=>{let g=`<g id="suct-dim"><line x1="40" y1="${py}" x2="${SFX}" y2="${py}" stroke="${TEXT}" stroke-width="1" stroke-dasharray="3 6" opacity=".45"/>`;
+    if(Math.abs(c.suct)>1.5)g+=`<line x1="60" y1="${py}" x2="60" y2="${sY}" stroke="${KST}" stroke-width="2.5"/>`;
+    return g+`<text x="26" y="190" font-size="${14*F}" font-weight="800" fill="${KST}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">SUCTION ${c.suct>=0?'flooded +':'lift −'}${head(Math.abs(c.suct))}</text></g>`;};
+  // discharge tank on a stand
   s+=`<g id="tank-hi" filter="url(#shadow)">
     <rect x="${tankX+20}" y="${lvl+80}" width="10" height="${Math.max(0,322-lvl-80)}" fill="#3d4449"/><rect x="${tankX+tankW-30}" y="${lvl+80}" width="10" height="${Math.max(0,322-lvl-80)}" fill="#3d4449"/>
     <rect x="${tankX}" y="${lvl-34}" width="${tankW}" height="114" rx="4" fill="url(#tankG)"/>
     <path d="${rip(tankX+8,tankX+tankW-8,lvl,1.6)} L${tankX+tankW-8} ${lvl+74} L${tankX+8} ${lvl+74} Z" fill="url(#water)"/></g>`;
-  // static head dimension: suction level → discharge level
   const dx=tankX+tankW-44;
-  s+=`<g id="hst-dim"><line x1="212" y1="${SUMP_LVL}" x2="${dx+18}" y2="${SUMP_LVL}" stroke="${TEXT}" stroke-width="1.2" stroke-dasharray="5 6" opacity=".55"/>`;
-  if(c.Hst>2)s+=`<line x1="${dx}" y1="${SUMP_LVL}" x2="${dx}" y2="${lvl}" stroke="${KST}" stroke-width="3"/><polygon points="${dx},${lvl} ${dx-6},${lvl+11} ${dx+6},${lvl+11}" fill="${KST}"/><polygon points="${dx},${SUMP_LVL} ${dx-6},${SUMP_LVL-11} ${dx+6},${SUMP_LVL-11}" fill="${KST}"/>`;
-  s+=`<text x="${c.Hst>20?dx-10:tankX+tankW/2}" y="${c.Hst>20?(SUMP_LVL+lvl)/2+6:lvl-44}" text-anchor="${c.Hst>20?'end':'middle'}" font-size="${19*F}" font-weight="800" fill="${KST}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">H<tspan font-size="${13*F}" dy="4">st</tspan><tspan dy="-4"> ${head(c.Hst)}</tspan></text></g>`;
-  // pipes (bore colour: suction low, pump→valve high, after valve lower: the valve burns head)
-  s+=`<g filter="url(#shadow)">`+pipe(suction,40,26,boreColour(8))+pipe(disch.slice(0,3).concat([[VALVE_X,DIS_Y]]),32,20,boreColour(c.H))
+  s+=`<g id="hst-dim"><line x1="212" y1="${sY}" x2="${dx+18}" y2="${sY}" stroke="${TEXT}" stroke-width="1.2" stroke-dasharray="5 6" opacity=".4"/>`;
+  if(c.Hst>2)s+=`<line x1="${dx}" y1="${sY}" x2="${dx}" y2="${lvl}" stroke="${KST}" stroke-width="3"/><polygon points="${dx},${lvl} ${dx-6},${lvl+11} ${dx+6},${lvl+11}" fill="${KST}"/><polygon points="${dx},${sY} ${dx-6},${sY-11} ${dx+6},${sY-11}" fill="${KST}"/>`;
+  s+=`<text x="${c.Hst>20?dx-10:tankX+tankW/2}" y="${c.Hst>20?(sY+lvl)/2+6:lvl-44}" text-anchor="${c.Hst>20?'end':'middle'}" font-size="${19*F}" font-weight="800" fill="${KST}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">H<tspan font-size="${13*F}" dy="4">st</tspan><tspan dy="-4"> ${head(c.Hst)}</tspan></text></g>`;
+  // pipes (bore colour: suction low, pump→valve high, after valve lower)
+  s+=`<g filter="url(#shadow)">`+pipe(suction,40,26,boreColour(Math.max(0,c.Ps)))+pipe(disch.slice(0,3).concat([[VALVE_X,DIS_Y]]),32,20,boreColour(c.H))
      +pipe([[VALVE_X,DIS_Y],...disch.slice(2)],32,20,boreColour(hAfter))+`</g>`;
-  s+=flange(300,SUCT_Y,false,40)+flange(DIS_X,PUMP.y-PUMP.r-22,true,32)+flange(760,DIS_Y,false,32)+flange(940,DIS_Y,false,32);
-  // flow particles: speed ∝ velocity = Q ÷ pipe area (8 in suction, 6 in discharge → 1.78× faster)
+  s+=`<path id="strainer" d="M97 300 L133 300 L127 316 L103 316 Z" fill="url(#pipeH)" stroke="#2a3035"/>`+[103,109,115,121,127].map(x=>`<line x1="${x}" y1="302" x2="${x}" y2="314" stroke="#2a3035" stroke-width="1.5"/>`).join('');
+  s+=`<rect x="206" y="${py-24}" width="12" height="48" fill="#3d4449"/>`;                           // wall sleeve
+  s+=flange(SFX,py,false,40)+flange(DIS_X,py-pr-22,true,32)+flange(760,DIS_Y,false,32)+flange(940,DIS_Y,false,32);
   if(c.Q>0){const n=Math.min(1,c.Q/700);
     s+=`<g filter="url(#glow)" opacity="${.5+.5*n}">`+particles(suction,A.flowS,34,4,'#bfe3ff')
       +particles(disch.slice(0,3).concat([[VALVE_X-24,DIS_Y]]),A.flowD,30,3.4,'#e8f6ff')+particles([[VALVE_X+24,DIS_Y],...disch.slice(2)],A.flowD,30,3.4,'#cfe9ff')+`</g>`;}
-  s+=flowBlock(c,F);
-  // pump: shaded cast volute with a cut-away window onto the impeller
-  const {x:px,y:py,r:pr}=PUMP;
+  s+=flowBlock(c,F)+suctDim();
+  // pump casing (side view of the volute), suction nozzle into the eye, cut-away showing the impeller in profile
+  const heat=clamp((S.caseT-c.tempF)/(BOIL_F-c.tempF+1e-9),0,1);
+  const R2=(pr-16)*c.rD;                                              // impeller drawn to its (trimmed) diameter
   s+=`<g id="pump" filter="url(#shadow)">
-    <path d="${volute(px,py,pr)}" fill="url(#cast)" stroke="#20262a" stroke-width="2"/>
-    <rect x="${px-48}" y="${py+pr-8}" width="96" height="${322-py-pr+8}" fill="url(#cast)"/>
-    <circle cx="${px}" cy="${py}" r="${pr-14}" fill="url(#cavity)" stroke="#11171c" stroke-width="3"/></g>`;
-  s+=impeller(px,py,pr-20,c);
-  s+=`<text x="${px}" y="${py+pr+40}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">IMPELLER ${diam(c.D)}</text>`;
-  // shaft + coupling (stripes run with rotation) + finned motor
-  const mx=575,mw=190, stripe=((A.imp*12)%12+12)%12;
-  s+=`<rect x="${px+pr-6}" y="${py-9}" width="${mx-px-pr+10}" height="18" fill="url(#pipeH)"/>
-    <g id="coupling"><rect x="${px+pr+8}" y="${py-20}" width="30" height="40" rx="4" fill="url(#pipeH)" stroke="#2a3035"/>`;
-  for(let k=0;k<3;k++){const yy=py-20+((stripe+k*12)%36)+2;s+=`<line x1="${px+pr+10}" y1="${yy}" x2="${px+pr+36}" y2="${yy}" stroke="#2a3035" stroke-width="3" opacity="${.3+.5*Math.sin(Math.PI*(yy-py+20)/40)}"/>`;}
+    <path d="M${cxL} ${py-pr+14} Q${cxL} ${py-pr} ${px} ${py-pr} Q${cxR} ${py-pr} ${cxR} ${py-pr+14} L${cxR} ${py+pr-10} Q${cxR} ${py+pr} ${px} ${py+pr} Q${cxL} ${py+pr} ${cxL} ${py+pr-10} Z" fill="url(#cast)" stroke="#20262a" stroke-width="2"/>
+    <rect x="${DIS_X-16}" y="${py-pr-16}" width="32" height="20" fill="url(#cast)"/>
+    <rect x="${SFX}" y="${py-17}" width="${cxL-SFX}" height="34" fill="url(#cast)"/>
+    <rect x="${px-40}" y="${py+pr-8}" width="80" height="${322-py-pr+8}" fill="url(#cast)"/>
+    ${heat>.02?`<path d="M${cxL} ${py-pr+14} Q${cxL} ${py-pr} ${px} ${py-pr} Q${cxR} ${py-pr} ${cxR} ${py-pr+14} L${cxR} ${py+pr-10} Q${cxR} ${py+pr} ${px} ${py+pr} Q${cxL} ${py+pr} ${cxL} ${py+pr-10} Z" fill="#ff3b1f" opacity="${(.45*heat).toFixed(2)}"/>`:''}
+    <rect id="pump-cutaway" x="${px-24}" y="${py-pr+12}" width="48" height="${2*pr-24}" rx="6" fill="url(#cavity)" stroke="#11171c" stroke-width="2"/></g>`;
+  // impeller in profile: back shroud, front shroud with the eye opening toward the suction, vanes between (turning)
+  const ph=((A.imp*2)%1+1)%1;
+  A.geom={suctEnd:suction[suction.length-1],flangeX:SFX,axisY:py,impR:R2,impRmax:pr-16};
+  s+=`<g id="impeller"><rect x="${px+4}" y="${py-R2}" width="7" height="${2*R2}" rx="3" fill="url(#impG)"/>
+    <path d="M${px-12} ${py-R2*.95} L${px-6} ${py-R2} L${px-6} ${py-R2*.32} L${px-14} ${py-R2*.3} Z M${px-12} ${py+R2*.95} L${px-6} ${py+R2} L${px-6} ${py+R2*.32} L${px-14} ${py+R2*.3} Z" fill="url(#impG)"/>`;
+  for(let i=0;i<4;i++){const yy=py-R2+((ph+i/4)%1)*2*R2;if(Math.abs(yy-py)>R2*.3)s+=`<rect x="${px-6}" y="${(yy-2).toFixed(1)}" width="10" height="4" fill="#f0d9a8" opacity=".75"/>`;}
+  s+=`<rect x="${px-14}" y="${py-R2*.3}" width="12" height="${R2*.6}" fill="#1b3a57"/></g>`;
+  // cavitation in the side view: vapour cloud in the eye
+  if(c.cav)for(let i=0;i<8;i++){const t=((T/420+i/8)%1), yy=py+(i%2?1:-1)*R2*(.1+.25*t);
+    s+=`<circle cx="${(px-12+t*10).toFixed(1)}" cy="${yy.toFixed(1)}" r="${(1.5+2.5*Math.sin(Math.PI*t)).toFixed(1)}" fill="#e8f6ff" opacity="${(.8*(1-t)).toFixed(2)}"/>`;}
+  // bearing frame, shaft, coupling, motor: all on the pump axis
+  const bf0=cxR, bf1=cxR+74, cp0=bf1+6, cp1=cp0+28, mx=cp1+6, mw=190, stripe=((A.imp*12)%12+12)%12;
+  s+=`<rect x="${bf0}" y="${py-9}" width="${mx-bf0+4}" height="18" fill="url(#pipeH)"/>
+    <g id="bearing-frame" filter="url(#shadow)"><path d="M${bf0} ${py-30} L${bf1} ${py-26} L${bf1} ${py+26} L${bf0} ${py+30} Z" fill="url(#cast)" stroke="#20262a"/>
+    <rect x="${bf0+12}" y="${py+26}" width="46" height="${322-py-26}" fill="url(#cast)"/></g>
+    <g id="coupling"><rect x="${cp0}" y="${py-20}" width="${cp1-cp0}" height="40" rx="4" fill="url(#pipeH)" stroke="#2a3035"/>`;
+  for(let k=0;k<3;k++){const yy=py-20+((stripe+k*12)%36)+2;s+=`<line x1="${cp0+2}" y1="${yy}" x2="${cp1-2}" y2="${yy}" stroke="#2a3035" stroke-width="3" opacity="${.3+.5*Math.sin(Math.PI*(yy-py+20)/40)}"/>`;}
   s+=`</g><g id="motor" filter="url(#shadow)"><rect x="${mx}" y="${py-44}" width="${mw}" height="88" rx="10" fill="url(#motorG)"/>`;
   for(let fx=mx+18;fx<mx+mw-24;fx+=12)s+=`<rect x="${fx}" y="${py-44}" width="4" height="88" fill="#203040" opacity=".7"/>`;
   s+=`<rect x="${mx+mw-6}" y="${py-36}" width="24" height="72" rx="8" fill="url(#motorG)"/><rect x="${mx+40}" y="${py+44}" width="110" height="${322-py-44}" fill="#2b2f33"/>
-    <rect x="${mx+56}" y="${py-14}" width="78" height="28" rx="3" fill="#cfd5da"/><text x="${mx+95}" y="${py+6}" text-anchor="middle" font-size="16" font-weight="800" fill="#1F1D1A">${nf(c.N)} rpm</text></g>`;
-  // pressure gauge on the discharge: glass face, glint, spring-damped needle
-  s+=gauge(GAUGE_X,62,c,F);
+    <rect x="${mx+56}" y="${py-14}" width="78" height="28" rx="3" fill="#cfd5da"/>${MINF>0?'':`<text x="${mx+95}" y="${py+6}" text-anchor="middle" font-size="16" font-weight="800" fill="#1F1D1A">${nf(c.N)} rpm</text>`}</g>`;
+  s+=`<text x="${px}" y="${py+pr+18}" text-anchor="middle" font-size="${12*F}" font-weight="700" fill="${MUTED}" letter-spacing="1">PUMP</text>`;
+  // cavitation noise (crackle, like gravel through the pump) and dead-head steam and casing temperature
+  if(c.cav){const lvlN=clamp((MARGIN-c.sigma)/.6,.2,1);s+=`<g id="cav-noise">`;
+    for(let i=0;i<6;i++){const h=(8+30*lvlN)*(.4+.6*Math.abs(Math.sin(T/(37+i*11)+i*1.7)));
+      s+=`<rect x="${bf0+8+i*10}" y="${(py-60-h).toFixed(1)}" width="6" height="${h.toFixed(1)}" rx="2" fill="${i<3?WARN:BAD}" opacity=".9"/>`;}
+    s+=`</g>`;}
+  if(S.caseT>c.tempF+8){const hot=S.caseT>=BOIL_F-.5;
+    s+=pillTag('case-temp',cxR+44,py-pr-34,`casing ${imp_()?nf(S.caseT)+' °F':nf((S.caseT-32)/1.8)+' °C'}`,S.caseT>180?BAD:S.caseT>140?WARN:OK);
+    if(S.caseT>150)for(let i=0;i<4;i++){const t=((T/900+i/4)%1), x=cxR+6+i*7;
+      s+=`<path d="M${x} ${py-28-t*60} q 6 -8 0 -16 q -6 -8 0 -16" stroke="${hot?'#cfd5da':BAD}" stroke-width="${hot?4:2}" fill="none" opacity="${((1-t)*.75).toFixed(2)}"/>`;}}
+  // suction (compound) gauge on the suction nozzle, discharge gauge on the discharge pipe, each with an isolation cock
+  s+=gauge(370,300,c,F,'suction');
+  s+=gauge(GAUGE_X,62,c,F,'discharge');
   s+=headColumn(c,F);
-  // throttling valve: rising stem and turning handwheel
   s+=valve(VALVE_X,DIS_Y,c,F);
-  $('schem-dyn').innerHTML=s;
+  s+=eyeInset(c,F);
+  $('schem-dyn').innerHTML=narrow()?s.replace(/font-size="([\d.]+)"/g,(m,v)=>+v<MINF?`font-size="${MINF.toFixed(1)}"`:m):s;
+}
+const imp_=()=>!met();
+function pillTag(id,x,y,t,col){const w=t.length*8.2+20;return `<g id="${id}"><rect x="${x-w/2}" y="${y-13}" width="${w}" height="26" rx="13" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/><text x="${x}" y="${y+5}" text-anchor="middle" font-size="14" font-weight="800" fill="${col}">${t}</text></g>`;}
+/* cut-away looking into the eye: impeller face-on, drawn to its trimmed diameter, backward-curved vanes turning.
+   Cavitation: vapour bubbles form where the pressure is lowest (vane inlet, suction side = the trailing face) and
+   collapse as they are carried outward into higher pressure; the collapse pits the vane (erosion builds while it runs). */
+function eyeInset(c,F){
+  const x0=866,y0=210,w=128,h=110,cx=x0+w/2,cy=y0+h/2+8,R=44*c.rD;
+  let s=`<g id="eye-inset"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="10" fill="#141b21" stroke="#56636c" stroke-width="1.5"/>
+    ${MINF>0?'':`<text x="${cx}" y="${y0+12}" text-anchor="middle" font-size="11" font-weight="800" fill="${MUTED}" letter-spacing="1">INTO THE EYE</text>`}
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#impG)" opacity=".95"/>`;
+  const rot=-A.imp, vane=(i,t)=>{const a=rot+i*Math.PI/3, rr=R*(.28+.70*t), aa=a+1.1*t;return [cx+rr*Math.cos(aa),cy-rr*Math.sin(aa),aa];};
+  for(let i=0;i<6;i++){const [x0v,y0v]=vane(i,0),[x1,y1]=vane(i,.5),[x2,y2]=vane(i,1);
+    s+=`<path d="M${x0v.toFixed(1)} ${y0v.toFixed(1)} Q${x1.toFixed(1)} ${y1.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="#f0d9a8" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    for(let k=0;k<Math.round(A.erosion*7);k++){const t=.08+k*.05, [ex,ey,ea]=vane(i,t), off=-3;   // pits on the suction side near the inlet
+      s+=`<circle cx="${(ex+off*Math.sin(ea)).toFixed(1)}" cy="${(ey+off*Math.cos(ea)).toFixed(1)}" r="1.4" fill="#3a2410"/>`;}}
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R*.28}" fill="#1b3a57" stroke="#f0d9a8" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="4" fill="${ACC}"/>`;
+  if(c.cav){const n=Math.round(clamp((MARGIN-c.sigma)/.5,.25,1)*4);
+    for(let i=0;i<6;i++)for(let j=0;j<n;j++){const life=((T/700+j/n+i*.13)%1), t=.04+.4*life, [bx,by,ba]=vane(i,t);
+      const r=life<.7?1.2+2.6*life/.7:3.0*(1-(life-.7)/.3)*1.0+.3, off=-4-2*life;              // grow, then collapse
+      const bx2=bx+off*Math.sin(ba), by2=by+off*Math.cos(ba);
+      s+=`<circle cx="${bx2.toFixed(1)}" cy="${by2.toFixed(1)}" r="${Math.max(.3,r).toFixed(1)}" fill="#e8f6ff" opacity="${life<.7?.9:.9*(1-(life-.7)/.3)}"/>`;
+      if(life>.85)s+=`<circle cx="${bx2.toFixed(1)}" cy="${by2.toFixed(1)}" r="${(5*(life-.85)/.15+1).toFixed(1)}" fill="none" stroke="#fff" stroke-width="1" opacity="${(1-(life-.85)/.15).toFixed(2)}"/>`;}}
+  if(!(MINF>0))s+=`<text x="${cx}" y="${y0+h-6}" text-anchor="middle" font-size="11" font-weight="700" fill="${c.cav?BAD:MUTED}">${c.cav?'bubbles collapse':'D '+diam(c.D)}</text>`;
+  s+=`</g>`;
+  return s;
 }
 /* Displayed head split: static + friction, rounded so the two shown parts add to the shown total. */
 const r1=v=>Math.round(v*10)/10;
@@ -385,9 +519,9 @@ function headParts(H,Hst){const Hd=r1(fH(H)), sd=r1(fH(Math.min(Hst,H)));return 
 /* Head as a liquid column beside the pump, drawn from the suction level at the same 1.12 px/ft as the tank lift:
    bottom part = static head (reaches exactly the discharge tank level), top part = friction head k·Q².
    The column top maps to the gauge: psi = ft × 0.433 × SG (kPa = m × 9.81 × SG). */
-const COL_X=300, PXFT=1.12;
+const COL_X=300, PXFT=1.12;   // column base = the suction liquid level (A.sumpY)
 function headColumn(c,F){
-  const H=Math.max(0,A.dh), base=SUMP_LVL, top=base-H*PXFT, stTop=base-Math.min(c.Hst,H)*PXFT, w=24;
+  const H=Math.max(0,A.dh), base=A.sumpY||SUMP_LVL, top=base-H*PXFT, stTop=base-Math.min(c.Hst,H)*PXFT, w=24;
   const sw=Math.sin(T/260)*1.4;  // the surface sways a little: it is liquid, not a bar
   let s=`<g id="head-col"><rect x="${COL_X-w/2-3}" y="${base-150*PXFT*1.04}" width="${w+6}" height="${150*PXFT*1.04+3}" rx="6" fill="#0e1418" opacity=".55" stroke="#56636c" stroke-width="1.5"/>`;
   const step=met()?10/FT_M:20;   // tick every 20 ft (10 m)
@@ -402,14 +536,14 @@ function headColumn(c,F){
   s+=`<text x="${COL_X-w/2-10}" y="${ly+17}" text-anchor="end" font-size="12" font-weight="700" fill="${MUTED}">pump head</text>`;
   let yf=(top+stTop)/2+5, ys=(stTop+base)/2+5;      // part labels, kept at least 18 px apart
   if(c.Hst>0&&hp.fd>0&&ys-yf<18){const m=(ys+yf)/2;yf=m-9;ys=m+9;}
-  if(hp.fd>0)s+=lab(COL_X+w/2+14,yf,KF,`friction ${nf(hp.fd,1)}`);
-  if(hp.sd>0)s+=lab(COL_X+w/2+14,ys,KST,`static ${nf(hp.sd,1)}${c.noFlow?` of ${nf(r1(fH(c.Hst)),1)}`:''}`);
-  if(c.noFlow)s+=lab(COL_X+w/2+14,Math.max(top-26,30),BAD,`${head(c.Hst-c.H)} short`);
+  if(hp.fd>0)s+=lab(COL_X+w/2+14,yf,KF,c.closed?`held by the shut valve ${nf(hp.fd,1)}`:`friction ${nf(hp.fd,1)}`);
+  if(hp.sd>0)s+=lab(COL_X+w/2+14,ys,KST,`static ${nf(hp.sd,1)}${c.noFlow&&!c.closed?` of ${nf(r1(fH(c.Hst)),1)}`:''}`);
+  if(c.noFlow&&!c.closed&&c.Hst>c.H)s+=lab(COL_X+w/2+14,Math.max(top-26,30),BAD,`${head(c.Hst-c.H)} short`);
   // column top → gauge: the same head read as pressure
-  const gx=GAUGE_X-60, gy=62;
+  const gx=GAUGE_X-58, gy=62;
   s+=`<line x1="${COL_X+w/2+6}" y1="${top}" x2="${gx}" y2="${gy}" stroke="${KH}" stroke-width="1.6" stroke-dasharray="3 5" opacity=".75"/>
     <circle cx="${gx}" cy="${gy}" r="3.5" fill="${KH}"/>`;
-  const pr=met()?`${tsp(KH,nf(hp.Hd,1)+' m')} × 9.81 kPa/m × SG 1.0 = ${nf(c.kPa)} kPa`:`${tsp(KH,nf(hp.Hd,1)+' ft')} × 0.433 psi/ft × SG 1.0 = ${nf(c.psi,1)} psi`;
+  const pr=met()?`${tsp(KH,nf(hp.Hd,1)+' m')} × 9.81 kPa/m × SG 1.0 = ${nf(c.kPa)} kPa = ΔP`:`${tsp(KH,nf(hp.Hd,1)+' ft')} × 0.433 psi/ft × SG 1.0 = ${nf(c.psi,1)} psi = ΔP`;
   s+=`<text id="psi-map" x="${GAUGE_X-66}" y="22" text-anchor="end" font-size="14" font-weight="700" fill="${TEXT}" stroke="#1F1D1A" stroke-width="4" paint-order="stroke">${pr}</text>`;
   return s;
 }
@@ -453,37 +587,50 @@ function impeller(cx,cy,R,c){
     <ellipse cx="${cx-R*.35}" cy="${cy-R*.45}" rx="${R*.35}" ry="${R*.14}" fill="#fff" opacity=".12" transform="rotate(-30 ${cx-R*.35} ${cy-R*.45})"/></g>`;
   return s;
 }
-function gauge(cx,cy,c,F){
-  const R=50, max=met()?600:80, ang=v=>Math.PI*(1.25-1.5*clamp(v/max,0,1.04));
-  let s=`<g id="gauge"><rect x="${cx-6}" y="${cy+R-2}" width="12" height="${DIS_Y-16-cy-R+2}" fill="url(#pipeV)"/>
-    <circle cx="${cx}" cy="${cy}" r="${R+7}" fill="url(#bezel)" filter="url(#shadow)"/><circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#face)"/>`;
-  const step=met()?200:20;
-  for(let v=0;v<=max;v+=step/2){const a=ang(v),maj=v%step===0;
-    s+=`<line x1="${cx+(R-4)*Math.cos(a)}" y1="${cy-(R-4)*Math.sin(a)}" x2="${cx+(R-(maj?12:8))*Math.cos(a)}" y2="${cy-(R-(maj?12:8))*Math.sin(a)}" stroke="#1F1D1A" stroke-width="${maj?2.2:1.2}"/>`;
-    if(maj)s+=`<text x="${cx+(R-22)*Math.cos(a)}" y="${cy-(R-22)*Math.sin(a)+4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1F1D1A">${v}</text>`;}
-  const an=ang(A.needle);
-  s+=`<text x="${cx}" y="${cy+20}" text-anchor="middle" font-size="10" font-weight="800" fill="#555">${met()?'kPa':'psi'}</text>
-    <line x1="${cx-8*Math.cos(an)}" y1="${cy+8*Math.sin(an)}" x2="${cx+(R-8)*Math.cos(an)}" y2="${cy-(R-8)*Math.sin(an)}" stroke="#c0392b" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="${cx}" cy="${cy}" r="5" fill="#1F1D1A"/>
-    <path d="M${cx-R+6} ${cy-6} A${R-6} ${R-6} 0 0 1 ${cx+R*.55} ${cy-R*.72} Q${cx} ${cy-R*.35} ${cx-R+6} ${cy-6} Z" fill="url(#glint)"/></g>
- ${F>1?'':`<text x="${cx+R+16}" y="${cy-8}" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">PUMP ΔP</text>
-    <text x="${cx+R+16}" y="${cy+18}" font-size="${22*F}" font-weight="800" fill="${TEXT}">${press(c)}</text>`}`;
-  return s;
+/* Bourdon gauges, each on a short stem with an isolation (quarter-turn) cock. The discharge gauge reads Pd; the
+   suction gauge is a compound gauge (vacuum below zero) reading Ps. Pump ΔP = Pd − Ps. */
+function gauge(cx,cy,c,F,kind){
+  const suc=kind==='suction', R=suc?22:50, mn=suc?(met()?-100:-15):0, max=suc?(met()?200:30):(met()?700:100);
+  const ang=v=>Math.PI*(1.25-1.5*clamp((v-mn)/(max-mn),0,1.04));
+  const val=suc?A.needleS:A.needle;
+  const stemTo=suc?PUMP.y-20:DIS_Y-16, sx=cx, y1=suc?cy-R:cy+R;
+  let s=`<g id="gauge${suc?'-suction':''}"><rect x="${sx-4}" y="${Math.min(y1,stemTo)}" width="8" height="${Math.abs(stemTo-y1)}" fill="url(#pipeV)"/>`;
+  const ck=suc?(y1+stemTo)/2:(y1+stemTo)/2;   // isolation cock: body + lever (in line with the stem = open)
+  s+=`<rect x="${sx-7}" y="${ck-6}" width="14" height="12" rx="2" fill="#b0813d" stroke="#5a3e12"/><rect x="${sx+6}" y="${ck-2}" width="${suc?12:16}" height="4" rx="2" fill="#c0392b"/>`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R+(suc?4:7)}" fill="url(#bezel)" filter="url(#shadow)"/><circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#face)"/>`;
+  const step=suc?(met()?100:15):(met()?200:20);
+  for(let v=mn;v<=max+1e-9;v+=step/2){const a=ang(v),maj=Math.abs((v-mn)%step)<1e-9;
+    s+=`<line x1="${cx+(R-3)*Math.cos(a)}" y1="${cy-(R-3)*Math.sin(a)}" x2="${cx+(R-(maj?(suc?7:12):(suc?5:8)))*Math.cos(a)}" y2="${cy-(R-(maj?(suc?7:12):(suc?5:8)))*Math.sin(a)}" stroke="#1F1D1A" stroke-width="${maj?2:1.1}"/>`;
+    if(maj&&!suc&&!(MINF>0))s+=`<text x="${cx+(R-22)*Math.cos(a)}" y="${cy-(R-22)*Math.sin(a)+4}" text-anchor="middle" font-size="10" font-weight="700" fill="#1F1D1A">${v}</text>`;}
+  if(suc){const a0=ang(0);s+=`<line x1="${cx+(R-3)*Math.cos(a0)}" y1="${cy-(R-3)*Math.sin(a0)}" x2="${cx+(R-9)*Math.cos(a0)}" y2="${cy-(R-9)*Math.sin(a0)}" stroke="#c0392b" stroke-width="2.4"/>`;}
+  const an=ang(val);
+  s+=`${suc||MINF>0?'':`<text x="${cx}" y="${cy+20}" text-anchor="middle" font-size="10" font-weight="800" fill="#555">${met()?'kPa':'psi'}</text>`}
+    <line x1="${cx-(suc?4:8)*Math.cos(an)}" y1="${cy+(suc?4:8)*Math.sin(an)}" x2="${cx+(R-(suc?4:8))*Math.cos(an)}" y2="${cy-(R-(suc?4:8))*Math.sin(an)}" stroke="#c0392b" stroke-width="${suc?2:3}" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="${suc?3:5}" fill="#1F1D1A"/>
+    <path d="M${cx-R+6} ${cy-6} A${R-6} ${R-6} 0 0 1 ${cx+R*.55} ${cy-R*.72} Q${cx} ${cy-R*.35} ${cx-R+6} ${cy-6} Z" fill="url(#glint)"/></g>`;
+  const pv=v=>met()?nf(v*FT_M*G)+' kPa':nf(v*PSI_FT,1)+' psi';
+  if(suc){if(F>1)return s;
+    return s+`<text x="${cx-R-12}" y="${cy-4}" text-anchor="end" font-size="13" font-weight="700" fill="${MUTED}" letter-spacing="1">SUCTION Ps</text>
+      <text id="ps-val" x="${cx-R-12}" y="${cy+14}" text-anchor="end" font-size="16" font-weight="800" fill="${c.Ps<0?SYS:TEXT}">${pv(c.Ps)}${c.Ps<0?' vac':''}</text>`;}
+  return s+(F>1?'':`<text x="${cx+R+16}" y="${cy-20}" font-size="13" font-weight="700" fill="${MUTED}" letter-spacing="1">DISCHARGE Pd</text>
+    <text id="pd-val" x="${cx+R+16}" y="${cy+2}" font-size="20" font-weight="800" fill="${TEXT}">${pv(c.Pd)}</text>
+    <text id="dp-val" x="${cx+R+16}" y="${cy+22}" font-size="14" font-weight="700" fill="${KH}">ΔP ${press(c)}</text>`);
 }
+/* globe valve (the throttling valve): bulbous body, bonnet, yoke, rising stem and handwheel */
 function valve(x,y,c,F){
-  const open=c.xv, stemTop=y-60-42*open;                    // rising stem: higher = more open
+  const open=c.xv, stemTop=y-62-40*open;
   let s=`<g id="valve" filter="url(#shadow)">
-    <path d="M${x-30} ${y-24} L${x} ${y} L${x-30} ${y+24} Z M${x+30} ${y-24} L${x} ${y} L${x+30} ${y+24} Z" fill="url(#valveG)" stroke="#1d2226" stroke-width="2"/>
-    <circle cx="${x}" cy="${y}" r="17" fill="url(#valveG)" stroke="#1d2226" stroke-width="2"/>
-    <rect x="${x-12}" y="${y-48}" width="24" height="32" rx="3" fill="url(#valveG)"/>
-    <rect x="${x-3}" y="${stemTop}" width="6" height="${y-48-stemTop}" fill="#d6dde2"/>`;
-  // handwheel in perspective: rim ellipse + spokes rotating with the stem travel
+    <ellipse cx="${x}" cy="${y}" rx="30" ry="25" fill="url(#valveG)" stroke="#1d2226" stroke-width="2"/>
+    <path d="M${x-14} ${y-6} Q${x} ${y-14} ${x+14} ${y-6}" stroke="#1d2226" stroke-width="2" fill="none" opacity=".6"/>
+    <rect x="${x-14}" y="${y-40}" width="28" height="18" rx="3" fill="url(#valveG)" stroke="#1d2226"/>
+    <path d="M${x-10} ${y-40} L${x-10} ${y-60} L${x+10} ${y-60} L${x+10} ${y-40}" stroke="#4a535a" stroke-width="4" fill="none"/>
+    <rect x="${x-3}" y="${stemTop}" width="6" height="${y-40-stemTop}" fill="#d6dde2"/>`;
   const hw=34,hh=10, a0=A.valveTurn;
   s+=`<ellipse cx="${x}" cy="${stemTop}" rx="${hw}" ry="${hh}" fill="none" stroke="#b33" stroke-width="7"/>`;
   for(let i=0;i<4;i++){const a=a0+i*Math.PI/2;s+=`<line x1="${x}" y1="${stemTop}" x2="${x+hw*Math.cos(a)}" y2="${stemTop+hh*Math.sin(a)}" stroke="#d44" stroke-width="4"/>`;}
   s+=`<ellipse cx="${x}" cy="${stemTop-2}" rx="${hw}" ry="${hh}" fill="none" stroke="#e66" stroke-width="2" opacity=".6"/></g>
-    ${F>1?'':`<text x="${x+46}" y="${y-58}" font-size="${15*F}" font-weight="700" fill="${MUTED}" letter-spacing="1.2">VALVE</text>
-    <text x="${x+46}" y="${y-34}" font-size="${22*F}" font-weight="800" fill="${TEXT}">${Math.round(open*100)}% open</text>`}`;
+    ${F>1?'':`<text x="${x+12}" y="${y+44}" font-size="13" font-weight="700" fill="${MUTED}" letter-spacing="1.2">GLOBE VALVE</text>
+    <text id="valve-val" x="${x+12}" y="${y+66}" font-size="19" font-weight="800" fill="${c.closed?BAD:TEXT}">${c.closed?'SHUT':Math.round(open*100)+'% open'}</text>`}`;
   return s;
 }
 
@@ -511,9 +658,9 @@ function drawChart(c){
   const xa=X(.7*c.Qbep), xb=X(1.2*c.Qbep);
   s+=`<g id="por-band"><rect x="${xa}" y="${PY0}" width="${xb-xa}" height="${PY1-PY0}" fill="${OK}" opacity=".07"/>
     <line x1="${xa}" y1="${PY0}" x2="${xa}" y2="${PY1}" stroke="${OK}" stroke-width="1.5" stroke-dasharray="4 6" opacity=".55"/><line x1="${xb}" y1="${PY0}" x2="${xb}" y2="${PY1}" stroke="${OK}" stroke-width="1.5" stroke-dasharray="4 6" opacity=".55"/>
-    <text x="${(xa+xb)/2}" y="${PY0+22*F}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${OK}" opacity=".9">POR 70–120% BEP</text></g>`;
+    <text x="${(xa+xb)/2}" y="${PY0+22*F}" text-anchor="middle" font-size="${15*F}" font-weight="700" fill="${OK}" opacity=".9">${narrow()?'POR':'POR 70–120% BEP'}</text></g>`;
   // efficiency curve (right axis) with gradient fill
-  let pe='';const qe=2*c.Qbep;
+  let pe='';const qe=P0.end*c.Qbep;                       // efficiency only exists where the pump curve does
   for(let i=0;i<=80;i++){const q=qe*i/80, xx=q/c.Qbep;pe+=(i?'L':'M')+X(q).toFixed(1)+' '+YE(P0.etaMax*xx*(2-xx)).toFixed(1);}
   s+=`<g id="eff-curve"><path d="${pe} L${X(qe)} ${PY1} L${X(0)} ${PY1} Z" fill="url(#effFill)"/><path d="${pe}" fill="none" stroke="${EFF}" stroke-width="2.5" stroke-dasharray="9 6"/></g>`;
   // rated pump curve ghost (1750 rpm, 10 in) when the curve has moved
@@ -521,11 +668,16 @@ function drawChart(c){
   if(Math.abs(c.s-1)>.004)s+=`<path id="rated-curve" d="${curve(1,0,P0.end*P0.Qb)}" fill="none" stroke="${TEXT}" stroke-width="2" stroke-dasharray="3 7" opacity=".45"/>
     <text x="${X(P0.end*P0.Qb)+8}" y="${Y(P0.H0-P0.a*Math.pow(P0.end*P0.Qb,2))+5}" font-size="${14*F}" fill="${TEXT}" opacity=".6">rated</text>`;
   // system curve
-  let ps='';for(let i=0;i<=80;i++){const q=qEnd*i/80;ps+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(c.Hst+c.k*q*q).toFixed(1);}
+  let ps='';if(c.closed)ps=`M${X(0)} ${Y(c.Hst)} L${X(0)} ${PY0}`;           // valve shut: the system takes no flow at any head
+  else for(let i=0;i<=80;i++){const q=qEnd*i/80;ps+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(c.Hst+c.k*q*q).toFixed(1);}
   s+=`<path id="sys-curve" d="${ps}" fill="none" stroke="${SYS}" stroke-width="4" filter="url(#cglow)"/>`;
   // pump curve: solid to end of curve, dashed beyond (runout)
   s+=`<path id="pump-curve" d="${curve(c.s,0,P0.end*c.Qbep)}" fill="none" stroke="${ACC}" stroke-width="5" filter="url(#cglow)" stroke-linecap="round"/>
     <path d="${curve(c.s,P0.end*c.Qbep,1.5*c.Qbep)}" fill="none" stroke="${ACC}" stroke-width="3" stroke-dasharray="6 8" opacity=".7"/>`;
+  // cavitation: the head the pump really makes once NPSHa falls below the margin (head breakdown), in red
+  {let pcav='',any=false;for(let i=0;i<=60;i++){const q=P0.end*c.Qbep*i/60, d=cavDrop(c.npA(q)/c.npR(q));if(d>0)any=true;
+    pcav+=(i?'L':'M')+X(q).toFixed(1)+' '+Y((P0.H0*c.s*c.s-P0.a*q*q)*(1-d)).toFixed(1);}
+   if(any)s+=`<path id="cav-curve" d="${pcav}" fill="none" stroke="${BAD}" stroke-width="3" stroke-dasharray="7 5"/>`;}
   // mistake overlay: affinity parabola through the rated operating point, and the WRONG predicted point
   if(S.mistake){const c1=calc({...S,speed:P0.N1,dia:met()?P0.D1*IN_MM:P0.D1});
     if(c1.Q>0){const K=c1.H/(c1.Q*c1.Q);let pa='';for(let i=0;i<=60;i++){const q=qEnd*i/60;pa+=(i?'L':'M')+X(q).toFixed(1)+' '+Y(K*q*q).toFixed(1);}
@@ -560,7 +712,7 @@ function drawChart(c){
   s+=`<g id="op-label" filter="url(#cshadow)"><rect x="${lx}" y="${ly}" width="${lw}" height="${32*F}" rx="${16*F}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
     <text x="${lx+lw/2}" y="${ly+22*F}" text-anchor="middle" font-size="${18*F}" font-weight="800" fill="${col}">${lab}</text></g>`;
   if(c.noFlow){const fl=.7+.3*Math.sin(T/160), bx0=(PX0+PX1)/2;
-    s+=`<g id="noflow-banner" opacity="${fl}"><rect x="${bx0-200}" y="${PY0+34*F}" width="400" height="${40*F}" rx="8" fill="${BAD}"/><text x="${bx0}" y="${PY0+61*F}" text-anchor="middle" font-size="${20*F}" font-weight="800" fill="#fff">NO FLOW · CHURNING AT SHUTOFF</text></g>`;}
+    s+=`<g id="noflow-banner" opacity="${fl}"><rect x="${bx0-200}" y="${PY0+34*F}" width="400" height="${40*F}" rx="8" fill="${BAD}"/><text x="${bx0}" y="${PY0+61*F}" text-anchor="middle" font-size="${20*F}" font-weight="800" fill="#fff">${c.closed?'VALVE SHUT · DEAD-HEADED':'NO FLOW · CHURNING AT SHUTOFF'}</text></g>`;}
   // word labels: static / friction on the stack, "pump can give" on the pump curve, "system asks for" on the
   // system curve. Each tries a list of spots and takes the first that stays in the plot and clear of the others.
   if(!narrow()){
@@ -684,6 +836,8 @@ function drawPics(c){$('pics-dyn').innerHTML=(S.mistake?mistakePic(c):affinityPi
 
 /* ---------- formula strip ---------- */
 function formula(c){
+  if(c.closed)return `Valve shut: ${tm('q','Q = 0')} · the pump sits at shutoff ${tm('h',head(c.Hshut))} · all ${tm('p',power(c))} heats the casing water`;
+  if(c.noFlow&&c.cav)return `Cavitation took the head: the pump is vapour-bound, ${tm('q','Q = 0')} · NPSH margin ${nf(c.sigma,2)}`;
   if(c.noFlow)return `Shutoff head ${tm('h',head(c.Hshut))} ≤ static head ${tm('st',head(c.Hst))} → the pump cannot lift the water: ${tm('q','Q = 0')}`;
   const hp=headParts(c.H,c.Hst);
   return `${tm('q','Q '+flow(c.Q))} · ${tm('h','H')} = ${tm('st',nf(hp.sd,1)+' static')} + ${tm('f',nf(hp.fd,1)+' friction')} = ${tm('h',head(c.H))} · ${tm('e','η '+pct1(c.eta))} · ${tm('p',power(c))} · ${pct(c.x)} BEP`;
@@ -707,8 +861,10 @@ function mathsHTML(c){
   const sv=tm('s',c.s.toFixed(3)), hp=headParts(c.H,c.Hst);
   h+=st(`1 · Affinity ratio ${tm('s','s')} (line, square, cube)`,`${tm('s','s')} = (N₂ ÷ N₁)(D₂ ÷ D₁) = (${nf(c.N)} ÷ 1,750)(${d2} ÷ ${d1}) = ${sv}`);
   h+=st(`2 · New pump curve (${tm('h','H')} ∝ ${tm('s','s²')}, ${tm('q','Q')} ∝ ${tm('s','s')})`,`${tm('h','H')} = ${nf(H0,1)} × ${sv}² − ${a}·${tm('q','Q')}² → shutoff ${tm('h',head(c.Hshut))}`);
-  h+=st(`3 · System curve: ${tm('st','static')} + ${tm('f','friction')}`,`${tm('h','H')} = ${tm('st','H_st')} + ${tm('f','k·Q²')} = ${tm('st',nf(fH(c.Hst),1))} + ${tm('f',k+'·Q²')}`);
-  if(c.noFlow)h+=st('4 · Operating point',`shutoff ${tm('h',head(c.Hshut))} ≤ static ${tm('st',head(c.Hst))} → <span class="wrong">no flow</span>`);
+  h+=c.closed?st(`3 · System curve: valve shut`,`no flow at any head: the system curve is the vertical axis (k → ∞)`)
+    :st(`3 · System curve: ${tm('st','static')} + ${tm('f','friction')}`,`${tm('h','H')} = ${tm('st','H_st')} + ${tm('f','k·Q²')} = ${tm('st',nf(fH(c.Hst),1))} + ${tm('f',k+'·Q²')}`);
+  if(c.closed)h+=st('4 · Operating point',`valve shut → ${tm('q','Q = 0')}, the pump makes its shutoff head ${tm('h',head(c.Hshut))} → <span class="wrong">dead-headed</span>`);
+  else if(c.noFlow)h+=st('4 · Operating point',`shutoff ${tm('h',head(c.Hshut))} ≤ static ${tm('st',head(c.Hst))} → <span class="wrong">no flow</span>`);
   else h+=st('4 · Operating point: pump gives = system asks',`${tm('q','Q')} = √((${nf(fH(c.Hshut),1)} − ${tm('st',nf(fH(c.Hst),1))}) ÷ (${a} + ${k})) = ${tm('q',flow(c.Q))}<br>${tm('h','H')} = ${tm('st',nf(hp.sd,1))} + ${tm('f',nf(hp.fd,1))} = ${tm('h',head(c.H))} → ${met()?`× 9.81 = ${nf(c.kPa)} kPa`:`× 0.433 = ${nf(c.psi,1)} psi`}`);
   h+=st(`5 · Efficiency ${tm('e','η')} (x = Q ÷ Q_BEP)`,`Q_BEP = ${met()?nf(P0.Qb*GPM_M3H,1):'500'} × ${sv} = ${flow(c.Qbep)}; x = ${c.x.toFixed(3)}<br>${tm('e','η')} = 0.80 × x × (2 − x) = ${tm('e',pct1(c.eta))}`);
   if(c.noFlow)h+=st('6 · Brake power at shutoff',`${tm('e','η')} → 0 but Q ÷ η stays finite: ${tm('p',power(c))} turns into heat in the casing`);
@@ -814,22 +970,30 @@ function stateWith(base){return {...S,...toUnits(base)};}
 function applySetup(base,dur){set(toUnits(base),dur,true);}
 
 /* ---------- panel ---------- */
-const RANGES={imperial:{dia:[9,10,.05],hst:[0,120,1]},metric:{dia:[229,254,1],hst:[0,36.5,.5]}};
+const RANGES={imperial:{dia:[9,10,.05],hst:[0,120,1],suct:[-20,40,1],temp:[40,210,1]},metric:{dia:[229,254,1],hst:[0,36.5,.5],suct:[-6,12,.5],temp:[5,98,1]}};
 function panel(c){
   const set=(id,v)=>{$(id).textContent=v};
   set('ro-flow',flow(c.Q)); set('ro-head',head(c.H)); set('ro-pct',pct(c.x)); set('ro-eff',pct1(c.eta));
-  set('ro-power',power(c)); set('ro-dp',press(c)); set('ro-bep',flow(c.Qbep)); set('ro-bephead',head(c.Hbep)); set('ro-shutoff',head(c.Hshut));
+  set('ro-power',power(c)); set('ro-dp',press(c));
+  set('ro-npsha',head(c.npshA)); set('ro-npshr',head(c.npshR)); set('ro-sigma',nf(c.sigma,2));
+  $('ro-sigma-box').style.borderColor=c.sigma<1?BAD:c.sigma<MARGIN?WARN:''; set('ro-bep',flow(c.Qbep)); set('ro-bephead',head(c.Hbep)); set('ro-shutoff',head(c.Hshut));
   $('ro-pct-box').style.borderColor=levelCol(c.level);
   const col=levelCol(c.level), st=$('status');
   st.style.background=col; st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
   st.textContent={por:'IN PREFERRED OPERATING REGION (70–120% BEP)',below:'BELOW PREFERRED RANGE: CHECK MINIMUM FLOW',above:'ABOVE PREFERRED RANGE: TOWARD RUNOUT',
-    low:'FAR BELOW BEP: RECIRCULATION AND HEAT RISK',runout:'RUNOUT: PAST THE END OF THE CURVE',shutoff:'NO FLOW: SHUTOFF HEAD BELOW STATIC HEAD'}[c.why];
+    low:'FAR BELOW BEP: RECIRCULATION AND HEAT RISK',runout:'RUNOUT: PAST THE END OF THE CURVE',shutoff:'NO FLOW: SHUTOFF HEAD BELOW STATIC HEAD',
+    deadhead:'VALVE SHUT: DEAD-HEADED, THE CASING WATER IS HEATING',cavitation:`CAVITATING: NPSH MARGIN ${nf(c.sigma,2)} (NEEDS ≥ ${MARGIN})`}[c.why];
+  if(FL.on)st.textContent=FL.kind==='cavitation'?'FAILED: CAVITATION DAMAGE · RESET':'FAILED: WATER FLASHED TO STEAM · RESET';
   $('l-speed').textContent=nf(S.speed)+' rpm'+(Math.abs(S.speed-1750)<1?' (rated)':'');
   $('l-dia').textContent=diam(c.D)+(AT_MAX(c)?' (full)':` (${nf((1-c.rD)*100,1)} % trim)`);
-  $('l-valve').textContent=Math.round(c.xv*100)+'%'; $('l-hst').textContent=head(c.Hst);
+  $('l-valve').textContent=c.closed?'shut':Math.round(c.xv*100)+'%'; $('l-hst').textContent=head(c.Hst);
+  $('l-suct').textContent=(c.suct>=0?'+':'−')+head(Math.abs(c.suct))+(c.suct>=0?' flooded':' lift');
+  $('l-temp').textContent=met()?nf(S.temp)+' °C':nf(S.temp)+' °F';
+  segSync('c-view',S.view);
+  const fc=$('fail-card'); fc.classList.toggle('on',FL.on); if(FL.on&&($('fail-big').textContent!==FL.big||$('fail-reason').textContent!==FL.reason)){$('fail-big').textContent=FL.big;$('fail-reason').textContent=FL.reason;}
   segSync('c-units',S.units); $('c-mistake').classList.toggle('on',!!S.mistake); $('c-mistake').setAttribute('aria-pressed',String(!!S.mistake));
   const R=RANGES[S.units];
-  ['dia','hst'].forEach(k=>{const e=$('c-'+k);[e.min,e.max,e.step]=R[k];if(document.activeElement!==e)e.value=S[k];});
+  ['dia','hst','suct','temp'].forEach(k=>{const e=$('c-'+k);[e.min,e.max,e.step]=R[k];if(document.activeElement!==e)e.value=S[k];});
   if(document.activeElement!==$('c-speed'))$('c-speed').value=S.speed;
   if(document.activeElement!==$('c-valve'))$('c-valve').value=Math.round(S.valve*100);
   if(S.tab==='maths')$('t-maths').innerHTML=mathsHTML(c);
@@ -874,10 +1038,22 @@ function step(ms){
   A.flowS+=dt*c.Q*0.14; A.flowD+=dt*c.Q*0.14*(64/36);
   // valve handwheel: 6 turns from closed to open
   A.valveTurn+=(c.xv-lastValve)*6*2*Math.PI; lastValve=c.xv;
-  // gauge needle: spring-damper toward pump ΔP (ωn ≈ 7 rad/s, ζ ≈ 0.35 → visible overshoot, settles ~1.5 s)
-  const target=met()?c.kPa:c.psi, wn=7, z=.35;
-  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(target-A.needle)-2*z*wn*A.needleV;A.needleV+=acc*h;A.needle+=A.needleV*h;}}
-  else if(ms>=200){A.needle=target;A.needleV=0;}
+  // gauge needles: spring-damper toward Pd (discharge) and Ps (suction) (ωn ≈ 7 rad/s, ζ ≈ 0.35, settles ~1.5 s)
+  const pu=h=>met()?h*FT_M*G:h*PSI_FT, target=pu(c.Pd), targetS=pu(c.Ps), wn=7, z=.35;
+  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=wn*wn*(target-A.needle)-2*z*wn*A.needleV;A.needleV+=acc*h;A.needle+=A.needleV*h;
+      const accS=wn*wn*(targetS-A.needleS)-2*z*wn*A.needleSV;A.needleSV+=accS*h;A.needleS+=A.needleSV*h;}}
+  else if(ms>=200){A.needle=target;A.needleV=0;A.needleS=targetS;A.needleSV=0;}
+  // casing water temperature: power lost in the pump heats it, the flow carries heat away (shown TIME_X faster)
+  //   m·c·dT/dt = loss − ṁc·(T − T_in): integrated exactly (stable for any step): T → T_in + loss/ṁc with τ = m/ṁ
+  if(ms>0){const loss=(c.bhp*(1-c.eta))*0.7068, mc=(c.Q/60)*8.34, tS=dt*TIME_X;
+    if(mc>1e-9){const Teq=c.tempF+loss/mc;S.caseT=Teq+(S.caseT-Teq)*Math.exp(-mc/CASE_LB*tS);}
+    else S.caseT+=loss/CASE_LB*tS;
+    S.caseT=clamp(S.caseT,c.tempF,BOIL_F+5);}
+  if(c.cav&&ms>0)A.erosion=Math.min(1,A.erosion+dt*.05*clamp((MARGIN-c.sigma)/.5,.2,1));
+  if(!FL.on){
+    if(S.fail==='cavitation'||S.fail==='deadhead')tripPump(S.fail,c,true);
+    else if(S.fail===true){if(c.cav)tripPump('cavitation',c,false);else if(S.caseT>=BOIL_F)tripPump('deadhead',c,false);}
+  } else FL.t+=ms;
   // operating-point dot glides (first-order lag, τ ≈ 0.18 s) so it slides along the curves on any change
   if(A.dq==null||ms>=200){A.dq=c.Q;A.dh=c.H;}else{const f=1-Math.exp(-dt/.18);A.dq+=(c.Q-A.dq)*f;A.dh+=(c.H-A.dh)*f;}
   // bar meters ease toward their values
@@ -888,14 +1064,54 @@ function step(ms){
     PS.correct=PRED.reduce((n,P,i)=>n+(PS.answered[i]===P.ok?1:0),0);tabDirty=true;}}
   return c;
 }
+function tripPump(kind,c,forced){
+  tweens=[];FL.on=true;FL.kind=kind;FL.t=0;const imp=!met(), hd=v=>head(v);
+  if(kind==='cavitation'){
+    if(forced&&!c.cav){S.suct=imp?-18:-18*FT_M;S.temp=imp?160:71;}            // forced: a hot-water suction lift that cavitates
+    const k=calc();FL.sigma=k.sigma;
+    FL.big='THE PUMP CAVITATES';
+    FL.reason=`NPSH available ${hd(k.npshA)}, the pump needs ${hd(k.npshR)} (margin ${nf(k.sigma,2)}, needs at least ${MARGIN}). The water boils in the eye; the bubbles collapse on the vanes, pit the impeller and the head drops.`;
+  } else {
+    if(forced){S.valve=0;S.caseT=BOIL_F;}
+    FL.caseT=S.caseT;
+    const p=met()?nf(calc({...S,valve:0}).kW,1)+' kW':nf(calc({...S,valve:0}).bhp,1)+' hp';
+    FL.big='DEAD-HEADED: THE WATER FLASHES';
+    FL.reason=`Valve shut, no flow: all ${p} goes into about ${met()?'11 L':'3 US gal'} of water in the casing. It reached ${met()?'100 °C':'212 °F'} and flashed to steam: the mechanical seal runs dry and fails.`;
+  }
+}
+function resetPump(){FL.on=false;FL.kind=null;FL.t=0;A.erosion=0;S.caseT=calc().tempF;}
+function user(p){set(p);notify();}
+function notify(){const g=get();listeners.forEach(fn=>{try{fn(g)}catch(e){console.error(e)}});}
+function get(){const c=calc();
+  return {...S,out:{Q:c.Q,H:c.H,eta:c.eta,power:met()?c.kW:c.bhp,Ps:c.Ps,Pd:c.Pd,dP:c.H,npshA:c.npshA,npshR:c.npshR,sigma:c.sigma,cav:c.cav,
+    closed:c.closed,caseT:S.caseT,level:c.level,why:c.why,fail:FL.on?FL.kind:false}};}
+const CTRL_SEL='#panel .seg[id], #panel button[id], #panel input[id], #c-view';
+function lock(ids){(ids||[]).forEach(id=>{const e=$(id);if(!e)return;e.classList.add('locked');e.setAttribute('aria-disabled','true');
+  e.querySelectorAll('button,input').forEach(b=>b.disabled=true);if(e.matches('button,input'))e.disabled=true;});}
+function unlock(ids){(ids==='all'?[...document.querySelectorAll(CTRL_SEL)].map(e=>e.id):ids||[]).forEach(id=>{const e=$(id);if(!e)return;
+  e.classList.remove('locked');e.removeAttribute('aria-disabled');e.querySelectorAll('button,input').forEach(b=>b.disabled=false);if(e.matches('button,input'))e.disabled=false;});}
+/* phone camera for the schematic: one part of the system at a readable size */
+const PH_VIEWS={pump:[20,0,620,340],discharge:[600,0,700,340]};
+function phoneSetup(){
+  const ph=innerWidth<=1000, sv=$('schem');
+  if(!ph){if(sv.getAttribute('viewBox')!=='0 0 1300 340')sv.setAttribute('viewBox','0 0 1300 340');$('schemwrap').style.height='';MINF=0;return;}
+  const vb=PH_VIEWS[S.view]||PH_VIEWS.pump, vbs=vb.join(' ');
+  if(sv.getAttribute('viewBox')!==vbs)sv.setAttribute('viewBox',vbs);
+  $('schemwrap').style.height=(vb[3]/vb[2]*100).toFixed(1)+'vw';
+  const r=sv.getBoundingClientRect(); MINF=11.5/(Math.min(r.width/vb[2],r.height/vb[3])||.6);
+}
+const minFont=(h,mn)=>h.replace(/font-size="([\d.]+)"/g,(m,v)=>+v<mn?`font-size="${mn.toFixed(1)}"`:m);
 function frame(ms){
   const c=step(ms);
+  phoneSetup();
   drawSchematic(c); drawChart(c); drawPics(c); panel(c);
+  if(innerWidth<=1000){for(const id of ['chart','pics']){const sv=$(id), r=sv.getBoundingClientRect(), vb=sv.viewBox.baseVal, k=Math.min(r.width/vb.width,r.height/vb.height);
+    if(k>0){const g=$(id+'-dyn');g.innerHTML=minFont(g.innerHTML,11.5/k);}}}
   $('formula').innerHTML=formula(c);
   callouts.forEach(co=>co.age+=ms);
   renderCallouts();
 }
-function snapAnim(){const c=calc();A.needle=met()?c.kPa:c.psi;A.needleV=0;A.dq=c.Q;A.dh=c.H;A.mEta=c.eta;A.mP=met()?c.kW:c.bhp;lastValve=c.xv;}
+function snapAnim(){const c=calc();A.needle=met()?c.Pd*FT_M*G:c.Pd*PSI_FT;A.needleV=0;A.needleS=met()?c.Ps*FT_M*G:c.Ps*PSI_FT;A.needleSV=0;A.dq=c.Q;A.dh=c.H;A.mEta=c.eta;A.mP=met()?c.kW:c.bhp;lastValve=c.xv;}
 function set(p,dur=0,internal=false){
   p={...p};
   // switching units on its own converts dia and static head so the physical pump stays the same
@@ -904,10 +1120,19 @@ function set(p,dur=0,internal=false){
     tweens=tweens.filter(t=>!['dia','hst'].includes(t.key));
     if(!('dia' in p))S.dia=toM?S.dia*IN_MM:S.dia/IN_MM;
     if(!('hst' in p))S.hst=toM?S.hst*FT_M:S.hst/FT_M;
+    if(!('suct' in p))S.suct=toM?S.suct*FT_M:S.suct/FT_M;
+    if(!('temp' in p))S.temp=toM?(S.temp-32)/1.8:S.temp*1.8+32;
+    tweens=tweens.filter(t=>!['suct','temp'].includes(t.key));
     S.units=p.units; delete p.units; tabDirty=true;
     A.needle=toM?A.needle/PSI_FT*FT_M*G:A.needle/(FT_M*G)*PSI_FT; A.mP=toM?A.mP*HP_KW:A.mP/HP_KW;
+    A.needleS=toM?A.needleS/PSI_FT*FT_M*G:A.needleS/(FT_M*G)*PSI_FT;
   }
   const snap=p.snap; delete p.snap;
+  if('fail' in p){const f=p.fail;delete p.fail;
+    if(f===false||f===true){if(FL.on)resetPump();S.fail=f;}
+    else if(f==='cavitation'||f==='deadhead'){if(FL.on&&FL.kind!==f)resetPump();S.fail=f;}}
+  if('view' in p&&!PH_VIEWS[p.view])delete p.view;
+  if('caseT' in p){S.caseT=+p.caseT;delete p.caseT;}
   const special={};['question','answer','challenge'].forEach(k=>{if(k in p){special[k]=p[k];delete p[k];}});
   for(const [k,v] of Object.entries(p)){
     tweens=tweens.filter(t=>t.key!==k);
@@ -918,7 +1143,7 @@ function set(p,dur=0,internal=false){
   if('question' in special){S.tab='predict';loadQuestion(special.question);}
   if('challenge' in special){S.tab='challenge';loadChallenge(special.challenge);}
   if('answer' in special){S.tab='predict';answer(special.answer);}
-  if(snap)snapAnim();
+  if(snap){if(FL.on)resetPump();snapAnim();}
   if(!CAPTURE&&!internal)frame(0);
 }
 function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
@@ -928,22 +1153,25 @@ function clear(){callouts=[];if(!CAPTURE)frame(0);}
 document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
   // entering a tab loads its starting state (a fresh question, or the current challenge's setup)
-  ({'c-units':()=>set({units:v}),'c-tab':()=>{if(v===S.tab)return;
-    if(v==='challenge')set({challenge:CS.index});else if(v==='predict'&&PS.choice==null)set({question:PS.index});else set({tab:v});}})[seg.id]?.();
+  ({'c-view':()=>user({view:v}),'c-units':()=>user({units:v}),'c-tab':()=>{if(v===S.tab)return;
+    if(v==='challenge')user({challenge:CS.index});else if(v==='predict'&&PS.choice==null)user({question:PS.index});else user({tab:v});}})[seg.id]?.();
 }));
-$('c-mistake').addEventListener('click',()=>set({mistake:!S.mistake}));
-$('c-speed').addEventListener('input',e=>set({speed:+e.target.value}));
-$('c-dia').addEventListener('input',e=>set({dia:+e.target.value}));
-$('c-valve').addEventListener('input',e=>set({valve:+e.target.value/100}));
-$('c-hst').addEventListener('input',e=>set({hst:+e.target.value}));
+$('c-mistake').addEventListener('click',()=>user({mistake:!S.mistake}));
+$('c-speed').addEventListener('input',e=>user({speed:+e.target.value}));
+$('c-dia').addEventListener('input',e=>user({dia:+e.target.value}));
+$('c-valve').addEventListener('input',e=>user({valve:+e.target.value/100}));
+$('c-hst').addEventListener('input',e=>user({hst:+e.target.value}));
 $('tabbody').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const a=b.dataset.act;
-  if(a==='ans')set({answer:+b.dataset.i});
-  else if(a==='pnext')set({question:PS.index+1});
-  else if(a==='check')check();
-  else if(a==='reset')set({challenge:CS.index});
-  else if(a==='cnext')set({challenge:CS.index+1});
-  else if(a==='goto')set({challenge:+b.dataset.i});
+  if(a==='ans')user({answer:+b.dataset.i});
+  else if(a==='pnext')user({question:PS.index+1});
+  else if(a==='check'){check();notify();}
+  else if(a==='reset')user({challenge:CS.index});
+  else if(a==='cnext')user({challenge:CS.index+1});
+  else if(a==='goto')user({challenge:+b.dataset.i});
 });
+$('c-suct').addEventListener('input',e=>user({suct:+e.target.value}));
+$('c-temp').addEventListener('input',e=>user({temp:+e.target.value}));
+$('fail-reset').addEventListener('click',()=>{const imp=!met();user({fail:S.fail===false?false:true,valve:.5,suct:imp?5:1.5,temp:imp?68:20});});
 // tooltips for terms (hover or keyboard focus); fixed position so the panel never clips them
 const tip=$('tipbox');
 const showTip=el=>{tip.textContent=el.dataset.tip;tip.style.display='block';const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
@@ -955,7 +1183,10 @@ addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 snapAnim(); frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc,get:()=>({...S}),check,
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:st=>{const c=calc(st);delete c.npA;delete c.npR;return c;},get,check,
+  onChange:fn=>{if(typeof fn==='function')listeners.push(fn);},lock,unlock,
+  failure:()=>({on:FL.on,kind:FL.kind,t:FL.t,caption:FL.big,reason:FL.reason,sigma:FL.sigma,caseT:FL.caseT}),
+  get view(){return {erosion:A.erosion,caseT:S.caseT,geom:A.geom};},
   get challenge(){return challengeState();},get predict(){return {index:PS.index,choice:PS.choice,revealed:PS.revealed,correct:PS.correct,total:PRED.length};},ready:true};
 })();
 </script>

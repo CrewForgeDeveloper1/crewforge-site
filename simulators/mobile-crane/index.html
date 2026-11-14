@@ -72,6 +72,8 @@ font-family:"SF Mono",Menlo,Consolas,monospace}
 background:linear-gradient(180deg,#3a3530,#302c28);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
 .seg button.on{background:linear-gradient(180deg,#f59a45,#e07c1f);color:#141414;border-color:var(--accent)}
 .sig button{flex:0 0 calc(25% - 5px);font-size:13px;padding:6px 3px}
+.mode button{font-size:14px;padding:6px 2px}
+.soil button{flex:0 0 calc(33.3% - 4px);font-size:13px;padding:5px 3px}
 button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ctl{margin-top:4px}
 .ctl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:0}
@@ -89,13 +91,19 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:1px 0}
 .ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
 .clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
 line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+/* lesson dialog docking (docs/LESSON_READY_SIMS.md point 5): the stage shrinks into the space left, no page scroll */
+.locked{opacity:.42}
+.seg.locked button,input.locked{cursor:not-allowed}
+body.lesson-dock-right #app{width:calc(100vw - 360px);grid-template-columns:1fr minmax(340px,40%)}
+body.lesson-dock-right #panel{overflow-y:auto}
+body.lesson-dock-bottom #app{height:62vh;overflow-y:auto}
+body.lesson-dock-bottom #panel{overflow-y:auto}
 @media (max-width:1000px){
   #app{grid-template-columns:1fr;height:auto}
   #stage{border-right:0}
-  #svgwrap{height:106vw;min-height:300px}
-  #app.sigmode #svgwrap{height:72vw}
-  #vm2wrap{display:block;height:calc((100vw - 8px)*1.96);margin:0 4px 8px}
-  #app.sigmode #vm2wrap{display:none}
+  #svgwrap{flex:none;height:94vw;min-height:200px}
+  #vm2wrap{display:block;height:calc((100vw - 8px)*3.17);margin:0 4px 8px}
+  #app.sigmode #vm2wrap{height:calc((100vw - 8px)*.87)}
   #formula{font-size:12px;margin:0 8px 10px;padding:8px 10px}
   #formula div{white-space:normal}
   #panel{overflow:visible;padding:12px}
@@ -118,12 +126,12 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
   </section>
   <aside id="panel">
     <div class="sec"><h3>MODE</h3>
-      <div class="row2"><div class="seg" id="c-mode" style="flex:3"><button data-v="chart">Load chart</button><button data-v="signals">Signals</button><button data-v="plan">Lift plan</button></div>
-      <div class="seg" id="c-units" style="flex:2"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div></div>
+      <div class="seg mode" id="c-mode"><button data-v="chart">Load chart</button><button data-v="signals">Signals</button><button data-v="plan">Lift plan</button><button data-v="setup">Set-up</button><button data-v="radio">Radio</button><button data-v="wind">Wind</button></div>
+      <div class="seg" id="c-units" style="margin-top:5px"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div>
     </div>
     <div class="sec" id="w-setup"><h3>CRANE SET-UP</h3>
-      <div class="row2"><div class="seg" id="c-outr"><button data-v="full">Outriggers full</button><button data-v="ret">Retracted</button></div>
-      <div class="seg" id="c-area"><button data-v="side">360° (side)</button><button data-v="front">Over front</button></div></div>
+      <div class="row2"><div class="seg" id="c-outr" style="flex:2"><button data-v="full">Outriggers full</button><button data-v="ret">Retracted</button></div>
+      <div class="seg" id="c-area" style="flex:3"><button data-v="side">360° (side)</button><button data-v="front">Over front</button><button data-v="rear">Over rear</button></div></div>
       <div class="ctl"><label>Boom length (L) <b id="l-boom"></b></label><input id="c-boom" type="range"></div>
       <div class="ctl"><label>Radius before loading (R) <b id="l-radius"></b></label><input id="c-radius" type="range"></div>
     </div>
@@ -135,6 +143,35 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
       <div class="seg" id="c-jib"><button data-v="none">No jib</button><button data-v="stowed">Stowed</button><button data-v="erected">Erected</button></div></div>
       <div class="seg" id="c-lift" style="margin-top:5px"><button data-v="down">Set down</button><button data-v="up">Lift it</button></div>
     </div>
+    <div class="sec hide" id="w-stab"><h3>STABILITY</h3>
+      <div class="row2"><div class="ctl"><label>Out of level <b id="l-level"></b></label><input id="c-level" type="range"></div>
+      <div class="ctl"><label>Load swing <b id="l-swingOut"></b></label><input id="c-swingOut" type="range"></div></div>
+      <div class="seg" id="c-inset" style="margin-top:5px"><button data-v="stack">Show gross load</button><button data-v="tipping">Show tipping lines</button></div>
+    </div>
+    <div class="sec hide" id="w-ground"><h3>GROUND (BC BUILDING CODE TABLE 9.4.4.1)</h3>
+      <div class="seg soil" id="c-soil"><button data-v="rock">Sound rock</button><button data-v="shale">Clay shale</button><button data-v="till">Till</button>
+        <button data-v="sandD">Dense sand / gravel</button><button data-v="clayS">Stiff clay</button><button data-v="silt">Dense silt</button>
+        <button data-v="clayF">Firm clay</button><button data-v="sandL">Loose sand / gravel</button><button data-v="clayV">Soft clay</button></div>
+      <div class="seg" id="c-mat" style="margin-top:5px"><button data-v="none">Float only</button><button data-v="3"></button><button data-v="4"></button><button data-v="6"></button><button data-v="8"></button></div>
+    </div>
+    <div class="sec hide" id="w-wind"><h3>WIND AND DYNAMIC LOADS</h3>
+      <div class="row2"><div class="ctl"><label>Wind <b id="l-wind2"></b></label><input id="c-wind2" type="range"></div>
+      <div class="ctl"><label>Gust <b id="l-gust"></b></label><input id="c-gust" type="range"></div></div>
+      <div class="row2"><div class="ctl"><label>Load wind area (A) <b id="l-sail"></b></label><input id="c-sail" type="range"></div>
+      <div class="seg" id="c-cw" style="align-self:end"><button data-v="1">Cw 1.0</button><button data-v="1.2">1.2</button><button data-v="1.6">1.6</button><button data-v="2">2.0</button></div></div>
+      <div class="row2" style="margin-top:5px"><div class="seg" id="c-dyn" style="flex:3"><button data-v="none">Smooth</button><button data-v="snatch">Snatch</button><button data-v="stop">Sudden stop</button><button data-v="drop">Drop</button></div>
+      <div class="seg" id="c-go" style="flex:2"><button data-v="gust">Gust!</button><button data-v="dyn">Go</button></div></div>
+      <div class="row2"><div class="ctl"><label>Hoist / lowering speed <b id="l-vHoist"></b></label><input id="c-vHoist" type="range"></div>
+      <div class="ctl"><label>Slack / drop <b id="l-slack"></b></label><input id="c-slack" type="range"></div></div>
+    </div>
+    <div class="sec hide" id="w-radio"><h3>RADIO (BLIND LIFT)</h3>
+      <div class="seg" id="c-call"><button data-v="boomDown">Boom down</button><button data-v="boomUp">Boom up</button><button data-v="lower">Lower</button><button data-v="hoist">Hoist</button><button data-v="stop">Stop</button></div>
+      <div class="row2" style="margin-top:5px"><div class="seg" id="c-link"><button data-v="ok">Radio OK</button><button data-v="lost">Radio lost</button></div>
+      <div class="seg" id="c-oprule"><button data-v="stop">Operator stops</button><button data-v="continue">Keeps going</button></div></div>
+      <div class="row2" style="margin-top:5px"><div class="seg" id="c-chan"><button data-v="dedicated">Dedicated channel</button><button data-v="shared">Shared</button></div>
+      <div class="seg" id="c-rcheck"><button data-v="1">Radio check done</button><button data-v="0">Not done</button></div></div>
+      <div class="ctl"><label>Column face (radius) <b id="l-obst"></b></label><input id="c-obst" type="range"></div>
+    </div>
     <div class="sec hide" id="w-plan"><h3>LIFT PLAN</h3>
       <div class="row2"><div class="seg" id="c-tandem"><button data-v="0">One crane</button><button data-v="1">Two cranes</button></div>
       <div class="seg" id="c-flags"><button data-v="personnel">Work platform</button><button data-v="power">Over power lines</button></div></div>
@@ -143,6 +180,8 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
         <div class="ctl"><label>Crane B radius <b id="l-radiusB"></b></label><input id="c-radiusB" type="range"></div></div>
         <div class="row2"><div class="ctl"><label>Pick to pick <b id="l-span"></b></label><input id="c-span" type="range"></div>
         <div class="ctl"><label>CG from pick A <b id="l-cgA"></b></label><input id="c-cgA" type="range"></div></div>
+        <div class="row2"><div class="ctl"><label>Load tilt (B end up) <b id="l-tiltL"></b></label><input id="c-tiltL" type="range"></div>
+        <div class="ctl"><label>CG above the picks <b id="l-cgH"></b></label><input id="c-cgH" type="range"></div></div>
       </div>
       <div class="ctl"><label>Wind speed <b id="l-wind"></b></label><input id="c-wind" type="range"></div>
     </div>
@@ -178,7 +217,8 @@ const CAPTURE=new URLSearchParams(location.search).has('capture');
 const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',STEEL='#9fb0bc',TEXT='#F5F5F4';
 // Visual-maths colours: one colour per symbol, the same in the drawing, the cards and the formula bar
 const COL={L:'#59b7ff',R:'#7fd6c2',th:ACC,W:'#d9d3c7',hook:'#b48af0',rig:'#ff9ecf',ball:'#8fb3c9',jib:'#d6a86b',
-  gross:'#ffffff',cap:'#59b7ff',defl:'#ffc89a',mom:'#ff9ecf'};
+  gross:'#ffffff',cap:'#59b7ff',defl:'#ffc89a',mom:'#ff9ecf',lev:'#c8a2ff',sw:'#9fe0ff',F:'#9fe0ff',p:'#ff9ecf',area:'#7fd6c2'};
+let CC=null;              // the calc() result of the frame being drawn
 const LB=0.45359237, FT=0.3048, KMH=1.609344;
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -202,7 +242,9 @@ const rnd=(i,sd=0)=>{const x=Math.sin(i*12.9898+sd*78.233)*43758.5453;return x-M
    ===================================================================== */
 const M={Wc:36000,Wu:24000,xu:5,hf:9,cmax:80000,K3EI:1.43e9,SF:1.5};
 const Wb=L=>11000+90*(L-32);
-const fulc=(outr,area)=>area==='front'?{f:7,dc:-2}:{f:outr==='ret'?4:11,dc:0};
+// f = load-side tipping line, g = far line (ft from the centre of rotation); dc: carrier CG offset (− = toward the load)
+// over the front: front outriggers 7 ft ahead, rear outriggers 18 ft behind; over the rear the reverse (carrier CG 2 ft forward)
+const fulc=(outr,area)=>area==='front'?{f:7,g:18,dc:-2}:area==='rear'?{f:18,g:7,dc:2}:{f:outr==='ret'?4:11,g:outr==='ret'?4:11,dc:0};
 function wtipLb(Rft,Lft,outr,area){
   const {f,dc}=fulc(outr,area); if(Rft<=f)return Infinity;
   const Ms=M.Wc*(f+dc)+M.Wu*(f+M.xu);
@@ -267,10 +309,23 @@ const SIG={
 const RATE={hook:1.5,ang:3,slew:8,tel:1.5};
 
 const S={mode:'chart',units:'imp',outr:'full',area:'side',boom:64,radius:30,load:8000,hook:650,rigging:150,ball:true,jib:'stowed',
-  lift:0,signal:'none',quiz:false,slew:0,line:'main',tandem:false,boomB:64,radiusB:25,span:30,cgA:15,wind:8,personnel:false,power:false};
+  lift:0,signal:'none',quiz:false,slew:0,line:'main',tandem:false,boomB:64,radiusB:25,span:30,cgA:15,wind:8,personnel:false,power:false,
+  // stability: out of level (deg toward the load), load swing amplitude (deg), left inset 'stack' | 'tipping' (plan of tipping lines)
+  level:0,swingOut:0,inset:'stack',
+  // tandem: load tilt (deg, B end up) and CG height above the pick line (− below)
+  tiltL:0,cgH:0,
+  // set-up: soil (SOILS key) and mat ('none' | '3' | '4' | '6' | '8': nominal side in ft; metric 0.9 … 2.4 m)
+  soil:'sandD',mat:'none',
+  // wind mode: projected wind area of the load, shape coefficient, gust speed, hoist / lowering speed, slack drop, dynamic case
+  sail:0,cw:1.2,gust:0,vHoist:1.5,slack:0,dyn:'none',
+  // radio mode: operator's current radio call, link, what the operator does when the radio goes quiet, channel, radio check,
+  // the last words heard, obstruction face radius and height
+  call:'none',link:'ok',opRule:'stop',chan:'dedicated',rcheck:true,say:'',obst:50,obstH:30,
+  // dropAt: the radio drops by itself when the loaded radius reaches this value (0 = never): a repeatable scene
+  dropAt:0};
 S.fail=!CAPTURE;
-const NUMERIC=['boom','radius','load','hook','rigging','lift','slew','boomB','radiusB','span','cgA','wind'];
-const LENS=['boom','radius','lift','boomB','radiusB','span','cgA'], WTS=['load','hook','rigging'];
+const NUMERIC=['boom','radius','load','hook','rigging','lift','slew','boomB','radiusB','span','cgA','wind','level','swingOut','tiltL','cgH','sail','cw','gust','vHoist','slack','obst','obstH'];
+const LENS=['boom','radius','lift','boomB','radiusB','span','cgA','cgH','vHoist','slack','obst','obstH','dropAt'], WTS=['load','hook','rigging'];
 const toFt=v=>S.units==='imp'?v:v/FT, toLb=v=>S.units==='imp'?v:v/LB;
 const fromFt=v=>S.units==='imp'?v:v*FT;
 
@@ -291,12 +346,30 @@ function geomFt(st,Lu,Ru){            // boom length and radius (current units) 
   const L=toFt(Lu), R=toFt(Ru), th=Math.acos(clamp(R/L,-1,1));
   return {L,R,th};
 }
-function crane1(st,Lu,Ru,share,susp,useDefl){
+/* OUTRIGGER REACTIONS (moments, the same model as the tipping load). Weights and their positions x toward the load from
+   the centre of rotation: carrier Wc at −dc, upper Wu at −5, boom Wb at 0.45 R, gross at R. Load-side line at f, far line at g.
+     load-side pair  N = Σ W (x + g) ÷ (f + g)        far pair = ΣW − N      (far pair = 0 is the tipping point)
+   EXAMPLE: each pair is split equally between its two floats (the maker's outrigger-load data gives the real split;
+   with the boom over a corner one float carries more). */
+function reactions(grossLb,Rft,Lft,outr,area){
+  const {f,g,dc}=fulc(outr,area), wb=Wb(Lft);
+  const V=M.Wc+M.Wu+wb+grossLb;
+  const Mo=grossLb*Rft+wb*0.45*Rft-M.Wu*M.xu-M.Wc*dc;           // moment toward the load about the centre (lb·ft)
+  const near=(V*g+Mo)/(f+g), far=V-near;
+  return {V,Mo,near,far,f,g,wb,floatNear:near/2,floatFar:far/2};
+}
+function crane1(st,Lu,Ru,share,susp,useDefl,live){
+  // live: {x (ft) live outward load displacement from swing or wind, k live dynamic factor}; none by default
+  live=live||{x:0,k:1};
   const imp=st.units==='imp', g=geomFt(st,Lu,Ru);
   const ded=DED[st.units], parts={load:share,hook:st.hook,rig:st.rigging,ball:st.ball?ded.ball:0,jib:ded.jib[st.jib]};
   const gross=parts.load+parts.hook+parts.rig+parts.ball+parts.jib, grossLb=toLb(gross);
   const deflFt=useDefl?susp*grossLb*Math.cos(g.th)*Math.sin(g.th)*Math.pow(g.L,3)/M.K3EI:0;
-  const R1ft=g.R+deflFt, R1=fromFt(R1ft);
+  // OUT OF LEVEL toward the load by α: the machine leans and the tip moves out. Tip at (Rb, Hb) turned about the centre
+  // of rotation at ground level: ΔR = Rb (cos α − 1) + Hb sin α   (only the hook radius is modelled; the CGs are not moved)
+  const Rb=g.R+deflFt, Hb=M.hf+Math.sqrt(Math.max(0,g.L*g.L-Rb*Rb)), al=(st.level||0)*D2R;
+  const levFt=Rb*(Math.cos(al)-1)+Hb*Math.sin(al);
+  const R1ft=Rb+levFt, R1=fromFt(R1ft);
   const tipHft=M.hf+Math.sqrt(Math.max(0,g.L*g.L-R1ft*R1ft));
   const th1=Math.atan2(tipHft-M.hf,R1ft);
   const lk=lookup(st.units,st.outr,st.area,Lu,R1);
@@ -304,25 +377,49 @@ function crane1(st,Lu,Ru,share,susp,useDefl){
   const wtipU=wtipLb(R1ft,g.L,st.outr,st.area)*(imp?1:LB), csU=csLb(g.L,R1ft)*(imp?1:LB), brk=csU*M.SF;
   const cfgA=chartArea(st.outr,st.area);
   const mr=lk.bi!=null?maxRadius(st.units,st.outr,cfgA,lk.bi):0;
+  // pendulum length, head sheave to the load's CG (load 4 ft tall, CG 2 ft up): used by the swing and the wind
+  const LrFt=Math.max(4,tipHft-(toFt(st.lift||0)+2));
+  // a load swinging out by φ0 reaches R1 + Lr sin φ0 (the chart and the tipping load at THAT radius)
+  const swPkFt=LrFt*Math.sin((st.swingOut||0)*D2R);
+  const RswFt=R1ft+swPkFt, Rsw=fromFt(RswFt), lkSw=lookup(st.units,st.outr,st.area,Lu,Rsw);
+  const capSw=lkSw.off?0:lkSw.cap, wtipSw=wtipLb(RswFt,g.L,st.outr,st.area)*(imp?1:LB);
+  // live values: what the crane feels this frame; failures are checked against these
+  const RlvFt=R1ft+live.x, grossLv=gross*live.k, wtipLv=wtipLb(RlvFt,g.L,st.outr,st.area)*(imp?1:LB), brkLv=csLb(g.L,RlvFt)*(imp?1:LB)*M.SF;
   let failKind=null;
-  if(susp>=1){const a=gross/wtipU, b=gross/brk; if(wtipU<=0||a>1||b>1)failKind=(wtipU<=0||a>=b)?'tip':'boom';}
-  return {Lu,R0:Ru,th0:g.th/D2R,Lft:g.L,R0ft:g.R,parts,gross,deflFt,defl:fromFt(deflFt),R1,R1ft,tipHft,th1:th1/D2R,lk,cap,pct,
-    wtip:wtipU,cs:csU,brk,tipPct:wtipU>0?gross/wtipU:Infinity,failKind,maxRad:mr,f:fulc(st.outr,st.area).f};
+  if(susp>=1){const a=grossLv/wtipLv, b=grossLv/brkLv; if(wtipLv<=0||a>1||b>1)failKind=(wtipLv<=0||a>=b)?'tip':'boom';}
+  const rx=reactions(grossLb*susp,R1ft,g.L,st.outr,st.area);
+  return {Lu,R0:Ru,th0:g.th/D2R,Lft:g.L,R0ft:g.R,parts,gross,deflFt,defl:fromFt(deflFt),levFt,lev:fromFt(levFt),R1,R1ft,tipHft,th1:th1/D2R,lk,cap,pct,
+    wtip:wtipU,cs:csU,brk,tipPct:wtipU>0?gross/wtipU:Infinity,failKind,maxRad:mr,f:fulc(st.outr,st.area).f,
+    LrFt,Lr:fromFt(LrFt),swPkFt,swPk:fromFt(swPkFt),RswFt,Rsw,capSw,pctSw:capSw>0?gross/capSw:Infinity,wtipSw,offSw:!!lkSw.off,
+    xLive:fromFt(live.x),RlvFt,Rlv:fromFt(RlvFt),grossLv,wtipLv,brkLv,rx};
 }
 function calc(st=S){
   const imp=st.units==='imp';
   const susp=clamp(st.lift/(imp?.5:.15),0,1);
   const c={imp,units:st.units,mode:st.mode,susp,lift:st.lift};
+  // live load: outward displacement (swing + wind, ft) and dynamic factor, from the virtual-clock state A
+  const live={x:(A.swX||0)+(st.mode==='wind'?(A.wx||0):0),k:st.mode==='wind'?(A.dynK||1):1};
   if(st.mode==='plan'&&st.tandem){
-    const a=st.span>0?clamp(st.cgA,0,st.span):0, sA=st.span>0?st.load*(st.span-a)/st.span:st.load/2, sB=st.load-sA;
-    c.tandem=true; c.a=a; c.b=st.span-a; c.shareA=sA; c.shareB=sB;
+    /* TANDEM SHARES by moments about the picks. span = distance between the pick points along the load; cgA = CG from
+       pick A along the load; cgH = CG height above the line through the picks (− = below). Load tilted by α (B end up):
+         horizontal  a' = a cos α − h sin α,  span' = span cos α        B = W × a' ÷ span',  A = W − B
+       A CG above the picks moves toward the LOWER crane as the load tilts; at α = 0 this is A = W × b ÷ span.
+       The B pick comes in by span (1 − cos α) (dRB); that small radius change is not modelled (both radii as set). */
+    const P=st.span, al=(st.tiltL||0)*D2R, h=st.cgH||0, a0=P>0?clamp(st.cgA,0,P):0;
+    const spanH=P*Math.cos(al), aH=a0*Math.cos(al)-h*Math.sin(al), xcg=clamp(aH,0,spanH);
+    const sB=spanH>0?st.load*xcg/spanH:st.load/2, sA=st.load-sB;
+    c.tandem=true; c.a=aH; c.b=spanH-aH; c.spanH=spanH; c.tilt=st.tiltL||0; c.cgH=h; c.shift=a0*Math.cos(al)-aH; c.dRB=P*(1-Math.cos(al));
+    c.offEnd=aH<0||aH>spanH; c.shareA=sA; c.shareB=sB;
     c.A=crane1(st,st.boom,st.radius,sA,susp,false); c.B=crane1(st,st.boomB,st.radiusB,sB,susp,false);
     Object.assign(c,{gross:c.A.gross+c.B.gross,pct:Math.max(c.A.pct,c.B.pct)});
     c.main=c.A.pct>=c.B.pct?c.A:c.B;
   } else {
-    c.tandem=false; c.A=crane1(st,st.boom,st.radius,st.load,susp,true); c.main=c.A;
+    c.tandem=false; c.A=crane1(st,st.boom,st.radius,st.load,susp,true,live); c.main=c.A;
     Object.assign(c,{gross:c.A.gross,pct:c.A.pct});
   }
+  if(st.mode==='setup')c.gb=ground(st,c.A,susp);
+  if(st.mode==='wind')c.wd=windDyn(st,c.A);
+  if(st.mode==='radio')c.rd=radioCalc(st,c.A);
   const m=c.main;
   c.off=!!(c.A.lk.off||(c.B&&c.B.lk.off));
   c.level=c.off||c.pct>1?'bad':c.pct>=.9?'warn':'ok';
@@ -342,10 +439,91 @@ function calc(st=S){
   if(st.mode==='plan'&&c.level!=='bad')c.level=P.verdict==='stop'?'bad':P.verdict==='critical'?'warn':c.level;
   c.failKind=null; c.failCrane=null;
   {
-    if(c.A.failKind){c.failKind=c.A.failKind;c.failCrane='A';}
+    if(c.gb&&c.gb.punch){c.failKind='punch';c.failCrane='A';}
+    else if(c.rd&&c.rd.strike){c.failKind='strike';c.failCrane='A';}
+    else if(c.A.failKind){c.failKind=c.A.failKind;c.failCrane='A';}
     else if(c.B&&c.B.failKind){c.failKind=c.B.failKind;c.failCrane='B';}
   }
   return c;
+}
+
+/* ---------- GROUND BEARING (set-up mode) ----------
+   Bearing pressure under the load-side float = float reaction ÷ bearing area (the float, or a stiff mat under it).
+   Allowable bearing pressures: BC Building Code / National Building Code of Canada Table 9.4.4.1 (kPa; 1 kPa = 20.885 psf).
+   Mat area needed = reaction ÷ allowable. EXAMPLE: a stiff mat that spreads the load evenly; the ground punches through
+   at 3 × the allowable value (allowable values carry a factor of safety of about 3 against bearing failure). */
+const SOILS={rock:['Sound rock',500],shale:['Clay shale',300],till:['Till',200],sandD:['Dense or compact sand or gravel',150],
+  clayS:['Stiff clay',150],silt:['Dense or compact silt',100],clayF:['Firm clay',75],sandL:['Loose sand or gravel',50],clayV:['Soft clay',40]};
+const KPA_PSF=20.88543, GRAV=9.80665, ULT=3;
+const MATS={imp:{none:2,'3':3,'4':4,'6':6,'8':8},met:{none:0.6,'3':0.9,'4':1.2,'6':1.8,'8':2.4}};   // side of the square bearing area
+const GRID={imp:1,met:0.3};                                                                         // visual maths: 1 ft² / 0.09 m² squares
+function ground(st,m,susp){
+  const imp=st.units==='imp', side=MATS[st.units][st.mat]||MATS[st.units].none, area=side*side;
+  const sl=SOILS[st.soil]||SOILS.sandD, allowK=sl[1], allow=imp?allowK*KPA_PSF:allowK;
+  const conv=v=>imp?v:v*LB;                                   // lb → kg in metric
+  const rx=m.rx, Fn=conv(rx.floatNear), Ff=conv(rx.floatFar);
+  const press=F=>imp?F/area:F*GRAV/1000/area;                // psf, or kPa (kg → kN ÷ m²)
+  const p=press(Fn), pa=p/allow;
+  const need=imp?Fn/allow:Fn*GRAV/1000/allow, needSide=Math.sqrt(need);
+  // live (for the failure): the same with the live load
+  const rxL=reactions(toLb(m.grossLv)*susp,m.RlvFt,m.Lft,st.outr,st.area), pL=press(conv(rxL.floatNear));
+  const punch=susp>=1&&pL>ULT*allow;
+  return {side,area,soil:sl[0],allowK,allow,V:conv(rx.V),Mo:imp?rx.Mo:rx.Mo*LB*FT,near:conv(rx.near),far:conv(rx.far),Fn,Ff,
+    kN:Fn*GRAV/1000,p,pa,need,needSide,ult:ULT*allow,punch,f:rx.f,g:rx.g,wb:conv(rx.wb),level:pa>1?(pa>ULT?'bad':'warn'):'ok'};
+}
+
+/* ---------- WIND AND DYNAMIC LOADS (wind mode) ----------
+   Wind pressure q = 0.00256 V² (psf, V in mph) = 0.613 V² (Pa, V in m/s) [½ ρ V², air 1.225 kg/m³].
+   Wind force on the load F = q × A × Cw (A = projected area facing the wind, Cw = drag / shape coefficient).
+   The hanging load leans until tan φ = F ÷ W (force triangle) and moves out Lr sin φ (wind from behind the crane: worst case).
+   A sudden gust overshoots: an undamped pendulum given a step goes to TWICE the new steady deflection:
+     φpeak = φ0 + 2 (φgust − φ0).
+   Allowed wind for a big-area load (Liebherr / EN 13000 method): the chart's wind speed holds for 1.2 m² of wind area
+   (A × Cw) per tonne of load; above that  Vallowed = Vchart × √(1.2 m²/t × m ÷ (A × Cw)).
+   Dynamic factor (spring-mass): static stretch δ (rope + boom tip, EXAMPLE stiffness), ω = √(g ÷ δ)
+     snatch with slack, or a sudden stop, at speed v:  DF = 1 + v ÷ √(g δ)
+     load drops a distance s onto the rope:            DF = 1 + √(1 + 2 s ÷ δ)   (s = 0: suddenly applied load, DF = 2)
+   EXAMPLE stiffness: 4 parts of line, EA = 3.0 × 10⁶ lb per part (about 3/4 in wire rope); boom tip drop from the
+   deflection model. Real dynamic factors depend on the crane; the maker's data rules. */
+const ROPE={parts:4,EA:3.0e6}, AREF={imp:1.2*10.7639/2204.62,met:1.2/1000};   // 1.2 m²/t as ft²/lb or m²/kg
+function qOf(v,imp){return imp?0.00256*v*v:0.613*Math.pow(v/3.6,2);}           // psf or Pa
+function windDyn(st,m){
+  const imp=st.units==='imp', A_=st.sail||0, cw=st.cw||1.2, AW=A_*cw;
+  const fW=v=>imp?qOf(v,true)*AW:qOf(v,false)*AW/GRAV;             // force in lb, or kg-force (N ÷ 9.81)
+  const W=m.gross, ang=v=>Math.atan2(fW(v),Math.max(1,W));
+  const v0=st.wind, vg=Math.max(st.wind,st.gust||0), vNow=A.windNow!=null?A.windNow:v0;
+  const F0=fW(v0), Fg=fW(vg), FN=fW(vNow), ph0=ang(v0), phg=ang(vg), phPk=ph0+2*(phg-ph0);
+  const Lr=m.LrFt, x0=Lr*Math.sin(ph0), xg=Lr*Math.sin(phg), xPk=Lr*Math.sin(Math.min(phPk,80*D2R));
+  const lim=WIND_LIMIT[st.units], ratio=AW>0?AREF[st.units]*W/AW:Infinity, vAllow=lim*Math.min(1,Math.sqrt(ratio));
+  // peak radius and the tipping load there (gust)
+  const RpkFt=m.R1ft+xPk, wtipPk=wtipLb(RpkFt,m.Lft,st.outr,st.area)*(imp?1:LB);
+  // dynamic
+  const th=Math.acos(clamp(m.R0ft/m.Lft,-1,1)), grossLb=toLb(W);
+  const LropeFt=Math.max(2,m.tipHft-toFt(st.lift||0)-13.2);
+  const dRope=grossLb*LropeFt/(ROPE.parts*ROPE.EA), dBoom=grossLb*Math.pow(Math.cos(th),2)*Math.pow(m.Lft,3)/M.K3EI;
+  const dFt=dRope+dBoom, vFt=toFt(st.vHoist||0), sFt=toFt(st.slack||0);
+  const DF=st.dyn==='drop'?1+Math.sqrt(1+2*sFt/dFt):st.dyn==='none'?1:1+vFt/Math.sqrt(32.174*dFt);
+  const om=Math.sqrt(32.174/dFt);
+  return {AW,A:A_,cw,q0:qOf(v0,imp),qg:qOf(vg,imp),qN:qOf(vNow,imp),F0,Fg,FN,ph0:ph0/D2R,phg:phg/D2R,phPk:phPk/D2R,x0:fromFt(x0),xg:fromFt(xg),xPk:fromFt(xPk),
+    Rpk:fromFt(RpkFt),wtipPk,lim,vAllow,ratio,overArea:AW>0&&ratio<1,windOver:Math.max(v0,vg)>vAllow+1e-9,vNow,
+    d:fromFt(dFt),dRope:fromFt(dRope),dBoom:fromFt(dBoom),DF,om,dynGross:W*DF,wtip:m.wtip,live:A.dynK||1,liveGross:m.grossLv};
+}
+
+/* ---------- RADIO (blind lift) ----------
+   The operator works on the signal person's voice only. Booming down at ω, the load moves out at v = L sin θ × ω.
+   Lost radio = stop: after the operator's reaction time tr (EXAMPLE 1 s) the motion stops; distance moved after the last
+   word = v × tr + braking (about v × 0.45 s). If the operator keeps going, the load hits whatever is in its path. */
+const RADIO={tr:1.0,brake:0.45,loadHalf:4};
+function radioCalc(st,m){
+  const th=Math.acos(clamp(m.R1ft/m.Lft,-1,1)), vMax=m.Lft*Math.sin(th)*RATE.ang*D2R;      // ft/s when booming down
+  const vNow=Math.abs(m.Lft*Math.sin(th)*(A.vAng||0)*D2R);
+  const gapFt=toFt(st.obst)-(m.R1ft+RADIO.loadHalf), loadTop=toFt(st.lift)+4;
+  const strike=gapFt<=0&&toFt(st.lift)<toFt(st.obstH);
+  const silent=(A.sayT||0)/1000, lost=st.link==='lost', lostT=lost?(A.lostT||0)/1000:0;
+  // once the radio has dropped, the stopping distance uses the speed the load had at that moment
+  const vS=lost&&A.vLost>0?A.vLost:vMax;
+  return {v:fromFt(vMax),vNow:fromFt(vNow),vLost:fromFt(A.vLost||0),gap:fromFt(gapFt),strike,silent,lost,lostT,tr:RADIO.tr,
+    dStop:fromFt(vS*(RADIO.tr+RADIO.brake)),dTr:fromFt(vS*RADIO.tr),dBr:fromFt(vS*RADIO.brake),moved:fromFt(A.movedLost||0),loadTop:fromFt(loadTop)};
 }
 
 /* ---------- formatting ---------- */
@@ -364,7 +542,8 @@ const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
 
 /* ---------- animation state (virtual clock only) ---------- */
 let T=0,tweens=[],callouts=[];
-const A={vHook:0,vAng:0,vSlew:0,vTel:0,ballDrop:14,dogged:false,sway:0,swayV:0,windX:0,lastSig:'none',sigT:0,flow:0};
+const A={vHook:0,vAng:0,vSlew:0,vTel:0,ballDrop:14,dogged:false,sway:0,swayV:0,windX:0,lastSig:'none',sigT:0,flow:0,
+  swX:0,swT:0,wx:0,wv:0,windNow:null,gustT:-1,dynT:-1,dynK:1,sayT:0,lostT:0,hitX:0,hitV:0,vLost:0,movedLost:0,lastR1:null};
 let F={on:false,t:0};
 
 /* ---------- drawing helpers ---------- */
@@ -373,7 +552,9 @@ function arrow(id,x1,y1,x2,y2,col,w=6){
   return `<g id="${id}"><line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${(x2-Math.cos(a)*h*.6).toFixed(1)}" y2="${(y2-Math.sin(a)*h*.6).toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
   <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-h*Math.cos(a-.42)).toFixed(1)},${(y2-h*Math.sin(a-.42)).toFixed(1)} ${(x2-h*Math.cos(a+.42)).toFixed(1)},${(y2-h*Math.sin(a+.42)).toFixed(1)}" fill="${col}"/></g>`;
 }
+let FSMIN=0;        // phone: smallest scene font (viewBox units) so scene text renders >= 11 px at 390 px wide
 function pill(id,x,y,text,col,fs=18,anchor='middle'){
+  fs=Math.max(fs,FSMIN);
   const w=text.length*fs*.58+20, x0=anchor==='start'?x:anchor==='end'?x-w:x-w/2;
   return `<g id="${id}"><rect x="${x0.toFixed(1)}" y="${(y-fs*.9).toFixed(1)}" width="${w.toFixed(1)}" height="${fs*1.8}" rx="${fs*.9}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
   <text x="${(x0+w/2).toFixed(1)}" y="${(y+fs*.36).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${col}">${text}</text></g>`;
@@ -384,9 +565,88 @@ function card(id,x,y,w,h,title,sub){
 }
 const poly=(pts)=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
 
+/* ---------- the rig under the boom: hook block, hook, slings (one place for all of it) ----------
+   Proportions (ft, example 40-ton-class crane): head and block sheaves 2.5 ft diameter (r 1.25), block 2.8 × 3 ft,
+   hook per Crosby S-4320 / S-319 shape: the saddle (bottom of the bowl, where the sling eyes sit) is directly under the
+   shank axis, latch from the shank to the tip. 40 t hook: throat ≈ 0.56 ft bowl (inner r 0.28 ft), body 0.3 ft.
+   Two-leg bridle: lugs ±2.8 ft from the CG, legs at 60° (drop 2.8 × tan 60° = 4.85 ft). Hang below the head sheave:
+   2 ft clear + block 3 + hook 1.36 + legs 4.85 + load 4 = 15.2 ft (calc() two-block limit, c.maxLiftFt). */
+const RIG={SR:1.25,BW:2.8,BH:3,rin:.28,th:.30,shank:.5,LG:2.8,LD:2.8*Math.tan(60*D2R),LH:4,LW:8,G:32.2};
+RIG.HL=RIG.rin+RIG.rin+RIG.th+RIG.shank;           // saddle → block bottom (ft)
+// hook: saddle at (x, ys); returns the svg and the y of the shank top (block bottom). flip −1 mirrors the throat.
+function hookSVG(id,x,ys,s,flip=1){
+  const rin=RIG.rin*s, th=Math.max(2.4,RIG.th*s), rm=rin+th/2, cy=ys-rin, top=cy-rin-th-RIG.shank*s;
+  const a1=-35*D2R, ex=x+flip*rm*Math.cos(a1), ey=cy+rm*Math.sin(a1), ix=x+flip*rin*Math.cos(a1), iy=cy+rin*Math.sin(a1);
+  return `<g id="${id}" data-saddle="${x.toFixed(2)},${ys.toFixed(2)}">
+    <path d="M${x.toFixed(2)} ${top.toFixed(2)} L${x.toFixed(2)} ${(cy-rm).toFixed(2)} A${rm.toFixed(2)} ${rm.toFixed(2)} 0 1 ${flip>0?0:1} ${ex.toFixed(2)} ${ey.toFixed(2)}" stroke="${STEEL}" stroke-width="${th.toFixed(2)}" fill="none" stroke-linecap="round"/>
+    <rect x="${(x-th*.75).toFixed(2)}" y="${(top-1).toFixed(2)}" width="${(th*1.5).toFixed(2)}" height="${(th*1.1+1).toFixed(2)}" fill="#7d8a94"/>
+    <line x1="${(x+flip*th*.45).toFixed(2)}" y1="${(cy-rin*.85).toFixed(2)}" x2="${ix.toFixed(2)}" y2="${iy.toFixed(2)}" stroke="#e7ecef" stroke-width="${Math.max(1.2,th*.35).toFixed(2)}"/></g>`;
+}
+// hook block + hook, rotated rot° (screen) about the saddle; turn = rope run (ft) so the sheave turns as the hook moves
+function rigSVG(p,x,ys,s,rot=0,turn=0,flip=1){
+  const bw=RIG.BW*s, bh=RIG.BH*s, sr=RIG.SR*s, top=ys-RIG.HL*s-bh, cyS=top+sr+.1*s;
+  const R=(px,py)=>{const a=rot*D2R,dx=px-x,dy=py-ys;return [x+dx*Math.cos(a)-dy*Math.sin(a),ys+dx*Math.sin(a)+dy*Math.cos(a)];};
+  const ang=turn/(2*Math.PI*RIG.SR)*360;
+  let sp='';for(let k=0;k<3;k++){const a=(ang+k*60)*D2R;sp+=`<line x1="${(x-Math.cos(a)*sr*.8).toFixed(1)}" y1="${(cyS-Math.sin(a)*sr*.8).toFixed(1)}" x2="${(x+Math.cos(a)*sr*.8).toFixed(1)}" y2="${(cyS+Math.sin(a)*sr*.8).toFixed(1)}" stroke="#5d5750" stroke-width="2"/>`;}
+  const svg=`<g id="${p}hook-block" data-saddle="${x.toFixed(2)},${ys.toFixed(2)}" transform="rotate(${rot.toFixed(2)} ${x.toFixed(2)} ${ys.toFixed(2)})">
+    <rect x="${(x-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${(.35*s).toFixed(1)}" fill="#3A3631" stroke="${COL.hook}" stroke-width="2.5"/>
+    <circle cx="${x.toFixed(1)}" cy="${cyS.toFixed(1)}" r="${(sr*.92).toFixed(1)}" fill="#2a2724" stroke="${STEEL}" stroke-width="1.5"/>${sp}
+    <circle cx="${x.toFixed(1)}" cy="${cyS.toFixed(1)}" r="${(.22*s+1).toFixed(1)}" fill="${STEEL}"/>
+    ${hookSVG(p+'hook',x,ys,s,flip)}</g>`;
+  return {svg,eL:R(x-sr,cyS),eR:R(x+sr,cyS),top:R(x,top),saddle:[x,ys]};
+}
+// a slack rope from a to b: a sagging curve that lies on whatever is under it (ground, load, block), never through it
+function sagRope(a,b,sag,boxes,gy){
+  const n=22, cx=(a[0]+b[0])/2, cyy=(a[1]+b[1])/2+sag;   // sag 0 = straight
+  let d='';
+  for(let i=0;i<=n;i++){const u=i/n, x=(1-u)*(1-u)*a[0]+2*u*(1-u)*cx+u*u*b[0];
+    let y=(1-u)*(1-u)*a[1]+2*u*(1-u)*cyy+u*u*b[1], fl=gy-1.5;
+    boxes.forEach(bx=>{if(x>=bx[0]&&x<=bx[1])fl=Math.min(fl,bx[2]-1.5);});
+    if(i>0&&i<n)y=Math.min(y,fl);
+    d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';}
+  return d;
+}
+const rotW=(p,c,a)=>{const dx=p[0]-c[0],dy=p[1]-c[1],ca=Math.cos(a),sa=Math.sin(a);return [c[0]+dx*ca+dy*sa,c[1]-dx*sa+dy*ca];};
+const inPoly=(q,P)=>{let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const [xi,yi]=P[i],[xj,yj]=P[j];if(((yi>q[1])!==(yj>q[1]))&&(q[0]<(xj-xi)*(q[1]-yi)/(yj-yi)+xi))c=!c;}return c;};
+/* TIPPING KINEMATICS (world ft: x toward the load from the centre of rotation, y up). The machine turns about the
+   load-side float (f, 0). Over the front / rear a wheel or the carrier end can touch down first: from then on it turns
+   about that contact point instead. It stops where the boom (underside, head sheave or jib tip) meets the ground or
+   the landed load and block (obst: polygons). Returns {a1, C, amax} in degrees. */
+function tipPose(g){
+  const phi=Math.atan2(g.tipH-M.hf,g.R1), Lv=Math.hypot(g.tipH-M.hf,g.R1), bp=[];
+  const lo=g.jib==='stowed'?3.0:1.1;   // the stowed jib hangs under the base section
+  for(let i=0;i<=30;i++){const d=Lv*i/30;[-lo,1.1].forEach(o=>bp.push([d*Math.cos(phi)+o*Math.sin(phi),M.hf+d*Math.sin(phi)-o*Math.cos(phi)]));}
+  for(let k=0;k<12;k++){const a=k*Math.PI/6;bp.push([g.R1+RIG.SR*Math.cos(a),g.tipH+RIG.SR*Math.sin(a)]);}
+  if(g.jib==='erected'){const ja=phi-15*D2R;for(let d=4;d<=28;d+=4)bp.push([g.R1+d*Math.cos(ja),g.tipH+d*Math.sin(ja)]);}
+  const cp=g.area==='front'?[[10,2.25,1.9],[13,3.6,0]]:g.area==='rear'?[[22,3.6,0]]:[];
+  const P0=[g.f,0]; let a1=null,C=null,amax=85*D2R;
+  const tf=(p,a)=>{let q=rotW(p,P0,a1==null?a:Math.min(a,a1));if(a1!=null&&a>a1)q=rotW(q,C,a-a1);return q;};
+  for(let a=0;a<=85*D2R;a+=.25*D2R){
+    if(a1==null)for(const c of cp){const q=rotW([c[0],c[1]],P0,a);if(q[1]<=c[2]){a1=a;C=[q[0],0];break;}}
+    let hit=false;
+    for(const p of bp){const q=tf(p,a);if(q[1]<=0||(g.obst||[]).some(P=>inPoly(q,P))){hit=true;break;}}
+    if(hit){amax=Math.max(0,a-.25*D2R);break;}
+  }
+  return {a1:a1==null?null:a1/D2R,C,amax:amax/D2R};
+}
+// boom buckle: the outer part folds down about the kink (55 % up the boom) until it meets the ground or the load
+function buckleMax(g){
+  const phi=Math.atan2(g.tipH-M.hf,g.R1), Lv=Math.hypot(g.tipH-M.hf,g.R1), kink=.55*Lv, e=Lv-kink;
+  const K=[kink*Math.cos(phi),M.hf+kink*Math.sin(phi)];
+  for(let b=0;b<=150*D2R;b+=.5*D2R){const a2=phi-b;let hit=false;
+    for(let i=1;i<=16&&!hit;i++){const d=e*i/16;for(const o of (g.jib==='stowed'&&kink+d<29?[-3,1]:[-1,1])){const q=[K[0]+d*Math.cos(a2)+o*Math.sin(a2),K[1]+d*Math.sin(a2)-o*Math.cos(a2)];
+      if(q[1]<=0||(g.obst||[]).some(P=>inPoly(q,P))){hit=true;break;}}}
+    const T=[K[0]+e*Math.cos(a2),K[1]+e*Math.sin(a2)], pts=[[T[0],T[1]-RIG.SR]];
+    if(g.jib==='erected')for(let d=4;d<=28;d+=4)pts.push([T[0]+d*Math.cos(a2-15*D2R),T[1]+d*Math.sin(a2-15*D2R)]);
+    if(pts.some(t=>t[1]<=0||(g.obst||[]).some(P=>inPoly(t,P))))hit=true;
+    if(hit)return Math.max(0,b-.5*D2R);}
+  return 150*D2R;
+}
+
 /* ---------- the crane (side view). World ft: x toward the load (dir), y up. ---------- */
 function craneSVG(o){
-  // o: {cx,gy,s,dir,outr,area,L,R1,tipH,R0,ghost,jib,ball,ballDrop,lift(ft),loadLabel,p (id prefix),tilt(deg),buckle(0..1),loadDrop(ft),slack,showFul}
+  // o: {cx,gy,s,dir,outr,area,L,R1,tipH,R0,ghost,jib,ball,ballDrop,lift(ft),loadLabel,p (id prefix),tilt(deg),piv2,
+  //     buckle(0..1),bmax(rad),fail (failAnim result: fall = load/block positions after a failure),sway,showFul}
   const X=x=>o.cx+o.dir*x*o.s, Y=y=>o.gy-y*o.s, s=o.s, p=o.p||'';
   const {f}=fulc(o.outr,o.area);
   let body='';
@@ -396,41 +656,47 @@ function craneSVG(o){
     const fs=o.outr==='ret'?4:11;
     body+=`<rect x="${Math.min(X(-4),X(4))}" y="${Y(6.4)}" width="${8*s}" height="${2.8*s}" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>`;
     [-3.1,3.1].forEach(x=>body+=`<rect x="${Math.min(X(x-1.1),X(x+1.1))}" y="${Y(3.6+up)}" width="${2.2*s}" height="${3.6*s}" rx="${.5*s}" fill="#151311" stroke="#3a3631" stroke-width="2"/>`);
-    // outrigger beams + jacks + floats + mats; load-side float = fulcrum
     body+=`<rect x="${Math.min(X(-fs),X(fs))}" y="${Y(5.2)}" width="${2*fs*s}" height="${1*s}" fill="#C05A00" stroke="#7a3a00" stroke-width="1.5"/>`;
-    [-fs,fs].forEach((x,i)=>{body+=`<g id="${p}${i?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${4.6*s}" fill="#7a7068"/>
-      <rect x="${X(x)-1.1*s}" y="${Y(.75)}" width="${2.2*s}" height="${.45*s}" fill="#9a9086"/><rect x="${X(x)-2.1*s}" y="${Y(.3)}" width="${4.2*s}" height="${.3*s}" fill="#6b4f2f"/></g>`;});
+    const mw=o.matW==null?4.2:o.matW;
+    [-fs,fs].forEach((x,i)=>{const dz=i?(o.sink||0):0;
+      body+=`<g id="${p}${i?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${(4.6+dz)*s}" fill="#7a7068"/>
+      <rect x="${X(x)-1.1*s}" y="${Y(.75-dz)}" width="${2.2*s}" height="${.45*s}" fill="#9a9086"/>${mw>0?`<rect id="${p}mat-${i}" x="${X(x)-mw/2*s}" y="${Y(.3-dz)}" width="${mw*s}" height="${.3*s}" fill="#6b4f2f"/>`:''}</g>`;});
   } else {
-    body+=`<rect x="${Math.min(X(-22),X(12))}" y="${Y(6.2)}" width="${34*s}" height="${2.6*s}" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>
-      <path d="M${X(8)} ${Y(6.2)} L${X(8)} ${Y(10)} L${X(11.8)} ${Y(10)} L${X(13)} ${Y(7)} L${X(13)} ${Y(6.2)} Z" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>
-      <rect x="${Math.min(X(9),X(11.4))}" y="${Y(9.5)}" width="${2.4*s}" height="${1.8*s}" fill="#2b4a5a"/>`;
-    [-16,-12.2,10].forEach(x=>body+=`<circle cx="${X(x)}" cy="${Y(1.9+up)}" r="${1.9*s}" fill="#151311" stroke="#3a3631" stroke-width="3"/><circle cx="${X(x)}" cy="${Y(1.9+up)}" r="${.8*s}" fill="#5d5750"/>`);
-    [-18,7].forEach((x,i)=>{body+=`<g id="${p}${i?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.8*s}" y="${Y(6.4)}" width="${1.6*s}" height="${1.4*s}" fill="#C05A00"/><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${4.6*s}" fill="#7a7068"/>
+    const mx=o.area==='rear'?-1:1, Xm=x=>X(mx*x);
+    body+=`<rect x="${Math.min(Xm(-22),Xm(12))}" y="${Y(6.2)}" width="${34*s}" height="${2.6*s}" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>
+      <path d="M${Xm(8)} ${Y(6.2)} L${Xm(8)} ${Y(10)} L${Xm(11.8)} ${Y(10)} L${Xm(13)} ${Y(7)} L${Xm(13)} ${Y(6.2)} Z" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>
+      <rect x="${Math.min(Xm(9),Xm(11.4))}" y="${Y(9.5)}" width="${2.4*s}" height="${1.8*s}" fill="#2b4a5a"/>`;
+    [-16,-12.2,10].forEach(x=>body+=`<circle cx="${Xm(x)}" cy="${Y(1.9+up)}" r="${1.9*s}" fill="#151311" stroke="#3a3631" stroke-width="3"/><circle cx="${Xm(x)}" cy="${Y(1.9+up)}" r="${.8*s}" fill="#5d5750"/>`);
+    [-18,7].forEach((x0,i)=>{const x=mx*x0, near=mx>0?i===1:i===0;
+      body+=`<g id="${p}${near?'fulcrum':'outrigger-far'}"><rect x="${X(x)-.8*s}" y="${Y(6.4)}" width="${1.6*s}" height="${1.4*s}" fill="#C05A00"/><rect x="${X(x)-.45*s}" y="${Y(5.2)}" width="${.9*s}" height="${4.6*s}" fill="#7a7068"/>
       <rect x="${X(x)-1.1*s}" y="${Y(.75)}" width="${2.2*s}" height="${.45*s}" fill="#9a9086"/><rect x="${X(x)-2.1*s}" y="${Y(.3)}" width="${4.2*s}" height="${.3*s}" fill="#6b4f2f"/></g>`;});
   }
-  // ---- upperstructure: house, counterweight (behind), operator cab
+  // ---- upperstructure: house, counterweight (behind), operator cab, main hoist drum on the house deck
+  const DR=[-4.4,12.35], drr=.95;
   body+=`<g id="${p}house"><rect x="${Math.min(X(-6),X(3.5))}" y="${Y(11.4)}" width="${9.5*s}" height="${3.2*s}" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>
     <rect x="${Math.min(X(-8.6),X(-5.2))}" y="${Y(11)}" width="${3.4*s}" height="${4*s}" rx="${.4*s}" fill="#4D4842" stroke="#2f2b27" stroke-width="2"/>
     <text x="${X(-6.9)}" y="${Y(8.6)}" text-anchor="middle" font-size="${Math.max(9,1.3*s)}" font-weight="800" fill="#b8ad9f">CWT</text>
     <rect x="${Math.min(X(.6),X(3.4))}" y="${Y(13.8)}" width="${2.8*s}" height="${2.6*s}" rx="${.4*s}" fill="#3A3631" stroke="#7a3a00" stroke-width="2"/>
-    <rect x="${Math.min(X(1),X(3.1))}" y="${Y(13.4)}" width="${2.1*s}" height="${1.4*s}" fill="#2b4a5a"/></g>`;
+    <rect x="${Math.min(X(1),X(3.1))}" y="${Y(13.4)}" width="${2.1*s}" height="${1.4*s}" fill="#2b4a5a"/>
+    <g id="${p}hoist-drum"><rect x="${Math.min(X(DR[0]-1.3),X(DR[0]+1.3))}" y="${Y(DR[1]+drr+.15)}" width="${2.6*s}" height="${(2*drr+.3)*s}" rx="${.3*s}" fill="#4D4842" stroke="#2f2b27" stroke-width="1.5"/>
+    <circle cx="${X(DR[0])}" cy="${Y(DR[1])}" r="${(drr*s).toFixed(1)}" fill="#6b747b" stroke="#2f2b27" stroke-width="1.5"/>
+    <circle cx="${X(DR[0])}" cy="${Y(DR[1])}" r="${(drr*s*.55).toFixed(1)}" fill="none" stroke="#9aa7b1" stroke-width="2" stroke-dasharray="3 3" transform="rotate(${((o.lift||0)*4/(2*Math.PI*drr)*360*o.dir).toFixed(1)} ${X(DR[0])} ${Y(DR[1])})"/></g></g>`;
   // ---- boom (telescopic sections), lift cylinder, jib
   const fx=X(0), fy=Y(M.hf);
   const phi=Math.atan2(o.tipH-M.hf,o.R1), Lv=Math.hypot(o.tipH-M.hf,o.R1);
-  const kink=.55*Lv, beta=(o.buckle||0)*Math.min(75*D2R,phi+60*D2R);
-  const along=(d,off=0,ang=phi)=>{       // point d ft along the boom (with the buckle), off ft perpendicular (up)
-    if(d<=kink||!beta){return [X(d*Math.cos(phi)-off*Math.sin(phi)),Y(M.hf+d*Math.sin(phi)+off*Math.cos(phi))];}
-    const kx=kink*Math.cos(phi), ky=M.hf+kink*Math.sin(phi), a2=phi-beta, e=d-kink;
-    return [X(kx+e*Math.cos(a2)-off*Math.sin(a2)),Y(ky+e*Math.sin(a2)+off*Math.cos(a2))];
+  const kink=.55*Lv, beta=(o.buckle||0)*(o.bmax!=null?o.bmax:Math.min(75*D2R,phi+60*D2R)), a2=phi-beta;
+  const alongW=(d,off=0)=>{             // world point d ft along the boom (with the buckle), off ft square to it (up)
+    if(d<=kink||!beta)return [d*Math.cos(phi)-off*Math.sin(phi),M.hf+d*Math.sin(phi)+off*Math.cos(phi)];
+    const kx=kink*Math.cos(phi), ky=M.hf+kink*Math.sin(phi), e=d-kink;
+    return [kx+e*Math.cos(a2)-off*Math.sin(a2),ky+e*Math.sin(a2)+off*Math.cos(a2)];
   };
+  const along=(d,off=0)=>{const w=alongW(d,off);return [X(w[0]),Y(w[1])];};
   if(o.ghost&&o.R0!=null&&!o.buckle&&!o.tilt){
     const th0=Math.acos(clamp(o.R0/o.L,-1,1)), gx=X(o.R0), gyy=Y(M.hf+o.L*Math.sin(th0));
     body+=`<line id="${p}boom-ghost" x1="${fx}" y1="${fy}" x2="${gx.toFixed(1)}" y2="${gyy.toFixed(1)}" stroke="${COL.defl}" stroke-width="2.5" stroke-dasharray="8 7" opacity=".85"/>`;
   }
-  // lift cylinder from the house to 40 % of the base section
   const cyl=along(12.8,-1.4);
   body+=`<line x1="${X(1.8)}" y1="${Y(7.4)}" x2="${cyl[0].toFixed(1)}" y2="${cyl[1].toFixed(1)}" stroke="#d9d3c7" stroke-width="${.7*s}" stroke-linecap="round"/>`;
-  // sections: base 32 ft then three equal fly sections
   const secs=[[0,32,1.35],[32-3,32+(o.L-32)/3,1.15],[32+(o.L-32)/3-3,32+2*(o.L-32)/3,.98],[32+2*(o.L-32)/3-3,o.L,.82]];
   let boom='';
   const lenScale=Lv/o.L;
@@ -441,53 +707,81 @@ function craneSVG(o){
     segs.forEach(([u,v])=>{const pts=[along(u,hw),along(v,hw),along(v,-hw),along(u,-hw)];
       boom+=`<polygon points="${poly(pts)}" fill="${i?'#d9822b':'#C05A00'}" stroke="#7a3a00" stroke-width="2"/>`;});
   });
-  const tip=along(Lv);
+  const tip=along(Lv), tipW=alongW(Lv), SRp=RIG.SR*s;
   boom+=`<circle cx="${along(0)[0]}" cy="${along(0)[1]}" r="${.9*s}" fill="#2f2b27" stroke="${STEEL}" stroke-width="2"/>`;
-  boom+=`<circle id="${p}head-sheave" cx="${tip[0].toFixed(1)}" cy="${tip[1].toFixed(1)}" r="${1.25*s}" fill="#2F2B27" stroke="${STEEL}" stroke-width="2.5"/>`;
-  let jib='';
-  if(o.jib==='stowed'){const a=along(5*lenScale,-1.9), b=along(29*lenScale,-1.9), a2=along(5*lenScale,-2.9), b2=along(29*lenScale,-2.9);
-    jib=`<g id="${p}jib"><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${COL.jib}" stroke-width="3"/><line x1="${a2[0]}" y1="${a2[1]}" x2="${b2[0]}" y2="${b2[1]}" stroke="${COL.jib}" stroke-width="3"/>`;
+  // main hoist line: drum → over the head sheave (tangent to both, wrapping the top of the sheave)
+  {const D=[X(DR[0]),Y(DR[1])], via=beta?[along(kink,1.6)]:[], T=[tip[0],tip[1]];
+    const last=via.length?via[0]:D, ux=T[0]-last[0], uy=T[1]-last[1], ul=Math.hypot(ux,uy)||1;
+    let nx=uy/ul, ny=-ux/ul; if(ny>0){nx=-nx;ny=-ny;}
+    const tD=[D[0]+nx*drr*s,D[1]+ny*drr*s], tS=[T[0]+nx*SRp,T[1]+ny*SRp], out=[T[0]+o.dir*SRp,T[1]];
+    boom+=`<path id="${p}hoist-line" d="M${tD[0].toFixed(1)} ${tD[1].toFixed(1)} ${via.map(v=>`L${v[0].toFixed(1)} ${v[1].toFixed(1)}`).join(' ')} L${tS[0].toFixed(1)} ${tS[1].toFixed(1)} A${SRp.toFixed(1)} ${SRp.toFixed(1)} 0 0 ${o.dir>0?1:0} ${out[0].toFixed(1)} ${out[1].toFixed(1)}" stroke="#9aa7b1" stroke-width="2.2" fill="none"/>`;}
+  boom+=`<circle id="${p}head-sheave" cx="${tip[0].toFixed(1)}" cy="${tip[1].toFixed(1)}" r="${SRp.toFixed(1)}" fill="#2F2B27" stroke="${STEEL}" stroke-width="2.5"/>
+    <circle cx="${tip[0].toFixed(1)}" cy="${tip[1].toFixed(1)}" r="${(.25*s+1).toFixed(1)}" fill="${STEEL}"/>`;
+  let jib='', jibTipW=null;
+  if(o.jib==='stowed'){
+    // stowed lattice jib folded along the side of the base section: a polyline so it kinks with a buckled boom
+    const ln=off=>{let d='';for(let k=0;k<=24;k++){const q=along((5+k)*lenScale,off);d+=(k?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)+' ';}return d;};
+    jib=`<g id="${p}jib"><path d="${ln(-1.9)}" stroke="${COL.jib}" stroke-width="3" fill="none"/><path d="${ln(-2.9)}" stroke="${COL.jib}" stroke-width="3" fill="none"/>`;
     for(let k=0;k<8;k++){const u=along((5+k*3)*lenScale,-1.9), v=along((6.5+k*3)*lenScale,-2.9);jib+=`<line x1="${u[0].toFixed(1)}" y1="${u[1].toFixed(1)}" x2="${v[0].toFixed(1)}" y2="${v[1].toFixed(1)}" stroke="${COL.jib}" stroke-width="2"/>`;}
     jib+=`</g>`;}
-  if(o.jib==='erected'&&!o.buckle){const ja=phi-15*D2R, jl=28, tx=Math.cos(phi)*Lv, ty=M.hf+Math.sin(phi)*Lv;
+  if(o.jib==='erected'){const ja=a2-15*D2R, jl=28, tx=tipW[0], ty=tipW[1];
     const P=(d,off)=>[X(tx+d*Math.cos(ja)-off*Math.sin(ja)),Y(ty+d*Math.sin(ja)+off*Math.cos(ja))];
+    jibTipW=[tx+jl*Math.cos(ja),ty+jl*Math.sin(ja)];
     jib=`<g id="${p}jib"><polygon points="${poly([P(0,.6),P(jl,.25),P(jl,-.25),P(0,-.6)])}" fill="none" stroke="${COL.jib}" stroke-width="3"/>`;
     for(let k=0;k<9;k++){const u=P(k*3,.5),v=P(k*3+1.5,-.5);jib+=`<line x1="${u[0].toFixed(1)}" y1="${u[1].toFixed(1)}" x2="${v[0].toFixed(1)}" y2="${v[1].toFixed(1)}" stroke="${COL.jib}" stroke-width="2"/>`;}
-    jib+=`</g>`;}
+    jib+=`<circle cx="${P(jl,0)[0].toFixed(1)}" cy="${P(jl,0)[1].toFixed(1)}" r="${(.6*s).toFixed(1)}" fill="#2F2B27" stroke="${STEEL}" stroke-width="2"/></g>`;}
   body+=`<g id="${p}boom">${boom}</g>${jib}`;
-  // ---- wrap the machine in the tipping rotation
-  const fpx=X(f), tilt=(o.tilt||0)*o.dir;
-  let out=`<g id="${p}crane" transform="rotate(${tilt.toFixed(2)} ${fpx.toFixed(1)} ${o.gy})">${body}</g>`;
-  // rotated tip position (screen)
-  const rot=(x,y)=>{const a=tilt*D2R,dx=x-fpx,dy=y-o.gy;return [fpx+dx*Math.cos(a)-dy*Math.sin(a),o.gy+dx*Math.sin(a)+dy*Math.cos(a)];};
+  // ---- the tipping rotation: about the load-side float, then (piv2) about the wheel / carrier end that touched down
+  const fpx=X(f), tiltD=o.tilt||0, P2=o.piv2&&tiltD>o.piv2.a1?o.piv2:null;
+  const t1=(P2?P2.a1:tiltD)*o.dir, t2=P2?(tiltD-P2.a1)*o.dir:0, c2=P2?[X(P2.C[0]),Y(P2.C[1])]:null;
+  let out=`<g id="${p}crane" transform="rotate(${t1.toFixed(2)} ${fpx.toFixed(1)} ${o.gy})">${body}</g>`;
+  if(P2)out=`<g transform="rotate(${t2.toFixed(2)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)})">${out}</g>`;
+  const rot1=(x,y,a,cx,cy)=>{a*=D2R;const dx=x-cx,dy=y-cy;return [cx+dx*Math.cos(a)-dy*Math.sin(a),cy+dx*Math.sin(a)+dy*Math.cos(a)];};
+  const rot=(x,y)=>{let q=rot1(x,y,t1,fpx,o.gy);if(P2)q=rot1(q[0],q[1],t2,c2[0],c2[1]);return q;};
   const tp=rot(tip[0],tip[1]);
-  if(o.noHang)return {svg:out,tip:tp,lx:tp[0],X,Y,fpx,phi,Lv};
-  // ---- hoist line, hook block, slings, load (hang plumb from the tip; drop to the ground on failure)
-  const liftFt=Math.max(0,(o.lift||0)-(o.loadDrop||0)), sway=(o.sway||0);
-  const loadTop=liftFt+4, hookY=loadTop+5, blkB=hookY+1.2, blkT=blkB+3;
-  const lx=o.slack?X(o.R1):tp[0]+sway*s;           // load hangs under the tip (or lies where it landed)
-  const bTop=Y(blkT), bBot=Y(blkB);
+  if(o.noHang)return {svg:out,tip:tp,lx:tp[0],X,Y,fpx,phi,Lv,SRp,rot};
+  // ---- falls, hook block, hook, slings, load
+  const FA=o.fail&&o.fail.fall?o.fail.fall:null, sway=o.sway||0;
+  const liftFt=FA?FA.y:Math.max(0,o.lift||0), loadTop=liftFt+RIG.LH;
+  const lx=FA?X(FA.x):tp[0]+sway*s, ly0=Y(loadTop), lyB=Y(liftFt);
+  let sx=lx, sy=Y(loadTop+RIG.LD), rrot=0;
+  if(FA){sx=X(FA.bx);sy=Y(FA.by);rrot=FA.brot*o.dir;}
+  const rig=rigSVG(p,sx,sy,s,rrot,(o.lift||0)*4,o.dir);
+  const boxes=[[lx-RIG.LW/2*s,lx+RIG.LW/2*s,ly0]];
+  if(FA&&FA.brot<=-60){const xa=sx, xb=sx-o.dir*(RIG.HL+RIG.BH)*s;boxes.push([Math.min(xa,xb),Math.max(xa,xb),sy-RIG.BW/2*s]);}
   let hang='';
-  const ropeTo=o.slack?`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} Q${((tp[0]+lx)/2+20).toFixed(1)} ${(Math.max(tp[1],bTop)+40).toFixed(1)} ${lx.toFixed(1)} ${bTop.toFixed(1)}`
-                     :`M${tp[0].toFixed(1)} ${tp[1].toFixed(1)} L${lx.toFixed(1)} ${bTop.toFixed(1)}`;
-  const nParts=3;
-  for(let k=0;k<nParts;k++){const dx=(k-1)*.45*s;
-    hang+=`<path d="${ropeTo.replace(/L([\d.]+) /,(m,x)=>'L'+(+x+dx).toFixed(1)+' ')}" stroke="#9aa7b1" stroke-width="2.2" fill="none"/>`;
-    hang+=`<path d="${ropeTo.replace(/L([\d.]+) /,(m,x)=>'L'+(+x+dx).toFixed(1)+' ')}" stroke="#d6dde2" stroke-width="1" fill="none" stroke-dasharray="5 5" stroke-dashoffset="${(A.flow*(k%2?1:-1)).toFixed(1)}"/>`;}
-  hang+=`<g id="${p}hook-block"><rect x="${(lx-1.4*s).toFixed(1)}" y="${bTop.toFixed(1)}" width="${2.8*s}" height="${3*s}" rx="${.5*s}" fill="#3A3631" stroke="${COL.hook}" stroke-width="2.5"/>
-    <circle cx="${lx.toFixed(1)}" cy="${(bTop+1.2*s).toFixed(1)}" r="${.8*s}" fill="none" stroke="${STEEL}" stroke-width="2"/>
-    <path d="M${lx.toFixed(1)} ${bBot.toFixed(1)} l0 ${(.5*s).toFixed(1)} c0 ${(.8*s).toFixed(1)} ${(.9*s).toFixed(1)} ${(.8*s).toFixed(1)} ${(.8*s).toFixed(1)} ${(.2*s).toFixed(1)}" stroke="${STEEL}" stroke-width="${Math.max(3,.35*s)}" fill="none"/></g>`;
-  const ly0=Y(loadTop), lyB=Y(liftFt), hk=Y(hookY);
-  hang+=`<g id="${p}slings"><line x1="${lx}" y1="${hk}" x2="${lx-3.6*s}" y2="${ly0}" stroke="${COL.rig}" stroke-width="3"/><line x1="${lx}" y1="${hk}" x2="${lx+3.6*s}" y2="${ly0}" stroke="${COL.rig}" stroke-width="3"/></g>`;
+  const ends=[[tp[0]-SRp,tp[1],o.dir>0?rig.eL:rig.eR],[tp[0]+SRp,tp[1],o.dir>0?rig.eR:rig.eL]];
+  const run=(o.lift||0)*4*s;     // 4 parts of line: the rope runs 4 × the hook speed
+  ends.forEach(([x0,y0,e],k)=>{[-1.3,1.3].forEach((dx,j)=>{
+    const a=[x0+dx,y0], b=[e[0]+dx,e[1]];
+    const d=FA?sagRope(a,b,clamp((o.fail.t-.2)*160,0,140),boxes,o.gy):`M${a[0].toFixed(1)} ${a[1].toFixed(1)} L${b[0].toFixed(1)} ${b[1].toFixed(1)}`;
+    hang+=`<path d="${d}" stroke="#9aa7b1" stroke-width="2" fill="none"/>`;
+    if(!FA)hang+=`<path d="${d}" stroke="#d6dde2" stroke-width="1" fill="none" stroke-dasharray="5 5" stroke-dashoffset="${(run*(k?-1:1)).toFixed(1)}"/>`;});});
   hang+=`<ellipse cx="${lx}" cy="${o.gy+3}" rx="${(4.5-Math.min(3,liftFt*.12))*s}" ry="4" fill="#000" opacity="${clamp(.45-liftFt*.02,.1,.45)}"/>`;
+  // load with two lifting lugs on top; the sling eyes go through shackles on the lugs
+  const lugs=[lx-RIG.LG*s,lx+RIG.LG*s];
   hang+=`<g id="${p}load"><rect x="${(lx-4*s).toFixed(1)}" y="${ly0.toFixed(1)}" width="${8*s}" height="${4*s}" rx="3" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
     <rect x="${(lx-4*s).toFixed(1)}" y="${ly0.toFixed(1)}" width="${8*s}" height="${.5*s}" fill="#5d5750"/>
+    ${lugs.map(x=>`<path d="M${(x-.35*s).toFixed(1)} ${ly0.toFixed(1)} L${(x-.2*s).toFixed(1)} ${(ly0-.55*s).toFixed(1)} L${(x+.2*s).toFixed(1)} ${(ly0-.55*s).toFixed(1)} L${(x+.35*s).toFixed(1)} ${ly0.toFixed(1)} Z" fill="#7A7268"/><circle cx="${x.toFixed(1)}" cy="${(ly0-.32*s).toFixed(1)}" r="${(.12*s+.6).toFixed(1)}" fill="#1F1D1A"/>`).join('')}
     ${o.loadLabel?`<text x="${lx}" y="${(lyB-1.4*s).toFixed(1)}" text-anchor="middle" font-size="${clamp(1.45*s,11,22)}" font-weight="800" fill="${COL.W}">${o.loadLabel}</text>`:''}</g>`;
-  if(o.ball){const bt=rot(along(Lv+.9)[0],along(Lv+.9)[1]), bd=o.ballDrop||12, by=Math.min(tp[1]+bd*s,o.gy-1*s);
-    hang+=`<g id="${p}ball"><line x1="${bt[0].toFixed(1)}" y1="${bt[1].toFixed(1)}" x2="${(bt[0]+2*s+sway*s).toFixed(1)}" y2="${by.toFixed(1)}" stroke="#9aa7b1" stroke-width="2"/>
-      <circle cx="${(bt[0]+2*s+sway*s).toFixed(1)}" cy="${(by+.9*s).toFixed(1)}" r="${.9*s}" fill="${COL.ball}" stroke="#1F1D1A" stroke-width="2"/></g>`;}
+  // slings: each leg runs from the hook saddle to a shackle on a lug; slack after a failure (they lie on the load)
+  const lugTop=ly0-.32*s;
+  hang+=`<g id="${p}slings">`+lugs.map((x,i)=>{
+    const d=FA&&FA.landed?sagRope([sx,sy],[x,lugTop],40,boxes.slice(0,1).map(b=>[b[0],b[1],b[2]-3]),o.gy):`M${sx.toFixed(2)} ${sy.toFixed(2)} L${x.toFixed(2)} ${lugTop.toFixed(2)}`;
+    return `<path id="${p}sling-${i}" d="${d}" stroke="${COL.rig}" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="${x.toFixed(1)}" cy="${lugTop.toFixed(1)}" r="${(.28*s).toFixed(1)}" fill="none" stroke="${STEEL}" stroke-width="2"/>`;}).join('')+`</g>`;
+  hang+=rig.svg;
+  // whip line + overhaul ball: plumb from the rooster sheave (or the erected jib's point sheave)
+  if(o.ball){const rp0=jibTipW?[X(jibTipW[0]),Y(jibTipW[1])]:along(Lv+.9,.3), rp=rot(rp0[0],rp0[1]), rr=.9*s, wx=rp[0]+o.dir*.6*s;
+    if(!FA){const by=Math.min(rp[1]+(o.ballDrop||12)*s,o.gy-2*rr), bx=wx+sway*s;
+      hang+=`<g id="${p}ball"><line x1="${wx.toFixed(1)}" y1="${rp[1].toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="#9aa7b1" stroke-width="2"/>
+        <circle cx="${bx.toFixed(1)}" cy="${(by+rr).toFixed(1)}" r="${rr.toFixed(1)}" fill="${COL.ball}" stroke="#1F1D1A" stroke-width="2"/></g>`;}
+    else{const by0=rp[1]+(o.ballDrop||12)*s, fallT=Math.max(0,o.fail.t-.25), bx=wx;
+      let fl=o.gy; boxes.forEach(b=>{if(bx>=b[0]-rr&&bx<=b[1]+rr)fl=Math.min(fl,b[2]);});
+      const by=Math.min(by0+.5*RIG.G*fallT*fallT*s,fl-rr);
+      hang+=`<g id="${p}ball"><path d="${sagRope([wx,rp[1]],[bx,by-rr],30,boxes,o.gy)}" stroke="#9aa7b1" stroke-width="2" fill="none"/>
+        <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${rr.toFixed(1)}" fill="${COL.ball}" stroke="#1F1D1A" stroke-width="2"/></g>`;}}
   out+=hang;
-  return {svg:out,tip:tp,lx,X,Y,fpx,phi,Lv,loadY:ly0,hookY:hk};
+  return {svg:out,tip:tp,lx,X,Y,fpx,phi,Lv,loadY:ly0,hookY:sy,saddle:[sx,sy],SRp,rot};
 }
 
 /* ---------- FAILURE MODES ---------- */
@@ -495,24 +789,56 @@ function updateFail(c,ms){
   if(!S.fail){if(F.on)F={on:false,t:0};return;}
   if(!F.on){
     if(c.failKind){const m=c.failCrane==='B'?c.B:c.A;
-      F={on:true,t:0,kind:c.failKind,crane:c.failCrane,lift:toFt(S.lift),pct:m.pct,gross:m.gross,wtip:m.wtip,cs:m.cs,R1:m.R1,
-         caption:c.failKind==='tip'?`${pct(m.pct)} of chart: the crane tips over the outrigger`:`${pct(m.pct)} of chart in the structural zone: the boom buckles`};}
+      // what pushed it over: a swing or wind moving the load out, a dynamic (snatch / sudden stop) load, or the plain load
+      const cause=c.failKind!=='tip'&&c.failKind!=='boom'?c.failKind:(m.grossLv>m.gross*1.02?'dyn':m.RlvFt>m.R1ft+.05?(S.mode==='wind'?'wind':'swing'):'load');
+      F={on:true,t:0,kind:c.failKind,cause,crane:c.failCrane,lift:toFt(S.lift),pct:m.pct,gross:m.gross,grossLv:m.grossLv,wtip:m.wtipLv,cs:m.cs,R1:m.R1,Rlv:m.Rlv,
+         gb:c.gb,rd:c.rd,R1ft:m.R1ft,tipH:m.tipHft,f:m.f,
+         caption:c.failKind==='punch'?`${nf(c.gb.p)} ${S.units==='imp'?'psf':'kPa'} on ${c.gb.soil.toLowerCase()}: the outrigger punches through`
+           :c.failKind==='strike'?'Radio lost and the crane kept moving: the load hits the column'
+           :c.failKind==='tip'?(cause==='load'?`${pct(m.pct)} of chart: the crane tips over the outrigger`:cause==='dyn'?`Dynamic load ${wt(m.grossLv)}: the crane tips`:`The load ${cause==='wind'?'blew':'swung'} out to ${len(m.Rlv)}: the crane tips`)
+           :`${pct(m.pct)} of chart in the structural zone: the boom buckles`};
+      tweens=[];                                   // the trip freezes every running tween: no numbers climb after the failure
+      F.dx0=A.hx||0; F.vx=clamp(A.hv||0,-25,25); F.pose={};
+      if(c.failKind==='strike'){A.vAng=0;A.vHook=0;A.hitV=-Math.max(1.5,Math.abs(c.rd.vNow?toFt(c.rd.vNow):2));}}
     return;
   }
   F.t+=ms;
 }
-// deterministic offsets for this frame (pure functions of F.t)
-function failAnim(o){                       // o: crane geometry {R1,tipH,f}
-  if(!F.on)return {tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
+// where the load and the hook block are after a failure (world ft, pure function of t): the load falls from the lift
+// height and keeps the sideways speed it had (a swinging or wind-blown load lands where it was heading), lands, then
+// the block drops onto it hook-first and topples onto its side on top of the load. t0: when the load starts to fall.
+function fallState(R1,t,t0=.25){
+  const g=RIG.G, lift=F.lift||0, tf=Math.sqrt(2*lift/g), tt=Math.max(0,t-t0), te=Math.min(tt,tf);
+  const x=R1+(F.dx0||0)+(F.vx||0)*te, y=Math.max(0,lift-.5*g*te*te), landed=tt>=tf, tl=tt-tf;
+  let bx=x, by=y+RIG.LH+RIG.LD, brot=0;
+  if(landed){const dh=RIG.LD-RIG.th, tA=Math.sqrt(2*dh/g), d=Math.min(dh,.5*g*tl*tl), tb=Math.max(0,tl-tA), u=clamp(tb/.45,0,1), ue=u*u;
+    bx=x+1.5*ue; by=RIG.LH+RIG.LD-d+(RIG.BW/2-RIG.th)*ue; brot=-90*ue;}
+  return {x,y,landed,tl,bx,by,brot};
+}
+const loadPolys=fin=>[[[fin.x-4,0],[fin.x+4,0],[fin.x+4,4],[fin.x-4,4]],[[fin.bx-4.4,4],[fin.bx+.7,4],[fin.bx+.7,4+RIG.BW],[fin.bx-4.4,4+RIG.BW]]];
+// deterministic failure motion for this frame (pure function of F.t). o: {R1,tipH,f,area,outr,jib,key,obst?}
+function failAnim(o){
+  const none={tilt:0,piv2:null,buckle:0,bmax:null,fall:null,land:-1,crash:-1,t:0};
+  if(!F.on)return none;
   const t=F.t/1000;
-  const drop=Math.min(F.lift,.5*32.2*Math.max(0,t-.25)**2), land=F.lift>0?(t-.25-Math.sqrt(2*F.lift/32.2)):t-.25;
-  if(F.kind==='tip'){
-    const phiHit=Math.atan2(o.tipH,o.R1-o.f)/D2R, pmax=Math.min(phiHit,62), T1=1.9;
-    const tilt=t<T1?pmax*(t/T1)**2:pmax-Math.exp(-(t-T1)/.12)*1.6*Math.abs(Math.sin((t-T1)*22));
-    return {tilt:Math.max(0,tilt),buckle:0,drop,slack:true,land,crash:t-T1};
+  if(F.kind==='strike')return {...none,t,crash:t,bend:Math.min(7,7*(1-Math.exp(-t/.12)))};
+  const t0=F.kind==='punch'?.95:F.kind==='boom'?.15:.25;
+  const fall=o.noFall?null:fallState(o.R1,t,t0), land=fall&&fall.landed?fall.tl:-1;
+  const key=o.key||'A'; F.pose=F.pose||{};
+  if(!F.pose[key]){const ob=o.obst||loadPolys(fallState(o.R1,99,t0));
+    F.pose[key]=F.kind==='boom'?{bmax:buckleMax({...o,obst:ob})}:tipPose({...o,obst:ob});}
+  const P=F.pose[key];
+  const bounce=(pm,tt,T1)=>tt<T1?pm*(tt/T1)**2:pm-Math.exp(-(tt-T1)/.12)*Math.min(1.6,pm*.08)*Math.abs(Math.sin((tt-T1)*22));
+  const piv2=P.a1!=null?{a1:P.a1,C:P.C}:null;
+  if(F.kind==='tip'){const T1=1.9;return {...none,t,tilt:Math.max(0,bounce(P.amax,t,T1)),piv2,fall,land,crash:t-T1};}
+  if(F.kind==='punch'){
+    // the load-side float sinks into the ground (0.9 s), the radius grows and the machine goes over that outrigger
+    const sink=1.8*Math.min(1,(t/.9)**2), t2=Math.max(0,t-.7), T1=1.8;
+    const tilt=Math.min(P.amax,bounce(P.amax,t2,T1)+Math.atan2(sink,2*o.f)/D2R);
+    return {...none,t,tilt:Math.max(0,tilt),piv2,fall,land,crash:t-.7-T1,sink};
   }
   const T1=1.2, u=t<T1?(t/T1)**2:1-Math.exp(-(t-T1)/.1)*.05*Math.abs(Math.sin((t-T1)*25));
-  return {tilt:0,buckle:t<.15?0:clamp(u,0,1),drop,slack:t>.15,land,crash:t-T1};
+  return {...none,t,buckle:t<.15?0:clamp(u,0,1),bmax:P.bmax,fall,land,crash:t-T1};
 }
 function dust(x,y,span,u,seed){
   if(u<0||u>1.8)return '';
@@ -525,24 +851,31 @@ function dust(x,y,span,u,seed){
 }
 function failCard(x0,y0,w){
   const op=clamp(F.t/250,0,1), X=x0+18; let y=y0+34, b='';
-  const tip=F.kind==='tip';
-  b+=`<text x="${X}" y="${y}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${tip?'FAILURE · STABILITY':'FAILURE · BOOM STRENGTH'}${F.crane&&S.tandem&&S.mode==='plan'?' · CRANE '+F.crane:''}</text>`; y+=52;
-  b+=`<text id="fail-big" x="${X}" y="${y}" font-size="46" font-weight="800" fill="${TEXT}">${pct(F.pct)} of chart</text>`; y+=42;
-  const lines=tip?[`Gross ${wt(F.gross)}`,`Tipping load ${wt(F.wtip)} at ${len(F.R1)}`,'The load moment beat the crane\'s',' own weight about the outrigger.']
-                 :[`Gross ${wt(F.gross)} in the * (structural)`,'zone. The boom runs out of strength',`before the crane gets light: the`,'outriggers never warn you.'];
+  const tip=F.kind==='tip', K=F.kind, cz=F.cause, pu=S.units==='imp'?'psf':'kPa';
+  const head=K==='punch'?'FAILURE · GROUND BEARING':K==='strike'?'FAILURE · LOST COMMUNICATION':tip?'FAILURE · STABILITY':'FAILURE · BOOM STRENGTH';
+  b+=`<text x="${X}" y="${y}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${head}${F.crane&&S.tandem&&S.mode==='plan'?' · CRANE '+F.crane:''}</text>`; y+=52;
+  const big=K==='punch'?`${nf(F.gb.pa*100,0)} % of allowable`:K==='strike'?'Radio lost':tip&&cz==='dyn'?`× ${nf(F.grossLv/F.gross,2)} dynamic`:tip&&(cz==='swing'||cz==='wind')?`Radius ${len(F.Rlv)}`:`${pct(F.pct)} of chart`;
+  b+=`<text id="fail-big" x="${X}" y="${y}" font-size="46" font-weight="800" fill="${TEXT}">${big}</text>`; y+=42;
+  const lines=K==='punch'?[`${nf(F.gb.p)} ${pu} under the float`,`${F.gb.soil}: ${nf(F.gb.allow)} ${pu} allowed`,'The ground gives way under the',' load-side outrigger, then the crane goes.']
+    :K==='strike'?['The operator could not see the load.','The radio went quiet and the crane','kept booming down. No word from the','signal person means STOP.']
+    :tip&&cz==='dyn'?[`Static ${wt(F.gross)} → ${wt(F.grossLv)}`,`Tipping load ${wt(F.wtip)} at ${len(F.Rlv)}`,'A snatch or a sudden stop multiplies','the load: it can overturn the crane.']
+    :tip&&(cz==='swing'||cz==='wind')?[`Set at ${len(F.R1)}; reached ${len(F.Rlv)}`,`Tipping load there ${wt(F.wtip)}`,cz==='wind'?'The wind pushed the load out past':'The swinging load carried the radius',cz==='wind'?'the radius the crane could hold.':'past what the crane could hold.']
+    :tip?[`Gross ${wt(F.gross)}`,`Tipping load ${wt(F.wtip)} at ${len(F.R1)}`,'The load moment beat the crane\'s',' own weight about the outrigger.']
+    :[`Gross ${wt(F.gross)} in the * (structural)`,'zone. The boom runs out of strength',`before the crane gets light: the`,'outriggers never warn you.'];
   lines.forEach((l,i)=>{b+=`<text x="${X}" y="${y}" font-size="${i<2?22:19}" font-weight="${i<2?800:700}" fill="${i<2?TEXT:'#d9d3c7'}">${l}</text>`;y+=i<2?32:27;});
-  y+=14; b+=`<g id="fail-verdict">`;(tip?['THE CRANE TIPS OVER','THE OUTRIGGER']:['THE BOOM BUCKLES','AND THE LOAD DROPS']).forEach(l=>{b+=`<text x="${X}" y="${y}" font-size="30" font-weight="800" fill="${BAD}">${l}</text>`;y+=38;});b+=`</g>`;
+  const verd=K==='punch'?['THE OUTRIGGER','PUNCHES THROUGH']:K==='strike'?['THE LOAD HITS','THE COLUMN']:tip?['THE CRANE TIPS OVER','THE OUTRIGGER']:['THE BOOM BUCKLES','AND THE LOAD DROPS'];
+  y+=14; b+=`<g id="fail-verdict">`;verd.forEach(l=>{b+=`<text x="${X}" y="${y}" font-size="30" font-weight="800" fill="${BAD}">${l}</text>`;y+=38;});b+=`</g>`;
   b+=`<g id="fail-tag"><rect x="${X}" y="${y}" width="${w-36}" height="46" rx="8" fill="${BAD}"/><text x="${X+(w-36)/2}" y="${y+31}" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">NEVER DO THIS ON THE JOB</text></g>`;
   y+=64;
   return `<g id="fail-card" opacity="${op.toFixed(3)}"><rect id="fail-card-box" x="${x0}" y="${y0}" width="${w}" height="${y-y0}" rx="10" fill="#2a1717" stroke="${BAD}" stroke-width="3"/>${b}</g>`;
 }
-function failInfo(){return F.on?{on:true,kind:F.kind,crane:F.crane,t:F.t,caption:F.caption,pct:F.pct,landed:F.t>800}:{on:false};}
+function failInfo(){return F.on?{on:true,kind:F.kind,cause:F.cause,crane:F.crane,t:F.t,caption:F.caption,pct:F.pct,landed:F.t>800}:{on:false};}
 
 /* ---------- LOAD CHART MODE ---------- */
 const CX=272, GY=820, RC=842, RW=448;
 const pxFor=Lft=>clamp(560/(Lft+8),5.6,8.5);       // px per ft: the crane fills the stage at every boom length          // crane origin, ground, px per ft; right column x and width
 function chartCard(c,y0,h,m){
-  const lk=m.lk, t=lk.t, cfg=t.outr==='ret'?'Outriggers retracted · 360°':t.area==='front'?'Outriggers fully extended · over the front':'Outriggers fully extended · 360° (over the side)';
+  const lk=m.lk, t=lk.t, cfg=t.outr==='ret'?'Outriggers retracted · 360°':t.area==='front'?'Outriggers fully extended · over the front':t.area==='rear'?'Outriggers fully extended · over the rear':'Outriggers fully extended · 360° (over the side)';
   let s=card('chart-card',RC,y0,RW,h,'EXAMPLE LOAD CHART · TRAINING ONLY',`${cfg} · ${wu()}`);
   const x0=RC+12, cw=74, c0=70, top=y0+60, rh=Math.min(25,(h-140)/(t.radii.length+1));
   s+=`<text x="${x0+4}" y="${top+rh*.7}" font-size="12" font-weight="700" fill="${MUTED}">R ${lu()} \\ L</text>`;
@@ -581,7 +914,8 @@ function stabCard(c,y0,h,m){
       <text x="${Math.max(Xv(ratingMark)-4,x0+150)}" y="${y+56}" text-anchor="end" font-size="13" font-weight="700" fill="${COL.cap}">${ratingLbl}</text>`;}
     return b+`</g>`;};
   const y=y0+52;
-  if(m.wtip>0&&isFinite(m.wtip))s+=bar('stab-tip',y,`Stability: gross ${wt(m.gross)} vs tipping ${wt(m.wtip)}`,m.gross,m.wtip,.85*m.wtip,'85 %','tips');
+  if(m.swPkFt>.05&&m.wtipSw>0&&isFinite(m.wtipSw))s+=bar('stab-tip',y,`Swinging out to ${len(m.Rsw)}: tipping ${wt(m.wtipSw)}`,m.gross,m.wtipSw,.85*m.wtipSw,'85 %','tips');
+  else if(m.wtip>0&&isFinite(m.wtip))s+=bar('stab-tip',y,`Stability: gross ${wt(m.gross)} vs tipping ${wt(m.wtip)}`,m.gross,m.wtip,.85*m.wtip,'85 %','tips');
   else s+=`<g id="stab-tip"><text x="${x0}" y="${y}" font-size="16" font-weight="800" fill="${TEXT}">Stability: radius inside the outrigger.</text><text x="${x0}" y="${y+24}" font-size="15" font-weight="700" fill="${MUTED}">The crane cannot tip toward the load here.</text></g>`;
   s+=bar('stab-struct',y+86,`Boom strength: rating ${wt(m.cs)}`,m.gross,m.brk,m.cs,'rating','buckles (example)');
   const gov=m.lk.off?'Off the chart: no rating at all.':m.lk.shaded?'This cell is * : boom strength governs.':'This cell: stability (tipping) governs.';
@@ -617,8 +951,18 @@ function geometryMarks(g,m,showFul){
   s+=`<g id="radius-dim"><line x1="${X(0)}" y1="${yd}" x2="${X(m.R0ft)}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/>
     <line x1="${X(0)}" y1="${yd-10}" x2="${X(0)}" y2="${yd+10}" stroke="${COL.R}" stroke-width="3"/><line x1="${X(m.R0ft)}" y1="${yd-10}" x2="${X(m.R0ft)}" y2="${yd+10}" stroke="${COL.R}" stroke-width="3"/>
     <text x="${(X(0)+X(m.R0ft))/2}" y="${yd+25}" text-anchor="middle" font-size="18" font-weight="800" fill="${COL.R}">R = ${len(m.R0)}</text></g>`;
-  if(m.deflFt>.02)s+=`<g id="defl-dim"><line x1="${X(m.R0ft)}" y1="${yd}" x2="${X(m.R1ft)}" y2="${yd}" stroke="${COL.defl}" stroke-width="7"/>
-    <text x="${X(m.R1ft)+8}" y="${yd-12}" font-size="16" font-weight="800" fill="${COL.defl}">+${len(m.defl,2)} deflection</text></g>`;
+  const Rb=m.R0ft+m.deflFt;
+  if(m.deflFt>.02)s+=`<g id="defl-dim"><line x1="${X(m.R0ft)}" y1="${yd}" x2="${X(Rb)}" y2="${yd}" stroke="${COL.defl}" stroke-width="7"/>
+    <text x="${X(Rb)+8}" y="${yd-12}" font-size="16" font-weight="800" fill="${COL.defl}">+${len(m.defl,2)} deflection</text></g>`;
+  // out of level: its own segment and label (radius budget R + deflection + level + swing)
+  if(Math.abs(m.levFt)>.02)s+=`<g id="level-dim"><line x1="${X(Rb)}" y1="${yd+4}" x2="${X(m.R1ft)}" y2="${yd+4}" stroke="${COL.lev}" stroke-width="7"/>
+    <text x="${X(m.R1ft)+8}" y="${yd+(m.deflFt>.02?14:-12)}" font-size="16" font-weight="800" fill="${COL.lev}">+${len(m.lev,2)} out of level</text></g>`;
+  const xl=m.RlvFt-m.R1ft, xp=Math.max(m.swPkFt,S.mode==='wind'&&CC&&CC.wd&&S.gust>S.wind?toFt(CC.wd.xPk):0);
+  if(xp>.05||Math.abs(xl)>.05){
+    s+=`<g id="swing-dim">${xp>.05?`<line x1="${X(m.R1ft)}" y1="${yd-170}" x2="${X(m.R1ft+xp)}" y2="${yd-170}" stroke="${COL.sw}" stroke-width="2.5" stroke-dasharray="6 5"/>
+      <line x1="${X(m.R1ft+xp)}" y1="${yd-180}" x2="${X(m.R1ft+xp)}" y2="${yd-160}" stroke="${COL.sw}" stroke-width="3"/>`:''}
+      <line x1="${X(m.R1ft)}" y1="${yd-170}" x2="${X(m.R1ft+xl)}" y2="${yd-170}" stroke="${COL.sw}" stroke-width="7"/><line x1="${X(m.R1ft)}" y1="${yd-182}" x2="${X(m.R1ft)}" y2="${yd-158}" stroke="${COL.sw}" stroke-width="2"/>
+      <text x="${X(Math.min(m.R1ft,m.R1ft+xl))-12}" y="${yd-164}" text-anchor="end" font-size="16" font-weight="800" fill="${COL.sw}">${S.mode==='wind'?'wind':'swing'}${xp>.05?` out to +${len(fromFt(xp),1)}`:` +${len(fromFt(xl),1)}`}</text></g>`;}
   // centre of rotation
   s+=`<g id="cor"><line x1="${X(0)}" y1="${GY-4}" x2="${X(0)}" y2="${yd+10}" stroke="${MUTED}" stroke-width="2" stroke-dasharray="4 4"/></g>`;
   // angle arc at the boom foot
@@ -639,24 +983,206 @@ function geometryMarks(g,m,showFul){
   return s;
 }
 function drawChartMode(c){
-  const m=c.A, fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f});
-  const swayFt=A.sway;
+  const m=c.A;
+  const setup=S.mode==='setup', wmode=S.mode==='wind';
+  const swayFt=A.sway+(m.RlvFt-m.R1ft);                       // legacy plan-mode sway + live swing / wind displacement
   const PX=pxFor(m.Lft);
-  const g=craneSVG({cx:CX,gy:GY,s:PX,dir:1,outr:S.outr,area:S.area,L:m.Lft,R1:m.R1ft,tipH:m.tipHft,R0:m.R0ft,ghost:m.deflFt>.02,
-    jib:S.jib,ball:S.ball,ballDrop:14,lift:toFt(S.lift),loadLabel:wt(S.load),tilt:fa.tilt,buckle:fa.buckle,loadDrop:fa.drop,slack:fa.slack,sway:swayFt});
-  let s=g.svg;
+  // out of level: draw the machine leaning (boom drawn to Rb, then the whole crane turned by α); the numbers come from calc()
+  const Rb=m.R1ft-m.levFt, tipB=M.hf+Math.sqrt(Math.max(0,m.Lft*m.Lft-Rb*Rb));
+  const fa=failAnim({R1:Rb,tipH:tipB,f:m.f,area:S.area,outr:S.outr,jib:S.jib});
+  const matFt=setup?(S.mat==='none'?0:(S.units==='imp'?MATS.imp[S.mat]:MATS.met[S.mat]/FT)):undefined;
+  const g=craneSVG({cx:CX,gy:GY,s:PX,dir:1,outr:S.outr,area:S.area,L:m.Lft,R1:Rb,tipH:tipB,R0:m.R0ft,ghost:m.deflFt>.02,
+    jib:S.jib,ball:S.ball,ballDrop:14,lift:toFt(S.lift),loadLabel:wt(S.load),tilt:fa.tilt+(S.level||0),piv2:fa.piv2,buckle:fa.buckle,bmax:fa.bmax,fail:fa,sway:swayFt,
+    matW:matFt,sink:fa.sink||0});
+  let s='';
+  if(setup)s+=soilLayer(c,g,fa);
+  s+=g.svg;
   if(!F.on)s+=geometryMarks(g,m,true);
-  if(F.on){s+=dust(g.lx,GY,180,fa.land,1); if(fa.crash>=0)s+=dust(F.kind==='tip'?g.tip[0]:g.tip[0],GY,220,fa.crash,2);}
-  if(S.mode==='plan')s+=windStreaks(c);
-  const cards=F.on?failCard(RC,10,RW):S.mode==='plan'?checkCard(c)+critCard(c):chartCard(c,8,560,m)+stabCard(c,578,312,m);
-  const left=S.mode==='plan'||!F.on?stackCard(c,m,12,12,236,S.mode==='plan'?430:540):stackCard(c,m,12,12,236,540);
-  return {crane:s+left,cards};
+  if(!F.on&&(S.level||setup))s+=levelVial(g,m);
+  if(F.on){s+=dust(g.lx,GY,180,fa.land,1); if(fa.crash>=0)s+=dust(F.kind==='tip'?g.tip[0]:g.tip[0],GY,220,fa.crash,2); if(F.kind==='punch')s+=dust(g.X(m.f),GY,120,F.t/1000,3);}
+  if(S.mode==='plan'||wmode)s+=windStreaks(c);
+  if(wmode&&!F.on)s+=windArrow(c,g);
+  const cards=F.on?failCard(RC,10,RW):S.mode==='plan'?checkCard(c)+critCard(c):setup?reactCard(c,8,436)+groundCard(c,454,436)
+    :wmode?windCard(c,8,476)+dynCard(c,494,396):chartCard(c,8,560,m)+stabCard(c,578,312,m);
+  const left=S.inset==='tipping'&&S.mode==='chart'?tippingCard(c,m,12,12,236,540):stackCard(c,m,12,12,236,S.mode==='plan'?430:540);
+  return {crane:s,left,cards};
+}
+
+/* ---------- STABILITY: tipping lines seen from above (visual maths for over the side / front / rear) ---------- */
+function tippingCard(c,m,x0,y0,w,h){
+  let s=card('tipping-card',x0,y0,w,h,'TIPPING LINES','seen from above');
+  const k=6.4, cx=x0+w/2, cy=y0+70+18*k, side=S.outr==='ret'?4:11;   // front (cab end) up; rear down
+  const P=(lat,lon)=>[cx+lat*k,cy-lon*k];                                       // lat: + = right side; lon: + = front
+  const fl=[[-side,7],[side,7],[side,-18],[-side,-18]];
+  s+=`<rect x="${(cx-4*k).toFixed(1)}" y="${(cy-12*k).toFixed(1)}" width="${8*k}" height="${34*k}" rx="6" fill="#3A3631" stroke="#5a534b" stroke-width="2"/>
+    <rect x="${(cx-3.6*k).toFixed(1)}" y="${(cy-12*k).toFixed(1)}" width="${7.2*k}" height="${5*k}" rx="4" fill="#C05A00"/>
+    <text x="${cx}" y="${(cy-8.6*k).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#1F1D1A">CAB</text>`;
+  const area=S.area, act={side:[[side,7],[side,-18]],front:[[-side,7],[side,7]],rear:[[-side,-18],[side,-18]]}[area];
+  const lines=[['side',[[side,7],[side,-18]],`${mlen(fromFt(side))} ${lu()}`],['front',[[-side,7],[side,7]],`${mlen(fromFt(7))} ${lu()}`],['rear',[[-side,-18],[side,-18]],`${mlen(fromFt(18))} ${lu()}`]];
+  lines.forEach(([n,[a,b],lab])=>{const on=n===area, pa=P(...a), pb=P(...b);
+    s+=`<line ${on?'id="tip-line"':''} x1="${pa[0].toFixed(1)}" y1="${pa[1].toFixed(1)}" x2="${pb[0].toFixed(1)}" y2="${pb[1].toFixed(1)}" stroke="${on?BAD:MUTED}" stroke-width="${on?4:2}" stroke-dasharray="${on?'':'6 5'}"/>`;});
+  fl.forEach(p=>{const q=P(...p);s+=`<rect x="${(q[0]-9).toFixed(1)}" y="${(q[1]-9).toFixed(1)}" width="18" height="18" rx="3" fill="#9a9086" stroke="#1F1D1A" stroke-width="2"/>`;});
+  // centre of rotation, the boom pointing over the chosen area, and the distance to the tipping line
+  const dir={side:[1,0],front:[0,1],rear:[0,-1]}[area], cr=P(0,0), dist={side:side,front:7,rear:18}[area];
+  s+=`<circle cx="${cr[0]}" cy="${cr[1]}" r="9" fill="#C05A00" stroke="#7a3a00" stroke-width="2"/>`;
+  const bt=[cr[0]+dir[0]*w*.42,cr[1]-dir[1]*Math.min(16*k,140)];
+  s+=`<line x1="${cr[0]}" y1="${cr[1]}" x2="${bt[0].toFixed(1)}" y2="${bt[1].toFixed(1)}" stroke="#d9822b" stroke-width="8" stroke-linecap="round"/>`;
+  const dp=P(dir[0]*dist,dir[1]*dist);
+  s+=`<g id="tip-dist"><line x1="${cr[0]}" y1="${cr[1]}" x2="${dp[0].toFixed(1)}" y2="${dp[1].toFixed(1)}" stroke="${COL.mom}" stroke-width="3"/>
+    <text x="${(area==='side'?cr[0]+dist*k/2:cr[0]+12).toFixed(1)}" y="${(area==='side'?cr[1]-10:(cr[1]+dp[1])/2).toFixed(1)}" text-anchor="${area==='side'?'middle':'start'}" font-size="14" font-weight="800" fill="${COL.mom}">f = ${mlen(fromFt(dist))} ${lu()}</text></g>`;
+  // the chart at this loaded radius over each area (same crane, same boom)
+  let y=y0+h-118;
+  s+=`<g id="tip-compare"><text x="${x0+14}" y="${y}" font-size="14" font-weight="800" fill="${MUTED}">CHART AT ${mlen(m.R1)} ${lu()}</text>`;
+  [['front','Over front'],['side','Over side'],['rear','Over rear']].forEach(([a,n],i)=>{
+    const lk=lookup(S.units,S.outr==='ret'&&a!=='side'?'full':S.outr,a,m.Lu,m.R1), v=lk.off?'—':nf(lk.cap)+(lk.shaded?'*':'');
+    s+=`<text x="${x0+14}" y="${y+24+i*24}" font-size="15" font-weight="${a===area?900:700}" fill="${a===area?TEXT:'#d9d3c7'}">${n}</text><text x="${x0+w-14}" y="${y+24+i*24}" text-anchor="end" font-size="15" font-weight="${a===area?900:700}" fill="${a===area?TEXT:'#d9d3c7'}">${v}</text>`;});
+  s+=`<text x="${x0+14}" y="${y+100}" font-size="12" font-weight="700" fill="${MUTED}">* boom strength · example crane</text></g>`;
+  return s+`</g>`;
+}
+
+/* ---------- SET-UP: outrigger reaction, ground bearing, level ---------- */
+function soilLayer(c,g,fa){
+  const gb=c.gb, col=gb.level==='bad'?'#4a2a22':gb.level==='warn'?'#3b3322':'#2b2a24';
+  let s=`<rect id="soil" x="0" y="${GY}" width="1300" height="80" fill="${col}"/>`;
+  for(let i=0;i<40;i++){const x=rnd(i,7)*836,y=GY+8+rnd(i,8)*66;s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(1.5+rnd(i,9)*2.5).toFixed(1)}" fill="#5a5148" opacity=".6"/>`;}
+  // pressure bulb under the load-side float: rings fade with depth (stress spreads out), coloured by p ÷ allowable
+  const fx=g.X(gb.f), pc=gb.pa>ULT?BAD:gb.pa>1?WARN:OK, sideFt=toFt(gb.side), pulse=.5+.5*Math.sin(A.windX/12);
+  for(let r=1;r<=4;r++){
+    s+=`<ellipse cx="${fx.toFixed(1)}" cy="${GY}" rx="${(sideFt*PX_(g)/2+r*14).toFixed(1)}" ry="${(r*15).toFixed(1)}" fill="none" stroke="${pc}" stroke-width="2.5" opacity="${(.85/r*(.7+.3*pulse)).toFixed(2)}"/>`;}
+  if(fa&&fa.sink){s+=`<path d="M${fx-60} ${GY} l20 ${10+fa.sink*6} l15 -8 l18 ${14+fa.sink*8} l14 -12 l20 ${8+fa.sink*5}" stroke="#141210" stroke-width="3" fill="none"/>`;}
+  return s;
+}
+const PX_=g=>(g.X(1)-g.X(0));
+function levelVial(g,m){
+  // a bubble level on the carrier: the bubble moves toward the high side; 1 % = 0.57°
+  const x=g.X(-13), y=g.Y(19), w=120, a=S.level||0, off=clamp(-a/2,-1,1)*(w/2-14), pc=Math.abs(a)>LEVEL_LIMIT+1e-9?BAD:OK;
+  return `<g id="level-vial"><rect x="${x-w/2}" y="${y-16}" width="${w}" height="32" rx="16" fill="#1F1D1A" stroke="${pc}" stroke-width="3"/>
+    <line x1="${x-12}" y1="${y-14}" x2="${x-12}" y2="${y+14}" stroke="${MUTED}" stroke-width="2"/><line x1="${x+12}" y1="${y-14}" x2="${x+12}" y2="${y+14}" stroke="${MUTED}" stroke-width="2"/>
+    <ellipse cx="${(x+off).toFixed(1)}" cy="${y}" rx="11" ry="9" fill="#d6f5d6" opacity=".9"/>
+    <text x="${x}" y="${y-24}" text-anchor="middle" font-size="16" font-weight="800" fill="${pc}">${nf(a,2)}° = ${nf(Math.tan(a*D2R)*100,1)} % out of level</text></g>`;
+}
+const LEVEL_LIMIT=Math.atan(0.01)/D2R;          // EXAMPLE maker limit: level within 1 % (0.57°)
+function reactCard(c,y0,h){
+  const gb=c.gb, m=c.A, imp=S.units==='imp', W=v=>nf(Math.round(v)), u=wu(), L_=lu();
+  let s=card('react-card',RC,y0,RW,h,'OUTRIGGER REACTION (EXAMPLE CRANE)');
+  // lever picture: the outrigger line from the far float (−g) to the load (R); weights down, reactions up, sizes to scale
+  const x0=RC+24, x1=RC+RW-24, lo=-gb.g-1, hi=Math.max(m.R1ft,gb.f)+1, X=v=>x0+(v-lo)/(hi-lo)*(x1-x0), yb=y0+150;
+  const mx=Math.max(gb.near,gb.V)||1, al=v=>12+80*clamp(v/mx,0,1);
+  s+=`<line x1="${X(-gb.g)}" y1="${yb}" x2="${X(m.R1ft)}" y2="${yb}" stroke="#7a7068" stroke-width="5"/>`;
+  const dc=fulc(S.outr,S.area).dc, items=[[-dc,M.Wc,'carrier',MUTED],[-M.xu,M.Wu,'upper',MUTED],[0.45*m.R1ft,Wb(m.Lft),'boom','#d9822b'],[m.R1ft,toLb(m.gross)*c.susp,'gross',COL.gross]];
+  items.forEach(([x,wl,n,col],i)=>{const l=al(imp?wl:wl*LB); s+=arrow(`rx-w${i}`,X(x),yb-l-4,X(x),yb-4,col,4)+`<text x="${X(x)}" y="${yb-l-10}" text-anchor="middle" font-size="12" font-weight="800" fill="${col}">${n}</text>`;});
+  [[-gb.g,gb.far,'far pair','rx-far'],[gb.f,gb.near,'load-side pair','rx-near']].forEach(([x,v,n,id])=>{const l=al(Math.max(0,v));
+    s+=arrow(id,X(x),yb+l+30,X(x),yb+8,v>0?OK:BAD,6)+`<text x="${X(x)}" y="${yb+l+48}" text-anchor="middle" font-size="13" font-weight="800" fill="${v>0?OK:BAD}">${n} ${W(v)}</text>`;});
+  s+=`<polygon points="${X(gb.f)},${yb+6} ${X(gb.f)-9},${yb+20} ${X(gb.f)+9},${yb+20}" fill="${BAD}"/><polygon points="${X(-gb.g)},${yb+6} ${X(-gb.g)-9},${yb+20} ${X(-gb.g)+9},${yb+20}" fill="#9a9086"/>`;
+  const ys=y0+h-150, Lf=v=>mlen(fromFt(v));
+  const lines=[
+    [`V = ${W(gb.V-gb.wb-(imp?M.Wc+M.Wu:(M.Wc+M.Wu)*LB))} + ${W(gb.wb)} boom + ${W(imp?M.Wc+M.Wu:(M.Wc+M.Wu)*LB)} crane = ${W(gb.V)}`,TEXT],
+    [`M = moment toward the load = ${W(gb.Mo)} ${u}·${L_}`,TEXT],
+    [`Pair = (V × ${Lf(gb.g)} + M) ÷ ${Lf(gb.f+gb.g)} = ${W(gb.near)} ${u}`,COL.p],
+    [`One float (half the pair, EXAMPLE) = ${W(gb.Fn)} ${u}`,COL.p],
+    [imp?'Real split: the maker\'s outrigger-load data.':`= ${nf(gb.kN,1)} kN · real split: maker's data`,MUTED]];
+  lines.forEach(([t,col],i)=>{s+=`<text ${i===3?'id="rx-float"':i===2?'id="rx-pair"':''} x="${RC+16}" y="${ys+i*27}" font-size="${i===3?17:15}" font-weight="800" fill="${col}">${t}</text>`;});
+  return s+`</g>`;
+}
+function groundCard(c,y0,h){
+  const gb=c.gb, imp=S.units==='imp', pu=imp?'psf':'kPa', au=imp?'ft²':'m²';
+  let s=card('ground-card',RC,y0,RW,h,'GROUND BEARING · P = F ÷ A');
+  // the bearing area as a grid of 1 ft² (0.09 m²) squares, filled with the pressure colour; the float outlined inside
+  const gs=GRID[S.units], n=Math.round(gb.side/gs), fl=Math.round(MATS[S.units].none/gs), cell=Math.min(22,176/n), gx=RC+20, gy=y0+48;
+  const pc=gb.pa>ULT?BAD:gb.pa>1?WARN:OK, perSq=gb.Fn/(n*n);
+  s+=`<g id="mat-grid">`;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++)s+=`<rect x="${(gx+i*cell).toFixed(1)}" y="${(gy+j*cell).toFixed(1)}" width="${(cell-1.5).toFixed(1)}" height="${(cell-1.5).toFixed(1)}" fill="${pc}" opacity="${(.45+.4*clamp(gb.pa/ULT,0,1)).toFixed(2)}"/>`;
+  const fo=(n-fl)/2*cell; s+=`<rect id="float-outline" x="${(gx+fo).toFixed(1)}" y="${(gy+fo).toFixed(1)}" width="${(fl*cell).toFixed(1)}" height="${(fl*cell).toFixed(1)}" fill="none" stroke="#fff" stroke-width="3"/></g>`;
+  s+=`<text x="${gx}" y="${gy+n*cell+20}" font-size="14" font-weight="800" fill="${COL.area}">${n * n} squares of ${imp?'1 ft²':'0.09 m²'} = ${mlen(gb.area)} ${au}</text>
+    <text x="${gx}" y="${gy+n*cell+40}" font-size="14" font-weight="800" fill="${pc}">each carries ${nf(Math.round(perSq))} ${wu()}</text>`;
+  // soil table (BC Building Code Table 9.4.4.1)
+  const tx=RC+226, ty=y0+46;
+  s+=`<g id="soil-table"><text x="${tx}" y="${ty}" font-size="12" font-weight="800" fill="${MUTED}">ALLOWABLE · BCBC 9.4.4.1</text>`;
+  const SHORT={rock:'Sound rock',shale:'Clay shale',till:'Till',sandD:'Dense sand/gravel',clayS:'Stiff clay',silt:'Dense silt',clayF:'Firm clay',sandL:'Loose sand/gravel',clayV:'Soft clay'};
+  Object.keys(SOILS).forEach((k,i)=>{const on=k===S.soil, y=ty+20+i*21, v=imp?nf(SOILS[k][1]*KPA_PSF):nf(SOILS[k][1]);
+    if(on)s+=`<rect id="soil-row" x="${tx-6}" y="${y-15}" width="${RC+RW-tx-6}" height="20" rx="4" fill="${COL.R}" opacity=".18"/>`;
+    s+=`<text x="${tx}" y="${y}" font-size="14" font-weight="${on?900:700}" fill="${on?TEXT:'#d9d3c7'}">${SHORT[k]}</text><text x="${RC+RW-14}" y="${y}" text-anchor="end" font-size="14" font-weight="${on?900:700}" fill="${on?TEXT:'#d9d3c7'}">${v} ${pu}</text>`;});
+  s+=`</g>`;
+  // pressure bar: p against the allowable and the punch-through point (EXAMPLE 3 × allowable)
+  const by=y0+h-134, bw=RW-32, top=Math.max(gb.p,gb.ult)*1.1, Xp=v=>RC+16+bw*clamp(v/top,0,1);
+  s+=`<g id="press-bar"><text x="${RC+16}" y="${by}" font-size="17" font-weight="800" fill="${TEXT}">${nf(Math.round(gb.Fn))} ${wu()}${imp?'':` (${nf(gb.kN,1)} kN)`} ÷ ${mlen(gb.area)} ${au} = <tspan fill="${pc}">${nf(gb.p)} ${pu}</tspan></text>
+    <rect x="${RC+16}" y="${by+10}" width="${bw}" height="20" rx="4" fill="#2f2b27"/><rect x="${RC+16}" y="${by+10}" width="${(Xp(gb.p)-RC-16).toFixed(1)}" height="20" rx="4" fill="${pc}"/>
+    <line x1="${Xp(gb.allow)}" y1="${by+4}" x2="${Xp(gb.allow)}" y2="${by+36}" stroke="${WARN}" stroke-width="3"/><text x="${Xp(gb.allow)}" y="${by+50}" text-anchor="middle" font-size="12" font-weight="800" fill="${WARN}">allowable</text>
+    <line x1="${Xp(gb.ult)}" y1="${by+4}" x2="${Xp(gb.ult)}" y2="${by+36}" stroke="${BAD}" stroke-width="3"/><text x="${Math.min(Xp(gb.ult),RC+RW-40)}" y="${by+50}" text-anchor="middle" font-size="12" font-weight="800" fill="${BAD}">fails (3 ×, example)</text></g>`;
+  s+=`<g id="mat-need"><text x="${RC+16}" y="${by+76}" font-size="16" font-weight="800" fill="${pc}">${nf(gb.pa*100,0)} % of allowable</text>
+    <text x="${RC+16}" y="${by+100}" font-size="16" font-weight="800" fill="${TEXT}">Area needed ${nf(Math.round(gb.Fn))} ÷ ${nf(gb.allow)} = ${mlen(Math.round(gb.need*100)/100)} ${au} (${mlen(Math.round(gb.needSide*100)/100)} ${lu()} sq.)</text></g>`;
+  s+=`<text x="${RC+16}" y="${by+122}" font-size="13" font-weight="700" fill="${MUTED}">Stiff mat assumed. On site: the engineer's or site's ground value.</text>`;
+  return s+`</g>`;
+}
+
+/* ---------- WIND AND DYNAMIC CARDS ---------- */
+function windArrow(c,g){
+  const wd=c.wd; if(!wd||wd.A<=0)return '';
+  const l=20+Math.min(150,wd.FN/Math.max(1,c.A.gross)*900), x=g.lx-4*g.X(1)+g.X(0)-10, y=(g.loadY||GY-40)+2*PX_(g);
+  return arrow('wind-force',x-l,y,x,y,COL.F,7)+`<text x="${x-l}" y="${y-12}" font-size="15" font-weight="800" fill="${COL.F}">F ${wt(wd.FN)}</text>`;
+}
+function windCard(c,y0,h){
+  const wd=c.wd, m=c.A, imp=S.units==='imp', au=imp?'ft²':'m²', qu=imp?'psf':'Pa', vu=imp?'mph':'km/h';
+  let s=card('wind-card',RC,y0,RW,h,'WIND ON THE LOAD · F = q × A × Cw');
+  // force triangle at the load: W down, F sideways, the hoist line along the resultant (tan φ = F ÷ W)
+  const ox=RC+70, oy=y0+60, Wl=150, Fl=Wl*clamp(wd.FN/Math.max(1,m.gross),0,1.2);
+  s+=`<g id="force-tri"><line x1="${ox}" y1="${oy}" x2="${(ox+Fl).toFixed(1)}" y2="${oy+Wl}" stroke="#9aa7b1" stroke-width="4"/>
+    ${arrow('tri-W',ox+Fl,oy,ox+Fl,oy+Wl,COL.W,5)}${Fl>3?arrow('tri-F',ox,oy+Wl,ox+Fl,oy+Wl,COL.F,5):''}
+    <text x="${ox-10}" y="${oy+Wl/2}" text-anchor="end" font-size="14" font-weight="800" fill="#9aa7b1">line</text>
+    <text x="${ox+Fl+10}" y="${oy+Wl/2}" font-size="14" font-weight="800" fill="${COL.W}">W ${wt(m.gross)}</text>
+    <text x="${ox}" y="${oy+Wl+22}" font-size="14" font-weight="800" fill="${COL.F}">F ${wt(wd.FN)}</text>
+    <text x="${ox+8}" y="${oy+38}" font-size="15" font-weight="800" fill="${ACC}">φ ${nf(Math.atan2(wd.FN,Math.max(1,m.gross))/D2R,1)}°</text></g>`;
+  const x2=RC+214; let y=y0+70;      // right column: fits the card (RW 448) at 14 px, no clipping
+  const T=(t,col=TEXT,id='')=>{s+=`<text ${id?`id="${id}"`:''} x="${x2}" y="${y}" font-size="14" font-weight="800" fill="${col}">${t}</text>`;y+=24;};
+  T(`Wind now ${wind(wd.vNow)}`,TEXT,'w-now');
+  T(`q = ${imp?'0.00256':'0.613'} × ${imp?nf(wd.vNow,0):nf(wd.vNow/3.6,1)}² = ${nf(wd.qN,imp?2:0)} ${qu}`,COL.p,'w-q');
+  T(`A × Cw = ${mlen(wd.A)} × ${nf(wd.cw,1)} = ${mlen(Math.round(wd.AW*100)/100)} ${au}`,COL.area,'w-area');
+  T(`F = ${wt(wd.FN)}${imp?'':` (${nf(wd.FN*GRAV/1000,2)} kN)`}`,COL.F,'w-F');
+  y+=4;
+  const L=(t,col,id)=>{s+=`<text ${id?`id="${id}"`:''} x="${RC+16}" y="${y}" font-size="15" font-weight="800" fill="${col}">${t}</text>`;y+=25;};
+  y=Math.max(y,oy+Wl+50);
+  L(`Steady ${wind(S.wind)}: φ ${nf(wd.ph0,1)}°, load moves out ${len(wd.x0,1)}`,TEXT,'w-steady');
+  if(S.gust>S.wind)L(`Gust ${wind(S.gust)}: peak φ ${nf(wd.phPk,1)}° (2 × the jump) → +${len(wd.xPk,1)}`,WARN,'w-gust');
+  L(`Radius ${len(m.R1)} + ${len(Math.max(wd.x0,S.gust>S.wind?wd.xPk:0),1)} = ${len(m.R1+Math.max(wd.x0,S.gust>S.wind?wd.xPk:0))} at the peak`,TEXT,'w-rad');
+  // allowed wind for this load's wind area (Liebherr / EN 13000 method)
+  const per=imp?wd.AW/m.gross*1000:wd.AW/(m.gross/1000), ref=imp?AREF.imp*1000:1.2;
+  y+=6;
+  s+=`<g id="w-allow">`;
+  L(`Wind area per ${imp?'1,000 lb':'tonne'}: ${nf(per,2)} ${au} (chart assumes ${nf(ref,2)})`,per>ref?WARN:OK);
+  L(wd.overArea?`Allowed: ${wind(wd.lim)} × √(${nf(ref,2)} ÷ ${nf(per,2)}) = ${wind(wd.vAllow)}`:`Allowed: the chart's ${wind(wd.lim)} (example)`,wd.windOver?BAD:OK);
+  s+=`</g>`;
+  return s+`</g>`;
+}
+function dynCard(c,y0,h){
+  const wd=c.wd, m=c.A, imp=S.units==='imp';
+  let s=card('dyn-card',RC,y0,RW,h,'DYNAMIC LOAD · SNATCH, DROP, SUDDEN STOP');
+  // spring picture: the static stretch δ and the live stretch (motion exaggerated)
+  const sx=RC+40, sy=y0+44, k=wd.live, Ls=62*k, n=10;           // spring length grows with the live load (exaggerated)
+  let d=`M${sx} ${sy}`; for(let i=1;i<=n*2;i++)d+=` L${sx+(i%2?-12:12)} ${(sy+i*Ls/(n*2)).toFixed(1)}`;
+  s+=`<g id="dyn-spring"><path d="${d}" stroke="#9aa7b1" stroke-width="3" fill="none"/><rect x="${sx-22}" y="${(sy+Ls).toFixed(1)}" width="44" height="28" rx="4" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
+    <text x="${sx}" y="${(sy+Ls+19).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="${COL.W}">load</text></g>`;
+  // bars: static gross, peak dynamic, live, against the tipping load at the loaded radius
+  const bx=RC+90, bw=RW-110, top=Math.max(wd.dynGross,m.wtip,m.gross)*1.12, Xb=v=>bx+bw*clamp(v/top,0,1);
+  const bar=(id,y,lab,v,col)=>`<g id="${id}"><text x="${bx}" y="${y}" font-size="15" font-weight="800" fill="${TEXT}">${lab}</text><rect x="${bx}" y="${y+8}" width="${bw}" height="18" rx="4" fill="#2f2b27"/><rect x="${bx}" y="${y+8}" width="${(Xb(v)-bx).toFixed(1)}" height="18" rx="4" fill="${col}"/></g>`;
+  const pc=v=>v>m.wtip?BAD:v>.85*m.wtip?WARN:OK;
+  s+=bar('dyn-static',y0+62,`Static gross ${wt(m.gross)}`,m.gross,pc(m.gross));
+  s+=bar('dyn-peak',y0+112,`Peak × ${nf(wd.DF,2)} = ${wt(wd.dynGross)}`,wd.dynGross,pc(wd.dynGross));
+  s+=bar('dyn-live',y0+162,`Right now × ${nf(k,2)} = ${wt(m.gross*k)}`,m.gross*k,pc(m.gross*k));
+  if(isFinite(m.wtip)&&m.wtip>0)s+=`<line id="dyn-tipline" x1="${Xb(m.wtip)}" y1="${y0+66}" x2="${Xb(m.wtip)}" y2="${y0+196}" stroke="${BAD}" stroke-width="3"/><text x="${Math.min(Xb(m.wtip),RC+RW-30)}" y="${y0+212}" text-anchor="middle" font-size="12" font-weight="800" fill="${BAD}">tipping ${wt(m.wtip)}</text>`;
+  let y=y0+240; const L=(t,col,id)=>{s+=`<text ${id?`id="${id}"`:''} x="${RC+16}" y="${y}" font-size="15" font-weight="800" fill="${col}">${t}</text>`;y+=24;};
+  const lu_=lu(), dS=len(wd.d,imp?2:3);
+  L(`Stretch δ = rope ${len(wd.dRope,imp?2:3)} + boom ${len(wd.dBoom,imp?2:3)} = ${dS} (example)`,COL.defl,'dyn-delta');
+  if(S.dyn==='drop')L(`Drop ${len(S.slack,2)}: DF = 1 + √(1 + 2 × ${mlen(S.slack)} ÷ ${mlen(Math.round(wd.d*1000)/1000)}) = ${nf(wd.DF,2)}`,TEXT,'dyn-df');
+  else if(S.dyn!=='none')L(`${S.dyn==='stop'?'Stop':'Snatch'} at ${nf(S.vHoist,2)} ${lu_}/s: DF = 1 + v ÷ √(g δ) = ${nf(wd.DF,2)}`,TEXT,'dyn-df');
+  else L('Smooth lift: DF about 1. No snatch, no sudden stop.',TEXT,'dyn-df');
+  L('Suddenly applied, no slack, no speed: DF = 2.',MUTED,'dyn-rule');
+  return s+`</g>`;
 }
 
 /* ---------- LIFT PLAN MODE ---------- */
 function windStreaks(c){
   const v=toFt(1)*S.wind*(S.units==='imp'?1:1/KMH*FT/FT); // display only
-  const mph=S.units==='imp'?S.wind:S.wind/KMH; let s='<g id="wind-streaks" opacity=".55">';
+  const wv=S.mode==='wind'&&A.windNow!=null?A.windNow:S.wind, mph=S.units==='imp'?wv:wv/KMH; let s='<g id="wind-streaks" opacity=".55">';
   for(let i=0;i<14;i++){const y=60+rnd(i,3)*560, sp=40+mph*14, x=((A.windX*sp/40+rnd(i,4)*900)%900)-60, l=20+mph*2.4;
     if(mph<.5)break; s+=`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x+l).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#bfd6e6" stroke-width="2" stroke-linecap="round"/>`;}
   return s+'</g>';
@@ -672,7 +1198,7 @@ function checkCard(c){
     rows.push([c.pct>1||m.lk.off?'bad':P.over75?'warn':'ok',`${m.lk.off?'Off the chart':pct(m.pct)+' of chart'}${P.over75&&!(c.pct>1)?' · over 75 %: lift calc (AB)':''}`]);
     rows.push([P.crit90?'warn':'ok',`Over 90 % beyond half max radius (${mlen(m.maxRad/2)} ${lu()}): ${P.crit90?'CRITICAL':'no'}`]);
   } else {
-    rows.push(['ok',`Load ${wt(S.load)}, CG ${len(c.a)} from pick A of ${len(S.span)}`]);
+    rows.push(['ok',c.tilt||c.cgH?`Load ${wt(S.load)} · CG ${len(c.a)} of ${len(c.spanH)} (level: ${len(S.cgA)})`:`Load ${wt(S.load)}, CG ${len(c.a)} from pick A of ${len(S.span)}`]);
     rows.push([c.A.pct>.75?'warn':'ok',`Crane A: ${wt(c.A.gross)} gross · ${c.A.lk.off?'off chart':pct(c.A.pct)}`]);
     rows.push([c.B.pct>.75?'warn':'ok',`Crane B: ${wt(c.B.gross)} gross · ${c.B.lk.off?'off chart':pct(c.B.pct)}`]);
     rows.push([P.critTandem?'warn':'ok',`Tandem, a crane over 75 %: ${P.critTandem?'CRITICAL':'no'}`]);
@@ -717,36 +1243,78 @@ function critCard(c){
 function drawPlanMode(c){
   if(!c.tandem)return drawChartMode(c);
   // tandem: crane A faces right, crane B faces left; each pick under its own hook
-  const a=c.A,b=c.B, spanFt=toFt(S.span), tot=a.R1ft+spanFt+b.R1ft;
+  const a=c.A,b=c.B, spanFt=toFt(S.span), tot=a.R1ft+toFt(c.spanH)+b.R1ft;   // crane B stays put as the load tilts (its radius takes the change)
+  return drawTandemTilt(c,a,b,spanFt,tot);
+}
+/* tandem: one load on two cranes, flat or tilted, CG on, above or below the line through the picks.
+   Failure: the overloaded crane tips; its end of the load drops, the load turning about the other crane's pick until a
+   corner lands; that crane's boom comes down on the load or the ground (tipPose with the landed load as an obstacle). */
+const LD2=1.2*Math.tan(60*D2R);                 // tandem pick: two short legs to lugs ±1.2 ft from the pick, at 60°
+function drawTandemTilt(c,a,b,spanFt,tot){
   const s0=Math.min(7.5,790/(tot+26)), cxA=14+12*s0, cxB=cxA+tot*s0;
-  const fa=F.on&&F.crane==='A'?failAnim({R1:a.R1ft,tipH:a.tipHft,f:a.f}):{tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
-  const fb=F.on&&F.crane==='B'?failAnim({R1:b.R1ft,tipH:b.tipHft,f:b.f}):{tilt:0,buckle:0,drop:0,slack:false,land:-1,crash:-1};
-  const drop=Math.max(fa.drop,fb.drop), liftFt=toFt(S.lift);
-  const gA=craneSVG({cx:cxA,gy:GY,s:s0,dir:1,outr:S.outr,area:S.area,L:a.Lft,R1:a.R1ft,tipH:a.tipHft,jib:'none',ball:false,noHang:true,tilt:fa.tilt,buckle:fa.buckle,p:'a-'});
-  const gB=craneSVG({cx:cxB,gy:GY,s:s0,dir:-1,outr:S.outr,area:S.area,L:b.Lft,R1:b.R1ft,tipH:b.tipHft,jib:'none',ball:false,noHang:true,tilt:fb.tilt,buckle:fb.buckle,p:'b-'});
-  // strip the default hanging parts (lift -99 puts them underground) by clipping to above ground
+  const XA=x=>cxA+x*s0, XB=x=>cxB-x*s0;
+  const liftFt=toFt(S.lift), h=toFt(c.cgH), al0=c.tilt*D2R, flat=!c.tilt&&!c.cgH;
+  const hp=liftFt+Math.max(3,-2*h), xa=XA(a.R1ft), yA0=GY-hp*s0;
+  const v0=h>0?0:h<0?2*h:-3, v1=h>0?2*h:0;
+  const corners=[[-1.5,v0],[spanFt+1.5,v0],[spanFt+1.5,v1],[-1.5,v1]];
+  const fk=F.on&&F.kind!=='strike'?F.crane:null, ft=F.on?F.t/1000:0;
+  // load frame builder: u along the picks (A → B), v square to it (up); pivot at pick A (or at pick B when A fails)
+  const xb0=xa+spanFt*Math.cos(al0)*s0, yb0=yA0-spanFt*Math.sin(al0)*s0;
+  const frame=al=>fk==='A'?((u,v)=>{const uu=u-spanFt;return [xb0+(uu*Math.cos(al)-v*Math.sin(al))*s0,yb0-(uu*Math.sin(al)+v*Math.cos(al))*s0];})
+                          :((u,v)=>[xa+(u*Math.cos(al)-v*Math.sin(al))*s0,yA0-(u*Math.sin(al)+v*Math.cos(al))*s0]);
+  let al=al0, landU=0, alE=al0;
+  if(fk){const lowest=x=>Math.min(...corners.map(([u,v])=>(GY-frame(x)(u,v)[1])/s0));
+    const st=(fk==='B'?-1:1)*.2*D2R; for(let i=0;i<500&&lowest(alE)>0;i++)alE+=st;
+    const T=1.0, tt=Math.max(0,ft-.2); al=al0+(alE-al0)*Math.min(1,(tt/T)**2); landU=tt>=T?clamp((tt-T)/.45,0,1):0;}
+  const P=frame(al), PE=frame(alE);
+  // the failing crane: tipping pose with the landed load (and the block lying on it) as obstacles, in its own world ft
+  const fa0={tilt:0,piv2:null,buckle:0,bmax:null,crash:-1};
+  const poseFor=(k,m,Xw)=>{if(fk!==k)return fa0;
+    const toW=q=>[Xw(q[0]),(GY-q[1])/s0], box=corners.map(([u,v])=>toW(PE(u,v)));
+    const pu=k==='A'?0:spanFt, sg=k==='A'?1:-1, blk=[toW(PE(pu,0)),toW(PE(pu+sg*4.4,0)),toW(PE(pu+sg*4.4,RIG.BW)),toW(PE(pu,RIG.BW))];
+    return failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f,area:S.area,outr:S.outr,jib:'none',key:k,obst:[box,blk],noFall:true});};
+  const fa=poseFor('A',a,x=>(x-cxA)/s0), fb=poseFor('B',b,x=>(cxB-x)/s0);
+  const gA=craneSVG({cx:cxA,gy:GY,s:s0,dir:1,outr:S.outr,area:S.area,L:a.Lft,R1:a.R1ft,tipH:a.tipHft,jib:'none',ball:false,noHang:true,tilt:fa.tilt,piv2:fa.piv2,buckle:fa.buckle,bmax:fa.bmax,p:'a-'});
+  const gB=craneSVG({cx:cxB,gy:GY,s:s0,dir:-1,outr:S.outr,area:S.area,L:b.Lft,R1:b.R1ft,tipH:b.tipHft,jib:'none',ball:false,noHang:true,tilt:fb.tilt,piv2:fb.piv2,buckle:fb.buckle,bmax:fb.bmax,p:'b-'});
   let s=gA.svg+gB.svg;
-  // the beam
-  const yB=liftFt-drop, xa=gA.X(a.R1ft), xb=gB.X(b.R1ft), beamTop=GY-(yB+3)*s0, beamH=3*s0;
-  const hookA=gA.tip, hookB=gB.tip, blk=y=>y;
-  const hy=beamTop-6*s0;
-  [[hookA,xa,'a'],[hookB,xb,'b']].forEach(([t,x,k])=>{
-    s+=`<line x1="${t[0].toFixed(1)}" y1="${t[1].toFixed(1)}" x2="${x.toFixed(1)}" y2="${(hy-3*s0).toFixed(1)}" stroke="#9aa7b1" stroke-width="3"/>
-      <g id="${k}-hook-block"><rect x="${(x-1.3*s0).toFixed(1)}" y="${(hy-3*s0).toFixed(1)}" width="${2.6*s0}" height="${3*s0}" rx="3" fill="#3A3631" stroke="${COL.hook}" stroke-width="2"/></g>
-      <line x1="${x.toFixed(1)}" y1="${hy.toFixed(1)}" x2="${x.toFixed(1)}" y2="${beamTop.toFixed(1)}" stroke="${COL.rig}" stroke-width="3"/>`;});
-  s+=`<g id="tandem-beam"><rect x="${(xa-1.5*s0).toFixed(1)}" y="${beamTop.toFixed(1)}" width="${(xb-xa+3*s0).toFixed(1)}" height="${beamH.toFixed(1)}" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
-    <text x="${(xa+(xb-xa)*.75).toFixed(1)}" y="${(beamTop+beamH*.72).toFixed(1)}" text-anchor="middle" font-size="${clamp(beamH*.7,11,18)}" font-weight="800" fill="${COL.W}">${wt(S.load)}</text></g>`;
-  // CG marker and the two shares (visual maths: R_A = W × b ÷ span)
-  const xcg=xa+(xb-xa)*(c.a/S.span||0);
-  s+=`<g id="cg-mark"><circle cx="${xcg.toFixed(1)}" cy="${(beamTop+beamH/2).toFixed(1)}" r="10" fill="#fff" stroke="#1F1D1A" stroke-width="2"/><path d="M${xcg} ${beamTop+beamH/2-10} A10 10 0 0 1 ${xcg+10} ${beamTop+beamH/2} L${xcg} ${beamTop+beamH/2} Z M${xcg} ${beamTop+beamH/2+10} A10 10 0 0 1 ${xcg-10} ${beamTop+beamH/2} L${xcg} ${beamTop+beamH/2} Z" fill="#1F1D1A"/>
-    <text x="${xcg.toFixed(1)}" y="${(beamTop+beamH+24).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="800" fill="${TEXT}">CG</text></g>`;
-  const yd=GY+28;
-  s+=`<g id="span-dim"><line x1="${xa}" y1="${yd}" x2="${xcg}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/><line x1="${xcg}" y1="${yd}" x2="${xb}" y2="${yd}" stroke="${COL.th}" stroke-width="3"/>
-    <text x="${(xa+xcg)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">a ${len(c.a)}</text><text x="${(xcg+xb)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.th}">b ${len(c.b)}</text></g>`;
-  const al=v=>20+120*clamp(v/Math.max(S.load,1),0,1);
-  if(!F.on){s+=arrow('share-a-arrow',xa,beamTop-8*s0-al(c.shareA)-6,xa,beamTop-8*s0-6,'#fff',6)+pill('share-a',xa,beamTop-8*s0-al(c.shareA)-24,`A ${wt(c.shareA)}`,COL.W,16);
-    s+=arrow('share-b-arrow',xb,beamTop-8*s0-al(c.shareB)-6,xb,beamTop-8*s0-6,'#fff',6)+pill('share-b',xb,beamTop-8*s0-al(c.shareB)-24,`B ${wt(c.shareB)}`,COL.W,16);}
-  if(F.on){const gx=F.crane==='A'?gA.tip[0]:gB.tip[0]; s+=dust((xa+xb)/2,GY,200,Math.max(fa.land,fb.land),1); if(Math.max(fa.crash,fb.crash)>=0)s+=dust(gx,GY,200,Math.max(fa.crash,fb.crash),2);}
+  const box=corners.map(([u,v])=>P(u,v));
+  s+=`<g id="tandem-beam"><polygon points="${poly(box)}" fill="#4D4842" stroke="#7A7268" stroke-width="2" opacity="${h>0?.85:1}"/>`;
+  const lab=P(spanFt*.8,(v0+v1)/2);
+  s+=`<text x="${lab[0].toFixed(1)}" y="${(lab[1]+6).toFixed(1)}" text-anchor="middle" font-size="${flat?clamp(3*s0*.7,11,18):16}" font-weight="800" fill="${COL.W}">${wt(S.load)}</text></g>`;
+  // the two picks: lugs on the load, two short legs to the hook saddle, hook block, falls to the head sheave
+  const pa=P(0,0), pb=P(spanFt,0), hAbove=h>0?2*h:0, floor=[[Math.min(...box.map(q=>q[0])),Math.max(...box.map(q=>q[0])),Math.min(...box.map(q=>q[1]))]];
+  [[gA,0,'a',fk==='A',1],[gB,spanFt,'b',fk==='B',-1]].forEach(([g,u,k,failing,sg])=>{
+    const p=P(u,0), lugs=[P(u-1.2,0),P(u+1.2,0)];
+    let sx=p[0], sy=Math.min(lugs[0][1],lugs[1][1],P(u,hAbove)[1])-LD2*s0, rot=0;
+    if(failing&&landU>0){const ly=P(u+sg*.2,RIG.BW/2), dirx=Math.cos(al)*sg, diry=-Math.sin(al)*sg, rL=Math.atan2(dirx,-diry)/D2R;
+      sx=sx+(ly[0]-sx)*landU; sy=sy+(ly[1]-sy)*landU; rot=rL*landU;}
+    const rig=rigSVG(k+'-',sx,sy,s0,rot,liftFt*4,sg), t=g.tip, sr=g.SRp;
+    [[t[0]-sr,rig.eL],[t[0]+sr,rig.eR]].forEach(([x0,e])=>{const A0=[x0,t[1]], B0=[e[0],e[1]];
+      s+=`<path d="${failing?sagRope(A0,B0,clamp((ft-.2)*160,0,140),floor,GY):`M${A0[0].toFixed(1)} ${A0[1].toFixed(1)} L${B0[0].toFixed(1)} ${B0[1].toFixed(1)}`}" stroke="#9aa7b1" stroke-width="2.2" fill="none"/>`;});
+    s+=`<g id="${k}-slings">`+lugs.map((q,i)=>`<path id="${k}-sling-${i}" d="${failing&&landU>0?sagRope([sx,sy],q,20,floor,GY):`M${sx.toFixed(2)} ${sy.toFixed(2)} L${q[0].toFixed(2)} ${q[1].toFixed(2)}`}" stroke="${COL.rig}" stroke-width="3" fill="none"/><circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="4" fill="none" stroke="${STEEL}" stroke-width="2"/>`).join('')+`</g>`;
+    s+=rig.svg;
+  });
+  // CG: the h offset drawn square to the picks, then a plumb line to the ground (its horizontal position sets the shares)
+  const a0=toFt(S.cgA), base=P(a0,0), cg=flat?P(a0,(v0+v1)/2):P(a0,h), yd=GY+28, xcg=cg[0], xa2=pa[0], xb2=pb[0];
+  if(flat){
+    s+=`<g id="cg-mark"><circle cx="${xcg.toFixed(1)}" cy="${cg[1].toFixed(1)}" r="10" fill="#fff" stroke="#1F1D1A" stroke-width="2"/><path d="M${xcg} ${cg[1]-10} A10 10 0 0 1 ${xcg+10} ${cg[1]} L${xcg} ${cg[1]} Z M${xcg} ${cg[1]+10} A10 10 0 0 1 ${xcg-10} ${cg[1]} L${xcg} ${cg[1]} Z" fill="#1F1D1A"/>
+      <text x="${xcg.toFixed(1)}" y="${(cg[1]+34).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="800" fill="${TEXT}">CG</text></g>`;
+    s+=`<g id="span-dim"><line x1="${xa2}" y1="${yd}" x2="${xcg}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/><line x1="${xcg}" y1="${yd}" x2="${xb2}" y2="${yd}" stroke="${COL.th}" stroke-width="3"/>
+      <text x="${(xa2+xcg)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">a ${len(c.a)}</text><text x="${(xcg+xb2)/2}" y="${yd+24}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.th}">b ${len(c.b)}</text></g>`;
+  } else {
+    s+=`<g id="cg-h"><line x1="${base[0].toFixed(1)}" y1="${base[1].toFixed(1)}" x2="${cg[0].toFixed(1)}" y2="${cg[1].toFixed(1)}" stroke="${COL.lev}" stroke-width="3"/>
+      ${Math.abs(h)>.1&&!F.on?`<text x="${(cg[0]+14).toFixed(1)}" y="${((base[1]+cg[1])/2).toFixed(1)}" font-size="14" font-weight="800" fill="${COL.lev}">h ${len(Math.abs(c.cgH))} ${c.cgH<0?'below':'above'}</text>`:''}</g>`;
+    if(!F.on)s+=`<line id="cg-plumb" x1="${cg[0].toFixed(1)}" y1="${cg[1].toFixed(1)}" x2="${cg[0].toFixed(1)}" y2="${GY+20}" stroke="#fff" stroke-width="2" stroke-dasharray="5 5"/>`;
+    s+=`<g id="cg-mark"><circle cx="${cg[0].toFixed(1)}" cy="${cg[1].toFixed(1)}" r="10" fill="#fff" stroke="#1F1D1A" stroke-width="2"/><path d="M${cg[0]} ${cg[1]-10} A10 10 0 0 1 ${cg[0]+10} ${cg[1]} L${cg[0]} ${cg[1]} Z M${cg[0]} ${cg[1]+10} A10 10 0 0 1 ${cg[0]-10} ${cg[1]} L${cg[0]} ${cg[1]} Z" fill="#1F1D1A"/></g>`;
+    s+=`<g id="span-dim"><line x1="${xa2}" y1="${yd}" x2="${xcg}" y2="${yd}" stroke="${COL.R}" stroke-width="3"/><line x1="${xcg}" y1="${yd}" x2="${xb2}" y2="${yd}" stroke="${COL.th}" stroke-width="3"/>
+      <text x="${xcg-8}" y="${yd+24}" text-anchor="end" font-size="16" font-weight="800" fill="${COL.R}">a′ ${len(c.a)}</text><text x="${xcg+8}" y="${yd+24}" text-anchor="start" font-size="16" font-weight="800" fill="${COL.th}">b′ ${len(c.b)}</text></g>`;
+    if(Math.abs(c.shift)>.05&&!F.on)s+=pill('cg-shift',(xa2+xb2)/2,GY-14,`CG ${len(Math.abs(c.shift),2)} toward ${c.shift>0?'A':'B'}`,WARN,15);
+  }
+  const top=Math.min(pa[1],pb[1])-(LD2+RIG.HL+RIG.BH+hAbove+1)*s0, al_=v=>20+110*clamp(v/Math.max(S.load,1),0,1);
+  if(!F.on){s+=arrow('share-a-arrow',pa[0]-3*s0,top-al_(c.shareA),pa[0]-3*s0,top,'#fff',6)+pill('share-a',pa[0]-3*s0,top-al_(c.shareA)-18,`A ${wt(c.shareA)}`,COL.W,16);
+    s+=arrow('share-b-arrow',pb[0]+3*s0,top-al_(c.shareB),pb[0]+3*s0,top,'#fff',6)+pill('share-b',pb[0]+3*s0,top-al_(c.shareB)-18,`B ${wt(c.shareB)}`,COL.W,16);}
+  if(c.tilt&&!F.on)s+=`<text id="tilt-label" x="${((pa[0]+pb[0])/2).toFixed(1)}" y="${(Math.min(pa[1],pb[1])-(LD2+2)*s0).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="800" fill="${ACC}">tilt ${nf(c.tilt,1)}°</text>`;
+  if(F.on){const gx=F.crane==='A'?gA.tip[0]:gB.tip[0], landT=landU>0?ft-1.2:-1; s+=dust((xa2+xb2)/2,GY,200,landT,1); const cr=Math.max(fa.crash,fb.crash); if(cr>=0)s+=dust(gx,GY,200,cr,2);}
   s+=`<text x="${cxA}" y="${GY+66}" text-anchor="middle" font-size="18" font-weight="800" fill="${TEXT}">CRANE A</text><text x="${cxB}" y="${GY+66}" text-anchor="middle" font-size="18" font-weight="800" fill="${TEXT}">CRANE B</text>`;
   s+=windStreaks(c);
   const cards=F.on?failCard(RC,10,RW):checkCard(c)+critCard(c);
@@ -834,16 +1402,21 @@ function signaller(cx,gy,sig,t){
 }
 function drawSignalsMode(c){
   const m=c.A, sCx=700, s0=5.4, sig=S.signal;
-  const fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f});
+  const fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f,area:'side',outr:S.outr,jib:S.jib});
   const g=craneSVG({cx:sCx,gy:GY,s:s0,dir:1,outr:S.outr,area:'side',L:m.Lft,R1:m.R1ft,tipH:m.tipHft,jib:S.jib,ball:S.ball,ballDrop:A.ballDrop,lift:toFt(S.lift),loadLabel:wt(S.load),
-    tilt:fa.tilt,buckle:fa.buckle,loadDrop:fa.drop,slack:fa.slack});
+    tilt:fa.tilt,piv2:fa.piv2,buckle:fa.buckle,bmax:fa.bmax,fail:fa});
   let s=g.svg;
   // line of sight from the signaller to the operator cab
-  const SX=300;   // signaller centre: far enough from the left edge that an arm straight out (plus the large hands) stays on screen
-  const cab=[g.X(2),g.Y(12.6)], eye=[SX,GY-348];
+  const SX=300;   // close-up signaller centre: far enough from the left edge that an arm straight out (plus the hands) stays in the frame
+  // the real signal person stands in the operator's view, drawn to the crane's scale; the big figure is a close-up inset
+  const tx=g.X(-17), kP=6.2*s0/134, cab=[g.X(2),g.Y(12.6)], eye=[tx,GY-108*kP];
+  s=`<g id="sig-inset"><rect x="56" y="404" width="488" height="482" rx="12" fill="#221f1c" stroke="#5a534b" stroke-width="2.5"/>
+    <text x="532" y="430" text-anchor="end" font-size="15" font-weight="800" fill="${MUTED}">CLOSE-UP</text>
+    <line x1="544" y1="${GY-60}" x2="${tx-10}" y2="${GY-30}" stroke="#5a534b" stroke-width="2" stroke-dasharray="6 6"/></g>`+s;
+  s+=smallPerson(tx,GY,'#ff6a13','sig-person',false,kP);
   s+=`<line id="sight-line" x1="${eye[0]}" y1="${eye[1]}" x2="${cab[0]}" y2="${cab[1]}" stroke="${COL.R}" stroke-width="2.5" stroke-dasharray="10 8" stroke-dashoffset="${(-A.flow).toFixed(1)}" opacity=".8"/>
-    <text x="${(eye[0]+cab[0])/2}" y="${(eye[1]+cab[1])/2-12}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">line of sight</text>
-    <text x="${cab[0]}" y="${cab[1]-48}" text-anchor="middle" font-size="15" font-weight="800" fill="${MUTED}">OPERATOR</text>`;
+    <text x="${(eye[0]+cab[0])/2}" y="${(eye[1]+cab[1])/2-14}" text-anchor="middle" font-size="16" font-weight="800" fill="${COL.R}">line of sight</text>
+    ${FSMIN?'':`<text x="${cab[0]}" y="${cab[1]-48}" text-anchor="middle" font-size="15" font-weight="800" fill="${MUTED}">OPERATOR</text>`}`;
   // motion arrows on the crane (what the operator is doing)
   const mv=[];
   if(Math.abs(A.vHook)>.05)mv.push(arrow('move-hook',g.lx+56,g.hookY,g.lx+56,g.hookY-Math.sign(A.vHook)*60,ACC,6));
@@ -853,14 +1426,14 @@ function drawSignalsMode(c){
   s+=mv.join('');
   if(A.dogged){s+=`<g id="dog-locks">${[[g.X(0),g.Y(M.hf)],[g.tip[0],g.tip[1]],[g.X(-2),g.Y(7)]].map(([x,y])=>`<g transform="translate(${x.toFixed(1)} ${(y-34).toFixed(1)})"><rect x="-14" y="0" width="28" height="22" rx="4" fill="${OK}"/><path d="M-8 0 v-8 a8 8 0 0 1 16 0 v8" stroke="${OK}" stroke-width="4" fill="none"/></g>`).join('')}</g>`;}
   // plan view inset: swing
-  const px=1150,py=170,pr=112, sl=-S.slew*D2R;
+  const ph=FSMIN>0, px=ph?990:1150,py=ph?330:170,pr=112, sl=-S.slew*D2R;
   s+=`<g id="plan-view"><circle cx="${px}" cy="${py}" r="${pr+16}" fill="#26231F" stroke="#45403A" stroke-width="2"/>
-    <text x="${px}" y="${py-pr-24}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}" letter-spacing="1">PLAN VIEW (FROM ABOVE)</text>
+    <text x="${px}" y="${py-pr-24}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}" letter-spacing="1">${ph?'FROM ABOVE':'PLAN VIEW (FROM ABOVE)'}</text>
     <rect x="${px-16}" y="${py-50}" width="32" height="100" rx="4" fill="#3A3631" stroke="#5a534b"/>
     <g transform="rotate(${(S.slew).toFixed(2)} ${px} ${py})"><rect x="${px-26}" y="${py-18}" width="40" height="36" rx="5" fill="#C05A00"/>
     <line x1="${px}" y1="${py}" x2="${px+Math.min(pr-6,m.R1ft*1.1)}" y2="${py}" stroke="#d9822b" stroke-width="10" stroke-linecap="round"/>
     <circle cx="${px+Math.min(pr-6,m.R1ft*1.1)}" cy="${py}" r="9" fill="${COL.W}"/></g>
-    <circle cx="${px}" cy="${py+pr+4}" r="7" fill="#ff6a13"/><text x="${px+12}" y="${py+pr+9}" font-size="12" font-weight="700" fill="${MUTED}">signaller</text>
+    <circle cx="${px}" cy="${py+pr+4}" r="7" fill="#ff6a13"/>${ph?'':`<text x="${px+12}" y="${py+pr+9}" font-size="12" font-weight="700" fill="${MUTED}">signaller</text>`}
     ${Math.abs(A.vSlew)>.05?`<path id="move-swing" d="M${px+70*Math.cos(sl)} ${py+70*Math.sin(sl)} A70 70 0 0 ${A.vSlew>0?0:1} ${px+70*Math.cos(sl-Math.sign(A.vSlew)*.5)} ${py+70*Math.sin(sl-Math.sign(A.vSlew)*.5)}" stroke="${ACC}" stroke-width="6" fill="none"/>`:''}</g>`;
   // signal card
   const d=SIG[sig]||SIG.none, hide=S.quiz&&sig!=='none';
@@ -875,9 +1448,109 @@ function drawSignalsMode(c){
     <text x="34" y="364" font-size="16" font-weight="700" fill="${MUTED}">for some signals (STOP, EMERGENCY STOP): use your site's chart</text>
     <text x="34" y="386" font-size="16" font-weight="700" fill="${MUTED}">and agree on it with the operator before the lift.</text></g>`;
   if(F.on){s+=dust(g.lx,GY,180,fa.land,1); if(fa.crash>=0)s+=dust(g.tip[0],GY,220,fa.crash,2); cs=failCard(16,14,560);}
-  s+=cs+signaller(SX,GY+8,sig,A.sigT/1000);
-  s+=`<text x="${SX}" y="${GY+48}" text-anchor="middle" font-size="14" font-weight="700" fill="${MUTED}">One signaller at a time · anyone can call STOP</text>`;
-  return {crane:s,cards:''};
+  s+=(FSMIN?'':cs)+signaller(SX,GY+8,sig,A.sigT/1000);
+  if(!FSMIN)s+=`<text x="${SX}" y="${GY+48}" text-anchor="middle" font-size="14" font-weight="700" fill="${MUTED}">One signaller at a time · anyone can call STOP</text>`;
+  return {crane:s,cards:FSMIN?cs:''};      // phone: the signal card goes under the scene
+}
+
+/* ---------- RADIO MODE (blind lift: the operator can't see the load; the signal person talks it in) ---------- */
+const WALL={x0:20,x1:23,h:15};      // building wall between the operator and the landing (ft): low enough that the boom clears it down to 19° (L 64 ft)
+function radioSig(){
+  if(F.on||S.call==='stop')return 'stop';
+  if(S.link==='lost'&&S.opRule==='stop'&&A.lostT/1000>=RADIO.tr)return 'stop';   // no word = stop (after the reaction time)
+  return S.call;
+}
+function smallPerson(x,gy,col,id,talk,k=1){
+  // drawn 134 units tall; k scales it about the feet (k = 6.2 ft × px per ft ÷ 134 puts a person at true scale)
+  return `<g id="${id}" transform="translate(${x} ${gy}) scale(${k.toFixed(3)}) translate(${-x} ${-gy})"><line x1="${x-6}" y1="${gy-46}" x2="${x-9}" y2="${gy}" stroke="#2f3e52" stroke-width="9" stroke-linecap="round"/><line x1="${x+6}" y1="${gy-46}" x2="${x+9}" y2="${gy}" stroke="#2f3e52" stroke-width="9" stroke-linecap="round"/>
+    <rect x="${x-14}" y="${gy-96}" width="28" height="54" rx="7" fill="${col}"/><rect x="${x-14}" y="${gy-74}" width="28" height="5" fill="#f2f26b"/>
+    <circle cx="${x}" cy="${gy-108}" r="12" fill="#d9a877"/><path d="M${x-15} ${gy-112} Q${x} ${gy-134} ${x+15} ${gy-112} Z" fill="#f5f5f4"/>
+    <line x1="${x+12}" y1="${gy-88}" x2="${x+22}" y2="${gy-108}" stroke="#2f3e52" stroke-width="7" stroke-linecap="round"/>
+    <rect id="${id}-radio" x="${x+17}" y="${gy-124}" width="10" height="18" rx="2" fill="#1F1D1A" stroke="${MUTED}" stroke-width="1.5"/><line x1="${x+24}" y1="${gy-124}" x2="${x+24}" y2="${gy-136}" stroke="${MUTED}" stroke-width="2"/></g>`;
+}
+function drawRadioMode(c){
+  const m=c.A, rd=c.rd, PX=pxFor(m.Lft), fa=failAnim({R1:m.R1ft,tipH:m.tipHft,f:m.f,area:'side',outr:S.outr,jib:S.jib,noFall:true});
+  const g=craneSVG({cx:CX,gy:GY,s:PX,dir:1,outr:S.outr,area:'side',L:m.Lft,R1:m.R1ft,tipH:m.tipHft,jib:S.jib,ball:S.ball,ballDrop:14,
+    lift:toFt(S.lift),loadLabel:wt(S.load),sway:A.hitX});
+  const X=g.X, Y=g.Y;
+  let s='';
+  // the building wall (no line of sight) and the steel column in the load's path
+  s+=`<g id="wall"><rect x="${X(WALL.x0)}" y="${Y(WALL.h)}" width="${(WALL.x1-WALL.x0)*PX}" height="${WALL.h*PX}" fill="#3b3631" stroke="#5a534b" stroke-width="2"/>`;
+  for(let k=1;k<WALL.h/2;k++)s+=`<line x1="${X(WALL.x0)}" y1="${Y(k*2)}" x2="${X(WALL.x1)}" y2="${Y(k*2)}" stroke="#2a2622" stroke-width="2"/>`;
+  s+=`<text x="${X((WALL.x0+WALL.x1)/2)}" y="${Y(WALL.h)-10}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}">WALL</text></g>`;
+  const ox=toFt(S.obst), oh=toFt(S.obstH), bend=fa.bend||0;
+  s+=`<g id="column" transform="rotate(${bend.toFixed(2)} ${X(ox+1)} ${GY})"><rect x="${X(ox)}" y="${Y(oh)}" width="${2*PX}" height="${oh*PX}" fill="#6f7b84" stroke="#3d464d" stroke-width="2"/>
+    <rect x="${X(ox)}" y="${Y(oh)}" width="${.35*PX}" height="${oh*PX}" fill="#8b98a2"/><rect x="${X(ox+1.65)}" y="${Y(oh)}" width="${.35*PX}" height="${oh*PX}" fill="#8b98a2"/>
+    <text x="${X(ox+1)}" y="${Y(oh)-10}" text-anchor="middle" font-size="14" font-weight="800" fill="${MUTED}">COLUMN</text></g>`;
+  s+=g.svg;
+  // blocked line of sight: operator cab to the load, stopped by the wall
+  const cab=[X(2),Y(12.6)], ld=[g.lx,(g.loadY||GY-40)+2*PX];
+  const tW=(X(WALL.x0)-cab[0])/(ld[0]-cab[0]), wy=cab[1]+(ld[1]-cab[1])*tW;
+  s+=`<g id="no-sight"><line x1="${cab[0]}" y1="${cab[1]}" x2="${X(WALL.x0)}" y2="${wy.toFixed(1)}" stroke="${BAD}" stroke-width="2.5" stroke-dasharray="8 7"/>
+    <text x="${X(WALL.x0)-14}" y="${(wy+7).toFixed(1)}" text-anchor="end" font-size="26" font-weight="900" fill="${BAD}">✗</text>
+    <text x="${cab[0]+6}" y="${cab[1]+34}" font-size="14" font-weight="800" fill="${BAD}">no line of sight</text></g>`;
+  // the signal person on the far side, in view of the load, clear of its path; radio waves while talking
+  const sx=X(WALL.x1+3.5), talking=rd.silent<1.6&&!rd.lost&&S.say;
+  s+=smallPerson(sx,GY,'#ff6a13','signal-person',talking,clamp(6.2*PX/134,.25,1));
+  s+=`<text x="${sx}" y="${GY+22}" text-anchor="middle" font-size="13" font-weight="800" fill="${MUTED}">SIGNAL PERSON</text>`;
+  const kP=clamp(6.2*PX/134,.25,1), rx=sx+22*kP, ry=GY-134*kP;
+  s+=`<g id="radio-link">`;
+  if(!rd.lost){const ph=(A.flow/30)%1;
+    if(talking)for(let k=0;k<3;k++){const r=10+((k/3+ph)%1)*40;s+=`<path d="M${rx+r*.7} ${ry-r*.7} A${r} ${r} 0 0 0 ${rx-r*.7} ${ry-r*.7}" stroke="${COL.R}" stroke-width="3" fill="none" opacity="${(1-r/50).toFixed(2)}"/>`;}
+    s+=`<line x1="${rx}" y1="${ry}" x2="${cab[0]+10}" y2="${cab[1]-24}" stroke="${COL.R}" stroke-width="2" stroke-dasharray="3 9" stroke-dashoffset="${(-A.flow*2).toFixed(1)}" opacity=".8"/>`;
+  } else {const mx=(rx+cab[0])/2, my=(ry+cab[1]-24)/2;
+    s+=`<line x1="${rx}" y1="${ry}" x2="${cab[0]+10}" y2="${cab[1]-24}" stroke="${BAD}" stroke-width="2" stroke-dasharray="2 12" opacity=".6"/>
+      <text x="${rx}" y="${ry-14}" text-anchor="middle" font-size="26" font-weight="900" fill="${BAD}">✗</text>`;}
+  s+=`</g>`;
+  if(F.on){s+=dust(X(ox),Y(toFt(S.lift)+2),120,F.t/1000,4);}
+  // motion arrow on the load (boom down = the load moves out)
+  if(Math.abs(A.vAng)>.05&&!F.on)s+=arrow('move-load',g.lx+4*PX+8,(g.loadY||0)+2*PX,g.lx+4*PX+8+Math.sign(-A.vAng)*50,(g.loadY||0)+2*PX,ACC,6);
+  const cards=F.on?failCard(RC,10,RW):radioCard(c,8,560)+gapCard(c,578,312);
+  return {crane:s,left:stackCard(c,m,12,12,236,430),cards};
+}
+function radioCard(c,y0,h){
+  const rd=c.rd; let s=card('radio-card',RC,y0,RW,h,'RADIO · BLIND LIFT (NO LINE OF SIGHT)');
+  const rows=[[S.chan==='dedicated'?'ok':'warn',S.chan==='dedicated'?'Dedicated channel: this crane only':'Shared channel: other crews talking'],
+    [S.rcheck?'ok':'bad',S.rcheck?'Radio check done before the lift':'No radio check before the lift'],
+    ['ok','One designated signal person'],['ok','Operator hands-free (headset)'],['info','Anyone can call STOP: obey it']];
+  const ic=k=>k==='ok'?['✓',OK]:k==='warn'?['!',WARN]:k==='bad'?['✗',BAD]:['•',MUTED];
+  rows.forEach((r,i)=>{const [g,col]=ic(r[0]);s+=`<g id="radio-row-${i}"><text x="${RC+20}" y="${y0+62+i*30}" font-size="19" font-weight="900" fill="${col}">${g}</text><text x="${RC+44}" y="${y0+62+i*30}" font-size="16" font-weight="700" fill="${r[0]==='info'?MUTED:TEXT}">${r[1]}</text></g>`;});
+  // the last words heard (speech bubble), or static
+  const by=y0+222, bh=150;
+  s+=`<g id="radio-say"><rect x="${RC+16}" y="${by}" width="${RW-32}" height="${bh}" rx="14" fill="${rd.lost?'#2a1717':'#1F1D1A'}" stroke="${rd.lost?BAD:COL.R}" stroke-width="3"/>
+    <text x="${RC+34}" y="${by+28}" font-size="14" font-weight="800" fill="${MUTED}">${rd.lost?'RADIO':'SIGNAL PERSON SAYS'}</text>`;
+  if(rd.lost){for(let k=0;k<24;k++){const hgt=6+rnd(k,Math.floor(A.flow/3))*40;s+=`<rect x="${RC+34+k*15}" y="${(by+92-hgt/2).toFixed(1)}" width="9" height="${hgt.toFixed(1)}" fill="${BAD}" opacity=".6"/>`;}
+    s+=`<text x="${RC+RW/2}" y="${by+bh-14}" text-anchor="middle" font-size="20" font-weight="900" fill="${BAD}">static · ${nf(rd.lostT,1)} s with no word</text>`;}
+  else{const w=(S.say||'…').split(' '), L=[];let l='';w.forEach(x=>{if((l+' '+x).trim().length>26){L.push(l.trim());l=x;}else l+=' '+x;});L.push(l.trim());
+    L.slice(0,3).forEach((t,i)=>s+=`<text x="${RC+34}" y="${by+66+i*34}" font-size="28" font-weight="900" fill="${TEXT}">${t}</text>`);}
+  s+=`</g>`;
+  // what the operator is doing
+  const sig=radioSig(), moving=Math.abs(A.vAng)>.05||Math.abs(A.vHook)>.05;
+  const op=sig==='stop'?(moving?'Operator: stopping':'Operator: STOPPED'):rd.lost?'Operator: STILL MOVING with no word':moving?`Operator: ${S.call==='boomDown'?'booming down':S.call==='boomUp'?'booming up':S.call==='lower'?'lowering':S.call==='hoist'?'hoisting':'moving'}`:'Operator: waiting';
+  const oc=rd.lost&&sig!=='stop'?BAD:sig==='stop'?OK:TEXT;
+  s+=`<text id="radio-op" x="${RC+16}" y="${y0+h-48}" font-size="20" font-weight="900" fill="${oc}">${op}</text>
+    <text x="${RC+16}" y="${y0+h-20}" font-size="15" font-weight="700" fill="${MUTED}">Lost communication: stop, and wait until it's back.</text>`;
+  return s+`</g>`;
+}
+function gapCard(c,y0,h){
+  const rd=c.rd, m=c.A; let s=card('gap-card',RC,y0,RW,h,'DISTANCE = SPEED × TIME');
+  const th=Math.acos(clamp(m.R1ft/m.Lft,-1,1));
+  let y=y0+56; const L=(t,col,id,fs=16)=>{s+=`<text ${id?`id="${id}"`:''} x="${RC+16}" y="${y}" font-size="${fs}" font-weight="800" fill="${col}">${t}</text>`;y+=27;};
+  L(`Booming down at 3°/s (0.052 rad/s, example):`,MUTED,'',14);
+  L(`v = L × sin θ × ω = ${mlen(+m.Lu.toFixed(2))} × sin ${nf(th/D2R,1)}° × 0.052 = ${nf(rd.v,2)} ${lu()}/s`,COL.R,'gap-v');
+  if(rd.lost&&rd.vLost>0){L(`Radio dropped at ${nf(rd.vLost,2)} ${lu()}/s:`,TEXT,'gap-vlost',15);
+    L(`${nf(rd.vLost,2)} × (${nf(RADIO.tr,1)} s + ${nf(RADIO.brake,2)} s) = ${len(rd.dTr,2)} + ${len(rd.dBr,2)} = ${len(rd.dStop,1)}`,COL.defl,'gap-stop');}
+  else L(`Reaction ${nf(RADIO.tr,1)} s + braking ${nf(RADIO.brake,2)} s → ${len(rd.dStop,1)} more`,COL.defl,'gap-stop');
+  // bar: the gap to the column against the stopping distance
+  const bx=RC+16, bw=RW-32, top=Math.max(rd.gap,rd.dStop,1)*1.15, Xg=v=>bx+bw*clamp(v/top,0,1), yb=y+4;
+  const gc=rd.gap<=0?BAD:rd.gap<rd.dStop?WARN:OK;
+  s+=`<g id="gap-bar"><rect x="${bx}" y="${yb}" width="${bw}" height="22" rx="4" fill="#2f2b27"/><rect x="${bx}" y="${yb}" width="${(Xg(Math.max(0,rd.gap))-bx).toFixed(1)}" height="22" rx="4" fill="${gc}"/>
+    <line x1="${Xg(rd.dStop)}" y1="${yb-6}" x2="${Xg(rd.dStop)}" y2="${yb+28}" stroke="${COL.defl}" stroke-width="3"/>
+    <text x="${bx}" y="${yb+48}" font-size="15" font-weight="800" fill="${gc}">Gap to the column ${len(Math.max(0,rd.gap),1)} · stopping needs ${len(rd.dStop,1)}</text></g>`;
+  y=yb+80;
+  L(rd.lost?`No word for ${nf(rd.lostT,1)} s · moved ${len(rd.moved,1)} since the drop`:`No word for ${nf(rd.silent,1)} s · load at ${nf(rd.vNow,2)} ${lu()}/s`,TEXT,'gap-silent');
+  L(rd.lost?'No word means STOP. Wait for the radio.':'Talk it in: keep the words coming.',rd.lost?WARN:MUTED,'',15);
+  return s+`</g>`;
 }
 
 /* ---------- draw ---------- */
@@ -886,26 +1559,53 @@ function draw(c){
   for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
   for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
   s+=`<rect x="0" y="${GY}" width="1300" height="80" fill="#191714"/><line x1="0" y1="${GY}" x2="1300" y2="${GY}" stroke="#45403A" stroke-width="3"/>`;
-  const r=S.mode==='signals'?drawSignalsMode(c):S.mode==='plan'?drawPlanMode(c):drawChartMode(c);
+  const phone=matchMedia('(max-width:1000px)').matches, sigm=S.mode==='signals', tand=S.mode==='plan'&&S.tandem;
+  // phone: crop the scene to the rig (fixed per mode, so the page does not jump) and size every label to >= 11 px
+  const VB=sigm?[10,250,1110,650]:tand?[0,200,836,700]:F.on&&F.kind!=='strike'?[90,-179,1150,1079]:[90,200,746,700];   // a fallen boom reaches past x 836: same aspect, wider
+  if(phone){$('svgwrap').style.height=(VB[3]/VB[2]*100).toFixed(1)+'vw';
+    const r=$('svg').getBoundingClientRect(), k=Math.min(r.width/VB[2],r.height/VB[3])||(innerWidth-8)/VB[2]; FSMIN=11.4/k;}
+  else {FSMIN=0;$('svgwrap').style.height='';}
+  const r=sigm?drawSignalsMode(c):S.mode==='plan'?drawPlanMode(c):S.mode==='radio'?drawRadioMode(c):drawChartMode(c);
+  // phone: lift every scene label to >= 11 px rendered (viewBox units ÷ ~0.457 chart, ~0.354 signals)
+  const minF=t=>FSMIN?t.replace(/font-size="([\d.]+)"/g,(m,f)=>`font-size="${Math.max(+f,FSMIN)}"`):t;
   let shake='';
-  if(F.on){const t=F.t/1000, k=F.kind==='tip'?1.9:1.2; if(t>k&&t<k+.6){const a=Math.exp(-(t-k)/.15)*6;shake=`transform="translate(${(a*Math.sin(t*90)).toFixed(2)} ${(a*Math.cos(t*70)).toFixed(2)})"`;}}
-  s+=`<g id="scene" ${shake}>${r.crane}</g>`;
-  const phone=matchMedia('(max-width:1000px)').matches;
-  $('app').classList.toggle('sigmode',S.mode==='signals');
-  if(S.mode==='signals'){$('svg').setAttribute('viewBox','0 0 1300 900');$('svg').innerHTML=s;$('svg2').innerHTML='';return;}
-  $('svg').setAttribute('viewBox',phone?'0 0 836 900':'0 0 1300 900');
-  $('svg').innerHTML=phone?s:s+r.cards; $('svg2').innerHTML=phone?r.cards:'';
+  if(F.on){const t=F.t/1000, k=F.kind==='tip'?1.9:F.kind==='punch'?2.5:F.kind==='strike'?.02:1.2; if(t>k&&t<k+.6){const a=Math.exp(-(t-k)/.15)*6;shake=`transform="translate(${(a*Math.sin(t*90)).toFixed(2)} ${(a*Math.cos(t*70)).toFixed(2)})"`;}}
+  s+=`<g id="scene" ${shake}>${minF(r.crane)}${phone?'':(r.left||'')}</g>`;
+  $('app').classList.toggle('sigmode',sigm);
+  if(sigm){$('svg').setAttribute('viewBox',phone?VB.join(' '):'0 0 1300 900');$('svg').innerHTML=s;
+    $('svg2').setAttribute('viewBox','8 6 576 500');$('svg2').innerHTML=phone?r.cards:'';return;}
+  // phone: the maths cards, then the gross-load stack (or tipping lines) card, go under the scene
+  $('svg').setAttribute('viewBox',phone?VB.join(' '):'0 0 1300 900');
+  $('svg2').setAttribute('viewBox',phone?'836 0 464 1470':'836 0 464 900');
+  $('svg').innerHTML=phone?s:s+r.cards; $('svg2').innerHTML=phone?r.cards+(r.left?`<g transform="translate(${842+(452-236)/2-12} ${905-12})">${r.left}</g>`:''):'';
 }
 
 function formula(c){
   if(S.mode==='signals'){const d=SIG[S.signal]||SIG.none, hide=S.quiz&&S.signal!=='none';
     return [hide?'What signal is this? Watch the hands.':`${sp(ACC,d.n)} · ${d.r}`,`One signaller at a time · obey a ${sp(BAD,'STOP')} from anyone · radio without line of sight`];}
+  if(S.mode==='plan'&&c.tandem&&(c.tilt||c.cgH)){
+    const al=nf(c.tilt,1)+'°';
+    const hs=c.cgH<0?`+ ${sp(COL.lev,mlen(-c.cgH))}`:`− ${sp(COL.lev,mlen(c.cgH))}`;
+    return [`${sp(COL.R,'a′')} = a cos α ${c.cgH<0?'+':'−'} ${sp(COL.lev,'h')} sin α = ${mlen(S.cgA)} × cos ${al} ${hs} × sin ${al} = ${sp(COL.R,len(c.a,2))} · span′ = ${len(c.spanH,2)}`,
+      `${sp(COL.W,'B')} = W × ${sp(COL.R,'a′')} ÷ span′ = ${sp(COL.W,wt(c.shareB))} · ${sp(COL.W,'A')} = ${sp(COL.W,wt(c.shareA))} · A ${pct(c.A.pct)} · B ${pct(c.B.pct)}`];}
+  if(S.mode==='setup'){const gb=c.gb, imp=S.units==='imp', pu=imp?'psf':'kPa', u=wu();
+    return [`Float = (V × g + M) ÷ (f + g) ÷ 2 = (${nf(Math.round(gb.V))} × ${mlen(fromFt(gb.g))} + ${nf(Math.round(gb.Mo))}) ÷ ${mlen(fromFt(gb.f+gb.g))} ÷ 2 = ${sp(COL.p,wt(gb.Fn))}`,
+      `${sp(COL.p,'P')} = F ÷ ${sp(COL.area,'A')} = ${nf(Math.round(gb.Fn))}${imp?'':` kg = ${nf(gb.kN,1)} kN`} ÷ ${sp(COL.area,mlen(gb.area)+(imp?' ft²':' m²'))} = ${sp(levelCol(gb.level),nf(gb.p)+' '+pu)} · allowable ${nf(gb.allow)} ${pu} → ${sp(levelCol(gb.level),nf(gb.pa*100,0)+' %')}`];}
+  if(S.mode==='wind'){const wd=c.wd, m=c.A, imp=S.units==='imp';
+    return [`q = ${imp?'0.00256 × V²':'0.613 × V²'} = ${nf(wd.qN,imp?2:0)} ${imp?'psf':'Pa'} · ${sp(COL.F,'F')} = q × ${sp(COL.area,'A × Cw')} = ${sp(COL.F,wt(wd.FN))} · tan φ = F ÷ W → φ ${nf(Math.atan2(wd.FN,Math.max(1,m.gross))/D2R,1)}° · out ${sp(COL.sw,len(m.Lr*Math.sin(Math.atan2(wd.FN,Math.max(1,m.gross))),1))}`,
+      `Dynamic: ${wt(m.gross)} × DF ${nf(wd.DF,2)} = ${sp(wd.dynGross>m.wtip?BAD:wd.dynGross>.85*m.wtip?WARN:OK,wt(wd.dynGross))} · tipping ${wt(m.wtip)} · allowed wind ${wind(wd.vAllow)}`];}
+  if(S.mode==='radio'){const rd=c.rd;
+    return [`${sp(COL.R,'v')} = L × sin θ × ω = ${sp(COL.R,nf(rd.v,2)+' '+lu()+'/s')} · stop = v × (${nf(RADIO.tr,1)} + ${nf(RADIO.brake,2)} s) = ${sp(COL.defl,len(rd.dStop,1))} · gap to column ${len(Math.max(0,rd.gap),1)}`,
+      `${rd.lost?sp(BAD,'Radio lost: STOP until communication is back'):'Talk it in: direction, distance, speed · one signal person'} · anyone can call ${sp(BAD,'STOP')}`];}
   if(S.mode==='plan'&&c.tandem){
     return [`${sp(COL.W,'A')} = W × ${sp(COL.th,'b')} ÷ span = ${nf(Math.round(S.load))} × ${sp(COL.th,mlen(+c.b.toFixed(2)))} ÷ ${mlen(S.span)} = ${sp(COL.W,wt(c.shareA))}   ·   ${sp(COL.W,'B')} = W × ${sp(COL.R,'a')} ÷ span = ${sp(COL.W,wt(c.shareB))}`,
       `Crane A ${wt(c.A.gross)} ÷ ${c.A.lk.off?'—':wt(c.A.cap)} = ${pct(c.A.pct)}   ·   Crane B ${wt(c.B.gross)} ÷ ${c.B.lk.off?'—':wt(c.B.cap)} = ${pct(c.B.pct)}`];}
   const m=c.A, P=m.parts, d=S.units==='imp'?1:2;
   const row=m.lk.ri!=null?mlen(m.lk.t.radii[m.lk.ri])+' '+lu():'none', col=m.lk.bi!=null?mlen(m.lk.t.booms[m.lk.bi])+' '+lu():'none';
-  const f1=`${sp(COL.R,'R')} = ${sp(COL.L,'L')} × cos ${sp(COL.th,'θ')} = ${sp(COL.L,mlen(+m.Lu.toFixed(2)))} × cos ${sp(COL.th,nf(m.th0,1)+'°')} = ${sp(COL.R,len(m.R0))}`+
+  const extra=Math.abs(m.levFt)>.005||m.swPkFt>.005;
+  const f1=extra?`${sp(COL.R,'R')} = ${sp(COL.L,mlen(+m.Lu.toFixed(2)))} × cos ${sp(COL.th,nf(m.th0,1)+'°')} = ${len(m.R0)}`+(m.deflFt>.005?` + ${sp(COL.defl,mlen(Math.round(m.defl*100)/100))} defl.`:'')+
+      (Math.abs(m.levFt)>.005?` + ${sp(COL.lev,mlen(Math.round(m.lev*100)/100))} level`:'')+` = ${sp(COL.R,len(m.R1))}`+(m.swPkFt>.005?` + ${sp(COL.sw,len(m.swPk,1))} swing = ${sp(COL.sw,len(m.Rsw))}`:`  →  row ${sp(COL.R,row)}`)
+    :`${sp(COL.R,'R')} = ${sp(COL.L,'L')} × cos ${sp(COL.th,'θ')} = ${sp(COL.L,mlen(+m.Lu.toFixed(2)))} × cos ${sp(COL.th,nf(m.th0,1)+'°')} = ${sp(COL.R,len(m.R0))}`+
     (m.deflFt>.005?` + ${sp(COL.defl,len(m.defl,2))} = ${sp(COL.R,len(m.R1))} loaded`:'')+`  →  row ${sp(COL.R,row)}, column ${sp(COL.L,col)}`;
   const terms=[[P.load,COL.W],[P.hook,COL.hook],[P.rig,COL.rig],[P.ball,COL.ball],[P.jib,COL.jib]].filter(t=>t[0]>0).map(([v,cl])=>sp(cl,nf(Math.round(v)))).join(' + ');
   const f2=`Gross = ${terms} = ${sp(COL.gross,wt(m.gross))}   ·   ${m.lk.off?sp(BAD,'off the chart: no capacity'):`${nf(Math.round(m.gross))} ÷ ${sp(COL.cap,nf(m.cap))} = ${sp(levelCol(c.level),pct(m.pct))} of chart`}`;
@@ -917,18 +1617,39 @@ const RANGES={imp:{boom:[32,96,.5],load:[0,60000,100],hook:[0,1500,10],rigging:[
               met:{boom:[9.75,29.26,.05],load:[0,27000,50],hook:[0,700,5],rigging:[0,450,5],span:[3,24,.5],wind:[0,64,1]}};
 function panel(c){
   const set=(id,v)=>{$(id).textContent=v};
-  const m=c.main, sig=S.mode==='signals', plan=S.mode==='plan';
-  $('w-setup').classList.toggle('hide',sig); $('w-load').classList.toggle('hide',sig);
+  const m=c.main, sig=S.mode==='signals', plan=S.mode==='plan', md=S.mode;
+  $('w-setup').classList.toggle('hide',sig); $('w-load').classList.toggle('hide',sig||md==='radio');
   $('w-plan').classList.toggle('hide',!plan); $('w-signals').classList.toggle('hide',!sig); $('w-tandem').classList.toggle('hide',!S.tandem);
+  $('w-stab').classList.toggle('hide',md!=='chart'); $('w-ground').classList.toggle('hide',md!=='setup');
+  $('w-wind').classList.toggle('hide',md!=='wind'); $('w-radio').classList.toggle('hide',md!=='radio');
   set('ro-gross',wt(c.tandem?c.A.gross+c.B.gross:m.gross)); $('ro-gross-lbl').textContent=c.tandem?'Gross, both cranes':'Gross load';
   set('ro-pct',m.lk.off?'off chart':pct(m.pct)); $('ro-pct-lbl').textContent=c.tandem?'% of chart (worst crane)':'% of chart';
   $('ro-pct').style.color=levelCol(c.level);
   set('ro-cap',m.lk.off?'—':wt(m.cap)); set('ro-rad',len(m.R1)); set('ro-ang',nf(m.th0,1)+'°'); set('ro-defl',len(m.defl,2));
   set('ro-cell',m.lk.ri!=null&&m.lk.bi!=null?`${mlen(m.lk.t.radii[m.lk.ri])} · ${mlen(m.lk.t.booms[m.lk.bi])} ${lu()}`:'off chart');
   set('ro-tip',m.wtip>0&&isFinite(m.wtip)?wt(m.wtip):m.wtip<=0?'tips empty':'n/a'); set('ro-lift',len(S.lift));
+  // readout labels follow the mode (the box ids stay the same for callouts)
+  const LBL={chart:['Gross load','% of chart','Chart capacity','Loaded radius','Boom angle','Boom deflection','Chart cell (row · column)','Tipping load','Load height'],
+    setup:['Gross load','% of allowable','Bearing pressure','Loaded radius','Out of level','Float reaction','Bearing area','Tipping load','Allowable'],
+    wind:['Gross load','% of chart','Wind force','Loaded radius','Swing angle','Load moved out','Allowed wind','Tipping load','Dynamic factor'],
+    radio:['Gross load','% of chart','Load speed','Loaded radius','Boom angle','Gap to column','Stopping distance','No word for','Load height']};
+  const lb=LBL[md]||LBL.chart;
+  ['gross','pct','cap','rad','ang','defl','cell','tip','lift'].forEach((k,i)=>{const e=document.querySelector(`#ro-${k}-box span`);if(e)e.textContent=lb[i];});
+  if(c.tandem){$('ro-gross-lbl').textContent='Gross, both cranes';$('ro-pct-lbl').textContent='% of chart (worst crane)';}
+  if(md==='setup'){const gb=c.gb, pu=S.units==='imp'?'psf':'kPa';
+    set('ro-pct',nf(gb.pa*100,0)+' %'); $('ro-pct').style.color=levelCol(gb.level); set('ro-cap',nf(gb.p)+' '+pu);
+    set('ro-ang',nf(S.level,2)+'°'); set('ro-defl',wt(gb.Fn)); set('ro-cell',mlen(gb.area)+(S.units==='imp'?' ft²':' m²')); set('ro-lift',nf(gb.allow)+' '+pu);}
+  if(md==='wind'){const wd=c.wd;
+    set('ro-cap',wt(wd.FN)); set('ro-ang',nf(Math.atan2(wd.FN,Math.max(1,m.gross))/D2R,1)+'°'); set('ro-defl',len(m.xLive,1)); set('ro-cell',wind(wd.vAllow)); set('ro-lift','× '+nf(A.dynK||1,2));}
+  if(md==='radio'){const rd=c.rd;
+    set('ro-cap',nf(rd.vNow,2)+' '+lu()+'/s'); set('ro-defl',len(Math.max(0,rd.gap),1)); set('ro-cell',len(rd.dStop,1)); set('ro-tip',nf(rd.lost?rd.lostT:rd.silent,1)+' s');}
   const st=$('status');
   let txt,col;
-  if(F.on){col=BAD;txt=(F.kind==='tip'?'CRANE TIPPED':'BOOM BUCKLED')+': NEVER DO THIS ON THE JOB';}
+  if(F.on){col=BAD;txt=({tip:'CRANE TIPPED',boom:'BOOM BUCKLED',punch:'OUTRIGGER PUNCHED THROUGH',strike:'LOAD HIT THE COLUMN'}[F.kind])+': NEVER DO THIS ON THE JOB';}
+  else if(md==='setup'){const gb=c.gb;col=gb.level==='ok'&&Math.abs(S.level)>LEVEL_LIMIT+1e-9?WARN:levelCol(gb.level);txt=gb.pa>ULT?'GROUND WILL FAIL: DO NOT SET UP HERE':gb.pa>1?`OVER ALLOWABLE (${nf(gb.pa*100,0)} %): BIGGER MATS`:Math.abs(S.level)>LEVEL_LIMIT+1e-9?'OUT OF LEVEL: RE-LEVEL THE CRANE':`GROUND OK (${nf(gb.pa*100,0)} % OF ALLOWABLE)`;}
+  else if(md==='wind'){const wd=c.wd;col=wd.windOver||m.pct>1?BAD:wd.DF*m.gross>m.cap&&S.dyn!=='none'?WARN:levelCol(c.level);
+    txt=wd.windOver?`WIND OVER ${wind(wd.vAllow)} FOR THIS LOAD: DO NOT LIFT`:m.pct>1?'OVER THE CHART: DO NOT LIFT':S.dyn!=='none'&&wd.DF*m.gross>m.cap?`DYNAMIC LOAD × ${nf(wd.DF,2)} PASSES THE CHART`:`WITHIN THE CHART (${pct(m.pct)})`;}
+  else if(md==='radio'){const rd=c.rd, sg=radioSig();col=rd.lost?(sg==='stop'?WARN:BAD):OK;txt=rd.lost?(sg==='stop'?'RADIO LOST: CRANE STOPPED':'RADIO LOST: CRANE STILL MOVING'):`RADIO OK · ${S.chan==='dedicated'?'DEDICATED CHANNEL':'SHARED CHANNEL'}`;}
   else if(sig){col='#34302B';txt=S.quiz&&S.signal!=='none'?'QUIZ: NAME THE SIGNAL':(A.dogged?'DOGGED: ALL MOTIONS STOPPED, BRAKES SET':`SIGNAL: ${(SIG[S.signal]||SIG.none).n.toUpperCase()}`);}
   else if(plan){const v=c.plan.verdict;col=v==='stop'?BAD:v==='critical'?WARN:OK;txt=v==='stop'?'DO NOT LIFT':v==='critical'?'CRITICAL LIFT: WRITTEN LIFT PLAN REQUIRED':'ROUTINE LIFT';}
   else {col=levelCol(c.level);txt=m.lk.off?'NOT ON THE CHART: DO NOT LIFT':m.pct>1?`OVER THE CHART (${pct(m.pct)}): DO NOT LIFT`:m.pct>=.9?`CAUTION: ${pct(m.pct)} OF CHART`:`WITHIN THE CHART (${pct(m.pct)})`;}
@@ -936,6 +1657,9 @@ function panel(c){
   segSync('c-mode',S.mode);segSync('c-units',S.units);segSync('c-outr',S.outr);segSync('c-area',S.area);segSync('c-ball',S.ball?'1':'0');segSync('c-jib',S.jib);
   segSync('c-lift',S.lift>0?'up':'down');segSync('c-tandem',S.tandem?'1':'0');segSync('c-signal',S.quiz?'':S.signal);segSync('c-quiz',S.quiz?'1':'0');
   document.querySelectorAll('#c-flags button').forEach(b=>b.classList.toggle('on',!!S[b.dataset.v]));
+  segSync('c-inset',S.inset);segSync('c-soil',S.soil);segSync('c-mat',S.mat);segSync('c-cw',String(S.cw));segSync('c-dyn',S.dyn);
+  segSync('c-call',S.call);segSync('c-link',S.link);segSync('c-oprule',S.opRule);segSync('c-chan',S.chan);segSync('c-rcheck',S.rcheck?'1':'0');
+  document.querySelectorAll('#c-mat button').forEach(b=>{if(b.dataset.v!=='none')b.textContent=S.units==='imp'?`${b.dataset.v} × ${b.dataset.v} ft`:`${mlen(MATS.met[b.dataset.v])} m`;});
   const R=RANGES[S.units];
   const rng=(k,a)=>{const e=$('c-'+k);[e.min,e.max,e.step]=a;e.value=S[k];};
   rng('boom',R.boom); rng('load',R.load); rng('hook',R.hook); rng('rigging',R.rigging); rng('span',R.span); rng('wind',R.wind);
@@ -943,6 +1667,12 @@ function panel(c){
   rng('cgA',[0,S.span,S.units==='imp'?.5:.1]);
   set('l-boom',len(S.boom,S.units==='imp'?1:2)); set('l-radius',`${len(S.radius)} · θ ${nf(m.th0,1)}°`); set('l-load',wt(S.load)); set('l-hook',wt(S.hook)); set('l-rigging',wt(S.rigging));
   set('l-boomB',len(S.boomB,S.units==='imp'?1:2)); set('l-radiusB',len(S.radiusB)); set('l-span',len(S.span)); set('l-cgA',len(S.cgA)); set('l-wind',wind(S.wind));
+  const imp=S.units==='imp';
+  rng('level',[0,4,.05]); rng('swingOut',[0,20,.5]); rng('tiltL',[-30,30,.5]); rng('cgH',[imp?-10:-3,imp?10:3,imp?.5:.1]);
+  rng('gust',R.wind); rng('sail',[0,imp?800:75,imp?10:1]); rng('vHoist',[0,imp?4:1.2,imp?.1:.05]); rng('slack',[0,imp?2:.6,imp?.05:.01]); rng('obst',[imp?30:9,imp?80:24,imp?.5:.1]);
+  {const e=$('c-wind2');[e.min,e.max,e.step]=R.wind;e.value=S.wind;}
+  set('l-level',`${nf(S.level,2)}° (${nf(Math.tan(S.level*D2R)*100,1)} %)`); set('l-swingOut',nf(S.swingOut,1)+'°'); set('l-tiltL',nf(S.tiltL,1)+'°'); set('l-cgH',len(S.cgH));
+  set('l-wind2',wind(S.wind)); set('l-gust',S.gust>S.wind?wind(S.gust):'none'); set('l-sail',nf(S.sail,0)+(imp?' ft²':' m²')); set('l-vHoist',nf(S.vHoist,2)+(imp?' ft/s':' m/s')); set('l-slack',len(S.slack,2)); set('l-obst',len(S.obst));
 }
 function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
 
@@ -974,12 +1704,16 @@ function limits(){
   S.boom=clamp(S.boom,RANGES[S.units].boom[0],RANGES[S.units].boom[1]); S.boomB=clamp(S.boomB,RANGES[S.units].boom[0],RANGES[S.units].boom[1]);
   S.radius=clamp(S.radius,S.boom*RMIN,S.boom*RMAX); S.radiusB=clamp(S.radiusB,S.boomB*RMIN,S.boomB*RMAX);
   ['load','hook','rigging','wind'].forEach(k=>S[k]=Math.max(0,S[k])); S.span=Math.max(RANGES[S.units].span[0]*.5,S.span); S.cgA=clamp(S.cgA,0,S.span);
+  S.level=clamp(S.level,-4,4); S.swingOut=clamp(S.swingOut,0,25); S.tiltL=clamp(S.tiltL,-30,30); S.sail=Math.max(0,S.sail); S.cw=Math.max(.1,S.cw);
+  ['gust','vHoist','slack'].forEach(k=>S[k]=Math.max(0,S[k]));
   const c=calc(); S.lift=clamp(S.lift,0,fromFt(c.maxLiftFt));
+  // radio mode with failures off: the load stops against the column instead of passing through it
+  if(S.mode==='radio'&&!S.fail&&c.rd&&c.rd.gap<0&&toFt(S.lift)<toFt(S.obstH)){S.radius=Math.max(S.boom*RMIN,S.radius+c.rd.gap);A.vAng=Math.max(0,A.vAng);}
 }
 
 /* ---------- virtual clock: ALL motion advances here ---------- */
 function signalStep(ms){
-  const dt=ms/1000, sig=S.signal; A.sigT+=ms;
+  const dt=ms/1000, sig=S.mode==='radio'?radioSig():S.signal; A.sigT+=ms;
   if(sig!==A.lastSig){A.lastSig=sig; if(sig==='main')S.line='main'; if(sig==='whip')S.line='whip'; A.dogged=sig==='dog';}
   let tH=0,tA=0,tS=0,tT=0;
   const k={hoist:1,lower:-1,slow:.3}[sig]; if(k)tH=k*RATE.hook;
@@ -1005,10 +1739,40 @@ function step(ms){
   const dt=ms/1000; T+=ms;
   tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
   tweens=tweens.filter(t=>t.t<t.dur);
-  if(S.mode==='signals')signalStep(ms); else {A.vHook=A.vAng=A.vSlew=A.vTel=0;}
+  if(S.mode==='signals'||S.mode==='radio')signalStep(ms); else {A.vHook=A.vAng=A.vSlew=A.vTel=0;}
+  // radio timers: seconds since the last words, seconds since the link dropped
+  A.sayT+=ms; if(S.link==='lost')A.lostT+=ms;
+  // swinging load (chart mode): x = Lr sin(φ0 sin ωt), ω = √(g ÷ Lr); the amplitude follows the swingOut tween
+  const prev=CC&&CC.A;
+  if(prev&&S.swingOut>0&&S.mode==='chart'){A.swT+=ms;const Lr=prev.LrFt,w=Math.sqrt(32.174/Lr);A.swX=Lr*Math.sin(S.swingOut*D2R*Math.sin(w*A.swT/1000));}
+  else{A.swX=0;A.swT=0;}
+  // wind on the load (wind mode): pendulum toward x_eq = Lr sin φ(wind now); a gust is a step up for 8 s
+  if(S.mode==='wind'&&prev){
+    const gt=A.gustT>=0?A.gustT/1000:-1;
+    A.windNow=gt>=0&&gt<8&&S.gust>S.wind?S.wind+(S.gust-S.wind)*clamp(gt/.25,0,1):S.wind;
+    if(gt>=0)A.gustT+=ms; if(gt>=8)A.gustT=-1;
+    const imp=S.units==='imp', AW=S.sail*S.cw, Fw=imp?qOf(A.windNow,true)*AW:qOf(A.windNow,false)*AW/GRAV;
+    const Lr=prev.LrFt, xeq=Lr*Math.sin(Math.atan2(Fw,Math.max(1,prev.gross))), w=Math.sqrt(32.174/Lr), z=.02;
+    if(ms>0&&ms<200){const sub=Math.ceil(ms/8),h=dt/sub;for(let i=0;i<sub;i++){const acc=w*w*(xeq-A.wx)-2*z*w*A.wv;A.wv+=acc*h;A.wx+=A.wv*h;}}
+    else if(ms>=200){A.wx=xeq;A.wv=0;}
+    // dynamic event: tension factor 1 + (DF − 1) sin ωt e^(−ζωt) for a few seconds
+    if(A.dynT>=0&&CC.wd){A.dynT+=ms;const t=A.dynT/1000,wd=CC.wd;A.dynK=1+(wd.DF-1)*Math.sin(wd.om*t)*Math.exp(-.08*wd.om*t);if(t>6){A.dynT=-1;A.dynK=1;}}
+    else A.dynK=1;
+  } else {A.wx=0;A.wv=0;A.windNow=null;A.dynK=1;A.dynT=-1;A.gustT=-1;}
+  // after a strike the load bounces back off the column and swings
+  if(F.on&&F.kind==='strike'&&prev){const w=Math.sqrt(32.174/prev.LrFt);const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub;for(let i=0;i<sub;i++){const acc=-w*w*A.hitX-2*.05*w*A.hitV;A.hitV+=acc*h;A.hitX+=A.hitV*h;}}
+  else if(!F.on){A.hitX=0;A.hitV=0;}
   limits();
   const c=calc();
+  // radio: the link drops by itself at dropAt; remember the load speed then, and how far it has moved since
+  if(S.mode==='radio'&&c.rd){
+    if(S.dropAt>0&&S.link==='ok'&&c.A.R1>=S.dropAt-1e-9){S.link='lost';A.lostT=0;A.vLost=toFt(c.rd.vNow);A.movedLost=0;}
+    if(S.link==='lost'&&A.lastR1!=null)A.movedLost+=Math.abs(c.A.R1ft-A.lastR1);
+    A.lastR1=c.A.R1ft;
+  }
+  if(!F.on){const hx=S.mode==='radio'?A.hitX:(A.sway+(c.A.RlvFt-c.A.R1ft)); A.hv=ms>0&&ms<200?(hx-(A.hx||0))/dt:0; A.hx=hx;}
   updateFail(c,ms);
+  CC=c;
   A.flow+=dt*30*(1+Math.abs(A.vHook)*3); A.windX+=ms/1000*60;
   // load sway (pendulum) driven by the wind in plan mode
   const mph=S.mode==='plan'?(S.units==='imp'?S.wind:S.wind/KMH):0, target=.0035*mph*mph;
@@ -1027,11 +1791,18 @@ function set(p,dur=0){
   p={...p};
   if(p.units&&p.units!==S.units){
     const toMet=p.units==='met', fw=toMet?LB:1/LB, fl=toMet?FT:1/FT, fv=toMet?KMH:1/KMH;
-    tweens=tweens.filter(t=>![...LENS,...WTS,'wind'].includes(t.key));
+    tweens=tweens.filter(t=>![...LENS,...WTS,'wind','gust','sail'].includes(t.key));
     LENS.forEach(k=>{if(!(k in p))S[k]*=fl;}); WTS.forEach(k=>{if(!(k in p))S[k]*=fw;}); if(!('wind' in p))S.wind*=fv;
+    if(!('gust' in p))S.gust*=fv; if(!('sail' in p))S.sail*=fl*fl;
     S.units=p.units; delete p.units;
   }
   const snap=p.snap; delete p.snap;
+  // one-shot events (not state): a gust, a dynamic event (snatch / sudden stop / drop)
+  if(p.gustGo){A.gustT=0;} delete p.gustGo;
+  if(p.dynGo){A.dynT=0;} delete p.dynGo;
+  if('say' in p){A.sayT=0;}
+  if('link' in p&&p.link==='lost'&&S.link!=='lost'){A.lostT=0;A.movedLost=0;A.vLost=CC&&CC.rd?toFt(CC.rd.vNow):0;}
+  if('link' in p&&p.link==='ok')A.lostT=0;
   if('angle' in p){const L=('boom' in p)?p.boom:S.boom; p.radius=L*Math.cos(p.angle*D2R); delete p.angle;}
   if('mode' in p&&p.mode!==S.mode){A.vHook=A.vAng=A.vSlew=A.vTel=0;A.dogged=false;}
   for(const [k,v] of Object.entries(p)){
@@ -1040,7 +1811,10 @@ function set(p,dur=0){
     else S[k]=v;
   }
   if('signal' in p){A.sigT=0;}
-  if(snap){A.vHook=A.vAng=A.vSlew=A.vTel=0;A.ballDrop=14;A.sway=0;A.swayV=0;A.lastSig=S.signal;A.dogged=S.signal==='dog';S.line=S.signal==='whip'?'whip':'main';}
+  if(snap){A.vHook=A.vAng=A.vSlew=A.vTel=0;A.ballDrop=14;A.sway=0;A.swayV=0;A.lastSig=S.signal;A.dogged=S.signal==='dog';S.line=S.signal==='whip'?'whip':'main';
+    A.swX=0;A.swT=0;A.wv=0;A.dynK=1;if(!p.dynGo)A.dynT=-1;A.gustT=-1;A.hitX=0;A.hitV=0;A.sayT=0;A.lostT=0;A.vLost=0;A.movedLost=0;A.lastR1=null;
+    // settle the wind displacement at its steady value
+    A.wx=0;A.windNow=null;if(S.mode==='wind'){const c0=calc(),wd=c0.wd;if(wd)A.wx=toFt(wd.x0);}}
   if(snap||'mode' in p||p.fail===false)F={on:false,t:0};
   if(!dur)limits();
   if(!CAPTURE)frame(0);
@@ -1054,15 +1828,41 @@ document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
   ({'c-mode':()=>set({mode:v,lift:v==='signals'?fromFt(4):S.lift}),'c-units':()=>set({units:v}),'c-outr':()=>set({outr:v}),'c-area':()=>set({area:v}),
     'c-ball':()=>set({ball:v==='1'}),'c-jib':()=>set({jib:v}),'c-tandem':()=>set({tandem:v==='1'}),
     'c-flags':()=>set({[v]:!S[v]}),'c-signal':()=>set({signal:v}),'c-quiz':()=>set({quiz:v==='1'}),
-    'c-lift':()=>{const to=v==='up'?fromFt(4):0;set({lift:to},2500);}})[seg.id]?.();
+    'c-lift':()=>{const to=v==='up'?fromFt(4):0;set({lift:to},2500);},
+    'c-inset':()=>set({inset:v}),'c-soil':()=>set({soil:v}),'c-mat':()=>set({mat:v}),'c-cw':()=>set({cw:+v}),'c-dyn':()=>set({dyn:v}),
+    'c-go':()=>set(v==='gust'?{gustGo:true}:{dynGo:true}),'c-call':()=>set({call:v,say:{boomDown:'Boom down, slow',boomUp:'Boom up',lower:'Lower, slow',hoist:'Hoist',stop:'Stop'}[v]}),
+    'c-link':()=>set({link:v}),'c-oprule':()=>set({opRule:v}),'c-chan':()=>set({chan:v}),'c-rcheck':()=>set({rcheck:v==='1'})})[seg.id]?.();
+  if(seg.id==='c-mode'&&['setup','wind','radio'].includes(v)&&S.lift<fromFt(1))set({lift:fromFt(v==='radio'?10:2)});
+  emit();
 }));
-['boom','radius','load','hook','rigging','boomB','radiusB','span','cgA','wind'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
+['boom','radius','load','hook','rigging','boomB','radiusB','span','cgA','wind','level','swingOut','tiltL','cgH','gust','sail','vHoist','slack','obst'].forEach(k=>$('c-'+k).addEventListener('input',e=>{set({[k]:+e.target.value});emit();}));
+$('c-wind2').addEventListener('input',e=>{set({wind:+e.target.value});emit();});
 addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
+/* ---------- lesson engine hooks (docs/LESSON_READY_SIMS.md) ---------- */
+// sim.get(): the full state (same keys sim.set takes) plus the key calc() results under out
+function getState(){
+  const c=CC||calc(), m=c.main||c.A, fin=v=>isFinite(v)?v:null;
+  const out={gross:c.gross,pct:fin(c.pct),cap:m.cap,R0:m.R0,R1:m.R1,angle:m.th0,defl:m.defl,tipping:fin(m.wtip),boomRating:fin(m.cs),
+    cell:m.lk.off?null:{row:m.lk.t.radii[m.lk.ri],col:m.lk.t.booms[m.lk.bi],shaded:!!m.lk.shaded},level:c.level,maxLift:fromFt(c.maxLiftFt),
+    fail:F.on,failKind:F.on?F.kind:null,failCause:F.on?F.cause:null};
+  if(c.tandem)Object.assign(out,{shareA:c.shareA,shareB:c.shareB,pctA:fin(c.A.pct),pctB:fin(c.B.pct),a:c.a,b:c.b});
+  if(c.plan)Object.assign(out,{verdict:c.plan.verdict,critical:c.plan.critical});
+  if(c.gb)out.ground={p:c.gb.p,allow:c.gb.allow,ratio:c.gb.pa,punch:!!c.gb.punch};
+  if(c.wd)out.wind={F:c.wd.FN,phi:c.wd.ph0,x:c.wd.x0,DF:c.wd.DF,allowed:c.wd.vAllow};
+  if(c.rd)out.radio={v:c.rd.vNow,gap:c.rd.gap,stop:c.rd.dStop,lost:c.rd.lost};
+  return {...S,out};
+}
+const listeners=[];
+function emit(){if(!listeners.length)return;const st=getState();listeners.forEach(f=>{try{f(st)}catch(e){console.warn(e)}});}
+// lock / unlock controls by id (a .seg id locks all its buttons); locked controls dim, the layout does not move
+function ctlEls(ids){if(ids==='all')return [...document.querySelectorAll('#panel [id^="c-"]')];return (ids||[]).map(i=>$(i)).filter(Boolean);}
+function lock(ids){ctlEls(ids).forEach(el=>{el.classList.add('locked');(el.classList.contains('seg')?[...el.querySelectorAll('button')]:[el]).forEach(b=>b.disabled=true);});}
+function unlock(ids){ctlEls(ids).forEach(el=>{el.classList.remove('locked');(el.classList.contains('seg')?[...el.querySelectorAll('button')]:[el]).forEach(b=>b.disabled=false);});}
 window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>JSON.parse(JSON.stringify(calc(),(k,v)=>k==='t'?undefined:(v===Infinity?1e99:v))),
-  get:()=>({...S}),get view(){return {...A}},failure:failInfo,chart:(u,o,a)=>{const t=table(u||S.units,o||S.outr,a||S.area);return {booms:t.booms,radii:t.radii,cap:t.cap,sh:t.sh};},ready:true};
+  get:getState,onChange:fn=>{listeners.push(fn);return ()=>{const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1);};},lock,unlock,get view(){return {...A}},failure:failInfo,chart:(u,o,a)=>{const t=table(u||S.units,o||S.outr,a||S.area);return {booms:t.booms,radii:t.radii,cap:t.cap,sh:t.sh};},ready:true};
 })();
 </script>
 </body>

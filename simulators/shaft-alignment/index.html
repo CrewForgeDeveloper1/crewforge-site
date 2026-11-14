@@ -51,6 +51,14 @@
                (and after a challenge answer), instruments otherwise. Changing mode resets it to auto.
    ACTIONS (sim.set keys): sweep:true (take readings 12→3→6→9), apply:'planned'|'calculated', reset:true,
                            randomize:<seed>, chIndex:<0–5> (load a challenge), chNew:true (new numbers)
+    bearT      bearing temperature, °C (always °C inside; shown °F in Imperial). Rises while the machine runs misaligned.
+    view       phone camera: 'machine' | 'end' | 'dials' | 'lines' (ignored on wide screens)
+    fail       FAILURE MODE (CLAUDE.md). false → disarmed + reset · true → armed (default interactive; false in ?capture=1):
+               running (Correct mode) past 3 × the acceptable tolerance heats the bearings until they pass 120 °C and seize ·
+               'seize' → force it now. sim.failure() → {on, kind, t, caption, reason, severity, bearT}. Reset: fail:false,
+               fail:true, snap:true, a correction that brings it back in, or the Reset button. Ids: fail-card, fail-big, fail-reason, fail-tag.
+  LESSON API (docs/LESSON_READY_SIMS.md): sim.get() → {...state, out:{readings, results, level, severity, bearT, fail}},
+    sim.onChange(fn) after user input, sim.lock(ids[]) / sim.unlock(ids[] | 'all'), body.lesson-dock-right / -bottom.
 -->
 <style>
 :root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
@@ -121,8 +129,27 @@ font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums;white-space:pre
 .ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
 .clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
 line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
+table.rd td.chk{white-space:nowrap;font-size:14px;letter-spacing:-.02em}
+#fail-card{position:absolute;z-index:6;display:none;background:rgba(28,10,10,.94);border:3px solid var(--bad);border-radius:10px;
+padding:10px 14px;box-shadow:0 14px 40px rgba(0,0,0,.6);pointer-events:none;left:16px;bottom:16px;width:min(560px,40%)}
+#fail-card.on{display:block}
+#fail-big{font-size:22px;font-weight:900;color:#fff;letter-spacing:.02em}
+#fail-reason{font-size:15px;font-weight:700;color:var(--text);line-height:1.3;margin-top:4px}
+#fail-tag{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:5px;background:var(--bad);color:#fff;font-weight:900;font-size:14px;letter-spacing:.08em}
+#fail-reset{pointer-events:auto;margin-left:10px;padding:4px 10px;border-radius:5px;border:1px solid var(--line);background:#3a3530;color:var(--text);font-weight:800;font-size:13px;cursor:pointer}
+#c-view{display:none;margin:6px 8px 0}
+.locked{opacity:.38;pointer-events:none;filter:grayscale(.6)}
+body.lesson-dock-right #app{width:calc(100vw - 360px);grid-template-columns:1fr clamp(360px,30vw,600px)}
+body.lesson-dock-right #formula{font-size:clamp(12px,1.05vw,23px)}
+body.lesson-dock-right table.rd td{font-size:clamp(13px,1.1vw,21px)}
+body.lesson-dock-right .ro b{font-size:clamp(15px,1.2vw,22px)}
+@media (max-height:820px){#panel{gap:5px;padding:8px 16px;overflow:auto}.brandbar{padding:6px 20px}.brandbar .logo{height:32px}.brandbar .t2{font-size:21px}
+  #formula{font-size:17px;margin:0 14px 8px;padding:8px 14px}table.rd td{font-size:17px;padding:2px}.ro b{font-size:18px}.seg button,.btn{padding:5px 4px;font-size:14px}
+  input[type=range]{margin:0 0 2px}#status{font-size:14px;padding:6px}}
 @media (max-width:1000px){
   #app{grid-template-columns:minmax(0,1fr);height:auto}
+  #c-view{display:flex}#c-view button{font-size:13px;padding:7px 2px}
+  #fail-card{position:fixed;z-index:15;left:4px;right:4px;top:auto;bottom:4px;width:auto}#fail-big{font-size:17px}#fail-reason{font-size:13px}#fail-tag{font-size:12px}
   #panel{min-width:0}
   #stage{border-right:0}
   .brandbar{padding:10px 12px;flex-wrap:wrap;row-gap:8px}.brandbar .logo{height:34px}
@@ -139,6 +166,11 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
   #wb{font-size:12.5px}
   .clabel{font-size:15px;max-width:240px;padding:8px 10px}
 }
+body.lesson-dock-bottom #app{height:62vh;overflow:hidden;grid-template-rows:auto minmax(0,1fr)}
+body.lesson-dock-bottom .brandbar{display:none}
+body.lesson-dock-bottom #svgwrap{max-height:30vh}
+body.lesson-dock-bottom #formula{font-size:11px;margin:0 6px 4px;padding:4px 8px}
+body.lesson-dock-bottom #panel{overflow:auto}
 </style>
 </head>
 <body>
@@ -146,7 +178,9 @@ line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(
   <section id="stage">
     <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEQAAABQCAYAAACgVNM/AAAe40lEQVR4nOVcaZBcV3U+b+/uWTXTPT2aTaMZaUaStcuSLDle8EKwrUolwQICTpkY2+UEo7iclOMfVEmiQv6kEhekithgRDDYpiRISApjQuwghcUgMIskyyNkaRjtnl2z9PK2mzrn3vPe656RIiNCMLn20/Ty3n33fves37mvAf4P2s6dO/Xt27cb+FoIUXv99dd/6pprrvmYruv0PX/3/6Lt3bs3mqwQ4tb777/vZ5lMRqRSadHX1/fJwcHBlPraBAANfsuB0PC1EKL9xa9//fPvetfvCnwLAAEepmmKfD7/w5tvvnmzpkVY/PYAI4TQUD0SQGinTp360GOPPXa+o6MDgQg1TUMwGBgf/9bV1bmLFy/+23vuuacl0R0CI3XqbQiAnlzVxsZGGBoaes/HP/7xb2/evJkn7+m6zq+TBwGE39XX15/r6el5/CMf+UguITGaAieSuF9l0xKrB7t27dJ27dol8G/ypORnyddHjx7V9u3bx6eFakLUUqkUFIvFpkcffXTJ8PDwXx87duz2V199Fe8TaJpGgOE9kwOJgJX9YH+GYRhQU1NzvqGh4Qv9/f37Dhw48CPP85LDY/C1BKjUdu7cWTGHKwXkqpuhG2A7NhQKhbr9+/f3v/TSS9ccOnRo08mTJ28aGhpaPjMzozNguq4bYYgvEzPSsQ/5mpBAREJcpBgY9ECO40Amk3mlrq7uRV3Xv3XHHXe8/uSTT45hf0lwr6ZpzzzzTM25c+fMpUuXZlzXdQzDCF3XrQBqdnZWOI5j5fP5lkKhcHpgYKC+UCi0jo+P109OTraNjY21T168uGRmenrp5ORk98Tk5IJioRDfRNPQVujVQKAW6BqKgQY4YXwfIgahQDAgCAQE8hJWJVQVOhcP27ZHHMc5mk6nByzL+nljY+PJ8fHxM+3t7eWGhobpjRs3pjdv3my3tbXNNjY2TpfLZX1kZIQ6LBRGYXp6SpTLruY4C4RhlLX9+w/6Wnd3999duHDhvaZpBLpuWBwL4BhwUKi7OBH8q+u6qeu647quJYRwfN/XgyAA3/erV4gNJqpFpJbVUoFg6KacHAGipB77wiPEIwgJGIUlS4yotiF4PaoXXmeaZiCEcGtra62GhgZdCOEFQeDi+fGi4D1QDDVaGbzu2ms3eqamaQtLpVL7Lylhgg9l9GjyCgRjXhuBEqFL6cAJ6OqNTtfLsxAY7AGXRhgCTAKFDi0U2G8l8PgXJxqGId3X930EK10ul2FsbAzPc9Rx2WaaJpi2bUMCdZ2tuZzMXBODX8sBiTlGeb6G57NqSCnTQENpwL/qXrqmS0DolhqpjYb94TnYPUqQKcAIAgJGhCgxZGA0EGCgzZlnoaL+r7hpAKaaCBs9rWJVtco74VdSjeK/1ffk9zR5nI6Oq6/QJjuhgFA+gc5DkZVCTAAQykp18TMcEw5FR4nSdKVOaEhJNCQ4amxqxPIGNEhewEs3lFSUMNMwwKytzdTwRETiQsMgcaEVlWDILyO5oYkoFaR/YiCkV1Xv1SpX4iZ7we+SKEopkhMm/Qa8hy5BQUTUKtA9hNR7QWOUoGGT4CgQ9dhrxc449uvYD56XyWSgVCpJ+1NTU1sXj0pIMNANGmikULTlqnKHtIo4IF6IaD44UP5MijRfhsBWQ0KDYbFjPEWsRhKY6GwlRfF/0tLEk4r7ja0v+W0hyPoSSOp2eB/1jt6z5JKUBEFYEQ5rqLKGJgHRDTo5EkI1iaSa0PSp01hKaRAsWRxvR2BVRVS6Rt6EwYskkReAvuPrkhOX/eH3PMYAPQipqAKb7Iy8nuwOq5lcAyVRFOTQgY1tyJzV0zQdNAONXQIvsvws5rG+S41ho4hDkEaTXacERNmJ2CBH9oM/kWpbPekkMOR35P9V447sDC8gqxfZXR47ejQlLepyVDccq6HuZUZhR2LFdRwoh46RishVlC5RAZZQNE2ECgS8oU46r5EXlMZBAhaLKU2OAjG26ArIyGDzhKtVojLIl+9lD5qalZQalDx1Dl8ehcMY9UnVQgtFvlpZfor85iACChjUXTqUEY1cpUIdEFmFNhm/yL5DiO9RnwkMBEdEYOJBQCBoKEXR3UIaPJ6ZjGnZTlQDE7+tlJbIDilbwzafpYjGh5LA9ksZapQu0zDnYkINz1Uxg5QiJSnqkC5OmUpd5R8IkDJWNBh1M9TTiqAdBxblYqwa8hqCn0Cib+ZMtlql2GYlv6+OP6RaR3EweSgZMiAIoVR/FSzqgY8pQmXTOFZI2HRpifEq6RZlh+j22ILHkkNxaoWnkFOlQwUvsncpsCqygxB0Slj8ON6LGtuG+YKt5GcUv6DqVqBIAVYUV0dRQqTRaPPkiabnuhjjV66CroICucTKiMViKgFLLB7Zk9hQ8bqg1FC8wGqlBicBkhASSCoq5hiCjWGyVSeGCsP5o9FoXMqmsMpQKJAEKw4buB/T8/1yohtNmk0+Mfb1fArHUklRjQwbeRicINt2JV9Kb5N4sQTy5+iNokFGEaeKKa4gs0cJYjuTVBt6XQXePE48Ohez1wqGW6sKMmSYzTE6e4i5S0IAqdkRUGpFfTWgxKnKo2D2JyGLvkpMnNRR9RXfU7ukrYgWJ4ry4vkkFy6KcxKn8WeBCAGz3arphbTakoaKxSsp5OTkEjeReYtic8iSy1Cbkk8VIaJlxrwjGjTaDPyDNk357+QA2fYwOCr0rDKxsQSEfM5lpGnOV1HiI9UbA1HTtnCd4m+Foi+izIVWNP5EIikNJNsNdpyqA85EKTLEz9FMua5HbjsZicaGu7IxNNX5U9I0RK9ZMtmQI8C6BpZlRWF5JE2J6DaZt8psXKYp5rL+vi3fe+UgegSdEqpEiM4hLg7Zr/L5nN8gGMnzpA3A6yWHgZxEe9tCaG3tgImpgpQkyV0oZkwpkHKFnAfR59HA2TagRAUQUBjO6a0Kz1Vih5GmH7gwNjsFtgopKlRrnphFZtdSas3pmeI0EuNKgzVOiJAJc/2yjOJo7gnXxisUSSkbLik3FCUGAslhCIQBfSvWQlbMQFvzDNGFnKejSgWhQXqjnCqpGwLp+Rr4AUe2SCVyYKZSbFI/BAbPAxABgOuHUNfUBKN1nfDPL36TwJG8Sywl84X8UTSMfEixVCLyM3leGIbg2Dbkc3koux64FLtQnh9JQWy91SeRKdchDANIpzJww3VbIRwZgnB6HHq1Q/Cnt6fBp9Q9kBGqjxNCPFCHZbYJQUCdISgEWiDAD0MpFSoXwfAvCHwI/BAQszAA8H0BgeeB2VQHnz0v51F2fTAxUbVMVvBqKxItMI4H52hCSFHHHDEKghDe/e73gD81CpnwIvhlH1zfpwFi5zjAaAXVamGnPk6IJECH8OxB+MP+cchmQqjP2JHa4S19zweRZL+I30A8lOElCZLqSPeh/ESA74cQCqk2REIj36piS1ocz5WWWq2P64VgaT4YBoIytzFITHOY04UCFzlEzP1o4PsefOazn4a7t26C7de5sKK9DDMzZWRpIQw8RSxTtEOrhbqNaxB4crAITk3agPpMDXieC8VZH8qzrpoEXhMQuMTzUgQnJQRtAxl2laqHoQ5eZDMAPMXEy/Ok2qF00NB9AMP0VVLH4AP4Hhr3IGbnOLAkkkoaUzYVZqlYrEwzQCKNVrpUnIV/+8GPwfSugQdu8GBltw5eYFMWK4RBIOAqo/8MhQEhSkdoQIBghQEBMT7hQeBpVETA7z0EDEVdSQKCgupCgwsFeGSMJUgkNfie7AoeAD7eTtpjqS6hkiDlYWwfIPSxIloJCqoxhlyc08h4SRZ/klk4xiHVMkQNB2TbDkxOTcAXv/sTGB3rhT/ZXIS1XTPUEc0HV5jFU6mP7wVS1EOfVhnFWQSSy8PPEQgSe1p1LkjJF6hKKGd+gN+riZCtQ88RgocmBq9DcNkoE1hS9DGAMFB9EhwL/VXASUpRei4RhdxK1ZRnm0sQafxCihCWJD23CC8c/TlMFbrhj1enYEP7MBiaB0Fogm5IsQ/9kLJi9BokKRi9kAHU6T2TRZpmKJctGXRyq6EOAQmRrL+gxCD7RRNBR62AJPaCPpNASG+I0bBM8fGWMuuumkqyKR5WLgKfJ98j2HMBEQm2SWU2lmWD57vw8vGfw0ihG+5e3gk3dZ6CXAZtgi4DNYot4uhWIi7lOGQ7kShEUYWObIUM5cksR/YDDylVNFBUD/U9AUaSooHnh+RusZEZwE7oZnFAFy80Sw3bj8rFxw+RJJqXQoRESMgMt205oIMLPzl1As5O5uD4aCf83tIJ6G+aAEP3INAs6ZZpNVFfZf5DHkDxATQhUgcpojgizHVQMoCAVcYyRNctI2Sq3qH3Io+M4OhS5TwASzfBdxpgNnSgjBoqPKgRLRASrTxXMoiHYWIpymXisMG0TAJkLomoVWaFHNDopgm1GQPGZkfg+Z9NwWsj7bB9WSPc0HUBmtOzNDlXyJKkFEtcWQzUUFBkfBJxJirClGW3WJelNCFEknwmo0n2Br2QBn4pBDOdgdnmJXBkOg1HTk/C6bEpmJop0nmWcR6K4gyNG4GvnkdF1k0xu+Rpmaw2i8XizHyqpilOIkkFYMoXaiFkUg64ngc/PHUSjo8ugHcsboHfXyZgTe5NsPVZQD4hCC2KGyxRJsogNGyaFMV3pA3S80hplSqEARoJC0mEqu1iPENgaeCXQzDyvXDI7Id//eEJOHZiAIBKtm+hRQUoBQ2rthIic2JigsrhkeoIFWjhiQYH7DGRwskSlkBNI4Cp4gT8y5GL8P0zWbilOw93LA2gf8EIpPRZ8DwLZmv6YGoqgLpgDGrtGWkAlQqhHJBNTcQVinxUd1WVJk2HoBiAuWg9fGOmDZ796ssQlosVXE0chVYmhtiIRGOvwtdE7LuQ9SdNFsvNhoYG89y5cxUAapiLwFwwInab1EEjljuT1sDzfDg/OQzP/nQU9p/KwW1LOuGO7gLonf3wxLcn4Pzpc7Ap3wp3tA/DqrZpAhzDcbQLkAAhVIQQ11WZSQzKAejZHviBuQK+8OXniWjEhZl/X0hV8gZxnYnVlYte3IhXJntplEzQ9XFlI0QFKiwtXOhRxSh0m8ypcs3FsjUwTIwvfDg7/iZ8/uAIfGuwBRbkzsDPjh6lrs6MpWG40AnvdUuwuq1MBpQ8ZVQ4UsxaIuslI4ijCnQYbVkPn3v2mxRxclQ7nzao6kYsHYpNT9rFWBvkRY7tiFlKZ4I3zbTjTFUwSaC4RzNReEoUgJLlSjJH+LniIDQLb477RQI4NXKBDipjYirgFuH4dAH+80IWFtadgQU1GHtIvoR5HQSDAi41GYpGPQFWrgN+cLYAU+PDVGGjCl0VEFItmDGLyxBUP4q44CTtGUsQbmMxDV0zdG1cdxznTdSdpMAJFbQkax8xsRPTUsyWoTii9CDJYhom2LYFaccA25I8Gq/m1MwUTKTzMDSmCkPJ7QMJzlM6B5m20zKkm2DgFxeqCGIlATqAZWpg0hhk6ZWkQhXTooWs0iYZJwnaUSBEALbjgK6ZZ82amprXMBP0PI/3H0hpRf1MVOO5ol/Jb8aGTALDbJTa0xGiqw4h9FFqBJRKRQh0C6ZKGK2ycZM1EXK3XKaQA6B+UfVn/RAmL05HlEMSDJMqI2rHgexuHlWK3W1SE5DRSzk1mAsJDD4NyxrUc7ncIcuyilUzVC3BvlfUXROWnEphcRGLtjZRcQt3BxlgIk9pmiQRjm2BnXKo7Cn1QrrWJC8acSuKvyBYykWoc+w59XJZKYlDg6juzKNM6oX6GzHvqHqBgNraOlqGuvoGjMhf15977rnBVMo5pToQ+DdmpxKdUwkiEfYyh0B0De+NVFlr7CBIlRAQvHlnVxfUWSHkawPaERRpDRs/VUOWzLMEDDu2y5OwpLEm5icYNOURWU2iMStVjLKARH4TM6EySWyob0DOV89mW/zm5sYf6bqulx3HOaxWXPDKR8QJly6jSinX4ZJQqUNtdFGcmmTLcXABEjQA/ctXQe3IUehdaNKWZZovGUN0oSr+UcVXvNZQaOneOGyom4UFNQ20WLwfjaGX98MwQO1n4XEqAWZDWJ3s4b1TKScMAg+yueYhXdcP4w49aGho+A6uIkTUOyT2UyiCl4OfyKgK0JlH4DgiohNV6B4KKBeLUC77cMOtdwCcOw43t45AOsOklhw6UwEypVe5DwUMaF9wkgJ6rSG4a0kTWKYjs2YeLI6R4xHlypM16KTqyOHGsuKQGgqBdGnjguyru3fvLhEK+Xz+PwYHB321e4+8LrNXtKuNwjrJccogU1X0kRxGulHRf+ReAx9mimU61zINaGntgtVrNkB68jTc6ByC5Z02uB4SSzI3idJ1rt8kan7SWBP/BKZWhNvaxqDoZuHloRmYLEwT5UCbV82Q9jHo8yR1c3cYSXAwmMy15KBYmIHmbBby+fZvRk8avPzyywPNzc2HC4XCOrVB1pAJl9qcEgmlKkRxSkBBWqSURCWmnDSsWXstCN2GtGlBXViC1vPfhxvzF6C3zQLX82XqjuQSETsyiUNQJTjKlCrdp+yegkCAOmsK/qDXhe66evjuuTQMTrlwsVwEzysRWYXbqeK4Y35CmZO4wAdobmoW4yMXjO7FvaVsduFLDIihaZrf3t7+gqZp69iOYIJlBCEYuD8/wUDxOmLSRasXF2KhXCpDd08fLG5tBfP0j6DXuAht9hT0LgOwHR2KZeRbMR/DHFgWhyKxQ+8UIslE5ptSA1QfF9k5WgCDqEIHynBdfhx6alMwNKmDm1sOX/rJGbgwPCwr+FRiRsOkilhKA2n3iYqHkJ5wUhakHAfdnb6gqfn7Dz/8wBA+uICA0FldXV3Pjo9PPFYsFiwCEskstf1R1ktYPxUhm9hxHO0XQZbb92Di9Em4yxqC9YttTCSg7AZQKsldwyjm5ZpuGCrUQ6noRcknqh6Di3Qk3tUrF6DFHIFc2qXsF7/0iDQWUGuVYF3Oh3I+hC9xsohfGpjnxIU0bnIe0le7JR8WLeqEQmEKci0t2oKm3LN48v79+yNA9IMHDw5ks7n9xWLhdhUsGswnyEWMdnJEKhLt/VD1GLoxbjU2DapulZH7JFZLFpMogUk1wb+XlsHTL3wPQt+LAsE4fYoDp4yThg0Lm+CPekahKR0Q+14mgikgoghPnZ0tk92Sk5ZgWqg6Ie5giiPgpLvFlmvOiV8MHtU3bto64mSbvoqfHThwANlfaWtQjPL55qds245mTdafy47sijlNj1w+u8AEfeD5kNYFpA0XHAjAEAGYeggWulY9DUcG34TS7BRxtS4eXhHKrjxcr0QH2gVPlKHY2A4nRj1IW6of4j0BHE0A7sFGL5QMAiTFGHudJMiIOpLg+VwLlMqFoKGxWevu6Xvm73fvHt27l57zE7yfivTiySc/8+K2bduOjY+P9yk8dCJ30YVhyRG1Ran93MZ70AAaslko16+GCykb3LIHLvGqeJELmrMQDH1W1UiS+0Lmdot6X5uyoQydcE44MAseYEUjVOG9rvsgnIWgwYWK69B7aXoIhiK0+eEFCokCAV2LFokTJ47pq1evK3R0dHwKB//aayuUvMfNxO0c/f39Hzx58uTnPCygIFVgYHpvyQRObbe8VMMbpxyH+Fci3slzxPEMNgzrp2enoVgqzYU0mbqjXTFNaKyp5WwvIqHJwqhtXDjAyZlpMpQRkBQdo9aqRVQ1Z88PINuchXxLSzA1NWG849Z3PbVnz56H8CnQffv2UQfJHXcB9jUwMPBcNpv98/Hx8bX49BM6GgOLPJi4Ec0Xb1Sprumg1yiXSzA1PUOG9EqbTAwlxyJXSWW9oQ+jk5NX3E88DpmMRrsReKdCKKCzo0ucPHlM27R560xnZ+ffIFa7dknpqAZEqKch3E2bNv3F7Ozsy3L/N0be6A5xi6WcdHL3TsUOHdpSYEA6pYNjCyiVXSoVVAfNFYESbdvGnc+SxOEEjlSKDLSUPFnhq0iwI4KnmtuKEmaVJ2Ff6NF6exbD7PREkG3Omp1d3U/s3r371NGjKB27o9WbT/4NXdeDbDa7b2Rk5G75jBwYtombeQ3QTXwiQSIun3RIkvaoGvGeUlQXz/VUaB7nE8kcjF0k7zePBsaPULCqEOUoS5qJ0KeicX+8rZwTP9o3Ytiwft3a8NjAYe3Gm24fqm9csLqzs3N29+7dSZjnfexT4IM4W7ZsebSurg6fvqEdUsSCo/VWFXuGsnKP6Nww2bJNsGwDLAtJXMmZmPjakq/lQwaS2KnIQZIzRsBMk1IBIoMseaD00IMKJobvAOTtjTiH4T7ccgArV66EYwNHwpWr1mkd7R079uzZM40PUc6pZ80DCDZ0QcGKFSvufeONN/7JdV109CbekJgp0wANJ8FZZpUtqd5Iy8kh1WVYzLkWoq6XsUKS62RnHleVeEcRlSxUsZxOpx3RzAdEn5L0Fks+LOtfinfHXM285dZ3fvbTn/7M/UlDmmyXdhlAOxT9lpaW54eHh98XhiHudZGgmMhNq4cDovqXjDaTgCS3ZFdvzY422vBAouAppi/JZbJ+qB0+0ZISx5QIiKrui+riln3I5Vqgt6cnfH3gsH7b7XcOCAEbV6xYUahWFW6Xe1I6CMNQv/feex9qaGgYkE9OyJpzQPu8ZNqNLlW6Velak2x4NQiXWw3e0sR0JH8mnxsKKyv1fHFin3qy4TmeG0AqnYElS5eII0d+DBs3binV1zfcs2/fPi7MXSKaunzTcS22bNmy8vDhw9+ZmZmpx45QMAwT+c5Y96mzSwzuUgDFr0VlzaRqDyrlIZFtiY1qVCJh9VFpOHK4WCXctGmzOPb6oWDVqrVmf9/Ke556+qlnb7rpJvPAgQP+5SZ8uRaiPXnllVeOLF++/H3pdJruHIaaCHBPF+4CCqtIpOqnFqorZpf5y+pXndfQlskqQ8m0Y8XmOBVrID5brtsihk4cD5YuXWb2Ll3xUQRj586dlwWD+72SZmIU29PTc++ZM2fQyFIQh4tmITFjGCQtSQ/BDxDxhJNljMi28DxUaF3duCAW74qv9GJsczhbxgXyvBA2b94E58+e8Rc0N5vrrt34xJ6n9zz6P0kGtyv9tQUfQTl58uTnly1b9pfpdNpgxhCz2GjPGD98rGoxSanhVhFr8D/zRL6x2sRboPgiJo/ZE2GoLqUVCIyzp4b8+oYGc9XaDZ9EMNCjYCZ7JRO9UgnhZhqG4ff19e0YHBz8RKlUovli/GNiYofBm3qMhCt2l2SsErnHfOckVUQ+kZn4nkN85Y1wlzRu/1q3bp0YPHE8yOXz5srV6z7xxS988RHlXit+qOFXCUikPsuXL79ncHDwc6US8bIBPrbGj7ZiSo5v5st5pDdRe+Avu5lWxSGkMpVbsVlV8NpyyYP6+ga45poV4vix10VX92J9w8bNTzz5j08++lbBuJpm4j/r16/fVltbO6Zu6KHZMA0Qtq0LxzFEOmWJmowtampsUVvriNoaddSl6D1+x5/h6wweaavyyFgiU2OLdMaiI5U2RZoOi7Bqa2sT1123Mcg11Yc3/s714sEHH3w88TtGb3nBtasExd+wYcOqN95448tTU1N9Qgh8GApTCYzZ4h85UBUpFvEoIauWjIo3CePJ2kPP7WGyiYwZQF9fP4bz/pmzp8316ze43b29H3z6qaefvxrJuBpAIlAeeuihlq985St7JiYm7vLlLlqyK/JnMFSJE4tIUWgt97TjSeRhEt4jKnizYvCDg6oSVy56UFtXB31LesXY6ChuvjLWrdtw3HFS9+/du/e/rtSb/G8BEgVvGM53dHR8dHh4+GOFQgH7pVBfSgqXGxUDlCSZ+LEvflAokghpazjfwZ3VGF90dnRBc1NTcPrMkNHa2g6r1q7Zd9EP/+xrzz8/erVg/Cqbxr8ssXXr1nc0Nja+rurERC0j7WmZIBxbEym0LWmT7APZDbITNtkJfJ1OmSKVMkQqheeYIuXoZCsWNNaL1atWhj2Lu/2FrXlx2223jt9333338QB+U3/7zMR/Hn/88QXt7e2fSqVSnEB5GFEjMLapCcfWRcrWafIEgjKYaCjxs7QjgUCNyqQdsWRJb7isv8/LZZvEqpUrxPbtd7+wY8eOpVdjPH+dzcB/UEXWrFnzzqampp+aJj21hYeP29fQE5kmeiMpMSQ15JVMAstA4GxDLFrUJdatXeu3tbaIRYs6xV3b7jr38I6HP8Q3QhWBt0nTGBj85bqenp6/Qvcc/UwI2ReNJk5u2tJIpVA1HNsQnZ3tor9vqd+2MB+2t7WK6zZvct//gQ/8w4c//OG2qp8He9s1g19s27atq6Oj46mamhp8HIX4IiUxBIxjm6KtbaFYtqzfb1vYGuZbsmLjtRvEPe9//9cefPDBa3/TbcVblZbo16VuueWWTR0dHV9Op9PRvgrDMILOzq6gublZ5HJZgT/+dvfdd3/jgQceuI07eTvYil9ajTCs37p165ZcrnlvOp0i9WlqahKYi2zfvv1rO3bsuJUvQtV4u6oHXGHjnwYkYNasWXPzokWLDtx5550HH3nkkXfyScmfGP11tv8GfZlHicKG0qcAAAAASUVORK5CYII="><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2">Rim-and-Face Shaft Alignment</div></div>
       <div class="seg" id="c-board" role="group" aria-label="Drawing under the machine"><button data-v="instruments" title="End view, dial indicators and centrelines">Instruments</button><button data-v="maths" title="Each formula drawn as a picture of its terms">Maths pictures</button></div></div>
-    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pump and motor with dial indicators"></svg></div>
+    <div class="seg" id="c-view" aria-label="Phone view"><button data-v="machine">Machine</button><button data-v="end">End view</button><button data-v="dials">Dials</button><button data-v="lines">Centrelines</button></div>
+    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Pump and motor with dial indicators"></svg>
+      <div id="fail-card" role="alert"><div id="fail-big"></div><div id="fail-reason"></div><span id="fail-tag">NEVER DO THIS ON THE JOB</span><button id="fail-reset" type="button">Reset</button></div></div>
     <div id="formula" aria-live="polite"></div>
   </section>
   <aside id="panel">
@@ -229,7 +263,18 @@ const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
 
 /* Default machine: Imperial. Readings it gives: rim 0 / −15 / −18 / −3, face 0 / −5 / −8 / −3 (see NOTES.md case 1). */
 const S={mode:'readings',plane:'vertical',units:'imp',vOff:9,vAng:2,hOff:-6,hAng:-0.5,dia:4,distA:10,distB:20,sag:0,rpm:1800,
-  shF:0,shB:0,mvF:0,mvB:0,planF:0,planB:0,dialPos:0,taken:4,glitch:false,mistakes:false,predF:'',predB:'',moves:0,seed:1,board:'auto'};
+  shF:0,shB:0,mvF:0,mvB:0,planF:0,planB:0,dialPos:0,taken:4,glitch:false,mistakes:false,predF:'',predB:'',moves:0,seed:1,board:'auto',
+  bearT:40,view:'machine',fail:!CAPTURE};
+/* FAILURE MODE: run it misaligned and the bearings cook, then seize.
+   Bearing loads (and the heat they make) rise with misalignment; a teaching model makes the settled bearing temperature
+     T = 40 °C + 80 °C × (severity ÷ 3)²,   severity = worst of offset ÷ acceptable and angularity ÷ acceptable
+   (Pruftechnik short-coupling table, the same row the status uses). So at 3 × the acceptable tolerance the bearings settle
+   right at 120 °C, and only past 3 × do they go over it. 120 °C: SKF standard bearings are heat-stabilised for use up to
+   120 °C (250 °F); past that the rings grow, the internal clearance goes, the grease cooks and the bearing seizes.
+   The 3 × trip point and the curve are teaching values, not maker data (see NOTES.md). Heating shown 60 × faster. */
+const RUN_C=40, SEIZE_C=120, TRIP_X=3, HEAT_TAU=10;
+const FL={on:false,kind:null,t:0,big:'',reason:'',m:0,T:0};
+let MINF=0, listeners=[];
 const NUMERIC=['vOff','vAng','hOff','hAng','dia','distA','distB','sag','shF','shB','mvF','mvB','planF','planB','dialPos'];
 const R_KEYS=['vOff','hOff','sag','shF','shB','mvF','mvB','planF','planB'], L_KEYS=['dia','distA','distB'], A_KEYS=['vAng','hAng'];
 
@@ -324,7 +369,7 @@ const corrText=(v,vert)=>{const w=actWord(v,vert);return w==='no change'?w:(vert
 let T=0, tweens=[], callouts=[];
 const A={needleR:0,vR:0,needleF:0,vF:0,spin:0,shake:0,poseMix:1,scM:null,scC:null,sweepT:-1,slides:[],jackF:0,jackB:0,
   lastMvF:0,lastMvB:0,jackDirF:0,jackDirB:0,jackHoldF:0,jackHoldB:0,predShown:null,flash:0,lastShF:0,lastShB:0,
-  mT:0,mU:0,ms1:null,ms2:null,ms3:null,v4:{},dt:0};
+  mT:0,mU:0,ms1:null,ms2:null,ms3:null,v4:{},dt:0,mPose:null,tips:null,debris:[],spinRate:.25};
 
 /* ---------- SVG helpers ---------- */
 function defs(){
@@ -351,7 +396,7 @@ function arrow(id,x1,y1,x2,y2,col,w=5,h=16){
   return `<g id="${id}"><line x1="${x1}" y1="${y1}" x2="${x2-Math.cos(a)*h*.6}" y2="${y2-Math.sin(a)*h*.6}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
   <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.45)},${y2-h*Math.sin(a-.45)} ${x2-h*Math.cos(a+.45)},${y2-h*Math.sin(a+.45)}" fill="${col}"/></g>`;
 }
-function pill(id,x,y,text,col,fs=21){const w=text.length*fs*.6+26;
+function pill(id,x,y,text,col,fs=21){fs=Math.max(fs,MINF);const w=text.length*fs*.6+26;
   return `<g id="${id}"><rect x="${x-w/2}" y="${y-fs*.95}" width="${w}" height="${fs*1.9}" rx="${fs*.95}" fill="#1F1D1A" stroke="${col}" stroke-width="3"/>
   <text x="${x}" y="${y+fs*.36}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${col}">${text}</text></g>`;}
 const panelBox=(x,y,w,h,title)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="#24211E" stroke="#45403A"/>
@@ -362,6 +407,8 @@ function layout(){
   const portrait=innerWidth<=1000;
   const mb=boardNow()==='maths';
   if(portrait&&mb)return {vb:'0 0 440 1690',maths:true,mp:[[10,10],[10,430],[10,850],[10,1270]],mw:[420,420,420,420]};   // phone: pictures stacked, full width
+  if(portrait){const v=['machine','end','dials','lines'].includes(S.view)?S.view:'machine';   // phone: one part at a readable size
+    return {machine:{vb:'0 0 720 470',mach:[-380,0,1]},end:{vb:'0 0 405 410',end:[0,0,1]},dials:{vb:'0 0 470 410',dials:[0,0,1]},lines:{vb:'0 0 380 410',cl:[0,0,1]}}[v];}
   return portrait?{vb:'0 0 800 1110',mach:[10,8,.627],end:[4,300,.95],dials:[392,300,.86],cl:[210,690,1],maths:false}
                  :{vb:'0 0 1300 900',mach:[20,6,1],end:[10,480,1],dials:[425,480,1],cl:[905,480,1],maths:mb,mp:[[5,480],[315,480],[625,480],[1055,480]],mw:[300,300,420,240]};
 }
@@ -376,6 +423,7 @@ function machine(c,col){
   const pF=clamp(yF*A.scM*A.poseMix,-27,27), pB=clamp(yB*A.scM*A.poseMix,-27,27);
   const ang=Math.atan2(-(pB-pF),XB-XF)*180/Math.PI;
   const sh=A.shake;
+  A.mPose={tx:sh,ty:-pF+sh*.4,ang};          // the motor group's transform: the indicators end on the hub as DRAWN
   const rot=S.mode==='correct'?A.spin:S.dialPos;   // readings: both shafts turned by hand with the indicator; correct: running
   let s=`<g id="machine">`;
   // base plate + shadow
@@ -468,6 +516,11 @@ function machine(c,col){
       return g+`</g>`;};
     s+=jack('jack-front',XF,pF+sh*.4,A.jackF,A.jackHoldF>0?A.jackDirF:0)+jack('jack-back',XB,pB+sh*.4,A.jackB,A.jackHoldB>0?A.jackDirB:0);
   }
+  // ---- coupling insert (jaw coupling with an elastomer spider) goes back in for the test run
+  if(S.mode==='correct')s+=couplingInsert(rot,vert);
+  // ---- bearing temperatures (infrared gun readings) while it runs, smoke when hot, torn spider bits after a seize
+  if(S.mode==='correct')s+=bearingTags(vert);
+  A.debris.forEach(d=>{s+=`<rect x="${(d.x-d.w/2).toFixed(1)}" y="${(d.y-4).toFixed(1)}" width="${d.w}" height="8" rx="2" fill="#d2452b" stroke="#5a1a10" transform="rotate(${d.a.toFixed(1)} ${d.x.toFixed(1)} ${d.y.toFixed(1)})"/>`;});
   // ---- indicator bracket on the pump shaft, swinging round with the shafts
   if(S.mode!=='correct')s+=bracket(S.dialPos,vert);   // indicators come off before the test run
   // dimensions (not to scale)
@@ -477,7 +530,8 @@ function machine(c,col){
      <g id="dim-b"><line x1="${XF}" y1="${dy}" x2="${XB}" y2="${dy}" stroke="${TEXT}" stroke-width="2"/><line x1="${XB}" y1="${dy-10}" x2="${XB}" y2="${dy+10}" stroke="${TEXT}" stroke-width="2"/>
      <text x="${(XF+XB)/2}" y="${dy+30}" text-anchor="middle" font-size="20" font-weight="800" fill="${TEXT}">B = ${lenf(c.B)}</text></g>
      <text x="1230" y="${dy+30}" text-anchor="end" font-size="14" fill="${MUTED}">not to scale</text>`;
-  s+=`<text x="40" y="${dy+(vert?30:-2)}" font-size="15" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${vert?'SIDE VIEW · VERTICAL PLANE':'PLAN VIEW FROM ABOVE'}</text>
+  if(MINF>0)s+=`<text x="396" y="${vert?40:CL-182}" font-size="15" font-weight="700" fill="${ACC}">${vert?'SIDE VIEW':'PLAN VIEW'} · EXAGGERATED</text>`;   // phone camera starts at x 380
+  else s+=`<text x="40" y="${dy+(vert?30:-2)}" font-size="15" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${vert?'SIDE VIEW · VERTICAL PLANE':'PLAN VIEW FROM ABOVE'}</text>
      <text x="40" y="${dy+(vert?50:18)}" font-size="14" font-weight="700" fill="${ACC}" letter-spacing="1.2">MISALIGNMENT EXAGGERATED</text>`;
   // live foot correction tags (Correct mode)
   if(S.mode==='correct'||S.mode==='calculate'){
@@ -485,6 +539,30 @@ function machine(c,col){
       return pill(id,fx+(vert?108:0),vert?CL+150:CL-60,t,z?OK:col,19)};
     s+=tag('tag-front',XF,vert?c.vF:c.hF,pF)+tag('tag-back',XB,vert?c.vB:c.hB,pB);
   }
+  return s+`</g>`;
+}
+/* jaw coupling: three jaws on each hub, interleaved, with the elastomer spider between them. Turns with the shafts.
+   After a seize the spider is torn: a segment is missing and its bits lie on the base. */
+function couplingInsert(rot,vert){
+  let s=`<g id="coupling-insert">`;
+  const torn=FL.on&&FL.kind==='seize', mp=motorPt(545,CL), dy=mp[1]-CL;
+  s+=`<rect x="515" y="${CL-44+dy*.5}" width="30" height="88" rx="3" fill="#b23a22" opacity="${torn?.45:.9}"/>`;
+  for(let i=0;i<6;i++){const a=rad(rot+i*60+30), z=Math.cos(a); if(z<0)continue; const y=CL-38*Math.sin(a)+dy*.5, pumpJaw=i%2===0;
+    if(torn&&i===1)continue;
+    s+=`<rect x="${pumpJaw?515:529}" y="${(y-8).toFixed(1)}" width="16" height="16" rx="2" fill="${pumpJaw?'#9aa6af':'#7e8a93'}" stroke="#262c31" opacity="${(.45+.55*z).toFixed(2)}"/>`;}
+  return s+`</g>`;
+}
+/* bearing temperature tags: pump bearing housing and motor drive-end bearing */
+function bearingTags(vert){
+  const Tm=S.bearT, Tp=RUN_C+(S.bearT-RUN_C)*.8, imp=S.units==='imp';
+  const tt=v=>imp?`${Math.round(v*1.8+32)} °F`:`${Math.round(v)} °C`, tc=v=>v>=SEIZE_C?BAD:v>=95?BAD:v>=75?WARN:OK;
+  const mp=motorPt(668,CL-104);
+  let s=`<g id="bearing-temps">`;
+  const tag=(id,x,y,v,lbl)=>`<g id="${id}"><line x1="${x}" y1="${y}" x2="${x}" y2="${y-22}" stroke="${tc(v)}" stroke-width="2"/>
+    ${pill(id+'-pill',x,y-40,`${lbl} ${tt(v)}`,tc(v),17)}</g>`;
+  s+=tag('temp-pump',360,CL-48,Tp,'bearing')+tag('temp-motor',mp[0],mp[1],Tm,'bearing');
+  if(Tm>90)for(let i=0;i<4;i++){const ph=((T/1100+i/4)%1), x=mp[0]-14+i*9;      // heat haze, then smoke
+    s+=`<path d="M${x} ${mp[1]-4-ph*70} q 6 -8 0 -16 q -6 -8 0 -16" stroke="${Tm>=SEIZE_C?'#9a948c':BAD}" stroke-width="${Tm>=SEIZE_C?4:2}" fill="none" opacity="${((1-ph)*.7).toFixed(2)}"/>`;}
   return s+`</g>`;
 }
 function shaft(x0,x1,R,rot){
@@ -506,21 +584,27 @@ function hub(id,x0,x1,R,rot,movable){
   const mz=Math.cos(rad(rot));if(mz>0)s+=`<rect x="${x0+12}" y="${CL-R*Math.sin(rad(rot))-2}" width="${x1-x0-24}" height="4" fill="${ACC}" opacity="${mz.toFixed(2)}"/>`;
   return s+`</g>`;
 }
+/* point of the motor (local drawing coords) → where it is drawn, through the motor group's translate + rotate about the front foot */
+function motorPt(x,y){const m=A.mPose||{tx:0,ty:0,ang:0}, a=rad(m.ang), dx=x-XF, dy=y-CL;
+  return [XF+dx*Math.cos(a)-dy*Math.sin(a)+m.tx, CL+dx*Math.sin(a)+dy*Math.cos(a)+m.ty];}
 function bracket(rot,vert){
   // radial distance of the indicator arm projected into the view: side view sees the vertical component (cos), plan the 3 o'clock component (sin)
   const a=rad(rot), proj=vert?Math.cos(a):Math.sin(a), depth=vert?Math.sin(a):Math.cos(a);
   const yArm=CL-88*proj, op=(.55+.45*Math.abs(depth<0?.6:1)).toFixed(2);
-  const yRim=CL-52*proj, yFace=CL-38*proj;
+  // the rim stem ends ON the motor hub's rim and the face plunger ON the hub face, wherever the (exaggerated) motor sits
+  const rimTip=motorPt(567,CL-52*proj), faceTip=motorPt(545,CL-38*proj);
+  A.tips={rim:rimTip,face:faceTip,proj};
+  const yRim=rimTip[1], yFace=faceTip[1];
   let s=`<g id="indicator" opacity="${op}">`;
   s+=`<rect x="430" y="${CL-24}" width="26" height="48" rx="4" fill="#3a3631" stroke="${ACC}" stroke-width="2"/>`;   // clamp on pump shaft
   s+=`<line x1="443" y1="${CL}" x2="443" y2="${yArm}" stroke="#c9d2d8" stroke-width="7" stroke-linecap="round"/>
       <line x1="443" y1="${yArm}" x2="572" y2="${yArm}" stroke="#c9d2d8" stroke-width="7" stroke-linecap="round"/>`;
   // rim indicator: stem down to the motor hub rim
-  s+=`<line x1="567" y1="${yArm}" x2="567" y2="${yRim}" stroke="#e8eef2" stroke-width="3"/>
+  s+=`<line x1="567" y1="${yArm}" x2="${rimTip[0].toFixed(2)}" y2="${yRim.toFixed(2)}" stroke="#e8eef2" stroke-width="3"/><circle id="rim-tip" cx="${rimTip[0].toFixed(2)}" cy="${yRim.toFixed(2)}" r="2.6" fill="#e8eef2"/>
       <circle cx="567" cy="${yArm}" r="13" fill="#f3f1ec" stroke="${ACC}" stroke-width="3"/>`;
   // face indicator: stem axial to the motor hub face
   s+=`<line x1="508" y1="${yArm}" x2="508" y2="${yFace}" stroke="#c9d2d8" stroke-width="4"/>
-      <line x1="508" y1="${yFace}" x2="545" y2="${yFace}" stroke="#e8eef2" stroke-width="3"/><circle cx="508" cy="${yFace}" r="9" fill="#f3f1ec" stroke="${ACC}" stroke-width="2.5"/>`;
+      <line x1="508" y1="${yFace}" x2="${faceTip[0].toFixed(2)}" y2="${yFace}" stroke="#e8eef2" stroke-width="3"/><circle id="face-tip" cx="${faceTip[0].toFixed(2)}" cy="${yFace.toFixed(2)}" r="2.6" fill="#e8eef2"/><circle cx="508" cy="${yFace}" r="9" fill="#f3f1ec" stroke="${ACC}" stroke-width="2.5"/>`;
   return s+`</g>`;
 }
 
@@ -594,7 +678,8 @@ function dials(c){
 /* ---------- exaggerated centrelines (local 380 × 410) ---------- */
 function clInset(c,col){
   const vert=PL();
-  const x0=20,xc=125,xf=235,xb=355,my=215;
+  const x0=20,xc=125,xb=355,my=215;
+  const xf=xc+(xb-xc)*c.A/(c.A+c.B);              // A and B to scale along the motor centreline: the front-foot dot sits ON the line
   const yc=vert?c.V:c.H, sl=vert?c.mV:c.mH;
   const yF=yc+sl*c.A, yB=yc+sl*(c.A+c.B);
   const sc=A.scC*A.poseMix, P=v=>my-clamp(v*sc,-150,150);
@@ -606,10 +691,15 @@ function clInset(c,col){
     <text x="${x0}" y="${my+26}" font-size="14" font-weight="700" fill="${STEEL}">pump</text>
     <line x1="${xc}" y1="70" x2="${xc}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/>
     <text x="${xc}" y="368" text-anchor="middle" font-size="13" fill="${MUTED}">rim plane</text>
-    <line x1="${xf}" y1="70" x2="${xf}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/><text x="${xf}" y="368" text-anchor="middle" font-size="13" fill="${MUTED}">front</text>
+    <line x1="${xf}" y1="70" x2="${xf}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/><text x="${Math.max(xf,xc+52)}" y="${xf-xc<52?386:368}" text-anchor="middle" font-size="13" fill="${MUTED}">front</text>
     <line x1="${xb}" y1="70" x2="${xb}" y2="350" stroke="#5a534b" stroke-width="1.5" stroke-dasharray="4 6"/><text x="${xb}" y="368" text-anchor="end" font-size="13" fill="${MUTED}">back</text>`;
   s+=`<line id="cl-motor" x1="${xc}" y1="${P(yc)}" x2="${xb}" y2="${P(yB)}" stroke="${col}" stroke-width="5" filter="url(#fGlow)" stroke-linecap="round"/>
-    <circle cx="${xc}" cy="${P(yc)}" r="6" fill="${col}"/><circle cx="${xf}" cy="${P(yF)}" r="6" fill="${col}"/><circle cx="${xb}" cy="${P(yB)}" r="6" fill="${col}"/>`;
+    <circle cx="${xc}" cy="${P(yc)}" r="6" fill="${col}"/><circle id="cl-front-dot" cx="${xf.toFixed(2)}" cy="${P(yF).toFixed(2)}" r="6" fill="${col}"/><circle cx="${xb}" cy="${P(yB)}" r="6" fill="${col}"/>`;
+  // shim-stack / jack-bolt icon on each foot line: what that foot needs (more shims, fewer shims, or a sideways move)
+  const icon=(x,v)=>{if(Math.abs(v)<c.res/2)return '';const up=v>0;
+    if(vert)return `<g transform="translate(${x+8} 318)">${[0,1,2].map(i=>`<rect x="0" y="${-i*5}" width="22" height="4" rx="1" fill="${up?'#cfd8de':'#6c777f'}" stroke="#2a2f33" stroke-width=".6"/>`).join('')}<text x="26" y="2" font-size="13" font-weight="800" fill="${up?OK:WARN}">${up?'+':'−'}</text></g>`;
+    return `<g transform="translate(${x+8} 318)"><rect x="0" y="-6" width="18" height="8" fill="#9aa6af"/><text x="22" y="2" font-size="13" font-weight="800" fill="${ACC}">${up?'→3':'→9'}</text></g>`;};
+  if(!(S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move'))s+=icon(xf,vert?c.vF:c.hF)+icon(xb-34,vert?c.vB:c.hB);
   // required correction arrows at the feet (pulse)
   const pulse=.6+.4*Math.sin(T/260);
   const arr=(id,x,y,v)=>{const yy=P(y);if(Math.abs(yy-my)<10)return `<text id="${id}" x="${x-6}" y="${my-12}" text-anchor="end" font-size="16" font-weight="800" fill="${OK}">✓</text>`;
@@ -837,8 +927,9 @@ function draw(c){
   for(let gy=0;gy<=H;gy+=50)s+=`<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="#25221E"/>`;
   const g=(xy,inner)=>`<g transform="translate(${xy[0]} ${xy[1]}) scale(${xy[2]})">${inner}</g>`;
   const portrait=innerWidth<=1000;
-  $('svgwrap').style.height=portrait&&L.maths?(H/W*100).toFixed(1)+'vw':'';
-  if(!(portrait&&L.maths))s+=g(L.mach,machine(c,col));
+  $('svgwrap').style.height=portrait?(H/W*100).toFixed(1)+'vw':'';
+  MINF=0; if(portrait){const r=$('svg').getBoundingClientRect(); const k=Math.min(r.width/W,r.height/H)||.5; MINF=11.5/k;}
+  if(L.mach)s+=g(L.mach,machine(c,col));
   if(L.maths){
     s+=`<g id="maths-board">`+[mOffset,mSlope,mFeet,mValid].map((f,i)=>`<g transform="translate(${L.mp[i][0]} ${L.mp[i][1]})">${f(c,L.mw[i])}</g>`).join('');
     if(S.taken<4){const x0=L.mp[0][0],y0=L.mp[0][1],x1=L.mp[3][0]+L.mw[3],y1=L.mp[3][1]+410;
@@ -846,12 +937,15 @@ function draw(c){
         <text x="${(x0+x1)/2}" y="${y0+120}" text-anchor="middle" font-size="26" font-weight="800" fill="${TEXT}">Finish the readings to see the maths</text>`;}
     s+=`</g>`;
   } else {
-    s+=g(L.end,endView(c));
-    s+=g(L.dials,dials(c));
-    s+=g(L.cl,clInset(c,col));
+    if(L.end)s+=g(L.end,endView(c));
+    if(L.dials)s+=g(L.dials,dials(c));
+    if(L.cl)s+=g(L.cl,clInset(c,col));
   }
   s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="url(#gVig)" pointer-events="none"/>`;
+  if(MINF>0)s=s.replace(/font-size="([\d.]+)"/g,(m,v)=>+v<MINF?`font-size="${MINF.toFixed(1)}"`:m);
   $('svg').innerHTML=s;
+  const fc=$('fail-card'); fc.classList.toggle('on',FL.on);
+  if(FL.on&&($('fail-big').textContent!==FL.big||$('fail-reason').textContent!==FL.reason)){$('fail-big').textContent=FL.big;$('fail-reason').textContent=FL.reason;}
 }
 
 /* ---------- show the maths (whiteboard) ---------- */
@@ -1124,8 +1218,22 @@ function step(ms){
       A.vR+=(wn*wn*(tR-A.needleR)-2*z*wn*A.vR)*h;A.needleR+=A.vR*h;A.vF+=(wn*wn*(tF-A.needleF)-2*z*wn*A.vF)*h;A.needleF+=A.vF*h;}}
   else if(ms>=200){A.needleR=tR;A.needleF=tF;A.vR=A.vF=0;}
   // shafts run in Correct mode; misalignment shows as shake (bigger when further out)
-  if(S.mode==='correct'){A.spin+=ms*.25;const sev={ok:.15,warn:.9,bad:2.4}[c.level];A.shake=sev*Math.sin(T/21)*Math.sin(T/57+1);}
-  else A.shake=0;
+  // severity = worst of offset and angularity ÷ the acceptable tolerance, in either plane
+  const sevX=Math.max(c.lv.m,c.lh.m), seized=FL.on&&FL.kind==='seize', running=S.mode==='correct'&&!seized;
+  if(S.mode==='correct'){
+    A.spinRate=seized?A.spinRate*Math.exp(-dt/.08):.25; A.spin+=ms*A.spinRate;
+    // bearings settle toward T = 40 + 80·(severity/3)² °C (teaching model; time shown 60 × faster)
+    if(running&&ms>0){const Teq=RUN_C+(SEIZE_C-RUN_C)*Math.pow(sevX/TRIP_X,2);S.bearT+=(Teq-S.bearT)*(1-Math.exp(-dt/HEAT_TAU));}
+    const sev=clamp(.15+.8*sevX,.15,6)*(1+Math.max(0,(S.bearT-90)/40));
+    A.shake=seized?A.shake*Math.exp(-dt/.1):sev*Math.sin(T/21)*Math.sin(T/57+1);
+  } else {A.shake=0; if(!FL.on&&ms>0)S.bearT+=(RUN_C-S.bearT)*(1-Math.exp(-dt/10));}
+  if(!FL.on){
+    if(S.fail==='seize')trip(c,true);
+    else if(S.fail===true&&running&&S.bearT>SEIZE_C&&sevX>TRIP_X)trip(c,false);
+  } else FL.t+=ms;
+  // torn spider bits fall to the base plate (side view) and stay there
+  const floorY=PL()?352:CL+150;
+  A.debris.forEach(d=>{if(d.rest)return;d.vy+=900*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.a+=d.va*dt;if(d.y>=floorY-4){d.y=floorY-4;d.rest=true;d.a=Math.round(d.a/180)*180;}});
   // pose reveal (challenge) and exaggeration scale (eased)
   const goal=S.mode==='challenge'?(CS.solved||CH[CS.index].kind==='move'?1:0):1;
   A.poseMix+=clamp(goal-A.poseMix,-dt*.9,dt*.9);
@@ -1145,6 +1253,29 @@ function step(ms){
     CS.score=CS.results.filter(x=>x.correct).length;CS.complete=CS.results.every(x=>x.correct||x.revealed);}
   return c;
 }
+function trip(c,forced){
+  if(forced&&S.mode!=='correct'){S.mode='correct';S.taken=4;A.sweepT=-1;}
+  tweens=[]; const imp=S.units==='imp', l=c.lv.m>=c.lh.m?c.lv:c.lh, sevX=Math.max(c.lv.m,c.lh.m), t=c.tol;
+  if(S.bearT<=SEIZE_C)S.bearT=SEIZE_C+3;
+  FL.on=true;FL.kind='seize';FL.t=0;FL.m=sevX;FL.T=S.bearT;
+  const off=imp?`${l.o.toFixed(1)} thou`:`${(l.o*MM_PER_THOU).toFixed(2)} mm`, ang=imp?`${l.a.toFixed(2)} thou/in`:`${(l.a/10).toFixed(3)} mm/100 mm`;
+  const tT=imp?`${Math.round(S.bearT*1.8+32)} °F`:`${Math.round(S.bearT)} °C`, lim=imp?`${Math.round(SEIZE_C*1.8+32)} °F`:`${SEIZE_C} °C`;
+  FL.big='THE BEARINGS SEIZE';
+  FL.reason=`Run at ${S.rpm} rpm with offset ${off} and angularity ${ang}: ${sevX.toFixed(1)} × the acceptable tolerance. The bearings heated past the ${lim} (${imp?`${SEIZE_C} °C`:`${Math.round(SEIZE_C*1.8+32)} °F`}) limit and seized; the coupling insert tore apart.`;
+  for(let i=0;i<7;i++)A.debris.push({x:530+(i-3)*4,y:CL+(i-3)*8,vx:(i-3)*45,vy:-80-i*12,a:i*40,va:(i%2?1:-1)*400,w:10+(i%3)*4,rest:false});
+}
+function resetFail(){FL.on=false;FL.kind=null;FL.t=0;A.debris=[];A.spinRate=.25;S.bearT=RUN_C;}
+function user(p){set(p);notify();}
+function notify(){const g=get();listeners.forEach(fn=>{try{fn(g)}catch(e){console.error(e)}});}
+function get(){const c=calc();
+  return {...S,out:{R:{...c.R},F:{...c.F},rValid:c.rValid,fValid:c.fValid,Voff:c.Voff,Hoff:c.Hoff,Vs:c.Vs,Hs:c.Hs,vF:c.vF,vB:c.vB,hF:c.hF,hB:c.hB,
+    level:c.level,severity:Math.max(c.lv.m,c.lh.m),bearT:S.bearT,fail:FL.on?FL.kind:false}};}
+const CTRL_SEL='#panel .seg[id], #panel button[id], #panel input[id], #c-board, #c-view';
+function lock(ids){(ids||[]).forEach(id=>{const e=$(id);if(!e)return;e.classList.add('locked');e.setAttribute('aria-disabled','true');
+  e.querySelectorAll('button,input').forEach(b=>b.disabled=true);if(e.matches('button,input'))e.disabled=true;});}
+function unlock(ids){(ids==='all'?[...document.querySelectorAll(CTRL_SEL)].map(e=>e.id):ids||[]).forEach(id=>{const e=$(id);if(!e)return;
+  e.classList.remove('locked');e.removeAttribute('aria-disabled');e.querySelectorAll('button,input').forEach(b=>b.disabled=false);if(e.matches('button,input'))e.disabled=false;});
+  if(ids==='all')frame(0);}
 function frame(ms){
   const c=step(ms);
   draw(c); panel(c);
@@ -1174,6 +1305,10 @@ function set(p,dur=0){
   }
   delete p.units;
   const snap=p.snap; delete p.snap;
+  if('fail' in p){const f=p.fail;delete p.fail;
+    if(f===false||f===true){if(FL.on)resetFail();S.fail=f;} else if(f==='seize'){S.fail=f;}}
+  if('view' in p&&!['machine','end','dials','lines'].includes(p.view))delete p.view;
+  if('bearT' in p){S.bearT=+p.bearT||RUN_C;delete p.bearT;}
   const act={sweep:p.sweep,apply:p.apply,reset:p.reset,randomize:p.randomize,chIndex:p.chIndex,chNew:p.chNew};
   ['sweep','apply','reset','randomize','chIndex','chNew'].forEach(k=>delete p[k]);
   if(p.mode&&p.mode!==S.mode){
@@ -1196,6 +1331,8 @@ function set(p,dur=0){
   if(act.sweep){S.mode=S.mode==='readings'?S.mode:'readings';S.taken=1;S.dialPos=0;A.sweepT=0;}
   if(act.apply==='calculated')applyCalculated();
   else if(act.apply==='planned')applyDelta(S.planF,S.planB,S.plane);
+  if(snap&&FL.on)resetFail();
+  if(FL.on&&(act.reset||act.apply)){resetFail();}                       // a new (corrected) machine: fresh bearings, new insert
   if(snap){const c=calc();const th=((S.dialPos%360)+360)%360;A.needleR=c.rimAt(th);A.needleF=c.faceAt(th);A.vR=A.vF=0;A.scM=A.scC=null;A.ms1=A.ms2=A.ms3=null;A.v4={};A.mT=0;
     A.poseMix=S.mode==='challenge'&&!CS.solved&&CH[CS.index].kind!=='move'?0:1;
     tweens.forEach(t=>S[t.key]=t.to);tweens=[];A.slides=[];A.lastMvF=S.mvF;A.lastMvB=S.mvB;}
@@ -1207,29 +1344,34 @@ function clear(){callouts=[];if(!CAPTURE)frame(0);}
 /* ---------- user controls (mouse, touch and keyboard: native buttons and sliders) ---------- */
 document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;
-  ({'c-mode':()=>set({mode:v}),'c-plane':()=>{set({plane:v});if(S.mode==='challenge')loadChallenge(CS.index)},'c-units':()=>set({units:v}),
-    'c-rpm':()=>set({rpm:+v}),'c-board':()=>set({board:v}),'c-predF':()=>set({predF:v}),'c-predB':()=>set({predB:v})})[seg.id]?.();
+  ({'c-mode':()=>user({mode:v}),'c-plane':()=>{user({plane:v});if(S.mode==='challenge')loadChallenge(CS.index)},'c-units':()=>user({units:v}),
+    'c-rpm':()=>user({rpm:+v}),'c-board':()=>user({board:v}),'c-predF':()=>user({predF:v}),'c-predB':()=>user({predB:v})})[seg.id]?.();
 }));
-['vOff','hOff','vAng','hAng','dia','distA','distB','sag'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value,shF:0,shB:0,mvF:0,mvB:0})));
-['planF','planB'].forEach(k=>$('c-'+k).addEventListener('input',e=>set({[k]:+e.target.value})));
-$('b-sweep').onclick=()=>set({sweep:true});
-$('b-rand').onclick=()=>{S.seed++;set({randomize:S.seed});};
-$('b-glitch').onclick=()=>set({glitch:!S.glitch});
-$('b-mist').onclick=()=>set({mistakes:!S.mistakes});
-$('b-calc').onclick=()=>set({apply:'calculated'});
-$('b-apply').onclick=()=>set({apply:'planned'});
-$('b-reset').onclick=()=>set({reset:true});
-$('b-check').onclick=()=>answer($('ch-input').value);
-$('ch-input').addEventListener('keydown',e=>{if(e.key==='Enter')answer($('ch-input').value)});
-$('b-chmove').onclick=()=>chMove($('ch-mF').value,$('ch-mB').value);
-$('b-next').onclick=()=>set({chIndex:CS.index+1});
-$('b-prev').onclick=()=>set({chIndex:CS.index-1});
-$('b-new').onclick=()=>set({chNew:true});
+['vOff','hOff','vAng','hAng','dia','distA','distB','sag'].forEach(k=>$('c-'+k).addEventListener('input',e=>user({[k]:+e.target.value,shF:0,shB:0,mvF:0,mvB:0})));
+['planF','planB'].forEach(k=>$('c-'+k).addEventListener('input',e=>user({[k]:+e.target.value})));
+$('b-sweep').onclick=()=>user({sweep:true});
+$('b-rand').onclick=()=>{S.seed++;user({randomize:S.seed});};
+$('b-glitch').onclick=()=>user({glitch:!S.glitch});
+$('b-mist').onclick=()=>user({mistakes:!S.mistakes});
+$('b-calc').onclick=()=>user({apply:'calculated'});
+$('b-apply').onclick=()=>user({apply:'planned'});
+$('b-reset').onclick=()=>user({reset:true});
+$('b-check').onclick=()=>{answer($('ch-input').value);notify();};
+$('ch-input').addEventListener('keydown',e=>{if(e.key==='Enter'){answer($('ch-input').value);notify();}});
+$('b-chmove').onclick=()=>{chMove($('ch-mF').value,$('ch-mB').value);notify();};
+$('b-next').onclick=()=>user({chIndex:CS.index+1});
+$('b-prev').onclick=()=>user({chIndex:CS.index-1});
+$('b-new').onclick=()=>user({chNew:true});
+$('c-view').addEventListener('click',e=>{const b=e.target.closest('button');if(b)user({view:b.dataset.v});});
+$('fail-reset').addEventListener('click',()=>user({fail:S.fail===false?false:true,reset:true}));
 addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
 
 frame(0);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>{const c=calc();delete c.rimAt;delete c.faceAt;return c;},get:()=>({...S}),answer,chMove,
+window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>{const c=calc();delete c.rimAt;delete c.faceAt;return c;},get,answer,chMove,
+  onChange:fn=>{if(typeof fn==='function')listeners.push(fn);},lock,unlock,
+  failure:()=>({on:FL.on,kind:FL.kind,t:FL.t,caption:FL.big,reason:FL.reason,severity:FL.m,bearT:FL.T}),
+  get view(){return {tips:A.tips,pose:A.mPose,debris:A.debris.map(d=>({x:d.x,y:d.y,rest:d.rest})),spinRate:A.spinRate};},
   get challenge(){return {index:CS.index,total:CH.length,id:CH[CS.index].id,score:CS.score,attempts:CS.results[CS.index].attempts,results:CS.results.map(r=>({...r})),moves:CS.moves,solved:CS.solved,complete:CS.complete}},
   ready:true};
 })();
