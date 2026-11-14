@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="cf-lesson-page" content="overhead-cranes:1">
+<title>Run it from the pendant · Overhead cranes · CrewForge</title>
+<!-- CrewForge simulator-lesson page (built by simulators/hoisting/build.py from src/; do not edit by hand) -->
+<style>/* CrewForge simulator-lesson page shell (approved layout, docs/mockups/lesson-page.html; docs/LESSON_DESIGN.md s.2) */
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --fill:#C05A00;--ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  font-weight:700;font-size:15px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#6a645b}.btn:focus-visible,.opt:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+.btn.ghost{background:transparent}.btn[disabled]{opacity:.45;cursor:default}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:6px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{background:var(--accent)}.dots i.done{background:#7a5a3a}
+.voice{display:flex;align-items:center;gap:6px}
+.voice .btn{padding:6px 10px;font-size:13px}
+.voice .btn.off{color:var(--muted)}
+.what{margin:10px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15.5px}
+.what .wt{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800;background:none;border:0;padding:0;min-height:0;display:flex;gap:8px;align-items:center}
+.what .wt .chev{display:none}
+.what b.hl{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+.read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
+.caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
+  background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
+.caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
+.caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
+.caption.on{display:block}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step .sh{display:flex;align-items:center;gap:8px}
+.step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
+.step p{font-size:18px;margin:6px 0 10px;font-weight:600}
+.step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
+.step .hint{font-size:15px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,138,43,.10);border:1px solid rgba(240,138,43,.5)}
+.step .good{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(61,220,132,.10);border:1px solid var(--ok)}
+.step .good b{color:var(--ok)}
+.step .bad{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(242,194,48,.10);border:1px solid var(--warn)}
+.step .bad b{color:var(--warn)}
+.step .never{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--bad);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.skip{background:none;border:0;color:var(--muted);text-decoration:underline;min-height:44px;padding:0 6px;font-size:14px}
+.q h3{margin:4px 0 8px;font-size:17px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:10px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:15.5px;font-weight:600;min-height:44px}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,79,.12)}
+.opt.right{border-color:var(--ok);background:rgba(61,220,132,.12)}
+.opt.ans{border-color:var(--ok)}
+.free{border:2px dashed var(--accent)}
+.free .fk{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800}
+.ctrlcard{display:flex;flex-direction:column;gap:12px}
+.ctrlcard:empty{display:none}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl .lab{font-weight:700;width:96px;flex:none;font-size:15px;line-height:1.15}
+.ctrl .val{font-weight:800;color:var(--accent);min-width:72px;text-align:right;background:none;border:0;padding:0;min-height:44px;font-size:16px}
+.ctrl input[type=range]{flex:1;min-width:60px;accent-color:var(--accent);height:44px}
+.ctrl .tv{width:80px;font:inherit;font-weight:800;padding:6px;border-radius:8px;border:2px solid var(--accent);background:#171512;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipwrap .lab{font-weight:700;font-size:15px;margin-bottom:6px;display:block}
+.chip{padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);font-weight:700;min-height:44px;font-size:14.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.spotlit{box-shadow:0 0 0 3px var(--accent),0 0 18px rgba(240,138,43,.6);border-radius:12px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px var(--accent),0 0 28px rgba(240,138,43,.75)}}
+#start{position:fixed;inset:0;background:rgba(15,14,12,.82);display:flex;align-items:center;justify-content:center;z-index:20}
+#start .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center}
+#start h2{margin:0 0 6px;font-size:24px}#start p{color:var(--muted);margin:0 0 18px}
+#start .btn{font-size:18px;padding:12px 22px}
+/* phone portrait: top bar -> what (collapsible) -> step -> simulator -> control tray (no page scroll) */
+body.phone .app{grid-template-rows:auto auto minmax(0,1fr)}
+body.phone .bar{flex-wrap:wrap;padding:6px 8px;gap:6px}
+body.phone .title{order:-1;flex-basis:100%;display:flex;gap:8px;align-items:baseline}
+body.phone .kick{font-size:11px}body.phone .h{font-size:16px}
+body.phone .dots{flex:1;justify-content:center}body.phone .dots i{width:14px}
+body.phone .what{margin:6px 8px 0;padding:6px 10px;font-size:14px}
+body.phone .what .wt{min-height:44px;width:100%}
+body.phone .what .wt .chev{display:inline}
+body.phone .what:not(.open) .wx{display:none}
+body.phone .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 8px 8px;gap:6px}
+body.phone .side{display:contents}
+body.phone .step{order:1;padding:8px 12px}body.phone .stage{order:2}body.phone .ctrlcard{order:3;padding:8px 10px;gap:6px}
+body.phone .step p{font-size:15.5px;margin:2px 0 6px}
+body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
+body.phone .q h3{font-size:15px;margin:2px 0 4px}
+body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
+body.phone .read{padding:4px 6px;gap:4px}
+body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .ctrl .lab{width:70px;font-size:13px}
+body.phone .chip{padding:6px 9px;font-size:13px}
+body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
+body.phone .caption{font-size:13px;padding:6px 10px;top:6px}
+body.phone .btn{padding:6px 10px;font-size:14px}
+body.phone .step .sh{min-height:28px}
+body.phone .main{grid-template-columns:minmax(0,1fr)}
+body.phone .card,body.phone .stage{min-width:0}
+body.phone .bar .btn{padding:4px 10px;font-size:14px}
+body.phone .voice .vt{display:none}
+body.phone .ro .lf{display:none}
+.ro .ls{display:none}body.phone .ro .ls{display:inline}
+body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
+.what .wt{pointer-events:none}body.phone .what .wt{pointer-events:auto}
+.main{grid-template-rows:minmax(0,1fr)}
+
+/* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
+body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
+body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
+body.phone .chip{flex:none}
+body.phone .chipwrap{display:flex;align-items:center;gap:8px}
+body.phone .chipwrap .lab{margin:0;width:70px;flex:none}
+body.phone .bar{row-gap:2px}
+body.phone .what{padding:0 10px}
+.chip{min-width:44px}
+body.phone .caption .ct{display:none}body.phone .caption b{font-size:12px}body.phone .caption{padding:4px 10px;bottom:56px}
+
+/* hold-to-run controls (shell.js: type 'hold' and data-hk buttons inside 'custom' controls) */
+.ctrl.holdc{display:block}
+.btn.hold{width:100%;min-height:52px;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn.hold.on{background:var(--fill);border-color:var(--accent);color:var(--text)}
+.ctrl.custom{display:block}
+.step ul.points{margin:4px 0 10px;padding-left:20px;font-size:16px}.step ul.points li{margin:3px 0}
+.step .wrongsay{color:var(--warn);font-weight:700}
+body.phone .btn.hold{min-height:48px}
+/* video layout (content capture:'stage' + ?capture=1): the stage and its readouts fill the window */
+body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
+body.capture .app{grid-template-rows:minmax(0,1fr)}
+body.capture .main{grid-template-columns:1fr;padding:10px 12px}
+body.capture .read{padding:10px 12px}
+body.capture .ro{padding:7px 10px}
+</style></head>
+<body><noscript>This lesson needs JavaScript.</noscript>
+<script>(function (root) {
+'use strict';
+const K = {};
+K.W = 1600; K.H = 880; K.FLOOR = 800;
+K.FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+K.C = { bg: '#24211d', panel: '#2a2723', text: '#F5F5F4', muted: '#b9b4ab', acc: '#F08A2B', ok: '#3ddc84', warn: '#F2C230',
+  bad: '#ff5a4f', steelD: '#3b4247', steelM: '#8d969d', steelL: '#b9c1c7', steelHi: '#eef1f3', ropeD: '#454c51',
+  ropeM: '#aab3b9', ropeV: '#6a737a', timberD: '#5e4426', paint: '#5d6670', paintD: '#23282c' };
+const C = K.C;
+const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+K.f = f;
+K.pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+K.esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+K.catmull = function (P, n = 8, closed = false) {
+  const out = [], m = P.length, last = closed ? m : m - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = P[(closed || i > 0) ? (i - 1 + m) % m : i], p1 = P[i], p2 = P[(i + 1) % m];
+    const p3 = P[(closed || i + 2 < m) ? (i + 2) % m : (i + 1) % m];
+    for (let j = 0; j < n; j++) {
+      const t = j / n, t2 = t * t, t3 = t2 * t;
+      out.push([0, 1].map(c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 +
+        (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+    }
+  }
+  if (!closed) out.push(P[m - 1]);
+  return out;
+};
+K.arcPts = (cx, cy, r, a0, a1, n = 24) => { const o = []; for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return o; };
+K.resample = function (P, step) {
+  const out = [P[0]]; let acc = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+    if (!seg) continue;
+    let t = step - acc;
+    while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+    acc = seg - (t - step);
+  }
+  return out;
+};
+K.normals = P => P.map((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; });
+K.litOffset = function (P, amt) {
+  const N = K.normals(P), Lx = -0.7071, Ly = -0.7071;
+  return P.map((p, i) => { const s = N[i][0] * Lx + N[i][1] * Ly; return [p[0] + N[i][0] * s * amt, p[1] + N[i][1] * s * amt]; });
+};
+K.walker = function (P) {
+  const L = [0];
+  for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const at = s => {
+    s = Math.max(0, Math.min(L[L.length - 1], s));
+    let i = 0; while (i < L.length - 2 && L[i + 1] < s) i++;
+    const seg = (L[i + 1] - L[i]) || 1, t = (s - L[i]) / seg, a = P[i], b = P[i + 1] || a;
+    const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1;
+    return [a[0] + dx * t, a[1] + dy * t, dx / d, dy / d];
+  };
+  return { len: L[L.length - 1], at };
+};
+K.defs = () => `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gGB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a8396"/><stop offset=".5" stop-color="#4c6273"/><stop offset="1" stop-color="#34444f"/></linearGradient>
+<radialGradient id="gWheel" cx=".38" cy=".34" r=".8"><stop offset="0" stop-color="#7d97aa"/><stop offset=".6" stop-color="#4c6273"/><stop offset="1" stop-color="#2c3a44"/></radialGradient>
+<linearGradient id="gCrane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b04a"/><stop offset=".5" stop-color="#b98f2c"/><stop offset="1" stop-color="#7d5f19"/></linearGradient>
+<linearGradient id="gMotor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7a8f"/><stop offset=".35" stop-color="#8aa6b8"/><stop offset=".7" stop-color="#4a6577"/><stop offset="1" stop-color="#2e4250"/></linearGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c8780"/><stop offset="1" stop-color="#5f5a53"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDust"><stop offset="0" stop-color="#b9ad98" stop-opacity=".55"/><stop offset="1" stop-color="#b9ad98" stop-opacity="0"/></radialGradient>
+<marker id="mAcc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.acc}"/></marker>
+<marker id="mTxt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.text}"/></marker>
+<marker id="mMut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.muted}"/></marker>
+</defs>`;
+K.style = (extraPhone = '') => `<style>
+.lb{font:700 26px ${K.FONT};fill:${C.text}} .lm{font:600 21px ${K.FONT};fill:${C.muted}} .la{font:800 30px ${K.FONT};fill:${C.acc}}
+.ld{stroke:${C.muted};stroke-width:2;fill:none} .tag{font:700 12px ${K.FONT};fill:#1d1d1d} .tagb{font:800 15px ${K.FONT};fill:#1d1d1d}
+.halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round} .phOnly{display:none}
+.drag{cursor:grab} .drag:active{cursor:grabbing}
+@media (max-width:700px){ .lb{font-size:33px} .lm{font-size:29px} .la{font-size:36px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+K.backdrop = function (floor = K.FLOOR, wainscot = true) {
+  let s = `<rect width="${K.W}" height="${floor}" fill="url(#gWall)"/>`;
+  if (wainscot) s += `<rect x="0" y="${floor - 150}" width="${K.W}" height="150" fill="#fff" opacity=".018"/><line x1="0" y1="${floor - 150}" x2="${K.W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+  s += `<rect x="0" y="${floor}" width="${K.W}" height="${K.H - floor}" fill="url(#gFloor)"/><line x1="0" y1="${floor}" x2="${K.W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+  return s;
+};
+K.column = (x, floor = K.FLOOR, top = 0, w = 34, op = .55) =>
+  `<g opacity="${op}"><rect x="${f(x)}" y="${f(top)}" width="${w}" height="${f(floor - top)}" fill="#2f2c28"/><rect x="${f(x)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#3a3632"/>` +
+  `<rect x="${f(x + w - 5)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#262320"/><rect x="${f(x - 14)}" y="${f(floor - 8)}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+K.shadow = (cx, y, w, h = 14, op = 1) => `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+K.roundBar = function (P, d, body = '#8d969d', dark = C.steelD, hi = '#e8ecef', cap = 'round', hiOp = .85) {
+  const p = K.pathd(P);
+  return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${K.pathd(K.litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+};
+K.wireRope = function (P, d, phase = 0) {
+  const dense = K.resample(P, Math.max(.8, d / 4));
+  if (dense.length < 2) dense.push(P[P.length - 1]);
+  let s = K.roundBar(dense, d, C.ropeM, C.ropeD, '#e9edf0', 'butt', .7);
+  if (d < 2.2) return s;
+  const pitch = 1.08 * d, adv = 2.0 * d, w = K.walker(dense);
+  let v = '', sv = -adv - (((phase % pitch) + pitch) % pitch);
+  while (sv < w.len) {
+    const seg = [];
+    for (let j = 0; j < 5; j++) {
+      const q = sv + adv * j / 4;
+      if (q >= 0 && q <= w.len) { const [x, y, ux, uy] = w.at(q), o = (-0.5 + j / 4) * d * .86; seg.push([x - uy * o, y + ux * o]); }
+    }
+    if (seg.length > 1) v += K.pathd(seg) + ' ';
+    sv += pitch;
+  }
+  return s + `<path d="${v}" fill="none" stroke="${C.ropeV}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+};
+K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b') {
+  const w = K.walker(P);
+  let s = '', idx = Math.floor(phase / pitch), s0 = -(((phase % pitch) + pitch) % pitch);
+  const L = pitch + d;
+  for (let sv = s0, n = 0; sv < w.len + pitch; sv += pitch, n++) {
+    const a = Math.max(0, sv), b = Math.min(w.len, sv + pitch);
+    if (b - a < pitch * .25) continue;
+    const [x, y, ux, uy] = w.at((a + b) / 2), ang = Math.atan2(uy, ux) * 180 / Math.PI;
+    const face = ((n + idx) & 1) === 0, len = (b - a) / pitch * L;
+    if (face) {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.4)}"/>` +
+        `<rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${col}" stroke-width="${f(d)}"/>` +
+        `<path d="M${f(-len / 2 + d * 1.4)} ${f(-d * 1.95)} L${f(len / 2 - d * 1.4)} ${f(-d * 1.95)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.7, d * .3))}" opacity=".75"/></g>`;
+    } else {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-d * .62)}" width="${f(len)}" height="${f(d * 1.24)}" rx="${f(d * .6)}" fill="${col}" stroke="${dark}" stroke-width="1.1"/>` +
+        `<path d="M${f(-len / 2 + d)} ${f(-d * .3)} L${f(len / 2 - d)} ${f(-d * .3)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.6, d * .25))}" opacity=".7"/></g>`;
+    }
+  }
+  return s;
+};
+K.timberEnd = function (x, y, w, h, id = '') {
+  const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + Math.round(x) + '_' + Math.round(y);
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+  for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+  s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#fff" opacity=".08"/></g>`;
+  return s;
+};
+K.timberSide = function (x, y, w, h, seed = 1) {
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  const n = Math.max(2, Math.floor(h / 7));
+  for (let i = 1; i < n; i++) {
+    const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+    s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+  }
+  return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+};
+const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+  [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81, HOOK_L = 10.43;
+K.HOOK = { saddle: HOOK_SADDLE, L: HOOK_L, ri: HOOK_RI, cy: HOOK_CY };
+function hookContour(open = 0) {
+  const tip = HOOK_OUT.map(p => p[1] < -2.4 && p[0] > 0 ? [p[0] + open * 1.2 * ((-p[1] - 2.4) / 2.4), p[1] + open * .5 * ((-p[1] - 2.4) / 2.4)] : p);
+  let out = K.catmull(tip, 6);
+  const tp = [HOOK_TIP[0] + open * 1.3, HOOK_TIP[1] + open * .55];
+  out = out.concat([tp, [1.8 + open * 1.25, -4.5 + open * .5], [1.64 + open * .6, -4.0 + open * .2]]);
+  for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+  out = out.concat(K.catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+  return [[-0.705, -HOOK_L]].concat(out, [[0.705, -HOOK_L]]);
+}
+K.hookProfile = function (x, ysad, k, o = {}) {
+  const m = o.mirror ? -1 : 1, open = o.open || 0;
+  const T = p => [x + m * p[0] * k, ysad + (p[1] - HOOK_SADDLE) * k];
+  const c = hookContour(open).map(T);
+  let s = `<g id="${o.id || 'hook'}"${o.rot ? ` transform="rotate(${f(o.rot)} ${f(x)} ${f(ysad)})"` : ''}><path d="${K.pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, Math.min(1.8, k * .2)))}" stroke-linejoin="round"/>`;
+  const back = K.catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+  s += `<path d="${K.pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+  s += `<path d="${K.pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+  if (k > 4) for (const p of [[0.95, -5.55], [1.95 + open * 1.1, -4.15 + open * .3]]) { const q = T(p); s += `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(k * .09)}" fill="#20252a"/>`; }
+  if (o.latch === 'missing') {
+    const pv = T([0.92, -5.95]);
+    s += `<circle cx="${f(pv[0])}" cy="${f(pv[1])}" r="${f(k * .3)}" fill="none" stroke="${C.bad}" stroke-width="2"/>`;
+  } else if (o.latch !== false) {
+    const piv = T([0.92, -5.95]), end = T([1.9 + open * 0.2, -4.62 + open * .1]), mid = T([1.5, -5.35]);
+    const d = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+    s += `<path d="${d}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+  }
+  return s + '</g>';
+};
+K.hookEdge = function (x, ysad, k, id = 'hook') {
+  const T = (px, py) => [x + px * k, ysad + (py - HOOK_SADDLE) * k];
+  const body = [T(-0.705, -10.43), T(-0.705, -6.59), T(-0.78, -6.1), T(-0.8, -3.0), T(-0.72, -0.9), T(-0.45, -0.12), T(0, 0),
+    T(0.45, -0.12), T(0.72, -0.9), T(0.8, -3.0), T(0.78, -6.1), T(0.705, -6.59), T(0.705, -10.43)];
+  return `<g id="${id}"><path d="${K.pathd(K.catmull(body, 4), true)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1.6"/></g>`;
+};
+K.hookNeck = function (x, ytop, ysad, k) {
+  const yShank = ysad - (HOOK_L + HOOK_SADDLE) * k;
+  let s = '';
+  if (ytop < yShank) s += `<rect x="${f(x - .55 * k)}" y="${f(ytop)}" width="${f(1.1 * k)}" height="${f(yShank - ytop + 1)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1"/>`;
+  return s;
+};
+K.wbeamSide = function (x0, x1, ytop, d, tf, stiff = [], paint = '#5b6168') {
+  let s = `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(d)}" fill="#3f454b" stroke="#202427" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(x1 - x0)}" height="${f(d * .28)}" fill="#000" opacity=".25"/>`;
+  for (const xs of stiff) s += `<rect x="${f(xs - 3)}" y="${f(ytop + tf)}" width="6" height="${f(d - 2 * tf)}" fill="#646b72" stroke="#2a3035" stroke-width="1"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#7b838a" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf * .35)}" fill="#c3cad0" opacity=".55"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#656d74" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(Math.max(1, tf * .3))}" fill="#aab2b8" opacity=".5"/>`;
+  return s;
+};
+K.wbeamEnd = function (cx, ytop, d, bf, tf, tw, bend = 0, col = '#6e767d') {
+  const yb = ytop + d;
+  const fl = (y, down) => {
+    const tip = down ? bend : 0;
+    return `<path d="M${f(cx - bf / 2)} ${f(y + tip)} L${f(cx - tw / 2)} ${f(y)} L${f(cx + tw / 2)} ${f(y)} L${f(cx + bf / 2)} ${f(y + tip)} L${f(cx + bf / 2)} ${f(y + tf + tip)} L${f(cx + tw / 2)} ${f(y + tf)} L${f(cx - tw / 2)} ${f(y + tf)} L${f(cx - bf / 2)} ${f(y + tf + tip)}Z" fill="${col}" stroke="#202427" stroke-width="1.6" stroke-linejoin="round"/>`;
+  };
+  let s = `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(tw)}" height="${f(d - 2 * tf)}" fill="${col}" stroke="#202427" stroke-width="1.6"/>`;
+  s += fl(ytop, false) + fl(yb - tf, true);
+  s += `<rect x="${f(cx - bf / 2)}" y="${f(ytop)}" width="${f(bf)}" height="${f(Math.max(1.5, tf * .3))}" fill="#c3cad0" opacity=".5"/>`;
+  s += `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(Math.max(1, tw * .35))}" height="${f(d - 2 * tf)}" fill="#c3cad0" opacity=".35"/>`;
+  return s;
+};
+K.label = function (tx, ty, text, target, o = {}) {
+  const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}${o.cl ? ` class="${o.cl}"` : ''}>`;
+  if (target) {
+    const [x2, y2] = target, sx = anchor === 'start' ? tx - 6 : anchor === 'end' ? tx + 6 : tx, sy = anchor === 'middle' ? ty + 8 : ty - 8;
+    if (o.elbow) s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`;
+    else s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+    s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.text}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+  }
+  s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}"${o.subFill ? ` style="fill:${o.subFill}"` : ''}>${o.sub}</text>`;
+  return s + '</g>';
+};
+K.angleArc = function (cx, cy, r, a0, a1, text, tx, ty, o = {}) {
+  const col = o.col || C.acc, P = K.arcPts(cx, cy, r, a0, a1, 40);
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><path d="${K.pathd(P)}" fill="none" stroke="#1F1D1A" stroke-width="7" stroke-linecap="round" opacity=".6"/><path d="${K.pathd(P)}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
+  for (const a of [a0, a1]) { const r1 = a * Math.PI / 180; s += `<line x1="${f(cx + (r - 9) * Math.cos(r1))}" y1="${f(cy + (r - 9) * Math.sin(r1))}" x2="${f(cx + (r + 9) * Math.cos(r1))}" y2="${f(cy + (r + 9) * Math.sin(r1))}" stroke="${col}" stroke-width="3"/>`; }
+  s += `<text class="la halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 24)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.arrow = function (x0, y0, x1, y1, o = {}) {
+  const col = o.col || C.text, w = o.w || 4, d = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / d, uy = (y1 - y0) / d, hl = o.head || 18, hw = hl * .55;
+  const bx = x1 - ux * hl, by = y1 - uy * hl;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (d > hl) s += `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" opacity=".5"/><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}"/>`;
+  s += `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1"/>`;
+  if (o.text) s += `<text class="${o.cls || 'lb'} halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f(o.ty != null ? o.ty : y1)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${o.text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f((o.ty != null ? o.ty : y1) + 25)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.dim = function (x0, y0, x1, y1, text, o = {}) {
+  const col = o.col || C.muted, d = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / d * 9, ny = (x1 - x0) / d * 9;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${col}" stroke-width="2" marker-start="url(#mMut)" marker-end="url(#mMut)"/>`;
+  for (const [x, y] of [[x0, y0], [x1, y1]]) s += `<line x1="${f(x - nx)}" y1="${f(y - ny)}" x2="${f(x + nx)}" y2="${f(y + ny)}" stroke="${col}" stroke-width="2"/>`;
+  const tx = o.tx != null ? o.tx : (x0 + x1) / 2, ty = o.ty != null ? o.ty : (y0 + y1) / 2 - 10;
+  s += `<text class="${o.cls || 'lb'} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'middle'}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  return s + '</g>';
+};
+K.inset = function (refId, sx, sy, mag, cx, cy, r, title, sub, id) {
+  const rs = r / mag, d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d, cid = 'ci' + Math.round(cx) + '_' + Math.round(cy);
+  let s = `<g${id ? ` id="${id}"` : ''}><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+  s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
+  if (title) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+  if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+  return s + '</g>';
+};
+K.plate = function (x, y, w, rows, o = {}) {
+  const lh = o.lh || 22, h = 12 + rows.length * lh;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" fill="#d9dcdf" stroke="#23282c" stroke-width="1.5"/>`;
+  rows.forEach((r, i) => {
+    const yy = y + 6 + lh * (i + 1) - 6;
+    if (r.hi) s += `<rect x="${f(x + 4)}" y="${f(yy - lh + 6)}" width="${f(w - 8)}" height="${f(lh)}" rx="4" fill="none" stroke="${C.acc}" stroke-width="2.5"/>`;
+    s += `<text class="mk" x="${f(x + 10)}" y="${f(yy)}" style="font:${r.b ? 800 : 700} ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.l}</text>`;
+    if (r.r != null) s += `<text class="mk" x="${f(x + w - 10)}" y="${f(yy)}" text-anchor="end" style="font:800 ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.r}</text>`;
+  });
+  return s + '</g>';
+};
+K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
+  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
+  const x = (K.W - w) / 2;
+  return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
+    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+};
+K.dust = (cx, y, t, w = 160) => {
+  if (t < 0 || t > 1.6) return '';
+  const a = 1 - t / 1.6, r = 30 + t * 70;
+  return `<g opacity="${f(a)}"><ellipse cx="${f(cx - w * .35 - t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/>` +
+    `<ellipse cx="${f(cx + w * .35 + t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/></g>`;
+};
+K.skid = function (cx, yTop, w, h, label, o = {}) {
+  const x0 = cx - w / 2, rot = o.rot || 0;
+  let s = `<g id="${o.id || 'load'}"${rot ? ` transform="rotate(${f(rot)} ${f(cx)} ${f(yTop + h / 2)})"` : ''}>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h * .16)}" fill="#7b858e"/><rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="3" fill="#c3cad0" opacity=".5"/>`;
+  for (let i = 1; i < 5; i++) s += `<rect x="${f(x0 + w * i / 5 - 3)}" y="${f(yTop + h * .16)}" width="6" height="${f(h * .84)}" fill="#4a525a"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop + h * .8)}" width="${f(w)}" height="${f(h * .2)}" fill="#3f474e"/>`;
+  if (label) s += `<rect x="${f(cx - 50)}" y="${f(yTop + h * .38)}" width="100" height="26" rx="3" fill="#d9dcdf" stroke="#23282c"/><text x="${f(cx)}" y="${f(yTop + h * .38 + 18)}" text-anchor="middle" class="mk" style="font:800 15px ${K.FONT};fill:#1d1d1d">${label}</text>`;
+  const lug = o.lug != null ? o.lug : w * .4;
+  for (const sg of (o.lugs || [-1, 1])) s += `<path d="M${f(cx + sg * lug - 12)} ${f(yTop)} L${f(cx + sg * lug - 7)} ${f(yTop - 18)} A7 7 0 0 1 ${f(cx + sg * lug + 7)} ${f(yTop - 18)} L${f(cx + sg * lug + 12)} ${f(yTop)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/><circle cx="${f(cx + sg * lug)}" cy="${f(yTop - 16)}" r="3" fill="#1b1a18"/>`;
+  return s + '</g>';
+};
+K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa')}${K.chain([hk, b], pitch, d, 0, '#9aa3aa')}</g>`; };
+K.miniHoist = function (x, yPin, kk, run = 0, label = '', dropIn = 22) {
+  let s = `<g id="hoist"><rect x="${f(x - 3.2 * kk)}" y="${f(yPin + 2 * kk)}" width="${f(6.4 * kk)}" height="${f(6.6 * kk)}" rx="${f(1.5 * kk)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+  s += `<circle cx="${f(x)}" cy="${f(yPin + 5.3 * kk)}" r="${f(2.5 * kk)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.2"/>`;
+  for (let i = 0; i < 6; i++) { const a = run + i * Math.PI / 3; s += `<line x1="${f(x)}" y1="${f(yPin + 5.3 * kk)}" x2="${f(x + 2.3 * kk * Math.cos(a))}" y2="${f(yPin + 5.3 * kk + 2.3 * kk * Math.sin(a))}" stroke="#76828c" stroke-width="2"/>`; }
+  s += `<rect x="${f(x - .9 * kk)}" y="${f(yPin)}" width="${f(1.8 * kk)}" height="${f(2.2 * kk)}" fill="#4c6273" stroke="#1b232a"/>`;
+  const hy = yPin + 5.3 * kk, drop = dropIn * kk, ang = K.sway(2.4, 1.6);
+  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, run * 30, '#a9b1b7')}</g>`;
+  if (label) s += `<text class="mk" x="${f(x)}" y="${f(yPin + 8.2 * kk)}" text-anchor="middle" style="font:800 ${f(Math.max(9, 1.1 * kk))}px ${K.FONT};fill:#e6edf2">${label}</text>`;
+  return { svg: s + '</g>', yBot: yPin + 8.6 * kk, xl: x - .9 * kk, hr: 2.5 * kk };
+};
+K.n0 = v => Math.round(v).toLocaleString('en-CA');
+K.n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+K.n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+K.LB2KG = 0.45359237;
+K.T = 0;
+K.sway = (period, amp, phase = 0) => amp * Math.sin(2 * Math.PI * K.T / period + phase);
+root.CFK = K;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function (root) {
+'use strict';
+const G = 9.80665;
+const cr = (ax, ay, bx, by) => ax * by - ay * bx;
+function shapeOf(o) {
+  if (o.w != null) {
+    const w = o.w / 2, h = o.h / 2;
+    return { kind: 'box', verts: [[-w, -h], [w, -h], [w, h], [-w, h]], c: [0, 0], k: (o.w * o.w + o.h * o.h) / 12 };
+  }
+  if (o.verts) {
+    let A = 0, cx = 0, cy = 0, I = 0; const v = o.verts;
+    for (let i = 0; i < v.length; i++) {
+      const [x1, y1] = v[i], [x2, y2] = v[(i + 1) % v.length], c = cr(x1, y1, x2, y2);
+      A += c / 2; cx += (x1 + x2) * c; cy += (y1 + y2) * c;
+      I += c * (x1 * x1 + x1 * x2 + x2 * x2 + y1 * y1 + y1 * y2 + y2 * y2);
+    }
+    cx /= 6 * A; cy /= 6 * A;
+    return { kind: 'poly', verts: v.map(p => [p[0], p[1]]), c: [cx, cy], k: I / (12 * A) - cx * cx - cy * cy };
+  }
+  if (o.r != null && !o.point) return { kind: 'circle', r: o.r, c: [0, 0], k: o.r * o.r / 2 };
+  return { kind: 'point', r: o.r || 0, c: [0, 0], k: 0 };
+}
+class Body {
+  constructor(W, o) {
+    const s = shapeOf(o);
+    this.W = W; this.id = W._id++; this.tag = o.tag || '';
+    this.type = o.type || 'dynamic';
+    this.kind = s.kind; this.r = s.r || 0;
+    const cg = o.cg || s.c;
+    this.cg = [cg[0], cg[1]];
+    this.verts = s.verts ? s.verts.map(p => [p[0] - cg[0], p[1] - cg[1]]) : null;
+    this.m = o.mass || 1;
+    const dx = cg[0] - s.c[0], dy = cg[1] - s.c[1];
+    this.I = o.I != null ? o.I : this.m * (s.k + dx * dx + dy * dy);
+    const dyn = this.type === 'dynamic';
+    this.invM = dyn ? 1 / this.m : 0;
+    this.invI = dyn && this.I > 0 && !o.noRotate ? 1 / this.I : 0;
+    this.a = o.angle || 0;
+    const c = Math.cos(this.a), sn = Math.sin(this.a), rx = o.x || 0, ry = o.y || 0;
+    this.x = rx + c * cg[0] - sn * cg[1]; this.y = ry + sn * cg[0] + c * cg[1];
+    this.vx = o.vx || 0; this.vy = o.vy || 0; this.w = o.w0 || o.omega || 0;
+    this.px = this.x; this.py = this.y; this.pa = this.a;
+    this.fx = o.fx || 0; this.fy = o.fy || 0; this.torque = 0;
+    this.gk = 1;
+    this.lin = o.linDamp || 0; this.ang = o.angDamp || 0;
+    this.mu = o.mu != null ? o.mu : 0.5; this.muK = o.muK != null ? o.muK : this.mu * 0.8; this.e = o.e || 0;
+    this.drive = o.drive || null;
+    this.collide = o.collide !== false;
+  }
+  point(lx = 0, ly = 0) {
+    const c = Math.cos(this.a), s = Math.sin(this.a), x = lx - this.cg[0], y = ly - this.cg[1];
+    return { x: this.x + c * x - s * y, y: this.y + s * x + c * y };
+  }
+  pose() { const p = this.point(0, 0); return { x: p.x, y: p.y, a: this.a, deg: this.a * 180 / Math.PI }; }
+  cgPos() { return { x: this.x, y: this.y }; }
+  vertices() { return this.verts ? this.verts.map(v => this.point(v[0] + this.cg[0], v[1] + this.cg[1])) : []; }
+  speed() { return Math.hypot(this.vx, this.vy); }
+  place(x, y, a = this.a) {
+    this.a = a; const c = Math.cos(a), s = Math.sin(a);
+    this.x = x + c * this.cg[0] - s * this.cg[1]; this.y = y + s * this.cg[0] + c * this.cg[1];
+    this.px = this.x; this.py = this.y; this.pa = a; this.vx = this.vy = this.w = 0; this.W.wake();
+  }
+}
+function rot(b, lx, ly) { const c = Math.cos(b.a), s = Math.sin(b.a); return [c * lx - s * ly, s * lx + c * ly]; }
+const wOf = (b, rx, ry, nx, ny) => { const k = cr(rx, ry, nx, ny); return b.invM + b.invI * k * k; };
+function push(b, rx, ry, px, py) {
+  if (!b.invM && !b.invI) return;
+  b.x += px * b.invM; b.y += py * b.invM; b.a += b.invI * cr(rx, ry, px, py);
+}
+function solve(A, rAx, rAy, B, rBx, rBy, nx, ny, C, aT, lam) {
+  const w = wOf(A, rAx, rAy, nx, ny) + wOf(B, rBx, rBy, nx, ny);
+  if (w + aT <= 0) return 0;
+  const dl = (-C - aT * lam) / (w + aT);
+  push(A, rAx, rAy, nx * dl, ny * dl); push(B, rBx, rBy, -nx * dl, -ny * dl);
+  return dl;
+}
+function att(W, s) {
+  if (s instanceof Body) s = [s, 0, 0];
+  if (typeof s[0] === 'number') return { b: W.ground, lx: s[0], ly: s[1] };
+  return { b: s[0], lx: (s[1] || 0) - s[0].cg[0], ly: (s[2] || 0) - s[0].cg[1] };
+}
+const wpt = n => { const r = rot(n.b, n.lx, n.ly); return [n.b.x + r[0], n.b.y + r[1], r[0], r[1]]; };
+class Link {
+  constructor(W, a, b, o = {}) {
+    this.W = W; this.A = att(W, a); this.B = att(W, b);
+    const pa = wpt(this.A), pb = wpt(this.B);
+    this.L = o.length != null ? o.length : Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+    this.rope = !!o.rope;
+    this.compliance = o.compliance || 0;
+    this.breakAt = o.breakAt || Infinity; // N
+    this.broken = false; this.lambda = 0; this.force = 0; this.tag = o.tag || '';
+  }
+  iter(h2) {
+    if (this.broken) return;
+    const pa = wpt(this.A), pb = wpt(this.B), dx = pa[0] - pb[0], dy = pa[1] - pb[1], d = Math.hypot(dx, dy);
+    if (d < 1e-12) return;
+    const C = d - this.L;
+    if (this.rope && C <= 0) return;
+    let dl = solve(this.A.b, pa[2], pa[3], this.B.b, pb[2], pb[3], dx / d, dy / d, C, this.compliance / h2, this.lambda);
+    this.lambda += dl;
+  }
+  tension() { return this.force; }
+  ends() { const a = wpt(this.A), b = wpt(this.B); return [{ x: a[0], y: a[1] }, { x: b[0], y: b[1] }]; }
+  angle() { const [a, b] = this.ends(); return Math.atan2(Math.abs(a.y - b.y), Math.abs(a.x - b.x)) * 180 / Math.PI; }
+  forceOnB() { const [a, b] = this.ends(), d = Math.hypot(a.x - b.x, a.y - b.y) || 1; return { x: (a.x - b.x) / d * this.force, y: (a.y - b.y) / d * this.force }; }
+}
+class Rope {
+  constructor(W, a, b, o = {}) {
+    this.W = W; this.kind = o.kind || 'rope'; this.tag = o.tag || '';
+    const A = att(W, a), B = att(W, b), pa = wpt(A), pb = wpt(B);
+    const path = [[pa[0], pa[1]], ...(o.via || []), [pb[0], pb[1]]];
+    let P = 0; const cum = [0];
+    for (let i = 1; i < path.length; i++) cum.push(P += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]));
+    this.length = o.length != null ? o.length : P;
+    const n = o.segments || Math.max(1, Math.round(this.length / (o.segLength || 0.1)));
+    this.segL = this.length / n;
+    const mp = (o.massPerM != null ? o.massPerM : 1) * this.segL;
+    this.nodes = [A];
+    for (let i = 1; i < n; i++) {
+      const s = P * i / n; let k = 1; while (k < cum.length - 1 && cum[k] < s) k++;
+      const f = (s - cum[k - 1]) / ((cum[k] - cum[k - 1]) || 1);
+      const p = W.add({ point: true, r: o.radius || 0.01, mass: mp, x: path[k - 1][0] + (path[k][0] - path[k - 1][0]) * f,
+        y: path[k - 1][1] + (path[k][1] - path[k - 1][1]) * f, mu: o.mu != null ? o.mu : 0.4, linDamp: o.damp || 0, tag: 'rope' });
+      this.nodes.push({ b: p, lx: 0, ly: 0 });
+    }
+    this.nodes.push(B);
+    this.segs = []; for (let i = 0; i < n; i++) this.segs.push({ L: this.segL, lambda: 0, force: 0, avg: 0, broken: false, breakAt: o.breakAt || Infinity });
+    this.compliance = o.compliance || 0;
+    this.bend = o.bend != null ? o.bend : (this.kind === 'hose' ? 1e-3 : 0);
+    this.tensionHint = o.tensionHint || 0;
+    this.Test = null;
+    this.mp = mp; this.radius = o.radius || 0.01; this.mu = o.mu != null ? o.mu : 0.4;
+  }
+  iter(h2) {
+    const N = this.nodes, S = this.segs, n = S.length;
+    if (!this.B || this.B.n < n + 1) { const k = n + 9, F = () => new Float64Array(k); this.B = { n: k, px: F(), py: F(), rx: F(), ry: F(), nx: F(), ny: F(), C: F(), dg: F(), up: F(), rhs: F(), dl: F(), on: new Uint8Array(k) }; }
+    const { px, py, rx, ry, nx, ny, C, dg, up, rhs, dl, on } = this.B;
+    for (let k = 0; k <= n; k++) {
+      const nd = N[k], b = nd.b;
+      if (!nd.lx && !nd.ly) { px[k] = b.x; py[k] = b.y; rx[k] = ry[k] = 0; }
+      else { const r = rot(b, nd.lx, nd.ly); rx[k] = r[0]; ry[k] = r[1]; px[k] = b.x + r[0]; py[k] = b.y + r[1]; }
+    }
+    for (let j = 0; j < n; j++) {
+      const dx = px[j] - px[j + 1], dy = py[j] - py[j + 1], d = Math.hypot(dx, dy);
+      if (d > 1e-12) { nx[j] = dx / d; ny[j] = dy / d; } else { nx[j] = ny[j] = 0; }
+      C[j] = d - S[j].L; on[j] = !S[j].broken && d > 1e-12 && C[j] > -1e-3 * S[j].L ? 1 : 0;
+    }
+    const wn = (k, j) => wOf(N[k].b, rx[k], ry[k], nx[j], ny[j]);
+    const aT = this.compliance / h2;
+    for (let pass = 0; pass < 4; pass++) {
+      for (let j = 0; j < n; j++) {
+        up[j] = 0;
+        if (!on[j]) { dg[j] = 1; rhs[j] = 0; continue; }
+        dg[j] = wn(j, j) + wn(j + 1, j) + aT; rhs[j] = -C[j] - aT * S[j].lambda;
+        if (j + 1 < n && on[j + 1]) up[j] = -N[j + 1].b.invM * (nx[j] * nx[j + 1] + ny[j] * ny[j + 1]);
+      }
+      for (let j = 1; j < n; j++) {
+        if (!up[j - 1]) continue; const m = up[j - 1] / dg[j - 1]; dg[j] -= m * up[j - 1]; rhs[j] -= m * rhs[j - 1];
+      }
+      for (let j = n - 1; j >= 0; j--) dl[j] = on[j] ? (rhs[j] - (j + 1 < n ? up[j] * dl[j + 1] : 0)) / dg[j] : 0;
+      let again = false;
+      for (let j = 0; j < n; j++) if (on[j] && S[j].lambda + dl[j] > 0) { on[j] = 0; again = true; }
+      if (!again) break;
+    }
+    for (let j = 0; j < n; j++) if (on[j]) {
+      const d = dl[j]; push(N[j].b, rx[j], ry[j], nx[j] * d, ny[j] * d); push(N[j + 1].b, rx[j + 1], ry[j + 1], -nx[j] * d, -ny[j] * d);
+      S[j].lambda += d;
+    }
+    if (this.bend) for (let k = 1; k < n; k++) {
+      const a = N[k - 1].b, b = N[k + 1].b; if (a.kind !== 'point' || b.kind !== 'point') continue;
+      const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy), C2 = d - S[k - 1].L - S[k].L;
+      if (C2 < 0 && d > 1e-9) solve(a, 0, 0, b, 0, 0, dx / d, dy / d, C2, this.bend / h2, 0);
+    }
+  }
+  points() { return this.nodes.map(n => { const p = wpt(n); return { x: p[0], y: p[1] }; }); }
+  tensions() { return this.segs.map(s => s.force); }
+  tension(j = 0) { return this.segs[j < 0 ? this.segs.length + j : j].force; }
+  tensionAvg(j = 0) { return this.segs[j < 0 ? this.segs.length + j : j].avg; }
+  maxTension() { let m = 0; for (const s of this.segs) if (s.force > m) m = s.force; return m; }
+  broken() { return this.segs.some(s => s.broken); }
+  angle(j) {
+    const p = this.points(), a = j == null ? p[0] : p[j], b = j == null ? p[p.length - 1] : p[j + 1];
+    return Math.atan2(Math.abs(a.y - b.y), Math.abs(a.x - b.x)) * 180 / Math.PI;
+  }
+  endForce(end = 'B') {
+    const p = this.points(), j = end === 'A' ? 0 : p.length - 1, k = end === 'A' ? 1 : p.length - 2;
+    const s = this.segs[end === 'A' ? 0 : this.segs.length - 1], d = Math.hypot(p[k].x - p[j].x, p[k].y - p[j].y) || 1;
+    return { x: (p[k].x - p[j].x) / d * s.force, y: (p[k].y - p[j].y) / d * s.force };
+  }
+}
+class Line {
+  constructor(o) { this.mu = o.mu != null ? o.mu : 0.5; this.muK = o.muK; this.e = o.e; this.drive = o.drive || null; this.set(o.x1, o.y1, o.x2, o.y2); this.prev = this.p.slice(); }
+  set(x1, y1, x2, y2) {
+    this.p = [x1, y1, x2, y2]; const dx = x2 - x1, dy = y2 - y1; this.len = Math.hypot(dx, dy);
+    this.tx = dx / this.len; this.ty = dy / this.len; this.nx = -this.ty; this.ny = this.tx;
+  }
+  vel(s, h) {
+    const f = s / this.len, p = this.p, q = this.prev;
+    return [((p[0] - q[0]) * (1 - f) + (p[2] - q[2]) * f) / h, ((p[1] - q[1]) * (1 - f) + (p[3] - q[3]) * f) / h];
+  }
+}
+class World {
+  constructor(o = {}) {
+    this._id = 0; this.hz = o.hz || 1000; this.h = 1 / this.hz; this.hMs = 1000 / this.hz;
+    this.iterations = o.iterations || 4; this.ropeCfl = o.ropeCfl || 0.4;
+    this.gx = 0; this.gy = o.gravity != null ? -o.gravity : -G;
+    this.bodies = []; this.links = []; this.ropes = []; this.lines = []; this.sheaves = []; this.winches = []; this.motors = [];
+    this.contacts = []; this.groups = []; this.events = []; this.listeners = []; this.onSubstep = null;
+    this.clockMs = 0; this.steps = 0; this.t = 0;
+    this.sleepAfter = o.sleepAfter != null ? o.sleepAfter : 0.5; this.sleepV = o.sleepV || 0.005; this.calm = 0; this.asleep = false;
+    this.maxCatchUp = o.maxCatchUp || Infinity; // substeps per step() call; sims clamp frame ms in their rAF loop
+    this.ground = new Body(this, { type: 'static', point: true, mass: 1 });
+    this.extraDamp = 0;
+  }
+  add(o) { const b = new Body(this, o); this.bodies.push(b); this.wake(); return b; }
+  box(o) { return this.add(o); }
+  circle(o) { return this.add(o); }
+  poly(o) { return this.add(o); }
+  particle(o) { return this.add({ ...o, point: true }); }
+  link(a, b, o) { const l = new Link(this, a, b, o); this.links.push(l); this.wake(); return l; }
+  pin(a, b, o = {}) { return this.link(a, b, { ...o, length: 0 }); }
+  rope(a, b, o) { const r = new Rope(this, a, b, o); this.ropes.push(r); this.wake(); return r; }
+  line(x1, y1, x2, y2, o = {}) { const l = new Line({ ...o, x1, y1, x2, y2 }); this.lines.push(l); return l; }
+  floor(y = 0, o = {}) { return this.line(-1e4, y, 1e4, y, o); }
+  sheave(o) { const s = { x: o.x, y: o.y, r: o.r, angle: 0, omega: 0, _d: 0, _n: 0 }; this.sheaves.push(s); return s; }
+  motor(b, o = {}) { const m = { b, omega: o.omega || 0, maxTorque: o.maxTorque || Infinity, lambda: 0, torque: 0 }; this.motors.push(m); this.wake(); return m; }
+  winch(rope, o) {
+    const w = { rope, x: o.x, y: o.y, r: o.r, speed: o.speed || 0, maxForce: o.maxForce || Infinity, side: o.side || 1,
+      angle: 0, reeled: 0, stalled: false, minSegs: o.minSegs || 1 };
+    this.sheave({ x: o.x, y: o.y, r: o.r, drum: true });
+    rope.nodes[0] = { b: this.ground, lx: o.x, ly: o.y + o.r }; this._tangent(w);
+    const p = wpt(rope.nodes[1]); rope.segs[0].L = Math.hypot(p[0] - rope.nodes[0].lx, p[1] - rope.nodes[0].ly);
+    this.winches.push(w); this.wake(); return w;
+  }
+  _tangent(w, h) {
+    const N = w.rope.nodes; let k = 1, q = wpt(N[1]);
+    while (k < N.length - 1 && Math.hypot(q[0] - w.x, q[1] - w.y) < 3 * w.r) q = wpt(N[++k]);
+    const dx = q[0] - w.x, dy = q[1] - w.y, d = Math.hypot(dx, dy), R = w.r + w.rope.radius;
+    if (d > R) {
+      const tgt = Math.atan2(dy, dx) + Math.acos(R / d) * w.side;
+      if (w.phi == null || !h) w.phi = tgt; else w.phi += Math.atan2(Math.sin(tgt - w.phi), Math.cos(tgt - w.phi)) * Math.min(1, h / 0.25);
+    }
+    N[0].lx = w.x + R * Math.cos(w.phi); N[0].ly = w.y + R * Math.sin(w.phi);
+  }
+  remove(b) { b.removed = true; this.bodies = this.bodies.filter(x => x !== b); this.motors = this.motors.filter(m => m.b !== b);
+    this.links.forEach(l => { if (l.A.b === b || l.B.b === b) l.broken = true; }); }
+  on(fn) { this.listeners.push(fn); }
+  emit(e) { e.t = this.t; this.events.push(e); this.listeners.forEach(f => f(e)); }
+  wake() { this.asleep = false; this.calm = 0; }
+  step(ms) {
+    this.clockMs += ms;
+    let target = Math.floor(this.clockMs / this.hMs + 1e-7);
+    if (target - this.steps > this.maxCatchUp) { this.steps = target - this.maxCatchUp; }
+    while (this.steps < target) { this.steps++; this.substep(); }
+  }
+  settle(seconds = 3, damp = 8) {
+    const t0 = this.t; this.extraDamp = damp; const n = Math.round(seconds * this.hz);
+    for (let i = 0; i < n; i++) this.substep();
+    this.extraDamp = 0; this.t = t0; for (const b of this.bodies) { b.vx = b.vy = b.w = 0; b.px = b.x; b.py = b.y; b.pa = b.a; }
+  }
+  substep() {
+    const h = this.h, h2 = h * h, t = this.t + h;
+    if (this.onSubstep) this.onSubstep(t, this);
+    for (const l of this.lines) { l.prev = l.p.slice(); if (l.drive) { const p = l.drive(t); l.set(p[0], p[1], p[2], p[3]); if (p.some((v, i) => v !== l.prev[i])) this.wake(); } }
+    for (const b of this.bodies) if (b.type === 'kinematic' && b.drive) {
+      const d = b.drive(t), ox = b.x, oy = b.y, oa = b.a;
+      b.a = d.a || 0; const c = Math.cos(b.a), s = Math.sin(b.a);
+      b.x = d.x + c * b.cg[0] - s * b.cg[1]; b.y = d.y + s * b.cg[0] + c * b.cg[1];
+      b.px = ox; b.py = oy; b.pa = oa; b.vx = (b.x - ox) / h; b.vy = (b.y - oy) / h; b.w = (b.a - oa) / h;
+      if (b.vx || b.vy || b.w) this.wake();
+    }
+    if (this.winches.some(w => w.speed) || this.motors.some(m => m.omega)) this.wake();
+    for (const b of this.bodies) if (b.fx !== b._fx || b.fy !== b._fy || b.torque !== b._tq) { b._fx = b.fx; b._fy = b.fy; b._tq = b.torque; this.wake(); }
+    if (this.asleep) { this.t = t; return; }
+    for (const w of this.winches) this._winch(w, h);
+    for (const r of this.ropes) {
+      let cap = r.tensionHint;
+      for (const n of [r.nodes[0], r.nodes[r.nodes.length - 1]]) if (n.b.type === 'dynamic' && n.b.kind !== 'point') cap += 4 * (n.b.m * Math.abs(this.gy) + Math.hypot(n.b.fx, n.b.fy));
+      const T = Math.min(r.maxTension(), cap || Infinity); if (r.Test == null) r.Test = cap / 2;
+      r.Test += (T - r.Test) * Math.min(1, h / (T > r.Test ? 0.1 : 1));
+      const ms = r.broken() ? r.mp : Math.max(r.mp, r.Test * h2 / (r.segL * this.ropeCfl * this.ropeCfl));
+      for (let k = 1; k < r.nodes.length - 1; k++) { const b = r.nodes[k].b; if (b.kind === 'point' && b.type === 'dynamic') { b.invM = 1 / ms; b.gk = b.m / ms; } }
+    }
+    for (const b of this.bodies) if (b.type === 'dynamic') {
+      b.px = b.x; b.py = b.y; b.pa = b.a; b.sx = b.vx; b.sy = b.vy; b.sw = b.w;
+      b.vx += (this.gx * b.gk + b.fx * b.invM) * h; b.vy += (this.gy * b.gk + b.fy * b.invM) * h; b.w += b.torque * b.invI * h;
+      b.vpx = b.vx; b.vpy = b.vy; b.vpw = b.w;
+      b.x += b.vx * h; b.y += b.vy * h; b.a += b.w * h;
+    }
+    this._collect();
+    for (const l of this.links) l.lambda = 0;
+    for (const r of this.ropes) for (const s of r.segs) s.lambda = 0;
+    for (const m of this.motors) m.lambda = 0;
+    for (const s of this.sheaves) { s._d = 0; s._n = 0; }
+    for (let it = 0; it < this.iterations; it++) {
+      for (const c of this.contacts) this._contact(c, h);
+      for (const g of this.groups) this._friction(g, h);
+      for (const r of this.ropes) r.iter(h2);
+      for (const l of this.links) l.iter(h2);
+      for (const m of this.motors) {
+        const b = m.b; if (!b.invI) continue;
+        let dl = -((b.a - b.pa) - m.omega * h) / b.invI, lim = m.maxTorque * h2;
+        dl = Math.max(-lim - m.lambda, Math.min(lim - m.lambda, dl)); m.lambda += dl; b.a += b.invI * dl;
+      }
+    }
+    for (const b of this.bodies) if (b.type === 'dynamic') { b.vx = (b.x - b.px) / h; b.vy = (b.y - b.py) / h; b.w = (b.a - b.pa) / h; }
+    for (const c of this.contacts) this._contactVel(c, h);
+    let calm = true;
+    const ed = this.extraDamp;
+    for (const b of this.bodies) if (b.type === 'dynamic') {
+      const kl = 1 / (1 + (b.lin + ed) * h), ka = 1 / (1 + (b.ang + ed) * h);
+      b.vx *= kl; b.vy *= kl; b.w *= ka;
+      if (Math.abs(b.vx) > this.sleepV || Math.abs(b.vy) > this.sleepV || Math.abs(b.w) > this.sleepV * 4) calm = false;
+    }
+    for (const l of this.links) { l.force = -l.lambda / h2; if (!l.broken && l.force > l.breakAt) { l.broken = true; this.emit({ type: 'break', link: l, force: l.force }); } }
+    for (const r of this.ropes) r.segs.forEach((s, j) => {
+      s.force = s.broken ? 0 : -s.lambda / h2; s.avg += (s.force - s.avg) * Math.min(1, h / 0.05);
+      if (!s.broken && s.force > s.breakAt) { s.broken = true; this.emit({ type: 'break', rope: r, seg: j, force: s.force }); s.force = 0; }
+    });
+    for (const m of this.motors) m.torque = m.lambda / h2;
+    for (const s of this.sheaves) { const d = s._n ? s._d / s._n : 0; s.angle += d; s.omega += (d / h - s.omega) * Math.min(1, h / 0.05); }
+    this.t = t;
+    this.calm = calm ? this.calm + h : 0;
+    if (this.sleepAfter > 0 && this.calm >= this.sleepAfter) {
+      this.asleep = true; for (const b of this.bodies) if (b.type === 'dynamic') { b.vx = b.vy = b.w = 0; }
+    }
+  }
+  _winch(w, h) {
+    const r = w.rope, s0 = r.segs[0];
+    w.stalled = w.speed > 0 && s0.force > w.maxForce;
+    const ds = w.stalled ? 0 : w.speed * h;
+    s0.L -= ds; w.reeled += ds; w.angle += ds / w.r * w.side;
+    while (s0.L < 0.3 * r.segL && r.segs.length > w.minSegs) {
+      const gone = r.nodes[1].b, p0 = wpt(r.nodes[0]), p2 = wpt(r.nodes[2]); r.nodes.splice(1, 1); const nxt = r.segs[1]; r.segs.splice(0, 1);
+      nxt.L = Math.min(nxt.L + s0.L, Math.hypot(p2[0] - p0[0], p2[1] - p0[1]));
+      r.segs[0] = nxt; this.bodies = this.bodies.filter(b => b !== gone); break;
+    }
+    const f = r.segs[0];
+    if (f.L > 1.5 * r.segL) {
+      const q = wpt(r.nodes[1]), p = wpt(r.nodes[0]), dx = p[0] - q[0], dy = p[1] - q[1], d = Math.hypot(dx, dy) || 1, k = Math.min(1, r.segL / d);
+      const nb = q[0] + dx * k, nby = q[1] + dy * k, src = r.nodes[1].b;
+      const b = this.add({ point: true, r: r.radius, mass: r.mp, x: nb, y: nby, mu: r.mu, tag: 'rope' });
+      b.vx = src.vx; b.vy = src.vy;
+      r.nodes.splice(1, 0, { b, lx: 0, ly: 0 }); r.segs.splice(1, 0, { L: r.segL, lambda: 0, force: 0, avg: f.avg, broken: false, breakAt: f.breakAt }); f.L -= r.segL;
+    }
+    this._tangent(w, h);
+  }
+  _collect() {
+    const C = this.contacts; C.length = 0; this.groups.length = 0;
+    for (const b of this.bodies) {
+      if (b.type !== 'dynamic' || !b.collide) continue;
+      for (const L of this.lines) {
+        const from = C.length;
+        if (b.kind === 'box' || b.kind === 'poly') { for (const v of b.verts) this._probe(b, L, v[0], v[1], 0); }
+        else this._probe(b, L, 0, 0, b.r, b.kind === 'circle');
+        if (C.length > from) this.groups.push({ b, L, from, to: C.length, lt: 0 });
+      }
+      if (b.kind === 'point') for (const s of this.sheaves) {
+        const dx = b.x - s.x, dy = b.y - s.y, d = Math.hypot(dx, dy);
+        if (d < s.r + b.r + 0.02 && d > 1e-9) C.push({ b, sh: s, lx: 0, ly: 0, rad: b.r, ln: 0 });
+      }
+    }
+  }
+  _probe(b, L, lx, ly, rad, circ) {
+    let px = b.x, py = b.y;
+    if (lx || ly) { const r = rot(b, lx, ly); px += r[0]; py += r[1]; }
+    const s = (px - L.p[0]) * L.tx + (py - L.p[1]) * L.ty, dep = (px - L.p[0]) * L.nx + (py - L.p[1]) * L.ny - rad;
+    if (s < -rad || s > L.len + rad || dep > 0.02 || dep < -0.3) return;
+    this.contacts.push({ b, L, lx, ly, rad, circ, ln: 0, mu: Math.sqrt(b.mu * L.mu),
+      muK: Math.sqrt(b.muK * (L.muK != null ? L.muK : L.mu * 0.8)), e: Math.max(b.e, L.e || 0) });
+  }
+  _frame(c) {
+    const b = c.b;
+    if (c.sh) { const dx = b.x - c.sh.x, dy = b.y - c.sh.y, d = Math.hypot(dx, dy) || 1; return { rx: 0, ry: 0, nx: dx / d, ny: dy / d, dep: d - c.sh.r - c.rad, s: 0 }; }
+    const L = c.L; let rx, ry;
+    if (c.circ) { rx = -L.nx * c.rad; ry = -L.ny * c.rad; } else { const r = rot(b, c.lx, c.ly); rx = r[0]; ry = r[1]; }
+    const px = b.x + rx, py = b.y + ry;
+    return { rx, ry, nx: L.nx, ny: L.ny, dep: (px - L.p[0]) * L.nx + (py - L.p[1]) * L.ny - (c.circ ? 0 : c.rad), s: (px - L.p[0]) * L.tx + (py - L.p[1]) * L.ty };
+  }
+  _contact(c, h) {
+    const b = c.b;
+    if (c.sh) {
+      const sh = c.sh, dx = b.x - sh.x, dy = b.y - sh.y, d = Math.hypot(dx, dy) || 1, dep = d - sh.r - c.rad;
+      if (dep >= 0 || !b.invM) return;
+      const nx = dx / d, ny = dy / d; b.x -= nx * dep; b.y -= ny * dep; c.ln -= dep / b.invM;
+      sh._d += ((b.x - b.px) * -ny + (b.y - b.py) * nx) / (sh.r + c.rad); sh._n++;
+      return;
+    }
+    const f = this._frame(c);
+    if (f.dep >= 0) return;
+    c.ln += solve(b, f.rx, f.ry, this.ground, 0, 0, f.nx, f.ny, f.dep, 0, 0);
+  }
+  _friction(g, h) {
+    const b = g.b, L = g.L; let ln = 0, rx = 0, ry = 0;
+    for (let i = g.from; i < g.to; i++) { const c = this.contacts[i]; if (c.ln > 0) { const f = this._frame(c); ln += c.ln; rx += f.rx * c.ln; ry += f.ry * c.ln; } }
+    if (ln <= 0) return;
+    rx /= ln; ry /= ln;
+    const cl = Math.cos(b.pa - b.a), sl = Math.sin(b.pa - b.a), rpx = cl * rx - sl * ry, rpy = sl * rx + cl * ry;
+    const sP = (b.x + rx - L.p[0]) * L.tx + (b.y + ry - L.p[1]) * L.ty, lv = L.vel(sP, h);
+    let dx = (b.x + rx) - (b.px + rpx) - lv[0] * h, dy = (b.y + ry) - (b.py + rpy) - lv[1] * h;
+    const dn = dx * L.nx + dy * L.ny; dx -= dn * L.nx; dy -= dn * L.ny;
+    const dt = Math.hypot(dx, dy); if (dt < 1e-12) return;
+    if (g.slide == null) {
+      const vx = b.sx - b.sw * ry - lv[0], vy = b.sy + b.sw * rx - lv[1];
+      g.slide = Math.abs(vx * L.tx + vy * L.ty) > 0.005;
+    }
+    const c0 = this.contacts[g.from], tx = dx / dt, ty = dy / dt, w = wOf(b, rx, ry, tx, ty);
+    const room = (g.slide ? c0.muK : c0.mu) * ln - g.lt; if (room <= 0) return;
+    const d = Math.min(dt, room * w);
+    solve(b, rx, ry, this.ground, 0, 0, tx, ty, d, 0, 0); g.lt += d / w;
+  }
+  _contactVel(c, h) {
+    if (c.ln <= 0) return;
+    const f = this._frame(c), b = c.b, lv = c.sh ? [0, 0] : c.L.vel(f.s, h);
+    const vpn = (b.vpx - b.vpw * f.ry - lv[0]) * f.nx + (b.vpy + b.vpw * f.rx - lv[1]) * f.ny;
+    const e = Math.abs(vpn) < 4 * Math.abs(this.gy) * h ? 0 : (c.e || 0);
+    const vn = (b.vx - b.w * f.ry - lv[0]) * f.nx + (b.vy + b.w * f.rx - lv[1]) * f.ny, dv = Math.max(-e * vpn, 0) - vn;
+    if (dv > 0) { const J = dv / wOf(b, f.rx, f.ry, f.nx, f.ny); this._imp(b, f.rx, f.ry, f.nx * J, f.ny * J); }
+  }
+  _imp(b, rx, ry, jx, jy) { b.vx += jx * b.invM; b.vy += jy * b.invM; b.w += b.invI * cr(rx, ry, jx, jy); }
+  contactForce(b) {
+    const h2 = this.h * this.h, pts = []; let fx = 0, fy = 0;
+    for (const c of this.contacts) if (c.b === b && c.ln > 0) {
+      const f = this._frame(c), fn = c.ln / h2; fx += f.nx * fn; fy += f.ny * fn;
+      pts.push({ x: b.x + f.rx, y: b.y + f.ry, fn });
+    }
+    return { fx, fy, points: pts };
+  }
+  energy() {
+    let ke = 0, pe = 0;
+    for (const b of this.bodies) if (b.type === 'dynamic') { ke += 0.5 * b.m * (b.vx * b.vx + b.vy * b.vy) + 0.5 * b.I * b.w * b.w; pe -= b.m * (this.gy * b.y + this.gx * b.x); }
+    return { ke, pe, total: ke + pe };
+  }
+  static rng(seed = 1) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  burst(b, n = 4, o = {}) {
+    const R = b.r, rnd = World.rng(o.seed || 7), parts = [], k = o.arcPts || 4, kick = o.kick || 0;
+    const a0 = rnd() * Math.PI * 2, c = b.point(0, 0);
+    for (let i = 0; i < n; i++) {
+      const v = [[0, 0]];
+      for (let j = 0; j <= k; j++) { const t = a0 + (i + j / k) * 2 * Math.PI / n; v.push([R * Math.cos(t), R * Math.sin(t)]); }
+      const p = this.add({ verts: v, mass: b.m / n, x: c.x, y: c.y, angle: b.a, mu: b.mu, e: o.e != null ? o.e : 0.3, linDamp: 0.05, tag: 'frag' });
+      const rx = p.x - b.x, ry = p.y - b.y, d = Math.hypot(rx, ry) || 1;
+      p.vx = b.vx - b.w * ry + kick * rx / d; p.vy = b.vy + b.w * rx + kick * ry / d; p.w = b.w;
+      parts.push(p);
+    }
+    this.remove(b); return parts;
+  }
+  snapshot() { return this.bodies.map(b => [b.x, b.y, b.a, b.vx, b.vy, b.w]); }
+}
+const CFPhysics = { World, Body, Link, Rope, G, version: '1.0' };
+root.CFPhysics = CFPhysics;
+if (typeof module !== 'undefined' && module.exports) module.exports = CFPhysics;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function () {
+'use strict';
+const K = window.CFK, C = K.C, f = K.f, PH = window.CFPhysics;
+const k = 4, FLOOR = K.FLOOR, M = 39.37 * k;
+const COLL = 70, COLR = 1530, RAIL_Y = 226, GIRD_TOP = 40, GIRD_D = 24 * k, FL_Y = GIRD_TOP + GIRD_D;
+const SPAN_IN = (COLR - COLL) / k;
+const REEVE = { 1: [2, .25, 6800], 2: [2, .3125, 10540], 3: [4, .3125, 10540], 5: [4, .375, 15100], 10: [4, .5, 26600] };
+const V_HOIST = 16 / 60 * .3048, V_TROL = 65 / 60 * .3048, V_BRID = 100 / 60 * .3048, RAMP = 1.5, G = 9.80665;
+const LB2KG = K.LB2KG, RUNWAY_M = 24;
+window.CFScenes = window.CFScenes || {};
+window.CFScenes.crane = function () {
+  const sc = {};
+  sc.defaults = { units: 'imp', ccap: 5, load: 4000, hooked: true, hh: 0, tx: .5, bz: .4, hup: 0, hdn: 0, tE: 0, tW: 0, bN: 0, bS: 0,
+    mark: 'ok', hookc: 'ok', rope: 'ok', limit: 'ok', cbrake: 'ok', pendant: 'ok', horn: 'ok', lock: false, fail: true,
+    offset: 0, card: 'cap', target: null, horning: 0, estop: 0 };
+  sc.instant = ['ccap'];
+  let lerpT = { a: 0, b: 0, x0: 0, x1: 0 }, drifted = false, ropes = [], lastHh = null, W = null, trolley = null, block = null, load = null, rope = null, legs = [], fx = null, vT = 0, vB = 0, vH = 0, sw = { th: 0, om: 0 }, ropeLen = 0, key = '', tripT = -9;
+  const loadDims = S => { const s = Math.max(.7, Math.min(1.5, Math.cbrt(S.load / 4000))); return { w: 1.5 * s, h: .62 * s }; };
+  const BLOCK_H = .48, HOOK_DROP = .21;
+  const trolleyY = () => (FLOOR - (FL_Y + 34)) / M;
+  sc.calc = function (S) {
+    const rated = S.ccap * 2000, r = REEVE[S.ccap] || REEVE[5], parts = r[0], mbl = r[2];
+    const o = { rated, parts, rope: r[1], mbl, W: S.load };
+    o.perPart = S.hooked ? S.load / parts : 0;
+    o.dfRated = mbl / (rated / parts);
+    o.df = o.perPart > 0 ? mbl / o.perPart : null;
+    o.test = rated * 1.25;
+    o.util = S.hooked ? S.load / rated : 0;
+    o.defects = ['mark', 'hookc', 'rope', 'limit', 'cbrake', 'pendant', 'horn'].filter(k2 => S[k2] !== 'ok').length;
+    o.hookHt = S.hh;
+    o.limitTrip = 1 - 1e-9;
+    o.lifted = !!(load && S.hooked && liftedNow());
+    o.swing = swingNow();
+    o.fail = fx ? { on: true, kind: fx.kind, caption: fx.caption, landed: fx.landed } : { on: false };
+    o.status = o.fail.on || o.util > 1 ? 'bad' : o.defects || S.lock ? 'warn' : 'ok';
+    o.ready = !o.defects && !S.lock && o.util <= 1;
+    o.tripped = S.limit === 'ok' && S.hh >= maxHh(S) - .02;
+    return o;
+  };
+  const liftedNow = () => { const v = load.vertices(); return Math.min(...v.map(p => p.y)) > .01; };
+  function swingNow() {
+    if (!block || !trolley) return { x: 0, z: 0 };
+    const tp = trolley.pose(), lp = load && S0.hooked ? load.cgPos() : block.cgPos();
+    return { x: lp.x - tp.x, z: Math.sin(sw.th) * (ropeLen + .8) };
+  }
+  let S0 = null;
+  function maxHh(S) { const ld = loadDims(S); return Math.max(.5, (trolleyY() - .25 - BLOCK_H - HOOK_DROP - (S.hooked ? .55 + ld.h : 0)) / .3048 + (S.hooked ? 0 : 0)); }
+  sc.maxHh = maxHh;
+  function build(S) {
+    S0 = S; fx = null; drifted = false; vT = vB = vH = 0; sw = { th: 0, om: 0 }; tripT = -9;
+    W = new PH.World({ iterations: 4 });
+    W.floor(0, { mu: .6 });
+    const xT = () => (COLL + 60 + S.tx * (COLR - COLL - 120)) / M;
+    trolley = W.add({ type: 'kinematic', w: .6, h: .2, x: xT(), y: trolleyY(), drive: t => { const u = lerpT.b > lerpT.a ? Math.max(0, Math.min(1, (t - lerpT.a) / (lerpT.b - lerpT.a))) : 1; return { x: (COLL + 60 + (lerpT.x0 + (lerpT.x1 - lerpT.x0) * u) * (COLR - COLL - 120)) / M, y: trolleyY() }; } });
+    lerpT = { a: 0, b: 0, x0: S.tx, x1: S.tx };
+    const ld = loadDims(S), m = Math.max(50, S.load * LB2KG);
+    const off = (S.offset || 0) * .3048;
+    const lx = xT() + off;
+    load = W.box({ x: lx, y: ld.h / 2 + .001, w: ld.w, h: ld.h, mass: m, mu: .45 });
+    const lug = ld.w * .4, legL = lug / Math.cos(Math.PI / 3);
+    const hookY = (S.hooked ? ld.h + legL * Math.sin(Math.PI / 3) : 0) + S.hh * .3048;
+    block = W.box({ x: xT(), y: hookY + HOOK_DROP + BLOCK_H / 2, w: .4, h: BLOCK_H, mass: 120 + 40 * S.ccap, angDamp: 1.5 });
+    ropeLen = trolleyY() - (hookY + HOOK_DROP + BLOCK_H);
+    ropes = [-.1, .1].map(dx => W.link([trolley, dx, 0], [block, dx, BLOCK_H / 2], { length: ropeLen, rope: true }));
+    rope = ropes[0];
+    legs = S.hooked ? [-1, 1].map(sg => W.link([block, 0, -BLOCK_H / 2 - HOOK_DROP], [load, sg * lug, ld.h / 2], { length: legL, rope: true })) : [];
+    if (!S.hooked) { W.remove(load); load = null; }
+    W.on(e => { if (e.type === 'break' && !fx) fail(S, 'break'); });
+    W.settle(1.5);
+    key = JSON.stringify([S.ccap, S.load, S.hooked, S.offset]);
+  }
+  function fail(S, kind) {
+    const caption = kind === 'twoblock' ? 'Upper limit switch faulty: the hook block hits the drum and the rope parts'
+      : `${K.n1(S.load / (sc.calc(S).rated))}× rated load: ${K.n0(S.load / sc.calc(S).parts)} lb on each part, more than the rope holds. It breaks`;
+    fx = { kind, t: 0, caption, landed: false };
+    ropes.forEach(r => { r.broken = true; }); block.w = 2.5; W.wake();
+  }
+  sc.reset = S => build(S);
+  sc.onSet = function (S, ch) {
+    S0 = S;
+    if (ch.some(c => ['ccap', 'load', 'hooked', 'offset'].includes(c)) && JSON.stringify([S.ccap, S.load, S.hooked, S.offset]) !== key) build(S);
+    if (ch.includes('hh') && !ch.includes('snap')) setHook(S, true);
+    if (ch.includes('fail') && !S.fail && fx) build(S);
+  };
+  function setHook(S, snap) {
+    const ld = loadDims(S), lug = ld.w * .4, legL = lug / Math.cos(Math.PI / 3);
+    const hookY = (S.hooked ? ld.h + legL * Math.sin(Math.PI / 3) : 0) + S.hh * .3048;
+    ropeLen = Math.max(.05, trolleyY() - (hookY + HOOK_DROP + BLOCK_H));
+    ropes.forEach(r => { r.L = ropeLen; }); W.wake();
+    if (snap && !S.hooked) { const tp = trolley.pose(); block.place(tp.x, hookY + HOOK_DROP + BLOCK_H / 2, 0); }
+  }
+  sc.failure = (S, o) => o.fail;
+  sc.busy = S => !!(S.hup || S.hdn || S.tE || S.tW || S.bN || S.bS || fx && !fx.landed || W && !W.asleep);
+  sc.moving = sc.busy;
+  sc.step = function (dt, S, o) {
+    S0 = S;
+    if (!W) build(S);
+    const live = !S.lock && !fx && !S.estop;
+    const ramp = (v, want, vmax) => { const a = vmax / RAMP * dt; return want > v ? Math.min(want, v + a) : Math.max(want, v - a); };
+    vT = ramp(vT, live ? (S.tE - S.tW) * V_TROL : 0, V_TROL);
+    vB = ramp(vB, live ? (S.bN - S.bS) * V_BRID : 0, V_BRID);
+    const span = (COLR - COLL - 120) / M;
+    if (vT) { S.tx = Math.max(0, Math.min(1, S.tx + vT * dt / span)); if (S.tx <= 0 || S.tx >= 1) vT = 0; }
+    if (vB) { S.bz = Math.max(0, Math.min(1, S.bz + vB * dt / RUNWAY_M)); if (S.bz <= 0 || S.bz >= 1) vB = 0; }
+    vH = live ? (S.hup - S.hdn) * V_HOIST : 0;
+    if (S.cbrake === 'slips' && live && !S.hup && S.hooked && S.hh > 0 && o.lifted) { vH = -.015; drifted = true; }
+    if (vH) {
+      const top = maxHh(S), limitOK = S.limit === 'ok';
+      let h = S.hh + vH * dt / .3048;
+      if (vH > 0 && limitOK && h >= top) { h = top; tripT = 0; }
+      if (vH > 0 && !limitOK && h >= top + .35 && S.fail) { S.hh = h; setHook(S); fail(S, 'twoblock'); }
+      S.hh = Math.max(S.hooked ? -.3 : 0, Math.min(limitOK ? top : top + .4, h));
+      if (!fx) setHook(S);
+    }
+    if (!fx && S.hh !== lastHh) { lastHh = S.hh; setHook(S); }
+    if (tripT >= 0) tripT += dt;
+    const L = Math.max(.5, ropeLen + 1), aB = (vB - (sw.vB || 0)) / Math.max(dt, 1e-6); sw.vB = vB;
+    if (o.lifted || !S.hooked) { const h = 1 / 240; for (let t = 0; t < dt - 1e-9; t += h) { sw.om += (-G / L * Math.sin(sw.th) - aB / L * Math.cos(sw.th)) * h; sw.om *= (1 - .02 * h); sw.th += sw.om * h; } }
+    else sw.th = sw.om = 0;
+    lerpT = { a: W.t, b: W.t + dt, x0: lerpT.x1, x1: S.tx };
+    W.step(dt * 1000);
+    if (fx && load) {
+      const v = load.vertices(), top = Math.max(...v.map(p => p.y)), xs = v.map(p => p.x), bp = block.pose();
+      if (bp.x > Math.min(...xs) && bp.x < Math.max(...xs) && bp.y - BLOCK_H / 2 < top) { block.place(bp.x, top + BLOCK_H / 2, bp.a * .9); }
+    }
+    if (fx) { fx.t += dt; if (!fx.landed && fx.t > .4 && W.asleep) fx.landed = true; if (fx.t > 4) fx.landed = true; }
+    return true;
+  };
+  const X = m => m * M, Y = m => FLOOR - m * M;
+  function building() {
+    let s = K.backdrop(FLOOR, true);
+    for (const cx of [COLL, COLR]) {
+      s += `<rect x="${cx - 20}" y="0" width="40" height="${FLOOR}" fill="#4a4f55" stroke="#2a2e32" stroke-width="2"/><rect x="${cx - 20}" y="0" width="8" height="${FLOOR}" fill="#6b7178" opacity=".6"/>`;
+      s += `<rect x="${cx - 46}" y="${FLOOR - 10}" width="92" height="10" fill="#3d4247"/>`;
+    }
+    for (const cx of [COLL, COLR]) {
+      s += K.wbeamEnd(cx, RAIL_Y + 14, 18 * k, 7.5 * k, .6 * k, .36 * k);
+      s += `<rect x="${cx - 6}" y="${RAIL_Y}" width="12" height="14" fill="#9aa3aa" stroke="#2a2e32" stroke-width="1.2"/>`;
+    }
+    return s;
+  }
+  function bridge(S, o) {
+    let s = '';
+    for (const cx of [COLL, COLR]) {
+      s += `<rect x="${cx - 46}" y="${GIRD_TOP + 30}" width="92" height="${RAIL_Y - GIRD_TOP - 30}" rx="6" fill="url(#gCrane)" stroke="#5b4510" stroke-width="2"/>`;
+      s += `<rect x="${cx - 10}" y="${RAIL_Y - 30}" width="20" height="30" rx="3" fill="#3d4247" stroke="#1d2023" stroke-width="1.2"/>`;
+    }
+    s += `<g id="bridge">${K.wbeamSide(COLL - 30, COLR + 30, GIRD_TOP, GIRD_D, .9 * k, [COLL + 260, 800, COLR - 260])}`;
+    s += `<rect x="${COLL - 30}" y="${GIRD_TOP}" width="${COLR - COLL + 60}" height="${GIRD_D}" fill="#c9a032" opacity=".55"/></g>`;
+    if (S.mark === 'ok') s += `<g id="cap-mark"><rect x="700" y="${GIRD_TOP + 22}" width="200" height="52" rx="6" fill="#1F1D1A" stroke="#F5F5F4" stroke-width="2"/><text x="800" y="${GIRD_TOP + 60}" text-anchor="middle" style="font:900 34px ${K.FONT};fill:#F5F5F4">${S.ccap} TON</text></g>`;
+    else s += `<g id="cap-mark"><rect x="700" y="${GIRD_TOP + 22}" width="200" height="52" rx="6" fill="none" stroke="${C.bad}" stroke-width="3" stroke-dasharray="8 6"/><text x="800" y="${GIRD_TOP + 56}" text-anchor="middle" style="font:800 20px ${K.FONT};fill:${C.bad}">NO MARKING</text></g>`;
+    return s;
+  }
+  function trolleyAndHoist(S, o) {
+    const tp = trolley.pose(), tx = X(tp.x), ty = FL_Y;
+    let s = '<g id="trolley-assy">';
+    s += `<g id="trolley"><rect x="${f(tx - 70)}" y="${ty - 18}" width="140" height="30" rx="4" fill="url(#gCrane)" stroke="#5b4510" stroke-width="1.6"/>`;
+    for (const dx of [-48, 48]) s += `<circle cx="${f(tx + dx)}" cy="${ty - 4}" r="9" fill="#3d4247" stroke="#1d2023" stroke-width="1.4"/>`;
+    s += '</g>';
+    const dy = ty + 14, drumW = 30 * k, drumH = 12 * k;
+    const drumAng = (S.hh * 12 * (o.parts / 2)) % 12;
+    s += `<g id="drum"><rect x="${f(tx - drumW / 2)}" y="${dy}" width="${drumW}" height="${drumH}" rx="10" fill="url(#gSteel)" stroke="#2a2e32" stroke-width="1.6"/>`;
+    for (let i = 0; i < 14; i++) { const xx = tx - drumW / 2 + 6 + ((i * 8 + drumAng * 8 / 12) % (drumW - 12)); s += `<line x1="${f(xx)}" y1="${dy + 3}" x2="${f(xx + 5)}" y2="${dy + drumH - 3}" stroke="#5d656c" stroke-width="1.6" opacity=".8"/>`; }
+    s += '</g>';
+    s += `<rect x="${f(tx - drumW / 2 - 50)}" y="${dy - 4}" width="50" height="${drumH + 8}" rx="8" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+    s += `<rect x="${f(tx + drumW / 2)}" y="${dy - 2}" width="34" height="${drumH + 4}" rx="6" fill="url(#gCrane)" stroke="#5b4510" stroke-width="1.6"/>`;
+    const tripped = o.tripped || tripT >= 0 && tripT < 1.2;
+    s += `<g id="limit-switch"><rect x="${f(tx + drumW / 2 + 34)}" y="${dy + 4}" width="26" height="30" rx="4" fill="${S.limit === 'ok' ? '#4c6273' : '#6b3a36'}" stroke="#1b232a" stroke-width="1.4"/>`;
+    s += `<circle cx="${f(tx + drumW / 2 + 47)}" cy="${dy + 19}" r="5" fill="${tripped ? C.ok : '#2c3a44'}"/></g>`;
+    s += `<g id="horn"><path d="M${f(tx - drumW / 2 - 50)} ${dy + 10} l-16 -8 l0 28 l16 -8z" fill="#6b7178" stroke="#1d2023" stroke-width="1.2"/>`;
+    if (S.horning && S.horn === 'ok') for (let i = 1; i < 4; i++) s += `<path d="M${f(tx - drumW / 2 - 70 - i * 10)} ${dy + 2 - i * 4} q-8 ${12 + i * 4} 0 ${24 + i * 8}" stroke="${C.acc}" stroke-width="3" fill="none" opacity="${1 - i * .25}"/>`;
+    s += '</g></g>';
+    return s;
+  }
+  function ropesAndBlock(S, o) {
+    const tp = trolley.pose(), bp = block.pose(), tx = X(tp.x), ty = FL_Y + 14 + 12 * k;
+    const ca = Math.cos(bp.a), sa = Math.sin(bp.a);
+    const P = (lx, ly) => [X(bp.x + ca * lx - sa * ly), Y(bp.y + sa * lx + ca * ly)];
+    const parts = o.parts, offs = parts === 4 ? [-.13, -.045, .045, .13] : [-.09, .09];
+    let s = '<g id="rope">';
+    const broken = fx && rope.broken;
+    if (!broken) for (const ox of offs) { const top = [tx + ox * M * 1.4, ty - 4], bot = P(ox, BLOCK_H / 2 - .05); s += K.wireRope([top, bot], .375 * k * 1.2, S.hh * M * .3048 * (ox > 0 ? 1 : -1)); }
+    else {
+      for (const ox of offs) { const top = [tx + ox * M * 1.4, ty - 4]; s += K.wireRope([top, [top[0] + 14 * Math.sin(fx.t * 9 + ox * 40), top[1] + 40]], .375 * k * 1.2); }
+    }
+    if (S.rope === 'broken' && !broken) { const q = P(offs[0], BLOCK_H / 2 + .35); s += `<g id="rope-defect"><circle cx="${f(q[0])}" cy="${f(q[1])}" r="12" fill="none" stroke="${C.bad}" stroke-width="3"/>${[0, 1, 2, 3].map(i => `<line x1="${f(q[0])}" y1="${f(q[1])}" x2="${f(q[0] - 10 + i * 6)}" y2="${f(q[1] - 12 + i * 2)}" stroke="#d8dde1" stroke-width="1.4"/>`).join('')}</g>`; }
+    if (S.rope === 'kinked' && !broken) { const q = P(offs[3] || offs[1], BLOCK_H / 2 + .45); s += `<circle id="rope-defect" cx="${f(q[0])}" cy="${f(q[1])}" r="14" fill="none" stroke="${C.bad}" stroke-width="3"/>`; }
+    s += '</g>';
+    const w = .4 * M, h = BLOCK_H * M;
+    const corner = P(-.2, BLOCK_H / 2), deg = -bp.a * 180 / Math.PI;
+    s += `<g id="block" transform="rotate(${f(deg)} ${f(X(bp.x))} ${f(Y(bp.y))})">`;
+    const bx = X(bp.x), by = Y(bp.y);
+    s += `<path d="M${f(bx - w / 2)} ${f(by - h / 2 + 18)} L${f(bx - w / 2 + 10)} ${f(by - h / 2)} L${f(bx + w / 2 - 10)} ${f(by - h / 2)} L${f(bx + w / 2)} ${f(by - h / 2 + 18)} L${f(bx + w / 2)} ${f(by + h / 2 - 12)} L${f(bx - w / 2)} ${f(by + h / 2 - 12)}Z" fill="url(#gCrane)" stroke="#5b4510" stroke-width="2"/>`;
+    for (const sx of parts === 4 ? [-1, 1] : [0]) s += `<circle cx="${f(bx + sx * w * .22)}" cy="${f(by - h * .12)}" r="${f(w * .17)}" fill="#8f7322" stroke="#5b4510" stroke-width="1.4"/><circle cx="${f(bx + sx * w * .22)}" cy="${f(by - h * .12)}" r="4" fill="#3d3214"/>`;
+    s += `<rect id="cap-plate" x="${f(bx - 22)}" y="${f(by + h * .12)}" width="44" height="18" rx="2" fill="#d9dcdf" stroke="#23282c"/><text class="mk" x="${f(bx)}" y="${f(by + h * .12 + 14)}" text-anchor="middle" style="font:800 13px ${K.FONT};fill:#1d1d1d">${S.ccap} t</text>`;
+    s += `<rect x="${f(bx - w * .32)}" y="${f(by + h / 2 - 14)}" width="${f(w * .64)}" height="12" rx="4" fill="#59626a" stroke="#23282c" stroke-width="1.2"/>`;
+    const hsad = by + h / 2 + HOOK_DROP * M;
+    s += K.hookProfile(bx, hsad, k * .95, { id: 'hook', latch: S.hookc === 'nolatch' ? 'missing' : true, open: S.hookc === 'opened' ? .5 : 0 });
+    if (S.hookc === 'twisted') s += `<g id="twist-mark"><path d="M${f(bx - 20)} ${f(hsad - 22)} q20 -14 40 0" stroke="${C.bad}" stroke-width="3" fill="none" marker-end="url(#mTxt)"/></g>`;
+    s += '</g>';
+    return s;
+  }
+  function loadAndSling(S, o) {
+    if (!load) return '';
+    const v = load.vertices().map(p => [X(p.x), Y(p.y)]), lp = load.pose(), ld = loadDims(S);
+    const bp = block.pose(), ca = Math.cos(bp.a), sa = Math.sin(bp.a), hk = [X(bp.x + sa * (BLOCK_H / 2 + HOOK_DROP)), Y(bp.y - ca * (BLOCK_H / 2 + HOOK_DROP))];
+    let s = '';
+    const minY = Math.min(...load.vertices().map(p => p.y));
+    s += K.shadow(X(lp.x), FLOOR + 3, ld.w * M + 30, 16, Math.max(.2, 1 - minY * 1.5));
+    s += `<g id="load"><path d="${K.pathd(v, true)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+    const lpx = X(lp.x), lpy = Y(lp.y), dg = -lp.a * 180 / Math.PI, Wp = ld.w * M, Hp = ld.h * M;
+    s += `<g transform="rotate(${f(dg)} ${f(lpx)} ${f(lpy)})"><rect x="${f(lpx - Wp / 2)}" y="${f(lpy - Hp / 2)}" width="${f(Wp)}" height="${f(Hp * .16)}" fill="#7b858e"/>`;
+    for (let i = 1; i < 5; i++) s += `<rect x="${f(lpx - Wp / 2 + Wp * i / 5 - 3)}" y="${f(lpy - Hp / 2 + Hp * .16)}" width="6" height="${f(Hp * .84)}" fill="#4a525a"/>`;
+    s += `<rect x="${f(lpx - Wp / 2)}" y="${f(lpy + Hp / 2 - Hp * .2)}" width="${f(Wp)}" height="${f(Hp * .2)}" fill="#3f474e"/>`;
+    s += `<rect x="${f(lpx - 46)}" y="${f(lpy - 4)}" width="92" height="24" rx="3" fill="#d9dcdf" stroke="#23282c"/><text class="mk" x="${f(lpx)}" y="${f(lpy + 13)}" text-anchor="middle" style="font:800 14px ${K.FONT};fill:#1d1d1d">${S.units === 'met' ? K.n0(S.load * LB2KG) + ' kg' : K.n0(S.load) + ' lb'}</text>`;
+    for (const sg of [-1, 1]) s += `<path d="M${f(lpx + sg * ld.w * .4 * M - 12)} ${f(lpy - Hp / 2)} L${f(lpx + sg * ld.w * .4 * M - 7)} ${f(lpy - Hp / 2 - 18)} A7 7 0 0 1 ${f(lpx + sg * ld.w * .4 * M + 7)} ${f(lpy - Hp / 2 - 18)} L${f(lpx + sg * ld.w * .4 * M + 12)} ${f(lpy - Hp / 2)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/>`;
+    s += '</g></g>';
+    s += '<g id="sling">';
+    for (const sg of [-1, 1]) {
+      const lug = load.point(sg * ld.w * .4, ld.h / 2 + .045), a = [X(lug.x), Y(lug.y)];
+      const slack = legs.length && !(legs[0].force > 1 || legs[1].force > 1) ? 1 : 0;
+      const mid = [(hk[0] + a[0]) / 2 + (slack ? sg * 6 : 0), (hk[1] + a[1]) / 2 + (slack ? 10 : 0)];
+      s += K.chain(K.catmull([hk, mid, a], 4), 1.2 * k, .4 * k, 0, '#9aa3aa');
+    }
+    s += '</g>';
+    return s;
+  }
+  function pendant(S, o) {
+    const tp = trolley.pose(), x = X(tp.x) + 175, y0 = FL_Y + 30, y1 = FLOOR - 48 * k;
+    const pa = K.sway(3.6, .8) + sw.th * 57.3;
+    let s = `<g id="pendant" transform="rotate(${f(pa)} ${f(x)} ${y0})"><path d="M${f(x)} ${y0} L${f(x)} ${y1}" stroke="#222" stroke-width="3"/>`;
+    s += `<rect id="pendant-box" x="${f(x - 14)}" y="${y1}" width="28" height="92" rx="6" fill="#d8b33a" stroke="#5b4510" stroke-width="1.6"/>`;
+    s += `<circle cx="${f(x)}" cy="${y1 + 13}" r="7" fill="#c0392b" stroke="#5a1a14"/>`;
+    for (let i = 0; i < 4; i++) s += `<rect x="${f(x - 9)}" y="${y1 + 26 + i * 15}" width="18" height="10" rx="2" fill="#2b2b2b"/>`;
+    return s + '</g>';
+  }
+  function disconnect(S) {
+    const x = COLL + 28, y = 470;
+    let s = `<g id="disconnect"><rect x="${x}" y="${y}" width="56" height="78" rx="5" fill="#5d6670" stroke="#23282c" stroke-width="1.8"/>`;
+    s += `<rect x="${x + 50}" y="${y + 22}" width="22" height="10" fill="#c0392b" transform="rotate(${S.lock ? 55 : -35} ${x + 52} ${y + 27})"/>`;
+    s += `<text class="mk" x="${x + 28}" y="${y + 70}" text-anchor="middle" style="font:800 11px ${K.FONT};fill:#e6e6e6">${S.lock ? 'OFF' : 'ON'}</text>`;
+    if (S.lock) s += `<g id="lock"><path d="M${x + 66} ${y + 44} a8 8 0 0 1 16 0 v6" stroke="#c9ced2" stroke-width="3" fill="none"/><rect x="${x + 62}" y="${y + 50}" width="24" height="18" rx="3" fill="${C.bad}"/></g><g id="tag" class="mk"><line x1="${x + 74}" y1="${y + 68}" x2="${x + 74}" y2="${y + 84}" stroke="#aaa" stroke-width="1.5"/><rect x="${x + 58}" y="${y + 84}" width="34" height="46" rx="3" fill="#F2C230" stroke="#5b4510"/><text x="${x + 75}" y="${y + 104}" text-anchor="middle" style="font:900 9px ${K.FONT};fill:#1d1d1d">DANGER</text><text x="${x + 75}" y="${y + 118}" text-anchor="middle" style="font:800 8px ${K.FONT};fill:#1d1d1d">DO NOT</text><text x="${x + 75}" y="${y + 127}" text-anchor="middle" style="font:800 8px ${K.FONT};fill:#1d1d1d">OPERATE</text></g>`;
+    return s + '</g>';
+  }
+  function plan(S, o) {
+    const x0 = 1180, y0 = 300, w = 330, h = 200;
+    let s = `<g id="plan" class="pcOnly"><rect x="${x0 - 14}" y="${y0 - 40}" width="${w + 28}" height="${h + 56}" rx="12" fill="#1F1D1A" stroke="#4a4640" stroke-width="2" opacity=".92"/>`;
+    s += `<text x="${x0}" y="${y0 - 14}" style="font:800 16px ${K.FONT};letter-spacing:.12em;fill:${C.muted}">PLAN VIEW (FROM ABOVE)</text>`;
+    s += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#2b2824" stroke="#4a4640"/>`;
+    s += `<line x1="${x0 + 10}" y1="${y0}" x2="${x0 + 10}" y2="${y0 + h}" stroke="#9aa3aa" stroke-width="4"/><line x1="${x0 + w - 10}" y1="${y0}" x2="${x0 + w - 10}" y2="${y0 + h}" stroke="#9aa3aa" stroke-width="4"/>`;
+    const by = y0 + h - S.bz * h, tx = x0 + 10 + S.tx * (w - 20);
+    if (S.target) { const gx = x0 + 10 + S.target[0] * (w - 20), gy = y0 + h - S.target[1] * h; s += `<rect id="target" x="${f(gx - 16)}" y="${f(gy - 12)}" width="32" height="24" fill="none" stroke="${C.acc}" stroke-width="3" stroke-dasharray="5 3"/>`; }
+    s += `<rect x="${x0 + 4}" y="${f(by - 7)}" width="${w - 8}" height="14" fill="#c9a032" stroke="#5b4510"/>`;
+    s += `<rect x="${f(tx - 10)}" y="${f(by - 10)}" width="20" height="20" rx="3" fill="#8f7322" stroke="#3d3214"/>`;
+    const sx = o.swing.x * M * (w - 20) / (COLR - COLL - 120), sz = o.swing.z * h / RUNWAY_M * 3;
+    s += `<circle cx="${f(tx + sx)}" cy="${f(by - sz)}" r="8" fill="${load ? '#8fb3c9' : '#c9ced2'}" stroke="#1F1D1A" stroke-width="2"/>`;
+    s += `<text x="${x0 + w / 2}" y="${y0 + h + 22}" text-anchor="middle" style="font:600 14px ${K.FONT};fill:${C.muted}">bridge ↕ along the runway · trolley ↔ along the bridge</text>`;
+    return s + '</g>';
+  }
+  function capCard(S, o) {
+    const x0 = 1150, y0 = 280, unit = S.units === 'met', F = v => unit ? K.n0(v * LB2KG) + ' kg' : K.n0(v) + ' lb';
+    let s = `<g id="cap-card" class="pcOnly"><rect x="${x0}" y="${y0}" width="390" height="300" rx="12" fill="#1F1D1A" stroke="#4a4640" stroke-width="2" opacity=".94"/>`;
+    s += `<text x="${x0 + 18}" y="${y0 + 32}" style="font:800 16px ${K.FONT};letter-spacing:.12em;fill:${C.muted}">RATED CAPACITY AND ROPE</text>`;
+    s += `<text id="cap-rated" x="${x0 + 18}" y="${y0 + 68}" style="font:800 24px ${K.FONT};fill:${C.acc}">${S.ccap} ton = ${F(o.rated)}</text>`;
+    s += `<text id="cap-parts" x="${x0 + 18}" y="${y0 + 102}" style="font:700 20px ${K.FONT};fill:${C.text}">${o.parts} parts of ${o.rope === .3125 ? '5/16' : o.rope === .375 ? '3/8' : o.rope === .25 ? '1/4' : '1/2'} in rope</text>`;
+    s += `<text id="cap-load" x="${x0 + 18}" y="${y0 + 134}" style="font:700 20px ${K.FONT};fill:${C.text}">${F(S.hooked ? S.load : 0)} ÷ ${o.parts} = ${F(o.perPart)} a part</text>`;
+    s += `<text id="cap-df" x="${x0 + 18}" y="${y0 + 166}" style="font:700 19px ${K.FONT};fill:${C.ok}">At rated: ${F(o.mbl)} ÷ ${F(o.rated / o.parts)} = ${K.n2(o.dfRated)}</text>`;
+    s += `<text x="${x0 + 18}" y="${y0 + 190}" style="font:600 15px ${K.FONT};fill:${C.muted}">design factor; wire rope needs 5 or more</text>`;
+    const bx = x0 + 18, bw = 350, by = y0 + 220, sc2 = bw / (o.test * 1.15);
+    s += `<g id="cap-bar"><rect x="${bx}" y="${by}" width="${bw}" height="22" rx="5" fill="#3a3631"/><rect x="${bx}" y="${by}" width="${f(Math.min(bw, (S.hooked ? S.load : 0) * sc2))}" height="22" rx="5" fill="${o.util > 1 ? C.bad : '#8fb3c9'}"/>`;
+    s += `<line x1="${f(bx + o.rated * sc2)}" y1="${by - 6}" x2="${f(bx + o.rated * sc2)}" y2="${by + 28}" stroke="${C.acc}" stroke-width="3"/><text x="${f(bx + o.rated * sc2)}" y="${by + 48}" text-anchor="middle" style="font:700 14px ${K.FONT};fill:${C.acc}">rated</text>`;
+    s += `<g id="lt-125"><line x1="${f(bx + o.test * sc2)}" y1="${by - 6}" x2="${f(bx + o.test * sc2)}" y2="${by + 28}" stroke="${C.text}" stroke-width="2" stroke-dasharray="4 3"/><text x="${f(bx + o.test * sc2)}" y="${by + 66}" text-anchor="middle" style="font:700 14px ${K.FONT};fill:${C.text}">125 % load test ${F(o.test)}</text></g></g>`;
+    return s + '</g>';
+  }
+  sc.draw = function (S, o, T) {
+    S0 = S; if (!W) build(S);
+    let s = building() + disconnect(S);
+    s += bridge(S, o);
+    s += loadAndSling(S, o);
+    s += ropesAndBlock(S, o);
+    s += trolleyAndHoist(S, o);
+    s += pendant(S, o);
+    if (S.card === 'plan') s += plan(S, o); else if (S.card === 'cap') s += capCard(S, o);
+    const tp = trolley.pose();
+    s += K.label(COLL + 120, 420, 'Main switch', [COLL + 56, 490], { sub: S.lock ? 'locked out' : 'on', cl: 'pcOnly' });
+    if (S.card !== 'none') s += K.label(X(tp.x) + 150, FL_Y + 60, `${S.ccap} ton hoist`, [X(tp.x) + 60, FL_Y + 40], { sub: 'trolley on the girder', cl: 'pcOnly' });
+    if ((o.tripped || tripT >= 0 && tripT < 1.5) && !fx) s += K.banner('Upper limit switch tripped: the hoist stops', 'It is a safety device, not an operating control', C.ok, 'limit-trip');
+    if (S.lock) s += K.banner('Locked out: nothing moves', 'Main switch off, your lock and tag on, then try the controls to verify', C.warn, 'lock-note');
+    if (!fx && S.hooked && !o.lifted && Math.abs(o.swing.x) > .12 && rope.force > 1) s += K.banner('Side pull: the hook is not over the load', 'Never drag a load with a crane. Centre the hook over the load first', C.warn, 'side-note');
+    if (!fx && S.cbrake === 'slips' && S.hooked && drifted && !S.hup) s += K.banner('The brake slips (worn): the load creeps down on its own', 'SIMULATION ONLY · NEVER DO THIS ON THE JOB', C.bad, 'fail-card');
+    if (fx) s += K.banner(fx.caption, 'SIMULATION ONLY · NEVER DO THIS ON THE JOB');
+    return s;
+  };
+  sc.css = `.pendant{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#d8b33a;border:3px solid #5b4510;border-radius:18px;padding:12px;width:100%;max-width:330px;margin:0 auto}
+.pendant .pb{min-height:52px;border-radius:12px;border:2px solid #1b1b1b;background:#2b2b2b;color:#f5f5f4;font-weight:800;font-size:15px;touch-action:none;user-select:none}
+.pendant .pb.on{background:#F08A2B;color:#1F1D1A}.pendant .pb.stop{grid-column:1 / span 2;background:#c0392b;border-radius:30px}
+.pendant .lbl{grid-column:1 / span 2;color:#3d3214;font-size:12px;font-weight:900;letter-spacing:.12em;text-align:center;margin-top:2px}`;
+  const pb = (k2, label) => `<button class="pb" data-hk="${k2}">${label}</button>`;
+  sc.controls = {
+    pend: { type: 'custom', label: 'Pendant', html: () => `<div class="pendant"><button class="pb stop" data-hk="estop">■ STOP</button>` +
+      `<div class="lbl">HOIST</div>${pb('hup', '▲ UP')}${pb('hdn', '▼ DOWN')}<div class="lbl">TROLLEY</div>${pb('tW', '◀ LEFT')}${pb('tE', 'RIGHT ▶')}` +
+      `<div class="lbl">BRIDGE</div>${pb('bS', '▼ TOWARD')}${pb('bN', '▲ AWAY')}<div class="lbl">WARNING</div><button class="pb" data-hk="horning" style="grid-column:1 / span 2">📢 HORN</button></div>` },
+    hoist: { type: 'custom', label: 'Hoist', html: () => `<div class="pendant"><div class="lbl">HOIST</div>${pb('hup', '▲ UP')}${pb('hdn', '▼ DOWN')}</div>` },
+    ccap: { type: 'seg', label: 'Crane', options: [[1, '1 t'], [2, '2 t'], [3, '3 t'], [5, '5 t'], [10, '10 t']] },
+    load: { type: 'range', label: 'Load', min: 500, max: 26000, step: 250, fmt: (v, S) => S.units === 'met' ? K.n0(v * LB2KG) + ' kg' : K.n0(v) + ' lb' },
+    hh: { type: 'range', label: 'Hook height', min: 0, max: 8, step: .25, fmt: (v, S) => S.units === 'met' ? K.n2(v * .3048) + ' m' : K.n2(v) + ' ft' },
+    offset: { type: 'range', label: 'Hook off the load', min: 0, max: 4, step: .5, fmt: (v, S) => S.units === 'met' ? K.n2(v * .3048) + ' m' : v + ' ft' },
+    mark: { type: 'seg', label: 'Capacity', options: [['ok', 'Marked'], ['missing', 'No marking']] },
+    hookc: { type: 'seg', label: 'Hook', options: [['ok', 'OK'], ['opened', 'Throat opened'], ['twisted', 'Twisted'], ['nolatch', 'No latch']] },
+    rope: { type: 'seg', label: 'Rope', options: [['ok', 'OK'], ['broken', 'Broken wires'], ['kinked', 'Kinked']] },
+    limit: { type: 'seg', label: 'Upper limit', options: [['ok', 'Works'], ['faulty', 'Faulty']] },
+    cbrake: { type: 'seg', label: 'Brake', options: [['ok', 'Holds'], ['slips', 'Slips']] },
+    pendant: { type: 'seg', label: 'Pendant', options: [['ok', 'OK'], ['worn', 'Labels worn'], ['sticks', 'Button sticks']] },
+    horn: { type: 'seg', label: 'Horn', options: [['ok', 'Works'], ['dead', 'Dead']] },
+    lock: { type: 'seg', label: 'Main switch', options: [[false, 'On'], [true, 'Locked out']] },
+    units: { type: 'seg', label: 'Units', options: [['imp', 'Imperial'], ['met', 'Metric']] }
+  };
+  sc.phoneVB = S => { const tp = trolley ? X(trolley.pose().x) : 800; const x = Math.max(0, Math.min(800, tp - 400)); return `${f(x)} 30 800 830`; };
+  return sc;
+};
+})();</script>
+<script>(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+window.HoistAdapter = function (C, PC) {
+  const K = window.CFK, sc = window.CFScenes[C.scene](C.sceneOpts || {});
+  window.HOIST_SCENE = sc;
+  let svg = null, g = null, api = null, cur = null, T = 0, callouts = [], drag = null;
+  const A = {};
+  A.defaults = Object.assign({}, sc.defaults, C.start || {}); delete A.defaults.snap;
+  A.instant = sc.instant || [];
+  A.viewBox = '0 0 1600 880';
+  A.fns = PC.fns || {};
+  const outOf = s => sc.calc(s);
+  A.calc = s => sc.calc(s);
+  A.onSet = (s, keys) => { cur = s; sc.onSet && sc.onSet(s, keys); };
+  A.apply = (s, prev, initial) => { cur = s; if (initial && sc.reset) sc.reset(s); };
+  A.reset = () => {};
+  A.advance = (ms, s) => { cur = s; const dt = ms / 1000; T += dt; const o = sc.calc(s); sc.step && sc.step(dt, s, o, T); };
+  A.busy = () => !!(cur && sc.busy && sc.busy(cur, outOf(cur)));
+  A.controls = {};
+  for (const [k, c0] of Object.entries(sc.controls || {})) {
+    const c = Object.assign({}, c0, (C.ctl || {})[k] || {});
+    if (c.type === 'seg') A.controls[k] = { type: 'chips', label: c.label, options: c.options.map(([v, t]) => ({ v, t })) };
+    else if (c.type === 'range') A.controls[k] = { type: 'slider', label: c.label, min: c.min, max: c.max, step: c.step, fmt: v => c.fmt ? c.fmt(v, cur || A.defaults, outOf(cur || A.defaults)) : String(v) };
+    else if (c.type === 'hold') A.controls[k] = { type: 'hold', key: c.key || k, on: c.on, label: c.label, hotkey: c.hotkey };
+    else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
+  }
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.caption = () => null;
+  A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
+  function bboxOf(id) {
+    const el = svg && svg.querySelector('#' + CSS.escape(id)); if (!el || !el.getBBox) return null;
+    let b; try { b = el.getBBox(); } catch (e) { return null; }
+    if (!b || (!b.width && !b.height)) return null;
+    const m = svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => { const p = svg.createSVGPoint(); p.x = x; p.y = y; return p.matrixTransform(m); });
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }
+  A.spot = id => { const b = bboxOf(id); return b ? [b.x + b.w / 2, b.y + b.h / 2, Math.max(18, Math.hypot(b.w, b.h) / 2)] : null; };
+  A.callout = (id, text, o = {}) => { callouts.push({ id, text, pos: o.pos, ring: !!o.ring || o.pos === 'ring', at: T + (o.delay || 0) / 1000 }); return true; };
+  A.clear = () => { callouts = []; };
+  function overlay() {
+    let s = '';
+    for (const c of callouts) {
+      if (T < c.at) continue;
+      const b = bboxOf(c.id); if (!b) continue;
+      const pad = 8, bx = b.x - pad, by = b.y - pad, bw = b.w + 2 * pad, bh = b.h + 2 * pad;
+      s += `<rect x="${K.f(bx)}" y="${K.f(by)}" width="${K.f(bw)}" height="${K.f(bh)}" rx="10" fill="none" stroke="${K.C.acc}" stroke-width="4"/>`;
+      if (c.ring) continue;
+      const tw = Math.min(620, 24 + c.text.length * 14.2), th = 48, gap = 46;
+      let tx, ty, ax, ay;
+      const pos = c.pos || 'right';
+      if (pos === 'left') { tx = bx - gap - tw; ty = by + bh / 2 - th / 2; ax = bx; ay = by + bh / 2; }
+      else if (pos === 'top') { tx = bx + bw / 2 - tw / 2; ty = by - gap - th; ax = bx + bw / 2; ay = by; }
+      else if (pos === 'bottom') { tx = bx + bw / 2 - tw / 2; ty = by + bh + gap; ax = bx + bw / 2; ay = by + bh; }
+      else { tx = bx + bw + gap; ty = by + bh / 2 - th / 2; ax = bx + bw; ay = by + bh / 2; }
+      tx = Math.max(8, Math.min(K.W - tw - 8, tx)); ty = Math.max(8, Math.min(K.H - th - 8, ty));
+      const lx = Math.max(tx, Math.min(tx + tw, ax)), ly = Math.max(ty, Math.min(ty + th, ay));
+      s += `<line x1="${K.f(ax)}" y1="${K.f(ay)}" x2="${K.f(lx)}" y2="${K.f(ly)}" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<rect x="${K.f(tx)}" y="${K.f(ty)}" width="${K.f(tw)}" height="${th}" rx="10" fill="#1F1D1A" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<text x="${K.f(tx + tw / 2)}" y="${K.f(ty + 32)}" text-anchor="middle" style="font:800 25px ${K.FONT};fill:${K.C.text}">${K.esc(c.text)}</text>`;
+    }
+    return s;
+  }
+  A.draw = (s, o) => {
+    cur = s; K.T = T;
+    g.innerHTML = K.style(sc.phoneCss || '') + K.defs() + sc.draw(s, o, T) + '<g id="ovl"></g>';
+    if (callouts.length) g.querySelector('#ovl').innerHTML = overlay();
+    if (document.body.classList.contains('phone')) {
+      const m = svg.getScreenCTM(), k = m ? m.a : 1;
+      g.querySelectorAll('text').forEach(t => { if (parseFloat(getComputedStyle(t).fontSize) * k < 11) t.style.display = 'none'; });
+    }
+  };
+  function toSvg(e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+  A.mount = (el, shellApi) => {
+    svg = el; api = shellApi;
+    g = document.createElementNS(NS, 'g'); g.id = 'scene'; svg.appendChild(g);
+    if (sc.css) document.head.insertAdjacentHTML('beforeend', '<style>' + sc.css + '</style>');
+    svg.addEventListener('pointerdown', e => {
+      const t = e.target.closest && e.target.closest('[data-act]'); if (!t || !sc.pointer || !cur) return;
+      const st = api.step();
+      if (!st.free && st.step && st.step.drawActs && !st.step.drawActs.includes(t.dataset.act)) return;
+      e.preventDefault(); try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+      drag = { act: t.dataset.act, p0: toSvg(e) };
+      sc.pointer('down', drag.act, drag.p0, cur, drag); api.redraw();
+    });
+    svg.addEventListener('pointermove', e => { if (drag && cur) { sc.pointer('move', drag.act, toSvg(e), cur, drag); api.redraw(); } });
+    const up = () => { if (drag && cur) { sc.pointer('up', drag.act, null, cur, drag); drag = null; api.redraw(); } };
+    svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  };
+  A.challenge = (rng, n) => {
+    const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
+    if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
+    const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
+    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+  };
+  return A;
+};
+})();</script>
+<script>/* Lesson code (text, steps and questions: <id>.json): Overhead cranes and hoists: operating and the start-of-shift check (episode 016). RSOS B-10.
+ * Rules: WorkSafeBC Part 14 (14.5 capacity marked, 14.54 load test 125 %, 14.55 upper limit test at the start of each
+ * shift), Ontario Reg. 851 s.51, WorkSafeBC Table 15-1 (wire rope design factor 5), lockout WorkSafeBC Part 10 /
+ * Ontario Reg. 851 ss.75-76 / Alberta OHS Code Part 15 ("check your province").
+ */
+(function () {
+const K = window.CFK;
+const lb = (v, S) => S && S.units === 'met' ? K.n0(v * K.LB2KG) + ' kg' : K.n0(v) + ' lb';
+const pick = (rng, a) => a[Math.floor(rng() * a.length)];
+const ch = (t, why) => ({ t, why });
+const swingTxt = o => K.n0(Math.hypot(o.swing.x, o.swing.z) * 39.37) + ' in';
+const START = { ccap: 5, load: 4000, hooked: true, hh: 0, tx: .35, bz: .4, offset: 0, mark: 'ok', hookc: 'ok', rope: 'ok', limit: 'ok', cbrake: 'ok', pendant: 'ok', horn: 'ok', lock: false, card: 'plan', target: null };
+const REEVE = { 1: [2, 6800], 2: [2, 10540], 3: [4, 10540], 5: [4, 15100], 10: [4, 26600] };
+
+window.LESSON_CODE = window.LESSON_CODE || {};
+window.LESSON_CODE['overhead-cranes'] = {
+  /* ---------------- page 1: Run it from the pendant */
+  1: {
+    readouts: (S, o) => [['Load lifted', S.units === 'met' ? K.n2(S.hh * .3048) + ' m' : K.n2(S.hh) + ' ft'], ['Swing', swingTxt(o), Math.hypot(o.swing.x, o.swing.z) > .15 ? K.C.warn : K.C.ok], ['Load ÷ rated', K.n0(o.util * 100) + ' %', o.util > 1 ? K.C.bad : K.C.ok], ['Trolley', K.n0(S.tx * 100) + ' %']],
+    challenge: (rng) => {
+      const tgt = [Math.round((.2 + rng() * .6) * 100) / 100, Math.round((.2 + rng() * .6) * 100) / 100];
+      return { game: true, setup: Object.assign({}, START, { target: tgt, tx: .35, bz: .4, hh: 0 }), q: 'Lift the skid, travel it to the orange box on the plan and set it down. Keep the swing under 4 in when you land.',
+        goal: (S, o, t) => {
+          const on = Math.abs(S.tx - tgt[0]) < .03 && Math.abs(S.bz - tgt[1]) < .05, sw = Math.hypot(o.swing.x, o.swing.z) * 39.37;
+          const landed = S.hh <= .01 && t > 2 && S.lifted_once;
+          if (S.hh > .2) S.lifted_once = true;
+          return { live: `Time ${K.n0(t)} s · swing ${K.n0(sw)} in · ${on ? 'over the box' : 'not on the box yet'}`, done: landed, ok: landed && on && sw < 4, msg: on ? `Landed on the box in ${K.n0(t)} s.` : 'Landed off the box: lift it again and line it up on the plan first.' };
+        } };
+    },
+    fns: {
+      p1s2_goal: S => S.horning > 0,
+      p1s3_goal: S => S.hh >= .45 && !S.hup,
+      p1s3_live: (S, o) => `Lifted **${K.n1(S.hh * 12)} in**`,
+      p1s4_goal: (S, o) => Math.abs(S.tx - .65) < .03 && Math.abs(S.bz - .55) < .04 && Math.hypot(o.swing.x, o.swing.z) < .12 && !S.tE && !S.tW && !S.bN && !S.bS,
+      p1s4_live: (S, o) => `Swing **${swingTxt(o)}**`,
+      p1s5_goal: S => S.hh <= .01
+    }
+  },
+  /* ---------------- page 2: Hook over the load */
+  2: {
+    challenge: (rng) => {
+      const off = pick(rng, [1, 2, 3]), Q = [
+        { q: `The hook is **${off} ft** off to the side of the skid's centre. What do you do before you lift?`, choices: [ch('Move the crane until the hook is plumb over the load'), ch('Lift slowly and let it swing in', 'Slow or not, it drags, lifts off and swings.'), ch('Hold a tag line and lift', 'A tag line cannot make a side pull safe.'), ch('Lift with the trolley moving toward the load', 'Never lift and travel to fix a side pull.')], explain: 'Plumb the hook over the load first: **overhead cranes lift straight up only**.' },
+        { q: `You lift with the hook **${off} ft** off the load's centre. What happens when the load comes off the floor?`, choices: [ch('It swings toward under the hook'), ch('Nothing: the rope is strong enough', 'Rope strength does not stop the swing.'), ch('The upper limit stops it', 'The limit switch only stops the hook at the top.'), ch('The load stays where it is', 'An off-centre lift always moves the load toward under the hook.')], explain: 'A side pull drags the load, then it **swings in under the hook**: into people and things.' }];
+      const c = Q[Math.floor(rng() * Q.length)];
+      return Object.assign({ setup: { offset: off }, answer: 0 }, c);
+    },
+    readouts: (S, o) => [['Hook off the load', S.units === 'met' ? K.n2(S.offset * .3048) + ' m' : S.offset + ' ft', S.offset ? K.C.warn : K.C.ok], ['Swing', swingTxt(o), Math.abs(o.swing.x) > .15 ? K.C.warn : K.C.ok], ['Load lifted', K.n2(S.hh) + ' ft']],
+    fns: {
+      p2s1_goal: (S, o) => S.hh > 1 && o.lifted,
+      p2s2_goal: S => S.hh >= 1
+    }
+  },
+  /* ---------------- page 3: Rated capacity and the rope */
+  3: {
+    readouts: (S, o) => [['Rated', lb(o.rated, S)], ['Each rope part', lb(o.perPart, S)], ['Design factor at rated', K.n2(o.dfRated), o.dfRated >= 5 ? K.C.ok : K.C.bad], ['Load test (125 %)', lb(o.test, S)]],
+    challenge: (rng) => {
+      const cap = pick(rng, [1, 2, 3, 5, 10]), [parts, mbl] = REEVE[cap], per = cap * 2000 / parts, df = mbl / per;
+      return { setup: { ccap: cap, load: cap * 2000 }, q: `${cap} ton crane, ${parts} parts of rope, rope strength ${K.n0(mbl)} lb. Design factor at rated?`,
+        choices: [ch(K.n2(df)), ch(K.n2(mbl / (cap * 2000)), 'Divide among the parts first.'), ch(K.n2(df / 2), 'Wrong number of parts.'), ch('5.00', 'That is the minimum.')], answer: 0,
+        explain: `${K.n0(cap * 2000)} ÷ ${parts} = ${K.n0(per)} lb a part; ${K.n0(mbl)} ÷ ${K.n0(per)} = ${K.n2(df)}.` };
+    },
+    fns: {
+      p3s2_goal: S => Math.abs(S.load - 10000) < 1,
+      p3s2_live: (S, o) => `${K.n0(S.load)} ÷ 4 = **${K.n0(o.perPart)} lb** a part`
+    }
+  },
+  /* ---------------- page 4: The start-of-shift check */
+  4: {
+    readouts: (S, o) => [['Hook height', S.units === 'met' ? K.n2(S.hh * .3048) + ' m' : K.n1(S.hh) + ' ft'], ['Upper limit', S.limit === 'ok' ? 'Works' : 'Faulty', S.limit === 'ok' ? K.C.ok : K.C.bad], ['Defects', String(o.defects), o.defects ? K.C.bad : K.C.ok]],
+    challenge: (rng) => {
+      const d = pick(rng, [['hookc', 'twisted', 'Hook twisted'], ['rope', 'broken', 'Broken wires in the rope'], ['mark', 'missing', 'No capacity marking'], ['hookc', 'nolatch', 'Latch missing']]);
+      const p = { hooked: false, hh: 4, card: 'none' }; p[d[0]] = d[1];
+      return { setup: p, q: 'Look over this crane. What is wrong with it?', choices: [ch(d[2]), ch('Nothing: it is ready', 'Look again: hook, rope, marking.'), ch('The bridge is too long', 'No.')], answer: 0, explain: `${d[2]}: tag it out until it is fixed.` };
+    },
+    fns: {
+      p4s1_goal: (S, o) => o.tripped,
+      p4s1_solve: S => ({ hh: window.HOIST_SCENE.maxHh(S) }),
+      p4s2_goal: (S, o) => o.fail.on && o.fail.landed
+    }
+  },
+  /* ---------------- page 5: Putting it together */
+  5: {
+    challenge: (rng) => {
+      const Q = [
+        { q: 'The horn is dead at the start-of-shift check. What do you do?', choices: [ch('Tag the crane out and report it'), ch('Use it and shout instead', 'The horn is a required warning device: report it.'), ch('Report it at the end of the shift', 'Report it now; the crane is not used.'), ch('Fix it yourself while it runs', 'Never work on a crane that can move.')], explain: 'Any defect from the check: **record it, report it, tag the crane out**.' },
+        { q: 'After you lock out the main switch, how do you verify?', choices: [ch('Try the pendant: nothing should move'), ch('Look at the switch handle only', 'Verify by trying the controls.'), ch('Ask the operator', 'You verify it yourself.'), ch('No need once the lock is on', 'Always verify: a second feed or the wrong switch leaves it live.')], explain: 'Lock, tag, then **verify** by trying every motion on the pendant.' },
+        { q: 'A pendant button sticks on during the check. Is the crane fit to use?', choices: [ch('No: tag it out and report it'), ch('Yes, if you are careful', 'A sticking button can keep the crane moving: it is a defect.'), ch('Yes, use the STOP button if it sticks', 'You do not use a crane with a known defect.'), ch('Only for light loads', 'The danger is the same at any load.')], explain: 'A sticking control is a defect: **tag the crane out** until it is repaired.' }];
+      const c = Q[Math.floor(rng() * Q.length)];
+      return Object.assign({ answer: 0 }, c);
+    },
+    readouts: (S, o) => [['Main switch', S.lock ? 'Locked out' : 'On', S.lock ? K.C.warn : K.C.ok], ['Defects', String(o.defects), o.defects ? K.C.bad : K.C.ok], ['Ready', o.ready ? 'Yes' : 'No', o.ready ? K.C.ok : K.C.bad]],
+    fns: {
+      p5s1_goal: S => S.lock === true,
+      p5s2_goal: S => S.hup || S.tE || S.tW || S.bN || S.bS
+    }
+  }
+};
+})();
+</script>
+<script>/* CrewForge simulator-lesson page shell (2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+   Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
+   top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
+   at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
+   (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
+   Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
+   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
+   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+
+   Scene interface (one per page):
+     defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
+     mount(svg, api), apply(state, prev, initial), advance(ms, state), calc(state) -> out,
+     readouts(state, out) -> [{label, short, value, cls:'ok'|'warn'|'bad', color, id}],
+     caption(state, out) -> null | {kind:'fail'|'warn', title, text}, spot(id) -> [x, y, r] (svg units),
+     drag (optional, wired by the scene; it calls api.input(partial)), challenge(rng, n) -> question, busy() -> bool,
+     phoneViewBox, viewBox, reset().
+     Optional generic hooks (added 2026-11-13 for the hoisting and block-and-tackle ports):
+       instant: [keys]            never tweened by sim.set(partial, ms) (e.g. a hoist size that rebuilds the rig)
+       onSet(state, keys)         after every sim.set / learner input (not on tween frames): rebuild what those keys need
+       normalize(state)           after any change, before calc()
+       callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
+       fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+     step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
+
+   Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
+     slider  {min, max, step, unit, fmt(v)}: - / + steppers (hold to repeat), range, tap the value to type it
+     chips   {options:[{v, t}]}: one choice
+     hold    {key, on = 1, label, hotkey}: PRESS-AND-HOLD TO RUN. state[key] = on while the button is held (pointer,
+             Space / Enter on the focused button, or the optional hotkey anywhere on the page), 0 on release, lost
+             pointer capture, blur or leaving the page. The scene moves on its own clock (advance), so in ?capture=1
+             a script does the same with sim.set({key: 1}) ... sim.set({key: 0}) on the virtual clock. 52 px tall.
+             Dragging the part itself in the drawing is the scene's job (drag + api.input).
+     custom  {html(state)}: scene-made markup (e.g. a crane pendant); any element in it with data-hk="key" is a
+             hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
+   Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
+     the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
+     every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
+     while it matches), points [..] (teach: a short list), hint2 on question variants.
+   Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
+     or "fn:name" for the whole goal.
+   Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
+     sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
+(function () {
+'use strict';
+const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
+const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
+const NS = 'http://www.w3.org/2000/svg';
+
+window.CFShell = { start };
+
+function start(C, S) {
+  const log = [], T0 = performance.now(), L = (type, d = {}) => log.push({ t: Math.round(performance.now() - T0), type, ...d });
+  let state = Object.assign({}, S.defaults), out = S.calc(state), tweens = [], listeners = [], dirty = true;
+  let idx = 0, phase = 'step', hintLvl = 0, done = new Set(), helped = new Set(), qv = {}, qState = null, goalSince = null;
+  let free = false, challenge = null, chalN = 0, finished = false;
+  const N = C.lesson.pages.length, PN = C.n, steps = C.steps;
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const KEY = 'cf-lp:' + C.lesson.id;
+  const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
+  let muted = !!prefs.muted, rate = prefs.rate || 1;
+
+  /* ---------------------------------------------------------------- layout */
+  document.body.innerHTML = '';
+  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  if (STAGE_ONLY) document.body.classList.add('capture');
+  const app = el('div', { class: 'app' });
+  const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
+  app.innerHTML = `<header class="bar">
+    <button class="btn" id="b-back" aria-label="Back">&#9664; Back</button>
+    <div class="title"><div class="kick">${C.lesson.title.toUpperCase()} · PAGE ${PN} OF ${N}</div><div class="h">${C.title}</div></div>
+    <div class="dots" aria-label="page ${PN} of ${N}">${dots}</div>
+    <div class="voice"><button class="btn" id="b-mute" aria-label="Voice on or off"></button><button class="btn" id="b-rate" aria-label="Voice speed"></button></div>
+    <button class="btn pri" id="b-next" aria-label="Next page">${PN === N ? 'Finish' : 'Next'} &#9654;</button></header>
+  <section class="what" id="what"><button class="wt" id="b-what" aria-expanded="false">WHAT YOU'RE LOOKING AT <span class="chev">&#9662;</span></button><div class="wx">${md(C.what)}</div></section>
+  <div class="main"><div class="stage" id="stage"><svg id="sv" xmlns="${NS}" viewBox="${S.viewBox || '0 0 1600 880'}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${C.title} simulator"></svg>
+    <div class="caption" id="caption" role="status"></div><div class="read" id="read"></div></div>
+    <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
+  document.body.appendChild(app);
+  const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  let spotG, calloutG;
+
+  /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
+  let lastVB = '';
+  function fit() {
+    const phone = innerWidth < 700 && innerHeight > innerWidth;
+    document.body.classList.toggle('phone', phone);
+    const asp = Math.max(0.6, Math.min(3, (svg.clientWidth || 1) / (svg.clientHeight || 1)));
+    const vb = phone && S.phoneViewBox ? (typeof S.phoneViewBox === 'function' ? S.phoneViewBox(state, asp) : S.phoneViewBox) : (S.viewBox || '0 0 1600 880');
+    if (vb !== lastVB) { svg.setAttribute('viewBox', vb); lastVB = vb; }
+  }
+  addEventListener('resize', fit); fit();
+  $('#b-what').onclick = () => { const w = $('#what'); w.classList.toggle('open'); $('#b-what').setAttribute('aria-expanded', w.classList.contains('open')); };
+
+  /* ---------------------------------------------------------------- host / progress (SCORM wrapper or localStorage) */
+  const host = (() => { try { return window.parent !== window && window.parent.CFHost ? window.parent.CFHost : null; } catch (e) { return null; } })();
+  function progress() {
+    if (host) host.page(PN, N, C.file);
+    else if (store) { try { const p = JSON.parse(store.getItem(KEY) || '{}'); p.seen = Array.from(new Set((p.seen || []).concat([PN]))); p.last = PN; if (PN === N) p.complete = true; store.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+  }
+  const firstVisit = !(store && store.getItem(KEY));
+  progress();
+  const go = d => {
+    stopVoice();
+    const target = PN + d;
+    if (target < 1) return;
+    if (target > N) { finish(); return; }
+    L('page', { to: target });
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+  };
+  $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
+  if (PN === 1) $('#b-back').disabled = true;
+
+  /* ---------------------------------------------------------------- voice (Kokoro af_heart clips beside the page) */
+  const audio = new Audio(); audio.preload = 'auto';
+  let voiceOK = false, queue = [];
+  function setVoiceUI() {
+    $('#b-mute').innerHTML = muted ? '&#128263;<span class="vt"> Off</span>' : '&#128266;<span class="vt"> On</span>'; $('#b-mute').classList.toggle('off', muted);
+    $('#b-rate').textContent = rate === 1 ? '1×' : '0.8×';
+    try { store && store.setItem('cf-voice', JSON.stringify({ muted, rate })); } catch (e) {}
+  }
+  setVoiceUI();
+  $('#b-mute').onclick = () => { muted = !muted; setVoiceUI(); if (muted) stopVoice(); else speak(curKey()); L('voice', { muted }); };
+  $('#b-rate').onclick = () => { rate = rate === 1 ? 0.8 : 1; audio.playbackRate = rate; setVoiceUI(); };
+  function stopVoice() { queue = []; try { audio.pause(); } catch (e) {} }
+  function speak(...keys) {
+    queue = keys.filter(k => k && C.audio && C.audio[k]);
+    try { audio.pause(); } catch (e) {}
+    playNext();
+  }
+  function playNext() {
+    if (muted || !voiceOK || CAPTURE || !queue.length) return;
+    const k = queue.shift();
+    audio.src = (C.audioBase || 'audio/') + C.audio[k]; audio.playbackRate = rate;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    audio.play().catch(() => { showStart(); });
+  }
+  audio.addEventListener('ended', () => setTimeout(playNext, 250));
+  function curKey() { if (free) return challenge ? null : 'free'; const st = steps[idx]; if (!st) return null; if (st.type === 'question') return `s${idx}v${(qv[idx] || 0) % st.variants.length}`; return 's' + idx; }
+  function showStart() {
+    if (CAPTURE || $('#start')) return;
+    const first = PN === 1 && firstVisit;
+    const o = el('div', { id: 'start' }, `<div class="box"><h2>${first ? C.lesson.title : C.title}</h2><p>${first ? 'The narrator reads each step aloud. You can mute it or slow it down at the top right.' : 'Tap to hear this page read aloud.'}</p>
+      <button class="btn pri" id="b-start">&#9654; ${first ? 'Start lesson' : 'Start page'}</button> <button class="btn" id="b-quiet">Read it myself</button></div>`);
+    document.body.appendChild(o);
+    $('#b-start').onclick = () => { o.remove(); voiceOK = true; muted = false; setVoiceUI(); speak('what', curKey()); L('start'); };
+    $('#b-quiet').onclick = () => { o.remove(); voiceOK = true; muted = true; setVoiceUI(); L('start', { quiet: true }); };
+  }
+
+  /* ---------------------------------------------------------------- sim state */
+  function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+  function full() { return Object.assign({}, state, { out }); }
+  function applyState(next, user) {
+    const prev = state; state = Object.assign({}, state, next); if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, prev); dirty = true;
+    if (user) { if (S.onSet) { S.onSet(state, Object.keys(next)); out = S.calc(state); } listeners.forEach(fn => fn(full())); }
+  }
+  function snapTo(partial) {      // sim.set({snap: true, ...}): page defaults first, no tweens, then the rest
+    tweens = []; S.reset && S.reset(); state = Object.assign({}, S.defaults, partial); delete state.snap;
+    if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, null, true); dirty = true;
+  }
+  function set(partial, dur = 0) {
+    if (!partial) return;
+    if (partial.snap) return snapTo(partial);
+    const inst = {}, tw = {}, keys = Object.keys(partial), noTween = S.instant || [];
+    for (const k in partial) { if (dur > 0 && typeof partial[k] === 'number' && typeof state[k] === 'number' && !noTween.includes(k)) tw[k] = [state[k], partial[k]]; else inst[k] = partial[k]; }
+    if (Object.keys(tw).length) tweens.forEach(T => { for (const k in tw) delete T.tw[k]; });   // a new tween on a key replaces the old one
+    if (Object.keys(inst).length) applyState(inst);
+    if (Object.keys(tw).length) tweens.push({ tw, t: 0, dur });
+    if (S.onSet) { S.onSet(state, keys); out = S.calc(state); dirty = true; }
+  }
+  function stepTweens(ms) {
+    if (!tweens.length) return;
+    const next = {};
+    tweens = tweens.filter(T => { T.t += ms; const u = Math.min(1, T.t / T.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; for (const k in T.tw) next[k] = T.tw[k][0] + (T.tw[k][1] - T.tw[k][0]) * e; return u < 1; });
+    applyState(next);
+  }
+  function advance(ms) {
+    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+  }
+  function checkGame(ms) {
+    const c = challenge; if (!c || !c.game || c.result || !free) return;
+    c.t = (c.t || 0) + ms / 1000;
+    const r = c.goal(state, out, c.t) || {}; c.live = r.live || '';
+    const g = card.querySelector('#glive'); if (g && g.innerHTML !== md(c.live)) g.innerHTML = md(c.live);
+    if (r.done) { c.result = { ok: !!r.ok, msg: r.msg || '' }; L('challenge', { right: c.result.ok }); renderFree(); }
+  }
+  const api = {
+    input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
+    get: full, redraw() { dirty = true; },
+    step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
+  };
+  S.mount(svg, api);
+  spotG = document.createElementNS(NS, 'g'); spotG.id = 'spotg'; svg.appendChild(spotG);
+  calloutG = document.createElementNS(NS, 'g'); calloutG.id = 'calloutg'; svg.appendChild(calloutG);
+  /* video contract */
+  window.sim = {
+    set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
+    get: full, advance, isIdle: () => !tweens.length && !(S.busy && S.busy()), ready: false,
+    onChange: fn => listeners.push(fn),
+    callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+    clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
+  };
+
+  /* ---------------------------------------------------------------- readouts + caption */
+  let lastRead = '', lastCap = '';
+  function render() {
+    if (!dirty) return; dirty = false;
+    if (document.body.classList.contains('phone')) fit();
+    S.draw && S.draw(state, out);
+    const r = S.readouts(state, out).map(o => `<div class="ro ${o.cls || ''}" id="ro-${o.id || ''}"><small><span class="lf">${o.label}</span><span class="ls">${o.short || o.label}</span></small><span${o.color ? ` style="color:${o.color}"` : ''}>${o.value}</span></div>`).join('');
+    if (r !== lastRead) { read.innerHTML = r; lastRead = r; }
+    const c = S.caption && S.caption(state, out), cs = c ? JSON.stringify(c) : '';
+    if (cs !== lastCap) { lastCap = cs; cap.className = 'caption' + (c ? ' on ' + (c.kind || '') : ''); cap.innerHTML = c ? `<b>${c.title}</b><span class="ct">${c.text}</span>` : ''; }
+    drawSpot(); syncTray(); liveLine();
+  }
+  /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
+  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function tpl(t) {
+    const f = fn(t); if (f) return String(f(state, out));
+    const st = full();
+    return String(t || '').replace(/\{([\w.]+)(?::(%|\d))?\}/g, (m, p, d) => { const v = getPath(st, p); if (typeof v !== 'number') return v == null ? m : String(v);
+      return d === '%' ? Math.round(v * 100).toLocaleString('en-CA') + ' %' : v.toLocaleString('en-CA', { minimumFractionDigits: +(d || 0), maximumFractionDigits: +(d || 0) }); });
+  }
+  let lastLive = '';
+  function liveLine() {
+    const st = !free && steps[idx], box = card.querySelector('#live'); if (!box || !st) return;
+    let h = st.live ? md(tpl(st.live)) : '';
+    const w = (st.wrong || []).find(x => goalMet(x.when)); if (w && !done.has(idx)) h += (h ? '<br>' : '') + `<span class="wrongsay">${md(w.say)}</span>`;
+    if (h !== lastLive) { lastLive = h; box.innerHTML = h; box.style.display = h ? '' : 'none'; }
+  }
+  function syncTray() {               // programmatic changes (Show me, setups, tweens) move the controls too
+    const ae = document.activeElement;
+    trayKeys.forEach(k => { const c = S.controls[k], v = state[k];
+      if (c.type === 'hold' || c.type === 'custom') return;
+      if (c.type === 'chips') tray.querySelectorAll(`.chip[data-k="${k}"]`).forEach(b => { const on = String(v) === b.dataset.v; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+      else { const r = tray.querySelector(`input[data-k="${k}"]`), t = tray.querySelector(`.val[data-k="${k}"]`), txt = (c.fmt || (x => x + (c.unit || '')))(v);
+        if (r && r !== ae && +r.value !== v) r.value = v; if (t && t.textContent !== txt) t.textContent = txt; } });
+    tray.querySelectorAll('[data-hk]').forEach(b => { const on = !!state[b.dataset.hk]; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+  }
+
+  /* ---------------------------------------------------------------- control tray */
+  function ctrlHTML(key) {
+    const c = S.controls[key], v = state[key], fmt = c.fmt || (x => x + (c.unit || ''));
+    if (c.type === 'hold') return `<div class="ctrl holdc" id="c-${key}"><button class="btn hold" data-hk="${c.key || key}" data-on="${c.on != null ? c.on : 1}" aria-pressed="false" title="Press and hold${c.hotkey ? ' (or hold the ' + c.hotkey + ' key)' : ''}">${c.label}</button></div>`;
+    if (c.type === 'custom') return `<div class="ctrl custom" id="c-${key}">${c.html(state)}</div>`;
+    if (c.type === 'chips') return `<div class="chipwrap" id="c-${key}"><span class="lab">${c.label}</span><div class="chips" role="group" aria-label="${c.label}">${c.options.map(o => `<button class="chip${o.v === v ? ' on' : ''}" data-k="${key}" data-v="${o.v}" aria-pressed="${o.v === v}">${o.t}</button>`).join('')}</div></div>`;
+    return `<div class="ctrl" id="c-${key}"><span class="lab">${c.label}</span><button class="btn" data-k="${key}" data-d="-1" aria-label="${c.label} down">&minus;</button>
+      <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-k="${key}" aria-label="${c.label}"><button class="btn" data-k="${key}" data-d="1" aria-label="${c.label} up">+</button>
+      <button class="val" data-k="${key}" title="Tap to type a value">${fmt(v)}</button></div>`;
+  }
+  let trayKeys = [];
+  function renderTray(keys) {
+    if (keys) trayKeys = keys;
+    const ae = document.activeElement, activeRange = ae && ae.type === 'range' && tray.contains(ae) ? ae.dataset.k : null;
+    if (activeRange) {           // never rebuild under a finger: update values only
+      trayKeys.forEach(k => { const c = S.controls[k]; const v = $(`#c-${k} .val`); if (v) v.textContent = (c.fmt || (x => x + (c.unit || '')))(state[k]); });
+      return;
+    }
+    tray.innerHTML = trayKeys.map(ctrlHTML).join('');
+    tray.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k, c = S.controls[k], o = c.options.find(o => String(o.v) === b.dataset.v); api.input({ [k]: o.v }); });
+    tray.querySelectorAll('.chip.on').forEach(c => { const p = c.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = c.offsetLeft - p.offsetLeft - 8; });   // phone: the picked chip in view
+    tray.querySelectorAll('input[type=range]').forEach(r => { r.oninput = () => api.input({ [r.dataset.k]: +r.value }); r.onchange = () => renderTray(); });
+    tray.querySelectorAll('.btn[data-d]').forEach(b => {
+      let h = null; const k = b.dataset.k, c = S.controls[k];
+      const bump = () => { const v = Math.max(c.min, Math.min(c.max, +(state[k] + (+b.dataset.d) * c.step).toFixed(6))); api.input({ [k]: v }); };
+      b.onpointerdown = e => { e.preventDefault(); bump(); h = setTimeout(function rep() { bump(); h = setTimeout(rep, 90); }, 420); };
+      const stop = () => { clearTimeout(h); h = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; addEventListener('pointerup', stop);
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } };
+    });
+    tray.querySelectorAll('[data-hk]').forEach(wireHold);
+    tray.querySelectorAll('.val').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, c = S.controls[k], inp = el('input', { class: 'tv', type: 'number', inputmode: 'decimal', min: c.min, max: c.max, step: c.step, value: state[k], 'aria-label': c.label });
+      b.replaceWith(inp); inp.focus(); inp.select();
+      const ok = () => { const v = +inp.value; if (isFinite(v)) api.input({ [k]: Math.max(c.min, Math.min(c.max, v)) }); renderTray(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') renderTray(); }; inp.onblur = ok;
+    });
+  }
+
+  /* hold-to-run: state[key] = on while held (pointer, Space / Enter on the button, or the control's hotkey) */
+  const held = new Set();
+  function hold(k, on, v) {
+    if (on ? held.has(k) : !held.has(k)) return;
+    if (on) held.add(k); else held.delete(k);
+    api.input({ [k]: on ? (v != null ? v : 1) : 0 });
+  }
+  function wireHold(b) {
+    const k = b.dataset.hk, v = b.dataset.on != null ? +b.dataset.on : 1;
+    b.style.touchAction = 'none';
+    b.onpointerdown = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} hold(k, true, v); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => hold(k, false);
+    b.oncontextmenu = e => e.preventDefault();
+    b.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(k, true, v); } };
+    b.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); hold(k, false); } };
+    b.onblur = () => hold(k, false);
+  }
+  const releaseAll = () => Array.from(held).forEach(k => hold(k, false));
+  addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT') return; trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) { e.preventDefault(); hold(c.key || k, true, c.on); } }); });
+  addEventListener('keyup', e => { trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) hold(c.key || k, false); }); });
+
+  /* ---------------------------------------------------------------- spotlight (hint level 2) */
+  let spotIds = [];
+  function drawSpot() {
+    if (STAGE_ONLY) return;                 // video: no lesson spotlight on the stage
+    spotG.innerHTML = spotIds.map(id => { const p = S.spot && S.spot(id, state); if (!p) return ''; const [x, y, r] = p;
+      return `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/><circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="10 7"/>`; }).join('');
+  }
+  function spot(ids, ctrls) {
+    spotIds = ids || []; drawSpot();
+    tray.querySelectorAll('.spotlit').forEach(e => e.classList.remove('spotlit'));
+    (ctrls || []).forEach(k => { const e = $('#c-' + k); if (e) e.classList.add('spotlit'); });
+  }
+
+  /* ---------------------------------------------------------------- steps */
+  let tries = 0;
+  function markTry() { tries++; }
+  function goalMet(g) {
+    if (!g) return false;
+    const f = fn(g); if (f) return !!f(state, out);
+    const st = full();
+    return Object.keys(g).every(k => { const v = getPath(st, k), m = g[k];
+      if (Array.isArray(m)) return v >= m[0] - 1e-9 && v <= m[1] + 1e-9;
+      if (m && typeof m === 'object') { if ('in' in m) return m.in.includes(v); if ('near' in m) return Math.abs(v - m.near) <= (m.tol != null ? m.tol : 1e-6);
+        if ('gte' in m) return v >= m.gte - 1e-9; if ('lte' in m) return v <= m.lte + 1e-9; if ('gt' in m) return v > m.gt; if ('lt' in m) return v < m.lt; if ('not' in m) return v !== m.not; }
+      return v === m; });
+  }
+  function checkGoal(ms) {
+    if (free || phase !== 'step') return;
+    const st = steps[idx]; if (!st || done.has(idx) || !(st.type === 'do' || st.type === 'fail' || (st.type === 'predict' && qState === 'answered' && st.goal))) return;
+    if (goalMet(st.goal)) { goalSince = (goalSince || 0) + ms; if (goalSince >= (st.hold != null ? st.hold : 450)) complete(); }
+    else goalSince = null;
+  }
+  function complete(how) {
+    if (done.has(idx)) return;
+    done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+  }
+  function enter(i, opts = {}) {
+    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    const st = steps[idx];
+    if (!opts.noSetup) {
+      if (st.setup) set(st.setup, 0);
+      if (st.set) set(st.set, st.dur || 1200);
+      if (st.type === 'question') { const v = st.variants[(qv[idx] || 0) % st.variants.length]; if (v.setup) set(v.setup, 0); }
+    }
+    releaseAll(); lastLive = '';
+    if (!opts.noSetup) { window.sim.clear(); if (st.callout) [].concat(st.callout).forEach(c => window.sim.callout(c.id, c.text, { pos: c.pos })); }
+    L('enter', { step: idx, type: st.type });
+    spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
+  }
+  function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
+  function stepHead(label) {
+    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  }
+  function wireHead() {
+    const p = $('#b-sprev'), n = $('#b-snext');
+    if (p) { p.onclick = () => { if (free) enter(steps.length - 1); else if (idx > 0) enter(idx - 1); }; p.disabled = !free && idx === 0; }
+    if (n) n.onclick = () => { if (free) go(1); else { L('skip', { step: idx }); if (!done.has(idx)) helped.add(idx); nextStep(); } };
+  }
+  function hintBlock(st) {
+    let h = '';
+    if (hintLvl >= 1) h += `<div class="hint">${md(st.hint || 'Look at the readouts under the drawing.')}</div>`;
+    if (hintLvl >= 2 && st.hint2) h += `<div class="hint">${md(st.hint2)}</div>`;
+    return h;
+  }
+  function hintButtons(st, showLabel = 'Show me') {
+    return `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; ${showLabel}</button>${hintLvl >= 2 || helped.has(idx) ? '<button class="skip" id="b-skip">Skip this step</button>' : ''}</div>`;
+  }
+  function renderStep() {
+    if (free) return renderFree();
+    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    const ctrls = st.controls || [];
+    if (st.type === 'teach') {
+      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+    } else if (st.type === 'do' || st.type === 'fail') {
+      if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
+      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      else h += hintBlock(st) + hintButtons(st);
+    } else if (st.type === 'predict') {
+      h += `<p>${md(st.text)}</p>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      else {
+        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
+        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      }
+    } else if (st.type === 'question') {
+      const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
+      h += `<h3>${md(v.q)}</h3>`;
+      if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
+        `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+      else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
+        `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
+      else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
+        `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
+    lastLive = ''; liveLine();
+  }
+  let predPick = null, qPick = null;
+  function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
+  function choose(i) {
+    const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'predict') {
+      if (qState) return; predPick = i; qState = 'answered';
+      if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+      if (!st.goal) done.add(idx);
+      renderStep(); return;
+    }
+    if (st.type !== 'question' || qState) return;
+    const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
+    if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
+    else qState = 'wrong';
+    renderStep();
+  }
+  function newQuestion() {
+    if (challenge) { return nextChallenge(); }
+    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
+    L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
+  }
+  function hint() {
+    if (challenge) { hintLvl++; renderFree(); return; }
+    const st = steps[idx]; hintLvl = Math.min(2, hintLvl + 1); L('hint', { step: idx, lvl: hintLvl });
+    renderStep();
+    if (hintLvl >= 2) spot(st.hintSpot ? [].concat(st.hintSpot) : (st.spot ? [].concat(st.spot) : []), st.controls || []);
+  }
+  function showMe() {
+    if (challenge) { challenge.shown = true; renderFree(); return; }
+    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
+  }
+
+  /* ---------------------------------------------------------------- free play */
+  const allKeys = (C.freeControls || Object.keys(S.controls)).filter(k => S.controls[k] && !(S.controls[k].lessonOnly));
+  function enterFree() { stopVoice(); free = true; challenge = null; spot([], []); releaseAll(); window.sim.clear(); L('free'); renderFree(); speak('free'); }
+  function renderFree() {
+    card.className = 'card step free';
+    let h = stepHead('FREE PLAY · EVERYTHING UNLOCKED');
+    if (!challenge) {
+      h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
+    } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
+      h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    } else {
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
+      if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
+      else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
+      else h += opts(c.choices, ord, () => '', true) + (hintLvl ? `<div class="hint">${md(c.hint)}</div>` : '');
+      h += `<div class="row">${c.state === 'wrong' || c.state === 'right' || c.shown ? '<button class="btn pri" id="b-newq">Try a new question &#9654;</button>' : '<button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button>'}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(challenge ? (challenge.game ? (challenge.controls || allKeys) : []) : allKeys);
+    const ch = $('#b-chal'); if (ch) ch.onclick = () => nextChallenge();
+    const rs = $('#b-reset'); if (rs) rs.onclick = () => reset();
+    const np = $('#b-np'); if (np) np.onclick = () => go(1);
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => nextChallenge();
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => { const c = challenge; c.pick = +b.dataset.i; c.state = c.pick === c.answer ? 'right' : 'wrong'; L('challenge', { right: c.state === 'right' }); renderFree(); });
+  }
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function nextChallenge() {
+    chalN++; hintLvl = 0;
+    const c = S.challenge(rng(PN * 1000 + chalN * 7919 + (Q.get('seed') | 0)), chalN);
+    if (c.setup) set(c.setup, 0);
+    challenge = Object.assign({ state: null, pick: null }, c); free = true; L('challenge', { n: chalN }); renderFree();
+  }
+  function reset() { tweens = []; held.clear(); S.reset && S.reset(); state = Object.assign({}, S.defaults); out = S.calc(state); S.apply(state, null, true); dirty = true; challenge = null; L('reset'); renderFree(); }
+
+  function finish() {
+    finished = true; stopVoice(); L('finish'); if (host && host.finish) host.finish();
+    card.className = 'card step free';
+    card.innerHTML = `<div class="sh"><b>LESSON COMPLETE</b></div><p>${md(C.lesson.done)}</p><div class="row">${C.lesson.sheet ? `<a class="btn pri" href="${C.lesson.sheet}" target="_blank" rel="noopener">&#128196; Summary sheet (PDF)</a>` : ''}<button class="btn" id="b-again">Back to free play</button></div>`;
+    tray.innerHTML = ''; $('#b-again').onclick = () => enterFree();
+    speak('done');
+  }
+
+  /* ---------------------------------------------------------------- loop */
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+    if (!CAPTURE) advance(dt);
+    requestAnimationFrame(frame);
+  }
+  S.apply(state, null, true); render();
+  enter(0, { quiet: true, noSetup: STAGE_ONLY });     // a video page starts from the page defaults: the script sets it up
+  if (!CAPTURE) {
+    requestAnimationFrame(frame);
+    if ((PN === 1 && firstVisit) || host && host.fresh) showStart();
+    else { voiceOK = true; speak('what', curKey()); }      // later pages: autoplay; if the browser refuses, play() shows the Start tap
+  }
+  if (CAPTURE) { voiceOK = false; }
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight' && e.altKey) go(1); if (e.key === 'ArrowLeft' && e.altKey) go(-1); });
+  window.sim.ready = true;
+
+  /* test / run-through API */
+  window.lessonPage = {
+    log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
+      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+  };
+}
+})();
+</script>
+<script>(function(){const C={"n":1,"file":"01-run-the-crane.html","title":"Run it from the pendant","scene":"crane","capture":"stage","what":"A **5 ton top running bridge crane** in a shop bay, seen looking along the runway. The trolley hoist runs left and right on the bridge girder; the bridge runs along the runway (toward you and away). A **4,000 lb** skid is on the hook with a two-leg chain sling. The plan card shows the bay from above.","start":{"ccap":5,"load":4000,"hooked":true,"hh":0,"tx":0.35,"bz":0.4,"offset":0,"mark":"ok","hookc":"ok","rope":"ok","limit":"ok","cbrake":"ok","pendant":"ok","horn":"ok","lock":false,"card":"plan","target":[0.65,0.55]},"steps":[{"type":"teach","text":"The **pendant** is hold-to-run: press and hold to move, let go and it stops (the hoist brake sets by itself). **Stop** kills every motion. On the job, check the pendant labels match the directions before you lift."},{"type":"do","text":"Warn the people in the bay first. Press the **horn**.","controls":["pend"],"goal":"fn:p1s2_goal","solve":{"horning":1},"hold":100,"hint":"Press HORN on the pendant.","ok":"Horn before you move a load, and never carry a load over people."},{"type":"do","setup":{"horning":0},"text":"Make a trial lift: raise the skid about **6 in**, then let go and check that the brake holds it.","controls":["pend"],"goal":"fn:p1s3_goal","solve":{"hh":0.5},"live":"fn:p1s3_live","hint":"Hold ▲ UP, let go at about 6 in.","ok":"It hangs still: the brake holds. Now you can travel."},{"type":"do","text":"Travel the load to the orange box on the plan: hold **RIGHT** to run the trolley, **AWAY** to run the bridge. Stop on the box with the load hanging still.","controls":["pend"],"goal":"fn:p1s4_goal","solve":{"tx":0.65,"bz":0.55},"solveDur":7000,"live":"fn:p1s4_live","hint":"Start and stop gently. If the load swings, nudge the trolley the same way the load is swinging to catch it.","ok":"On the mark, hanging still. Smooth starts and stops keep the swing small."},{"type":"do","text":"Set it down: hold **▼ DOWN** until the skid sits on the floor and the slings go slack.","controls":["pend"],"goal":"fn:p1s5_goal","solve":{"hh":0},"hint":"Hold DOWN.","ok":"Landed. Lower the last few inches slowly."},{"type":"question","variants":[{"q":"You stop the trolley and the load keeps swinging. What is the best way to settle it?","choices":[{"t":"Grab the load and hold it","why":"Never put your hands on a swinging load; use a tag line from a safe spot."},{"t":"Nudge the trolley the way the load is swinging"},{"t":"Lower it fast to the floor","why":"A swinging load landing fast hits whatever is beside it."},{"t":"Run the bridge back and forth","why":"That makes a second swing."}],"answer":1,"explain":"Short, gentle moves **in the direction of the swing** bring the trolley back over the load. Smooth starts and stops prevent it."},{"q":"What should you do before travelling a load through the bay?","choices":[{"t":"Sound the horn and make a trial lift"},{"t":"Lift it as high as it will go","why":"Carry loads only as high as needed to clear obstacles."},{"t":"Travel with the hook block at the upper limit","why":"The limit is not an operating control."},{"t":"Nothing if you are in a hurry","why":"Never skip it: release lets the brake set, and that is how the load is held."}],"answer":0,"explain":"**Warn people, trial lift a few inches** to check the brake and the rigging, then travel low and smooth."},{"q":"You let go of the UP button. What holds the load?","choices":[{"t":"The hoist brake sets automatically"},{"t":"The upper limit switch","why":"That stops the hook at the top only."},{"t":"The motor keeps holding","why":"The motor stops when you let go. The brake sets and holds the load."},{"t":"The pendant","why":"The pendant is only the control. The brake holds the load."}],"answer":0,"explain":"Hold-to-run: releasing the button stops the motion and the **brake sets**. That is why you test the brake with a trial lift."}]}],"free":"Run the crane anywhere. Try fast starts and stops and watch the swing.","freeControls":["pend","load","ccap","units"],"lesson":{"id":"overhead-cranes","title":"Overhead cranes","episode":"016-overhead-crane-inspection","done":"You finished **Overhead cranes**. Print the summary sheet to keep the rules and key numbers. On the job, always check the tag, the maker's data and the lift plan.","sheet":"overhead-cranes-summary.pdf","summary":{"title":"Overhead cranes: operating and the shift check","pic":{"page":3,"state":{"load":10000,"hh":0.5}},"rules":["Rated capacity marked on the crane, readable from the floor, and on the hoist / block. No marking: don't use it.","Rope: load per part = load ÷ parts. Design factor = rope strength ÷ load per part; wire rope needs 5 or more (WorkSafeBC Table 15-1).","5 t crane, 4 parts of 3/8 in rope (15,100 lb): 10,000 ÷ 4 = 2,500 lb; 15,100 ÷ 2,500 = 6.04.","Every shift: test the upper limit with no load, slowly (WorkSafeBC 14.55; Ontario Reg. 851 s.51). Never use it as an operating control.","Trial lift a few inches to check the brake. Horn before you travel; never over people.","Hook plumb over the load before you lift. No side pulls, no dragging.","Load test 125 % of rated after installation or major repair (WorkSafeBC 14.54) — not a shift check.","Defect: record it, report it, tag the crane out. Lockout: controls off, main switch off, your own lock and tag, verify."]},"pages":[{"file":"01-run-the-crane.html","title":"Run it from the pendant"},{"file":"02-hook-over-the-load.html","title":"Hook over the load"},{"file":"03-rated-capacity.html","title":"Rated capacity and the rope"},{"file":"04-start-of-shift-check.html","title":"The start-of-shift check"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{},"audioBase":"audio/"};CFShell.start(C, HoistAdapter(C, window.LESSON_CODE["overhead-cranes"][C.n]));})();</script>
+<style>#b-back,#b-next,.bar .dots,.bar .voice,#b-np,#b-sprev,#b-snext,#start{display:none!important}</style><script>/* crewforge.ca free simulator: open in free play (tools/build_site.py) */(function(){var n=0;(function go(){var lp=window.lessonPage;if(!lp){if(n++<400)setTimeout(go,25);return;}var s=document.getElementById('start');if(s)s.remove();lp.enterFree();var k=document.querySelector('.bar .kick');if(k)k.textContent='CREWFORGE · FREE SIMULATOR';})();})();</script></body></html>

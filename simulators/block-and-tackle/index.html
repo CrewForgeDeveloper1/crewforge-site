@@ -1,1005 +1,1219 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="en-CA"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Block and Tackle and Chain Fall Simulator · CrewForge</title>
-<!--
-  CrewForge: Mechanical Advantage Simulator (block and tackle, chain falls). Level 1, RSOS task B-10.
-  Brand: charcoal #1F1D1A, off-white #F5F5F4, orange #F08A2B (accents only, never a warning).
-  PIPELINE CONTRACT:
-    window.sim.set(partialState, durationMs)   tween numeric values, set others instantly
-    window.sim.callout(targetId, text, {pos})   highlight an element with a label
-    window.sim.clear()                          remove all callouts
-    window.sim.advance(ms)                      advance the virtual clock (ALL motion runs off this)
-    window.sim.isIdle()                         always false: the load path flows continuously
-    window.sim.ready                            true once loaded
-  Extras: sim.calc(), sim.get(), sim.view (animation state, read-only, for tests)
-  ?capture=1 → no requestAnimationFrame; the pipeline drives time through advance().
-
-  STATE (sim.set keys)
-    mode       'tackle' | 'chainfall'
-    parts      1 … 8   parts of line supporting the moving block (tackle)
-    lead       'fixed'  lead line leaves the FIXED (upper) block, you pull down
-               'moving' lead line leaves the MOVING (lower) block, you pull up ("rove to advantage"; needs parts ≥ 2)
-    friction   'ideal' | 'rule10' (add 10 % of the load per sheave) | 'bronze' | 'roller' (Crosby ratio tables)
-    chain      'geared' (hand chain hoist, maker's table) | 'differential' (Weston block)
-    cap        0 … 8   index into the Harrington CB table: ½, 1, 1½, 2, 2½, 3, 5, 8, 10 ton
-    D, d       differential pocket-wheel diameters (in | mm), d < D
-    eta        differential efficiency (0.20 … 0.60)
-    load       load weight W (lb | kg)
-    rise       load height above its start (ft | m), 0 … riseMax (8 ft | 2.5 m). Tween it to lift: sim.set({rise:4},6000)
-    units      'imp' | 'met'   switching units alone converts load, rise, D and d (the rig stays the same)
-    snap       true → arrows and needles jump to rest (use in scene setups)
-  FAILURE MODES (block and tackle; NOTES.md "Failure modes")
-    blockWll   rated WLL of each block, its hook and the overhead anchor (lb | kg; default 16,000 lb = 8 US tons)
-    fail       true → past blockWll × 4 (Crosby block design factor 4 : 1) the most-loaded hook opens and the load drops
-               (default: true interactive, false in ?capture=1). false, snap:true or a mode change restores the rig.
-               sim.failure() → {on, kind 'anchor' | 'hook', t, parted, landed, caption, load, ratio}
--->
+<title>Block and tackle simulator · CrewForge</title>
+<!-- BUILT FILE: edit simulators/block-and-tackle/src/ and run .venv/bin/python simulators/block-and-tackle/build.py -->
 <style>
-:root{--bg:#1F1D1A;--panel:#2A2723;--panel2:#34302B;--line:#45403A;--text:#F5F5F4;--muted:#A39B90;
---accent:#F08A2B;--ok:#3ddc84;--warn:#F2C230;--bad:#ff4d4d}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
-font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-#app{display:grid;grid-template-columns:1fr 600px;height:100vh}
-#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-right:1px solid var(--line);
-background:radial-gradient(ellipse at 40% 35%,#26231f 0%,#1F1D1A 55%,#141210 100%)}
-.brandbar{display:flex;align-items:center;gap:14px;padding:14px 26px;border-bottom:1px solid var(--line)}
-.brandbar .logo{height:44px;width:auto;display:block}
-.brandbar .t1{font-size:13px;letter-spacing:.18em;color:var(--muted);font-weight:600}
-.brandbar .t2{font-size:26px;font-weight:700}
-#svgwrap{flex:1;min-height:0;position:relative}
-#svg{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px)}
-#vm2wrap{display:none;position:relative}
-#svg2{position:absolute;inset:0;width:100%;height:100%}
-#formula{margin:0 22px 16px;padding:10px 20px;background:linear-gradient(180deg,#2e2a26,#272420);border:1px solid var(--line);
-border-left:5px solid var(--accent);border-radius:8px;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.45;
-font-family:"SF Mono",Menlo,Consolas,monospace}
-#formula div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#panel{background:linear-gradient(180deg,#2c2925,#262320);padding:14px 22px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
-.sec h3{margin:0 0 6px;font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700}
-.seg{display:flex;gap:6px;flex-wrap:wrap}
-.seg button{flex:1;min-width:44px;padding:7px 6px;border-radius:7px;border:1px solid var(--line);
-background:linear-gradient(180deg,#3a3530,#302c28);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
-.seg button.on{background:linear-gradient(180deg,#f59a45,#e07c1f);color:#141414;border-color:var(--accent)}
-.seg button:disabled{opacity:.35;cursor:not-allowed}
-button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.ctl{margin-top:6px}
-.ctl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:2px}
-.ctl label b{color:var(--text);font-variant-numeric:tabular-nums}
-.ctl .sub{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:700;margin:0 0 4px}
-input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
-.hide{display:none!important}
-.seg.locked button,.ctl.locked{opacity:.38;cursor:not-allowed}
-input:disabled{cursor:not-allowed}
-/* lesson dialog docks (simulators/_lesson): the simulator shrinks to the space left, no page scrolling */
-body.lesson-dock-right #app{width:calc(100vw - 360px);height:100vh;grid-template-columns:1fr minmax(380px,34%)}
-body.lesson-dock-right #panel{overflow-y:auto}
-body.lesson-dock-bottom{overflow:hidden}
-body.lesson-dock-bottom #app{height:62vh;grid-template-columns:1fr minmax(320px,38%)}
-body.lesson-dock-bottom #panel{overflow-y:auto}
-.ro{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-.ro div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 10px;min-width:0}
-.ro span{display:block;font-size:11px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro b{font-size:21px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.ro .big{grid-column:span 2}
-.ro .big b{font-size:30px;color:#59b7ff}
-.ro .wide{grid-column:span 3}
-#ro-lost{color:#b48af0}
-#status{padding:10px;border-radius:8px;font-weight:800;font-size:18px;text-align:center;letter-spacing:.03em;border:1px solid var(--line)}
-#co{position:fixed;inset:0;pointer-events:none;z-index:10}
-.ring{position:absolute;border:4px solid var(--accent);border-radius:10px}
-.clabel{position:absolute;max-width:440px;background:var(--accent);color:#141414;font-weight:700;font-size:25px;
-line-height:1.25;padding:12px 16px;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55)}
-@media (max-width:1000px){
-  #app{grid-template-columns:1fr;height:auto}
-  #stage{border-right:0}
-  #svgwrap{height:106vw;min-height:300px;flex:none}
-  #vm2wrap{display:block;height:calc((100vw - 8px)*1.76);margin:0 4px 8px}
-  #formula{font-size:12px;margin:0 8px 10px;padding:8px 10px}
-  #formula div{white-space:normal}
-  #panel{overflow:visible;padding:12px}
-  .brandbar{padding:10px 12px}.brandbar .t2{font-size:18px}.brandbar .logo{height:34px}
-  .ro{grid-template-columns:1fr 1fr}
-  .ro .wide{grid-column:span 2}
-  .ro b{font-size:17px}.ro .big b{font-size:24px}
-  .seg button{font-size:13px;padding:7px 3px;min-width:36px}
-  .clabel{font-size:15px;max-width:240px;padding:8px 10px}
-  body.lesson-dock-bottom #app{display:grid;height:62vh;grid-template-columns:1fr;grid-template-rows:minmax(0,58%) minmax(0,42%);overflow:hidden}
-  body.lesson-dock-bottom #stage{overflow:hidden}
-  body.lesson-dock-bottom .brandbar,body.lesson-dock-bottom #vm2wrap,body.lesson-dock-bottom #formula{display:none}
-  body.lesson-dock-bottom #svgwrap{height:auto!important;flex:1}
-  body.lesson-dock-bottom #panel{overflow-y:auto}
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f;--p:#59b7ff;--fr:#b48af0}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;overflow:hidden}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100vh}
+.bar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo{height:30px}
+.what{margin:12px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15px}
+.what b{color:var(--accent);font-size:12px;letter-spacing:.12em}
+.main{display:grid;grid-template-columns:1fr 380px;gap:14px;padding:12px 18px 16px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+#co{position:absolute;inset:0;pointer-events:none;z-index:5}
+.co-ring{position:absolute;border:3px solid var(--accent);border-radius:12px;box-shadow:0 0 0 4px rgba(240,138,43,.18)}
+.co-label{position:absolute;background:var(--accent);color:#1F1D1A;font-weight:800;font-size:22px;padding:8px 14px;border-radius:10px;max-width:460px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.fbar{padding:8px 16px;border-top:1px solid var(--line);font-weight:800;font-size:20px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.capture .fbar{font-size:26px;padding:10px 20px}
+.read{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro span{font-size:22px;font-weight:800;white-space:nowrap}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card>b{color:var(--muted);font-size:12px;letter-spacing:.12em;display:block;margin-bottom:8px}
+.ctl{margin:10px 0}.ctl label{display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px}
+.ctl label b{color:var(--accent)}
+.row{display:flex;gap:8px;align-items:center}
+.btn,.seg button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  font-weight:700;font-size:15px;min-height:44px;cursor:pointer}
+.btn:disabled,.seg button:disabled{opacity:.4;cursor:default}
+.seg{display:flex;gap:6px;flex-wrap:wrap}.seg button{flex:1;min-width:0;font-size:14px}
+.seg button.on{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+input[type=range]{flex:1;accent-color:var(--accent);height:30px}
+.locked{opacity:.38;pointer-events:none}
+.status{font-weight:800;padding:10px 12px;border-radius:10px;border:2px solid var(--line);font-size:14px}
+body.capture .bar,body.capture .what,body.capture .side{display:none}
+body.capture .app{grid-template-rows:1fr}
+body.capture .main{grid-template-columns:1fr;padding:12px 24px}
+body.capture .ro span{font-size:30px}body.capture .ro small{font-size:14px}
+@media (max-width:900px){
+  html,body{overflow:visible;overflow-x:hidden;height:auto}.app{height:auto;min-height:100vh}.stage,.side{min-width:0}.h{white-space:normal;font-size:18px}.main{grid-template-columns:minmax(0,1fr)}
+  .bar{padding:8px 10px}.what{margin:8px 10px 0;font-size:14px}
+  .main{grid-template-columns:1fr;padding:8px 10px}
+  .stage svg{height:62vh;flex:none}.fbar{white-space:normal;font-size:16px}
+  .read{flex-wrap:wrap}.ro{flex:1 1 30%}.ro span{font-size:17px}
 }
-</style>
-</head>
-<body>
-<div id="app">
-  <section id="stage">
-    <div class="brandbar"><img class="logo" alt="CrewForge" src="data:image/png;base64,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"><div><div class="t1">CREWFORGE · MILLWRIGHT EXAM PREP</div><div class="t2" id="title">Block and Tackle and Chain Fall Simulator</div></div></div>
-    <div id="svgwrap"><svg id="svg" viewBox="0 0 1300 900" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Rigging diagram: upper block, lower block, parts of line and the lead line, with pictures of the maths"></svg></div>
-    <div id="vm2wrap"><svg id="svg2" viewBox="826 0 474 836" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Pictures of the maths: force, distance and work"></svg></div>
-    <div id="formula"><div id="f1"></div><div id="f2"></div></div>
-  </section>
-  <aside id="panel">
-    <div class="sec"><h3>MACHINE</h3>
-      <div class="seg" id="c-mode"><button data-v="tackle">Block and tackle</button><button data-v="chainfall">Chain fall</button></div>
-    </div>
-    <div class="sec" id="w-tackle"><h3>REEVING</h3>
-      <div class="ctl"><div class="sub">PARTS OF LINE SUPPORTING THE MOVING BLOCK (n)</div>
-        <div class="seg" id="c-parts"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="7">7</button><button data-v="8">8</button></div></div>
-      <div class="ctl"><div class="sub">LEAD LINE LEAVES THE</div>
-        <div class="seg" id="c-lead"><button data-v="fixed">Fixed block (pull down)</button><button data-v="moving">Moving block (pull up)</button></div></div>
-      <div class="ctl"><div class="sub">SHEAVE FRICTION</div>
-        <div class="seg" id="c-friction"><button data-v="ideal">Ideal</button><button data-v="rule10">10 % rule</button><button data-v="bronze">Bronze bushed</button><button data-v="roller">Roller bearing</button></div></div>
-    </div>
-    <div class="sec hide" id="w-chain"><h3>CHAIN FALL</h3>
-      <div class="seg" id="c-chain"><button data-v="geared">Geared hand chain hoist</button><button data-v="differential">Differential block</button></div>
-      <div class="ctl" id="w-cap"><div class="sub">RATED CAPACITY (MAKER'S TABLE, US TONS)</div>
-        <div class="seg" id="c-cap"><button data-v="0">½</button><button data-v="1">1</button><button data-v="2">1½</button><button data-v="3">2</button><button data-v="4">2½</button><button data-v="5">3</button><button data-v="6">5</button><button data-v="7">8</button><button data-v="8">10</button></div></div>
-      <div id="w-diff">
-        <div class="ctl"><label>Large pocket wheel (D) <b id="l-D"></b></label><input id="c-D" type="range"></div>
-        <div class="ctl"><label>Small pocket wheel (d) <b id="l-d"></b></label><input id="c-d" type="range"></div>
-        <div class="ctl"><label>Efficiency (η) <b id="l-eta"></b></label><input id="c-eta" type="range" min="0.2" max="0.6" step="0.01"></div>
+</style></head><body>
+<div class="app">
+  <div class="bar">
+    <div class="title"><div class="kick">CREWFORGE · RIGGING SIMULATOR</div><div class="h">Block and tackle: mechanical advantage</div></div>
+  </div>
+  <div class="what" id="what"><b>WHAT YOU'RE LOOKING AT</b><br>
+    A wire rope block and tackle hung from a beam clamp on a W12 beam, lifting a steel test weight off its cribbing.
+    Reeve more parts of line, pick the friction, then drag the hand line down (or use the Pull slider) and watch the pull,
+    the lead line travel and the load on the anchor.</div>
+  <div class="main">
+    <div class="stage" id="stage">
+      <svg id="scene" viewBox="0 0 1600 880" data-phone-viewbox="250 0 760 880" role="img" aria-label="block and tackle"></svg>
+      <div id="co"></div>
+      <div class="fbar" id="formula"></div>
+      <div class="read">
+        <div class="ro"><small>Parts of line (n)</small><span id="ro-n" style="color:var(--accent)"></span></div>
+        <div class="ro"><small>Pull on the lead (P)</small><span id="ro-p" style="color:var(--p)"></span></div>
+        <div class="ro"><small>Lead travel / rise</small><span id="ro-dist"></span></div>
+        <div class="ro"><small>Efficiency</small><span id="ro-eff"></span></div>
+        <div class="ro"><small>Anchor load</small><span id="ro-anchor"></span></div>
       </div>
     </div>
-    <div class="sec"><h3>LOAD</h3>
-      <div class="ctl"><label>Load weight (W) <b id="l-load"></b></label><input id="c-load" type="range"></div>
-      <div class="ctl" style="display:flex;gap:8px"><div class="seg" id="c-units" style="flex:2"><button data-v="imp">Imperial</button><button data-v="met">Metric</button></div>
-        <div class="seg" id="c-lift" style="flex:2"><button data-v="up">Pull (lift)</button><button data-v="down">Lower</button></div></div>
-    </div>
-    <div class="sec"><h3>READOUTS</h3>
-      <div class="ro">
-        <div class="big" id="ro-p-box"><span id="ro-p-lbl">Line pull, with friction (P)</span><b id="ro-p"></b></div>
-        <div id="ro-pi-box"><span>Ideal pull W ÷ MA</span><b id="ro-pi"></b></div>
-        <div id="ro-ma-box"><span id="ro-ma-lbl">Ideal MA (n)</span><b id="ro-ma"></b></div>
-        <div id="ro-s-box"><span id="ro-s-lbl">Sheaves (S)</span><b id="ro-s"></b></div>
-        <div id="ro-act-box"><span>Actual MA W ÷ P</span><b id="ro-act"></b></div>
-        <div id="ro-eff-box"><span>Efficiency</span><b id="ro-eff"></b></div>
-        <div id="ro-kn-box"><span>Pull in kN</span><b id="ro-kn"></b></div>
-        <div id="ro-rise-box"><span>Load rise</span><b id="ro-rise"></b></div>
-        <div id="ro-travel-box"><span id="ro-travel-lbl">Lead line travel</span><b id="ro-travel"></b></div>
-        <div id="ro-win-box"><span>Work in P × travel</span><b id="ro-win"></b></div>
-        <div id="ro-wout-box"><span>Work out W × rise</span><b id="ro-wout"></b></div>
-        <div class="wide" id="ro-lost-box"><span>Lost to friction (work in − work out)</span><b id="ro-lost"></b></div>
+    <div class="side" id="panel">
+      <div class="card"><b>REEVE THE BLOCKS</b>
+        <div class="ctl" id="w-parts"><label>Parts of line <b id="v-parts"></b></label>
+          <div class="row"><button class="btn" id="c-parts-dn" aria-label="one less part">− Unreeve</button><button class="btn" id="c-parts" aria-label="one more part" style="flex:1">+ Reeve one more sheave</button></div></div>
+        <div class="ctl"><label>Lead line leaves the</label>
+          <div class="seg" id="c-lead"><button data-v="fixed">Top (fixed) block</button><button data-v="moving">Bottom (moving) block</button></div></div>
       </div>
+      <div class="card"><b>LOAD AND FRICTION</b>
+        <div class="ctl"><label>Load <b id="v-load"></b></label><div class="row"><input type="range" id="c-load" min="500" max="40000" step="100"></div></div>
+        <div class="ctl"><label>Sheave friction</label>
+          <div class="seg" id="c-friction"><button data-v="ideal">None</button><button data-v="rule10">10 % rule</button><button data-v="bronze">Bronze</button><button data-v="roller">Anti-friction</button></div></div>
+        <div class="ctl"><label>Anchor (beam clamp) rated <b id="v-anchor"></b></label>
+          <div class="seg" id="c-anchorWll"><button data-v="2000">1 t</button><button data-v="4000">2 t</button><button data-v="6000">3 t</button><button data-v="10000">5 t</button></div></div>
+      </div>
+      <div class="card"><b>PULL THE LEAD LINE</b>
+        <div class="ctl"><label>Lead line pulled <b id="v-haul"></b></label><div class="row"><input type="range" id="c-haul" min="0" max="1" step="0.001"></div></div>
+        <div class="row"><div class="seg" id="c-units" style="flex:1"><button data-v="imp">lb · ft</button><button data-v="met">kg · m</button></div>
+          <button class="btn" id="c-reset">↺ Reset</button></div>
+      </div>
+      <div class="status" id="status"></div>
     </div>
-    <div id="status"></div>
-  </aside>
+  </div>
 </div>
-<div id="co"></div>
-<script>
-(()=>{
-const CAPTURE=new URLSearchParams(location.search).has('capture');
-const OK='#3ddc84',WARN='#F2C230',BAD='#ff4d4d',ACC='#F08A2B',MUTED='#A39B90',STEEL='#9fb0bc',TEXT='#F5F5F4';
-// Visual-maths colours: each symbol keeps one colour in the drawing, the cards and the formula bar
-const COL={W:'#d9d3c7', P:'#59b7ff', n:ACC, loss:'#b48af0', dist:'#7fd6c2'};
-const LB_TO_KG=0.45359237, FT_TO_M=0.3048, IN_TO_MM=25.4, G=9.80665, LBF_TO_N=4.4482216;
-const $=id=>document.getElementById(id);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-
-/* =====================================================================
-   SOURCE DATA (cited in NOTES.md)
-   Crosby Group general catalogue, Blocks section 15, "How to Figure Line Parts" (p. 443, 2023):
-     Ratio = total load ÷ single line pull. Ratio A bronze-bushed sheaves, Ratio B anti-friction (roller) bearing sheaves.
-   Harrington CB hand chain hoist specification table (Harrington manual hoist catalogue p. 8):
-     [capacity US tons, pull to lift rated load lb, overhaul ratio (ft of hand chain per ft of lift), load chain falls]
-   ===================================================================== */
-const CROSBY={bronze:[.96,1.87,2.75,3.59,4.39,5.16,5.90,6.60], roller:[.98,1.94,2.88,3.81,4.71,5.60,6.47,7.32]};
-const CB=[[.5,48,25,1],[1,58,43,1],[1.5,70,57,1],[2,72,70,1],[2.5,66,99,1],[3,72,114,2],[5,68,198,2],[8,75,297,3],[10,72,396,4]];
-const CAPNAME=['½','1','1½','2','2½','3','5','8','10'];
-const FRICNAME={ideal:'ideal (no friction)',rule10:'10 % of the load per sheave',bronze:'Crosby ratio A, bronze bushed',roller:'Crosby ratio B, roller bearing'};
-
-const S={mode:'tackle',parts:4,lead:'fixed',friction:'rule10',chain:'geared',cap:3,D:10,d:9,eta:.35,
-         load:4000,rise:0,units:'imp',blockWll:16000};
-S.fail=!CAPTURE;                      // FAILURE MODES armed: on in the interactive page, off in ?capture=1 unless a script sets it
-const NUMERIC=['load','rise','D','d','eta','blockWll'];
-const riseMax=()=>S.units==='imp'?8:2.5;
-
-/* =====================================================================
-   PHYSICS: every number on screen comes from calc().
-   BLOCK AND TACKLE (n = parts of line supporting the moving block)
-     Ideal MA = n. Velocity ratio VR = n: the lead line moves n × the load's rise.
-     Sheaves the rope runs over: S = n when the lead leaves the fixed block, n − 1 when it leaves the moving block.
-     Ideal pull         P = W ÷ n
-     10 % rule          P = W × (1 + 0.10 × S) ÷ n          (US Navy rigging texts: add 10 % of the load per sheave)
-     Crosby tables      P = W ÷ ratio(n)                    (ratio A bronze bushed, ratio B roller bearing; lead off the fixed block)
-                        lead off the moving block: ratio = 1 + ratio(n − 1) — the lead part carries P directly and the
-                        other n − 1 parts run over the n − 1 sheaves (our derivation from Crosby's method; see NOTES.md)
-   CHAIN FALL
-     Geared hoist       VR = maker's overhaul ratio. η = rated load ÷ (rated pull × VR). P = W ÷ (VR × η)
-                        (= rated pull × W ÷ rated load: the maker's pull scaled to the load)
-     Differential       VR = 2D ÷ (D − d). P = W ÷ (VR × η). η from the user (default 35 %; EB 1911: under 50 %, so it does not overhaul)
-   ALL
-     Actual MA = W ÷ P.  Efficiency = actual MA ÷ VR.
-     Lead (hand chain) travel = VR × rise.  Work out = W × rise.  Work in = P × travel.  Lost = work in − work out.
-     Imperial work in ft·lb (lb × ft). Metric work in joules: kg × 9.80665 × m (kilograms here are kilograms of force).
-   ===================================================================== */
-function calc(st=S){
-  const imp=st.units==='imp', W=st.load, c={imp,W,mode:st.mode};
-  if(st.mode==='tackle'){
-    const n=st.parts, lm=st.lead==='moving'&&n>=2;
-    c.n=n; c.leadMoving=lm; c.S=lm?n-1:n;
-    c.U=lm?Math.floor((n-1)/2):Math.ceil(n/2); c.L=c.S-c.U;           // sheaves in the upper / lower block
-    c.MA=n; c.VR=n; c.Pideal=W/n; c.share=W/n;
-    if(st.friction==='ideal'){c.P=W/n; c.ratio=n;}
-    else if(st.friction==='rule10'){c.P=W*(1+0.10*c.S)/n; c.ratio=null;}
-    else {const t=CROSBY[st.friction]; c.ratio=lm?1+t[n-2]:t[n-1]; c.P=W/c.ratio;}
-    /* FAILURE MODES. Statics on the blocks (friction included, because it is in P):
-       lead off the FIXED block (pull down): the top block and its anchor hold every supporting part AND the lead: W + P.
-       lead off the MOVING block (pull up): the lead helps hold the moving block, so the top block holds W − P.
-       The moving block and its hook always hold W. The most-loaded part fails first, past its WLL × design factor
-       (Crosby blocks: ultimate load 4 × WLL; we use the same blockWll for both blocks, their hooks and the anchor). */
-    c.upper=lm?W-c.P:W+c.P; c.lower=W; c.crit=Math.max(c.upper,c.lower); c.critPart=c.upper>=c.lower?'anchor':'hook';
-    c.blockWll=st.blockWll; c.df=BLOCK_DF; c.breakAt=st.blockWll*BLOCK_DF; c.blockUtil=st.blockWll>0?c.crit/st.blockWll:Infinity;
-  } else if(st.chain==='geared'){
-    const h=CB[st.cap], Wr=h[0]*2000;                                   // US ton = 2,000 lb
-    c.cap=h[0]; c.falls=h[3]; c.VR=h[2]; c.MA=h[2];
-    c.eta=Wr/(h[1]*h[2]);                                               // maker's efficiency at rated load
-    c.rated=imp?Wr:Wr*LB_TO_KG; c.pullRated=imp?h[1]:h[1]*LB_TO_KG;
-    c.Pideal=W/c.VR; c.P=W/(c.VR*c.eta);
-    c.util=W/c.rated;
-  } else {
-    c.VR=2*st.D/(st.D-st.d); c.MA=c.VR; c.eta=st.eta;
-    c.Pideal=W/c.VR; c.P=W/(c.VR*c.eta);
-  }
-  c.MAact=c.P>0?W/c.P:c.MA; c.eff=c.MAact/c.VR;
-  c.rise=st.rise; c.travel=c.VR*st.rise;
-  const wk=imp?1:G;
-  c.workOut=W*st.rise*wk; c.workIn=c.P*c.travel*wk; c.lost=c.workIn-c.workOut;
-  c.kN=imp?c.P*LBF_TO_N/1000:c.P*G/1000;
-  c.level=st.mode==='chainfall'&&st.chain==='geared'?(c.util>1?'bad':c.util>.8?'warn':'ok'):'info';
-  return c;
-}
-
-/* ---------- formatting ---------- */
-const nf=(v,d=0)=>v.toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});
-const wu=()=>S.units==='imp'?'lb':'kg';
-const wt=v=>nf(Math.round(v))+' '+wu();
-const len=(v,d=2)=>nf(v,d)+(S.units==='imp'?' ft':' m');
-const dia=v=>S.units==='imp'?nf(v,2)+' in':nf(Math.round(v))+' mm';
-const work=v=>nf(Math.round(v))+(S.units==='imp'?' ft·lb':' J');
-const pct=v=>nf(v*100,1)+' %';
-const sp=(col,t)=>`<span style="color:${col}">${t}</span>`;
-const tsp=(col,t)=>`<tspan fill="${col}">${t}</tspan>`;   // same colour code inside SVG text
-// '=' when the shown numbers multiply out to the shown result, '≈' when rounding of P makes them differ
-const eq=(a,b)=>Math.abs(a-b)<0.5?'=':'≈';
-const levelCol=l=>l==='bad'?BAD:l==='warn'?WARN:OK;
-
-/* ---------- animation state (virtual clock only) ---------- */
-let T=0,tweens=[],callouts=[];
-const A={disp:0,lastRisePx:null,flow:0,arrow:0,arrowV:0,lastMode:null};
-
-/* ---------- drawing helpers ---------- */
-function arrow(id,x1,y1,x2,y2,col,w=6){
-  const a=Math.atan2(y2-y1,x2-x1),h=18;
-  return `<g id="${id}"><line x1="${x1}" y1="${y1}" x2="${x2-Math.cos(a)*h*.6}" y2="${y2-Math.sin(a)*h*.6}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>
-  <polygon points="${x2},${y2} ${x2-h*Math.cos(a-.42)},${y2-h*Math.sin(a-.42)} ${x2-h*Math.cos(a+.42)},${y2-h*Math.sin(a+.42)}" fill="${col}"/></g>`;
-}
-function pill(id,x,y,text,col,fs=18,anchor='middle'){
-  fs=fz(fs); const w=text.length*fs*.58+20, x0=anchor==='start'?x:anchor==='end'?x-w:x-w/2;
-  return `<g id="${id}"><rect x="${x0}" y="${y-fs*.9}" width="${w}" height="${fs*1.8}" rx="${fs*.9}" fill="#1F1D1A" stroke="${col}" stroke-width="2.5"/>
-  <text x="${x0+w/2}" y="${y+fs*.36}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${col}">${text}</text></g>`;
-}
-function sheave(id,x,y,r,rot,hi){
-  let s=`<g id="${id}"><circle cx="${x}" cy="${y}" r="${r}" fill="#2F2B27" stroke="${hi?ACC:STEEL}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="${r-7}" fill="none" stroke="#4a443d" stroke-width="2"/>`;
-  for(let k=0;k<3;k++){const a=rot+k*Math.PI/3;s+=`<line x1="${(x-(r-8)*Math.cos(a)).toFixed(1)}" y1="${(y-(r-8)*Math.sin(a)).toFixed(1)}" x2="${(x+(r-8)*Math.cos(a)).toFixed(1)}" y2="${(y+(r-8)*Math.sin(a)).toFixed(1)}" stroke="${STEEL}" stroke-width="2.5"/>`;}
-  return s+`<circle cx="${x}" cy="${y}" r="5" fill="${ACC}"/></g>`;
-}
-// rope (wire rope look): base + strand dashes that run with the material
-function rope(d,off,extra=''){
-  return `<path d="${d}" stroke="#7f8f9b" stroke-width="9" fill="none" stroke-linecap="round" ${extra}/>
-  <path d="${d}" stroke="#c3ced6" stroke-width="3" fill="none" stroke-dasharray="8 6" stroke-dashoffset="${off.toFixed(1)}" ${extra}/>`;
-}
-// chain look: links as long dashes with a lighter centre
-function chain(id,d,off,op=1){
-  return `<g id="${id}" opacity="${op}"><path d="${d}" stroke="#5d6a74" stroke-width="10" fill="none" stroke-dasharray="13 4" stroke-dashoffset="${off.toFixed(1)}"/>
-  <path d="${d}" stroke="#b7c3cc" stroke-width="3" fill="none" stroke-dasharray="9 8" stroke-dashoffset="${(off+2).toFixed(1)}"/></g>`;
-}
-/* ---------- HOOK, SHACKLE, SLING (one place for every connection in the rig) ----------
-   Crosby S-319 shank hook with S-4320 latch, drawn to its proportions: the bowl's centre and SADDLE sit on the shank
-   axis, so whatever hangs in the saddle hangs plumb under the shank. hookG() RETURNS the saddle point and every
-   sling eye / shackle bow seats exactly there. o.up = the block's TOP hook (shank down into the block, bowl above,
-   the shackle bow bar sits in its saddle). o.open 0 → 1 straightens the hook (failure). Size scales with capacity. */
-const SLING_ANG=60*Math.PI/180;                // sling legs 60° from horizontal (legs ~1.15 × the vertical share)
-const PIN=74;                                  // shackle pin height under the beam (beam bottom at 56)
-function hookScale(tons){return clamp(.75+.2*Math.log2(Math.max(tons,.25)),.7,1.4);}
-function hookDims(s){const t=7*s,r=11*s,R=r+t/2,a=12*s,c=a+1.3*R;return {s,t,r,R,a,c,depth:c+r,len:c+R+t/2};}
-function hookG(x,y,s,o={}){
-  const d=hookDims(s),{t,r,R,a,c}=d, dir=o.up?-1:1, u=clamp(o.open||0,0,1);
-  const X=lx=>(x+lx).toFixed(1), Y=ly=>(y+dir*ly).toFixed(1), P=(lx,ly)=>X(lx)+' '+Y(ly);
-  let p=`M${P(0,0)} L${P(0,a)} C${P(0,a+.35*R)} ${P(-R,c-.8*R)} ${P(-R,c)}`;
-  for(let k=1;k<=8;k++){const f=Math.PI-k*Math.PI/16;p+=` L${P(R*Math.cos(f),c+R*Math.sin(f))}`;}
-  // front of the bowl up to the point; opening grows the radius so the hook straightens about its bottom
-  const R2=R*(1+2.5*u+6*u*u), c2=c+R-R2, sw=Math.PI/2*R/R2; let tip=[0,c+R],fe=0;
-  for(let k=1;k<=10;k++){fe=Math.PI/2-sw*k/10;tip=[R2*Math.cos(fe),c2+R2*Math.sin(fe)];p+=` L${P(tip[0],tip[1])}`;}
-  // the point: a short straight rise off the end of the bowl, tangent to it (leaves an open throat beside the shank)
-  const pl=.6*R; tip=[tip[0]+Math.sin(fe)*pl,tip[1]-Math.cos(fe)*pl]; p+=` L${P(tip[0],tip[1])}`;
-  const col=u>.4?BAD:STEEL;
-  let g=`<g${o.id?` id="${o.id}"`:''}><path d="${p}" stroke="#262a2d" stroke-width="${(t+3).toFixed(1)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="${p}" stroke="${col}" stroke-width="${t.toFixed(1)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="${p}" stroke="#d5dee4" stroke-width="${(t*.22).toFixed(1)}" fill="none" opacity=".45" stroke-linejoin="round"/>`;
-  // spring latch from the shank to the point (closes the throat); it pops off as the hook opens
-  if(o.latch!==false&&u<.12)g+=`<line id="${o.lid||'latch'}" x1="${X(t*.55)}" y1="${Y(a+.12*R)}" x2="${X(tip[0]-t*.25)}" y2="${Y(tip[1]-t*.5)}" stroke="#e6ebee" stroke-width="${(2.6*s).toFixed(1)}" stroke-linecap="round"/>`;
-  return {svg:g+'</g>',saddle:{x,y:y+dir*(c+r)},centre:{x,y:y+dir*c},tip:{x:x+tip[0],y:y+dir*tip[1]},d};
-}
-/* sling eyes lying in the bowl (drawn over the hook so they read as seated in the saddle) */
-function eyesInBowl(h){const {r,s}=h.d,cx=h.centre.x,cy=h.centre.y,rr=r-2.2*s;
-  return `<path d="M${(cx-rr*Math.cos(.5)).toFixed(1)} ${(cy+rr*Math.sin(.5)).toFixed(1)} A${rr.toFixed(1)} ${rr.toFixed(1)} 0 0 0 ${(cx+rr*Math.cos(.5)).toFixed(1)} ${(cy+rr*Math.sin(.5)).toFixed(1)}" stroke="#b9c4cc" stroke-width="${(3.5*s).toFixed(1)}" fill="none" stroke-linecap="round"/>`;}
-/* Crosby G-2130 bolt-type shackle on a lug under the beam, seen along the pin: pin end-on (red, as Crosby paints
-   them), the bow edge-on hanging from it; the top hook's saddle sits on the bow's bottom bar. */
-function shackleDims(s){const bR=4.2*s+1,L=30*s;return {bR,barY:PIN+L,saddleY:PIN+L-bR};}
-function shackle(x,s){
-  const {bR,barY}=shackleDims(s);
-  return `<g id="anchor-shackle"><path d="M${x-17} 56 L${x+17} 56 L${x+11} ${PIN+6} A11 11 0 0 1 ${x-11} ${PIN+6} Z" fill="#4a453f" stroke="#6b645b" stroke-width="2"/>
-    <rect x="${(x-bR).toFixed(1)}" y="${PIN-9}" width="${(2*bR).toFixed(1)}" height="${(barY+bR-PIN+9).toFixed(1)}" rx="${bR.toFixed(1)}" fill="#8f9ca6" stroke="#262a2d" stroke-width="2"/>
-    <circle cx="${x}" cy="${PIN}" r="${(bR+4).toFixed(1)}" fill="none" stroke="#8f9ca6" stroke-width="4"/>
-    <circle cx="${x}" cy="${PIN}" r="5" fill="#c0392b" stroke="#262a2d" stroke-width="1.5"/></g>`;
-}
-/* where the block (or hoist body) top sits so its top hook's saddle rests on the shackle bar */
-const blockTopFor=s=>shackleDims(s).saddleY+hookDims(s).depth;
-/* two lifting lugs welded on the load; returns the svg (hole centres at top − 12) */
-function lugs(cx,top,dx){let s='';[-1,1].forEach(k=>{const x=cx+k*dx;
-  s+=`<path d="M${x-10} ${top.toFixed(1)} L${x-10} ${(top-12).toFixed(1)} A10 10 0 0 1 ${x+10} ${(top-12).toFixed(1)} L${x+10} ${top.toFixed(1)} Z" fill="#6a635a" stroke="#8a8278" stroke-width="2"/><circle cx="${x}" cy="${(top-12).toFixed(1)}" r="4.5" fill="#1F1D1A"/>`;});
-  return `<g id="load-lugs">${s}</g>`;}
-/* two sling legs, apex → each lug hole. Legs longer than the chord (load landed, block still coming) hang slack. */
-function slingLegs(ap,holes,Lleg,flat){
-  let s='<g id="sling">';
-  holes.forEach(([hx,hy])=>{const ch=Math.hypot(hx-ap.x,hy-ap.y);let d=`M${ap.x.toFixed(1)} ${ap.y.toFixed(1)} L${hx.toFixed(1)} ${hy.toFixed(1)}`;
-    if(!flat&&ch<Lleg-1){const sag=Math.sqrt(Lleg*Lleg-ch*ch)/2, mx=(hx+ap.x)/2, my=(hy+ap.y)/2, sx=Math.sign(hx-ap.x)||1;
-      d=`M${ap.x.toFixed(1)} ${ap.y.toFixed(1)} Q${(mx+sx*sag*1.6).toFixed(1)} ${(my+sag*.6).toFixed(1)} ${hx.toFixed(1)} ${hy.toFixed(1)}`;}
-    s+=`<path d="${d}" stroke="#56626b" stroke-width="7" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#b9c4cc" stroke-width="2.5" fill="none" stroke-dasharray="7 5"/>
-      <circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="7" fill="none" stroke="#b9c4cc" stroke-width="3"/>`;});
-  return s+'</g>';
-}
-/* bottom hook + two-leg sling + lugs + load, all seated on the hook's saddle. o.open, o.dy (load offset from the taut
-   position), o.apex (detached sling apex), o.flat. Returns svg and the load top. */
-function hangLoad(cx,hookTop,s,w,dx,c,o={}){
-  const hk=hookG(cx,hookTop,s,{open:o.open||0,id:'hook-steel'}), sd=hk.saddle, hh=dx*Math.tan(SLING_ANG);
-  const holeY=sd.y+hh+(o.dy||0), top=holeY+12, ap=o.apex||sd;
-  RIGV.saddle={x:+sd.x.toFixed(2),y:+sd.y.toFixed(2)}; RIGV.apex={x:+ap.x.toFixed(2),y:+ap.y.toFixed(2)}; RIGV.holes=[[cx-dx,holeY],[cx+dx,holeY]]; RIGV.loadTop=top; RIGV.lcx=cx;
-  const svg=loadBox(cx,top,w,c)+lugs(cx,top,dx)+slingLegs(ap,[[cx-dx,holeY],[cx+dx,holeY]],hh/Math.sin(SLING_ANG),o.flat)
-    +`<g id="hook">${hk.svg}${o.apex?'':eyesInBowl(hk)}</g>`;
-  return {svg,top,hk};
-}
-function beam(x0,x1){
-  let s=`<g id="beam"><rect x="${x0}" y="26" width="${x1-x0}" height="30" fill="#3A3631" stroke="#5a534b" stroke-width="2"/><rect x="${x0}" y="52" width="${x1-x0}" height="5" fill="${ACC}" opacity=".8"/>`;
-  for(let hx=x0+8;hx<x1-10;hx+=22)s+=`<line x1="${hx}" y1="52" x2="${hx+14}" y2="28" stroke="#4a443d" stroke-width="2"/>`;
-  return s+`</g>`;
-}
-function loadBox(cx,top,w,c){
-  const h=LOADH;
-  return `<g id="load-box"><rect x="${cx-w/2}" y="${top.toFixed(1)}" width="${w}" height="${h}" rx="4" fill="#4D4842" stroke="#7A7268" stroke-width="2"/>
-    <rect x="${cx-w/2}" y="${top.toFixed(1)}" width="${w}" height="10" fill="#5d5750"/>
-    <text x="${cx}" y="${(top+h/2+(FK>1.2?fz(w<140?22:w<200?24:28)*.36+4:8)).toFixed(1)}" text-anchor="middle" font-size="${fz(w<140?22:w<200?24:28)}" font-weight="800" fill="${COL.W}">${wt(c.W)}</text>
-    ${FK>1.2?'':`<text x="${cx}" y="${(top+h/2+34).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="700" fill="${MUTED}">W</text>`}</g>`;
-}
-
-/* ---------- rig geometry ---------- */
-const GSP=60, SR=30, FLOOR=840, LOADH=100, RISEPX=180, CX0R=360;
-let CX=CX0R;                                  // rig centre line (nudged right for the widest reeving so the labels fit)
-let UY=0;                                     // top block sheave height this frame (rigGeo().UY0 + failure offset)
-const GO={up:0,low:0,load:0,hook:0,lhook:0,slack:false,grip:0,gripP:0,tau:0,detached:false};   // failure offsets (all zero = the normal rig)
-const RIGV={};                                 // geometry of the last frame, for tests and lessons (saddle, apex, holes)
-// visual rise scale per machine (the numbers use the true rise): blocks need headroom for hooks and slings
-const risePx=()=>clamp(S.rise/riseMax(),0,1)*(S.mode==='tackle'?RISEPX:S.chain==='geared'?190:140);
-const capTons=()=>S.mode==='tackle'?(S.units==='imp'?S.blockWll:S.blockWll/LB_TO_KG)/2000:S.chain==='geared'?CB[S.cap][0]:1;
-/* Vertical stack, top down: beam → shackle → top hook → block → parts → bottom block → hook → sling (60°) → lugs → load */
-function rigGeo(c){
-  if(S.mode==='tackle'){const s=clamp(hookScale(capTons()),.9,1.35), hd=hookDims(s), top=blockTopFor(s), dx=50;
-    return {s,hd,top,dx,UY0:top+(c.U>0?SR+16:34),hang:SR+16+hd.depth+dx*Math.tan(SLING_ANG)+12};}
-  if(S.chain==='geared'){const s=hookScale(capTons()), hd=hookDims(s), top=blockTopFor(s), dx=42;
-    return {s,hd,top,dx,hang:30+hd.depth+dx*Math.tan(SLING_ANG)+12};}
-  const s=.9, hd=hookDims(s), top=blockTopFor(s), dx=34, {pr}=diffGeo();
-  return {s,hd,top,dx,hang:pr+6+hd.depth+dx*Math.tan(SLING_ANG)+12};
-}
-function lowerY(c){ return FLOOR-10-LOADH-rigGeo(c).hang-risePx()+GO.low; }
-
-/* Reeving: parts are vertical lines GSP apart; a sheave of radius GSP/2 joins neighbours (k, k+1).
-   Counting k from the dead end (k = 1) to the lead, sheave (k, k+1) sits in the UPPER block when n − k is even,
-   otherwise in the LOWER block. That puts the lead on the fixed block (pull down) or, with one less line, on the
-   moving block (pull up), and the dead end on the upper block when the first sheave is a lower one. */
-function tackleGeo(c){
-  const n=c.n, lm=c.leadMoving, M=lm?n:n+1, Ly=lowerY(c);
-  CX=CX0R+(M>=8?14:0);
-  const xs=[...Array(M)].map((_,k)=>CX+(k-(M-1)/2)*GSP);
-  const sh=[];
-  for(let j=0;j<M-1;j++){const k=j+1, up=((n-k)%2===0); sh.push({j,up,x:(xs[j]+xs[j+1])/2,y:up?UY:Ly});}
-  const deadLower=sh[0].up;
-  // material speed of the rope in each part, as a multiple of the load's speed: starts at 0 (dead end on the fixed
-  // block) or 1 (dead end on the moving block); each moving sheave adds 2, a fixed sheave passes it on. Lead = n.
-  let s=deadLower?1:0; const f=[s];
-  sh.forEach(q=>{q.rim=q.up?s:s+1; if(!q.up)s+=2; f.push(s);});
-  return {n,lm,M,Ly,xs,sh,deadLower,f};
-}
-
-function drawTackle(c){
-  const rg=rigGeo(c), g=tackleGeo(c), {xs,sh,Ly,M,n}=g, disp=A.disp, ph=PHONE;
-  let s='';
-  const ups=sh.filter(q=>q.up), lows=sh.filter(q=>!q.up);
-  // upper block body
-  let uL,uR; if(ups.length){uL=Math.min(...ups.map(q=>q.x))-SR-12;uR=Math.max(...ups.map(q=>q.x))+SR+12;} else {uL=xs[0]-22;uR=xs[0]+22;}
-  if(!g.deadLower){uL=Math.min(uL,xs[0]-16);uR=Math.max(uR,xs[0]+16);}
-  const uT=ups.length?UY-SR-16:UY-34, uB=ups.length?UY+SR+12:UY+12, ucx=(uL+uR)/2;
-  const bx0=Math.min(uL-70,xs[0]-90), bx1=g.lm?Math.min(uR+40,xs[M-1]-26):Math.max(uR+40,ucx+120);
-  s+=beam(bx0,bx1);
-  // overhead rig: lug + shackle stay on the beam; the top block's hook sits in the shackle bow (opens in the anchor failure)
-  s+=shackle(ucx,rg.s);
-  const th=hookG(ucx,uT,rg.s,{up:true,open:GO.hook,id:'top-hook',lid:'top-latch'});
-  RIGV.topSaddle={x:ucx,y:+th.saddle.y.toFixed(2)}; RIGV.shackleSaddle=shackleDims(rg.s).saddleY;
-  s+=`<g id="upper-block">${th.svg}
-     <rect x="${uL}" y="${uT}" width="${uR-uL}" height="${uB-uT}" rx="14" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".95"/>
-     <text x="${uL-10}" y="${UY+6}" text-anchor="end" font-size="${fz(17)}" font-weight="700" fill="${MUTED}">FIXED</text><text x="${uL-10}" y="${UY+6+fz(20)}" text-anchor="end" font-size="${fz(17)}" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
-  // lower block body (n = 1: the rope end eye and a swivel to the hook)
-  let lL,lR,lB,lcx;
-  if(n>1){lL=Math.min(...lows.map(q=>q.x))-SR-12;lR=Math.max(...lows.map(q=>q.x))+SR+12;
-    if(g.deadLower){lL=Math.min(lL,xs[0]-16);lR=Math.max(lR,xs[0]+16);}
-    lB=Ly+SR+16; lcx=(lL+lR)/2;
-    s+=`<g id="lower-block"><rect x="${lL}" y="${Ly-SR-12}" width="${lR-lL}" height="${lB-(Ly-SR-12)}" rx="14" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".95"/>
-       <rect x="${lL}" y="${lB-9}" width="${lR-lL}" height="7" fill="${ACC}" opacity=".85"/>
-       <text x="${lL-10}" y="${Ly+6}" text-anchor="end" font-size="${fz(17)}" font-weight="700" fill="${MUTED}">MOVING</text><text x="${lL-10}" y="${Ly+6+fz(20)}" text-anchor="end" font-size="${fz(17)}" font-weight="700" fill="${MUTED}">BLOCK</text></g>`;
-  } else { lcx=xs[0]; lB=Ly+SR+16; s+=`<g id="lower-block"><circle cx="${lcx}" cy="${Ly+6}" r="10" fill="none" stroke="${STEEL}" stroke-width="5"/><rect x="${lcx-6}" y="${Ly+16}" width="12" height="${lB-Ly-16}" rx="4" fill="${STEEL}"/></g>`; }
-  // bottom hook, two-leg sling and lugs: the sling apex seats in the hook's saddle (on the shank axis)
-  const lw=260, hh=rg.dx*Math.tan(SLING_ANG);
-  let apex=null;
-  if(GO.detached){const k=clamp(1-GO.tau/.35,0,1), hy=lB+rg.hd.depth+hh+GO.load;   // sling eyes slid off: legs fold onto the load
-    apex={x:lcx+8*(1-k),y:hy-Math.max(9,hh*k)};}
-  const ld=hangLoad(lcx,lB,rg.s,lw,rg.dx,c,{open:GO.lhook,dy:GO.load,apex,flat:GO.detached});
-  s+=`<ellipse cx="${lcx}" cy="${FLOOR+5}" rx="${130-risePx()*.25}" ry="7" fill="#000" opacity="${.4-risePx()*.0012}"/>`;
-  // rope: parts in path order (dead end → lead). Dashes run at f × the load's speed.
-  const lx=xs[M-1], grip0=g.lm?96:330, loadR=lcx+lw/2;
-  let gx=lx, gy=grip0+GO.grip;
-  if(GO.slack&&g.lm)gx=lx+(loadR+50-lx)*Math.min(1,GO.gripP*4);            // the lead drops beside the load when the puller lets go
-  RIGV.grip={x:gx,y:gy};
-  for(let j=0;j<M;j++){
-    const isLead=j===M-1;
-    let y0,y1;
-    if(j===0)[y0,y1]=g.deadLower?[Ly,UY]:[UY,Ly];
-    else [y0,y1]=sh[j-1].up?[UY,Ly]:[Ly,UY];
-    const off=-g.f[j]*disp;
-    let d=`M${xs[j]} ${y0} L${xs[j]} ${y1}`;
-    if(isLead){y1=gy>y0?gy-24:gy+24;
-      d=GO.slack?`M${xs[j]} ${y0} Q${(xs[j]+(gx-xs[j])*.1+18).toFixed(1)} ${Math.max(y0,y1).toFixed(1)} ${gx.toFixed(1)} ${y1.toFixed(1)}`:`M${xs[j]} ${y0} L${xs[j]} ${y1}`;}
-    s+=`<g id="${isLead?'lead-line':'part-'+j}">${rope(d,off)}`;
-    // load path: thin dashes flowing toward the fixed block, opacity by share of the load
-    if(!GO.slack&&(!isLead||g.lm)){const ya=Math.max(y0,y1),yb=Math.min(y0,y1);
-      s+=`<path d="M${xs[j]} ${ya} L${xs[j]} ${isLead?Math.max(yb,UY-SR):yb}" stroke="${COL.W}" stroke-width="2.5" stroke-dasharray="6 22" stroke-dashoffset="${A.flow.toFixed(1)}" opacity=".55"/>`;}
-    s+=`</g>`;
-  }
-  // rope wraps + sheaves (on top of the bodies, under the tags)
-  let nu=0,nl=0;
-  sh.forEach((q,i)=>{
-    const d=q.up?`M${q.x-SR} ${q.y} A${SR} ${SR} 0 0 1 ${q.x+SR} ${q.y}`:`M${q.x-SR} ${q.y} A${SR} ${SR} 0 0 0 ${q.x+SR} ${q.y}`;
-    const rot=(q.up?1:-1)*q.rim*disp/SR;
-    s+=sheave(q.up?'sheave-u'+(nu++):'sheave-l'+(nl++),q.x,q.y,SR-4,rot,false)+rope(d,-g.f[i]*disp);
-  });
-  // dead end (becket)
-  const dy=g.deadLower?Ly:UY;
-  s+=`<g id="dead-end"><circle cx="${xs[0]}" cy="${dy}" r="9" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
-  s+=ld.svg;
-  // lead line beyond the grip: hangs straight down to a coil on the floor (fixed), or runs up out of the picture (moving)
-  if(!g.lm||GO.slack){
-    const clear=gx>loadR+24||gx<lcx-lw/2-24, cxn=clear?gx+26:loadR+70, top=gy+(g.lm&&!GO.slack?-24:24);
-    const d=gy>FLOOR-40?`M${gx} ${gy} Q${gx+30} ${FLOOR-6} ${cxn} ${FLOOR-14}`:clear?`M${gx} ${top} L${gx} ${FLOOR-26} Q${gx} ${FLOOR-14} ${cxn-30} ${FLOOR-14}`:`M${gx} ${top} Q${cxn} ${top+50} ${cxn} ${FLOOR-20}`;
-    s+=`<g id="lead-tail">${rope(d,-n*disp)}
-      <ellipse cx="${cxn}" cy="${FLOOR-10}" rx="42" ry="10" fill="none" stroke="#7f8f9b" stroke-width="8"/><ellipse cx="${cxn}" cy="${FLOOR-18}" rx="34" ry="8" fill="none" stroke="#7f8f9b" stroke-width="7"/></g>`;}
-  else s+=`<g id="lead-tail">${rope(`M${lx} ${gy-24} L${lx} 0`,-n*disp)}</g>`;
-  // grip + force arrow sized to the pull (spring-damped); gone once the rig fails (nobody holds a load that has dropped)
-  const al=20+110*clamp(A.arrow/Math.max(c.W,1e-9),0,1.3), dir=g.lm?-1:1;
-  s+=`<g id="grip" transform="${GO.slack?`rotate(${(80*GO.gripP).toFixed(1)} ${gx.toFixed(1)} ${gy.toFixed(1)})`:''}"><rect x="${gx-16}" y="${gy-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/>
-     <line x1="${gx-16}" y1="${gy-8}" x2="${gx+16}" y2="${gy-8}" stroke="#1F1D1A" stroke-width="3"/><line x1="${gx-16}" y1="${gy+6}" x2="${gx+16}" y2="${gy+6}" stroke="#1F1D1A" stroke-width="3"/></g>`;
-  if(!GO.slack){
-    s+=arrow('pull-arrow',lx+32,gy,lx+32,gy+dir*al,COL.P,7);
-    s+=pill('pull-tag',lx+46,gy,'P = '+wt(c.P),COL.P,18,'start');
-  }
-  // tension tags: each supporting part carries its share W ÷ n (no friction in the parts' share)
-  const mid=(UY+Ly)/2;
-  if(!GO.slack){
-    if(!ph&&Ly-UY>170)for(let j=0;j<n;j++){ if(g.lm&&j===M-1)continue;
-      s+=pill('tag-'+j,xs[j],mid+(j%2?26:-26),nf(Math.round(c.share)),COL.W,17); }
-    const tx=xs[0]-GSP/2-8;
-    s+=`<g id="${ph?'tag-0':'share-label'}"><text x="${tx}" y="${mid+12}" text-anchor="end" font-size="${fz(15)}" font-weight="700" fill="${COL.W}">${ph?wt(c.share)+' per part':wu()+' per part'}</text>
-      <text x="${tx}" y="${mid+12+fz(18)}" text-anchor="end" font-size="${fz(14)}" font-weight="700" fill="${MUTED}">= W ÷ n</text>
-      <text x="${tx}" y="${mid+12+fz(35)}" text-anchor="end" font-size="${fz(14)}" font-weight="700" fill="${MUTED}">(no friction)</text></g>`;
-  }
-  if(S.fail&&!GO.slack)s+=blockTag(c,g,ucx,uL,lcx,lB,rg);
-  // n count under the rig
-  const nl2=n>1?(ph?`n = ${n} parts hold the moving block`:`n = ${n} parts of line hold the moving block${g.lm?' (lead line counts)':''}`):(ph?'n = 1: only changes direction':'n = 1: a single fixed sheave only changes direction');
-  s+=`<g id="n-label"><text x="${CX}" y="${FLOOR+40}" text-anchor="middle" font-size="${fz(22)}" font-weight="800" fill="${COL.n}">${nl2}</text></g>`;
-  return s;
-}
-
-/* ---------- chain falls ---------- */
-function diffGeo(){ const R=72, r=R*S.d/S.D, pr=(R+r)/2; return {R,r,pr,ax:400,ay:blockTopFor(.9)+R+12}; }
-function drawGeared(c){
-  const rg=rigGeo(c), Ly=lowerY(c), disp=A.disp, vis=Math.min(c.VR,20);     // hand chain shown at up to 20 × load speed (true ratio in the numbers)
-  const oy=rg.top-92, lc=395;                                               // body hangs from its top hook; load chain under the hook (plumb)
-  const hx=240, hy=160+oy, hr=52, bx0=310, bx1=480, by0=92+oy, by1=232+oy;
-  let s=beam(210,560);
-  s+=shackle(lc,rg.s);
-  const th=hookG(lc,by0,rg.s,{up:true,id:'top-hook',lid:'top-latch'});
-  RIGV.topSaddle={x:lc,y:+th.saddle.y.toFixed(2)}; RIGV.shackleSaddle=shackleDims(rg.s).saddleY;
-  s+=`<g id="hoist-body">${th.svg}
-     <rect x="${bx0}" y="${by0}" width="${bx1-bx0}" height="${by1-by0}" rx="22" fill="#C05A00" stroke="#7a3a00" stroke-width="3"/>
-     <rect x="${hx+hr-6}" y="${hy-12}" width="${bx0-hx-hr+10}" height="24" fill="#7a3a00"/>
-     <text x="${(bx0+bx1)/2}" y="${by1-12}" text-anchor="middle" font-size="${fz(14)}" font-weight="800" fill="#1F1D1A">${CAPNAME[S.cap]} TON</text></g>`;
-  // gear window: pinion turns with the hand wheel, gear at a third of the speed (the reduction inside)
-  const ang=-disp*vis/hr, gx=405, gy=150+oy;
-  const gear=(x,y,r,t,a)=>{let p='';for(let k=0;k<t;k++){const q=a+k*2*Math.PI/t;p+=`<rect x="${(x+r*Math.cos(q)-3).toFixed(1)}" y="${(y+r*Math.sin(q)-3).toFixed(1)}" width="6" height="6" fill="#d9d3c7" transform="rotate(${(q*180/Math.PI).toFixed(1)} ${(x+r*Math.cos(q)).toFixed(1)} ${(y+r*Math.sin(q)).toFixed(1)})"/>`;}
-    return p+`<circle cx="${x}" cy="${y}" r="${r-2}" fill="#2F2B27" stroke="#d9d3c7" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${(x+(r-6)*Math.cos(a)).toFixed(1)}" y2="${(y+(r-6)*Math.sin(a)).toFixed(1)}" stroke="${ACC}" stroke-width="3"/>`;};
-  s+=`<g id="gears"><circle cx="${gx}" cy="${gy}" r="52" fill="#1F1D1A" stroke="#7a3a00" stroke-width="3"/>${gear(gx-26,gy,13,8,ang)}${gear(gx+14,gy,30,24,-ang/3)}</g>`;
-  // load chain falls: down from the lift wheel, round the pocket sheave(s) in the bottom block, up to the next fall;
-  // the last fall ends on a dead-end bracket (on the body when the falls are even, on the bottom block when odd)
-  const f=c.falls, sp=26, xsF=[...Array(f)].map((_,k)=>lc+(k-(f-1)/2)*sp), sy=Ly+2;
-  xsF.forEach((x,k)=>{s+=chain('load-chain'+(k?'-'+k:''),`M${x} ${by1} L${x} ${f>1?sy:Ly-14}`,-(k%2?-1:1)*disp);});
-  const bw=Math.max(30,f*sp/2+16);
-  s+=`<g id="lower-block"><rect x="${lc-bw}" y="${Ly-14}" width="${2*bw}" height="44" rx="12" fill="#C05A00" stroke="#7a3a00" stroke-width="3"/>`;
-  for(let k=0;k+1<f;k+=2){const x=(xsF[k]+xsF[k+1])/2;
-    s+=`<circle cx="${x}" cy="${sy}" r="${sp/2+4}" fill="#3a2a1c" stroke="#7a3a00" stroke-width="2"/>`+chain('pocket-'+k,`M${xsF[k]} ${sy} A${sp/2} ${sp/2} 0 0 0 ${xsF[k+1]} ${sy}`,-disp)+`<circle cx="${x}" cy="${sy}" r="3.5" fill="${ACC}"/>`;}
-  s+=`</g>`;
-  if(f>1){const xd=xsF[f-1], yd=f%2?Ly-14:by1;
-    s+=`<g id="dead-end"><rect x="${xd-8}" y="${f%2?yd-4:yd-2}" width="16" height="12" rx="3" fill="#7a3a00" stroke="#1F1D1A" stroke-width="2"/><circle cx="${xd}" cy="${f%2?yd+2:yd+4}" r="3" fill="${ACC}"/></g>`;}
-  s+=`<ellipse cx="${lc}" cy="${FLOOR+5}" rx="${80-risePx()*.2}" ry="6" fill="#000" opacity=".35"/>`;
-  s+=hangLoad(lc,Ly+30,rg.s,170,rg.dx,c).svg;
-  // hand chain loop: runs over the hand wheel; pulled side goes down at vis × the load's speed
-  const loopB=790, hoff=disp*vis;
-  s+=chain('hand-chain',`M${hx-hr} ${hy} L${hx-hr} ${loopB-20} Q${hx-hr} ${loopB+12} ${hx} ${loopB+12} Q${hx+hr} ${loopB+12} ${hx+hr} ${loopB-20} L${hx+hr} ${hy}`,hoff);
-  s+=`<g id="hand-wheel"><circle cx="${hx}" cy="${hy}" r="${hr}" fill="#2F2B27" stroke="${STEEL}" stroke-width="5"/>`;
-  for(let k=0;k<6;k++){const a=ang+k*Math.PI/3;s+=`<line x1="${hx}" y1="${hy}" x2="${(hx+(hr-6)*Math.cos(a)).toFixed(1)}" y2="${(hy+(hr-6)*Math.sin(a)).toFixed(1)}" stroke="${STEEL}" stroke-width="3"/>`;}
-  s+=`<circle cx="${hx}" cy="${hy}" r="8" fill="${ACC}"/></g>`;
-  // grip on the hand chain + force arrow
-  const gy2=470+oy*.5, al=20+110*clamp(A.arrow/Math.max(c.W/c.VR*2.5,1e-9),0,1.2);
-  s+=`<g id="grip"><rect x="${hx+hr-16}" y="${gy2-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
-  s+=arrow('pull-arrow',hx+hr-34,gy2,hx+hr-34,gy2+al,COL.P,7);
-  s+=pill('pull-tag',hx-hr-8,gy2-150,'P = '+wt(c.P),COL.P,20,'end');
-  s+=pill('tag-0',lc+bw+18,(by1+Ly)/2,`VR ${nf(c.VR)} · ${f} fall${f>1?'s':''}`,COL.n,17,'start');
-  return s;
-}
-function drawDifferential(c){
-  const rg=rigGeo(c), Ly=lowerY(c), {R,r,pr,ax,ay}=diffGeo(), disp=A.disp, vis=Math.min(c.VR,20);
-  const th=disp*vis/R;                                    // wheel angle: hand strand moves R·θ (shown at up to 20 × load speed)
-  const px=ax+(R-r)/2;                                    // lower pulley centre sits between the two load strands
-  let s=beam(200,560);
-  s+=shackle(ax,rg.s);
-  const tk=hookG(ax,ay-R-12,rg.s,{up:true,id:'top-hook',lid:'top-latch'});
-  RIGV.topSaddle={x:ax,y:+tk.saddle.y.toFixed(2)}; RIGV.shackleSaddle=shackleDims(rg.s).saddleY;
-  s+=`<g id="upper-block">${tk.svg}
-     <rect x="${ax-R-16}" y="${ay-R-12}" width="${2*R+32}" height="${2*R+26}" rx="20" fill="#3A3631" stroke="${STEEL}" stroke-width="3" opacity=".9"/></g>`;
-  // ONE endless chain. Load loop: large wheel right side → down → round the pulley → up to the small wheel's left side.
-  // Hand (slack) loop: off the small wheel's right side, behind the load strands (dimmed: it hangs in a plane behind),
-  // down to the loop and back up to the large wheel's left side, where you pull.
-  const loopB=780, hl=ax-R, lo=ax-R-56, yb=ay+R+16;
-  s+=chain('hand-chain-back',`M${ax+r} ${ay} L${ax+r} ${yb} L${lo} ${yb+90} L${lo} ${loopB-26}`,disp*vis,.45);
-  s+=chain('hand-chain',`M${lo} ${loopB-26} Q${lo} ${loopB} ${(hl+lo)/2} ${loopB} Q${hl} ${loopB} ${hl} ${loopB-26} L${hl} ${ay}`,disp*vis);
-  s+=chain('load-chain',`M${ax+R} ${ay} L${ax+R} ${Ly}`,-disp*vis*.5);
-  s+=chain('load-chain-2',`M${ax-r} ${Ly} L${ax-r} ${ay}`,-disp*vis*.5);
-  s+=chain('load-wrap',`M${ax+R} ${Ly} A${pr} ${pr} 0 0 1 ${ax-r} ${Ly}`,-disp*vis*.5);
-  // wheels (same shaft, turn together): large D, small d
-  const wheel=(id,rr,col)=>{let q=`<g id="${id}"><circle cx="${ax}" cy="${ay}" r="${rr}" fill="none" stroke="${col}" stroke-width="7"/>`;
-    for(let k=0;k<10;k++){const a=th+k*Math.PI/5;q+=`<circle cx="${(ax+rr*Math.cos(a)).toFixed(1)}" cy="${(ay+rr*Math.sin(a)).toFixed(1)}" r="3.5" fill="#1F1D1A"/>`;}return q+`</g>`;};
-  s+=wheel('wheel-D',R,COL.dist)+wheel('wheel-d',r,ACC);
-  s+=`<line x1="${ax}" y1="${ay}" x2="${(ax+R*Math.cos(th)).toFixed(1)}" y2="${(ay+R*Math.sin(th)).toFixed(1)}" stroke="${STEEL}" stroke-width="3"/><circle cx="${ax}" cy="${ay}" r="7" fill="${ACC}"/>`;
-  // D and d dimension lines (visual maths on the machine)
-  const dyy=ay-R-24;
-  s+=`<g id="dim-D"><line x1="${ax-R}" y1="${dyy}" x2="${ax+R}" y2="${dyy}" stroke="${COL.dist}" stroke-width="3"/><line x1="${ax-R}" y1="${dyy-8}" x2="${ax-R}" y2="${dyy+8}" stroke="${COL.dist}" stroke-width="3"/><line x1="${ax+R}" y1="${dyy-8}" x2="${ax+R}" y2="${dyy+8}" stroke="${COL.dist}" stroke-width="3"/>
-     <line x1="${ax-R}" y1="${dyy}" x2="${ax-R}" y2="${ay}" stroke="${COL.dist}" stroke-width="1.5" stroke-dasharray="4 4"/><line x1="${ax+R}" y1="${dyy}" x2="${ax+R}" y2="${ay}" stroke="${COL.dist}" stroke-width="1.5" stroke-dasharray="4 4"/>
-     <text x="${ax+R+18}" y="${dyy+7}" font-size="${fz(20)}" font-weight="800" fill="${COL.dist}">D = ${dia(S.D)}</text></g>
-     <g id="dim-d"><text x="${ax+R+24}" y="${ay+6}" font-size="${fz(20)}" font-weight="800" fill="${ACC}">d = ${dia(S.d)}</text><line x1="${ax+r}" y1="${ay}" x2="${ax+R+18}" y2="${ay}" stroke="${ACC}" stroke-width="2" stroke-dasharray="4 4"/></g>`;
-  // lower pulley in its block (strap from the axle to the hook) + hook + sling + load
-  s+=`<g id="lower-block"><rect x="${px-9}" y="${Ly}" width="18" height="${pr+8}" rx="6" fill="#3A3631" stroke="${STEEL}" stroke-width="2"/>${sheave('pulley',px,Ly,pr-3,-th*R/pr*.5,false)}</g>`;
-  s+=`<ellipse cx="${px}" cy="${FLOOR+5}" rx="${80-risePx()*.2}" ry="6" fill="#000" opacity=".35"/>`;
-  s+=hangLoad(px,Ly+pr+6,rg.s,124,rg.dx,c).svg;
-  const gy2=480, al=20+110*clamp(A.arrow/Math.max(c.W/c.VR*3,1e-9),0,1.2);
-  s+=`<g id="grip"><rect x="${hl-16}" y="${gy2-24}" width="32" height="48" rx="12" fill="${ACC}" stroke="#1F1D1A" stroke-width="3"/></g>`;
-  s+=arrow('pull-arrow',lo-30,gy2,lo-30,gy2+al,COL.P,7);
-  s+=pill('pull-tag',lo-50,gy2-70,'P = '+wt(c.P),COL.P,20,'end');
-  return s;
-}
-
-/* ---------- picture the maths: three cards on the right ---------- */
-const CX0=840, CW=440;
-function card(id,y0,h,title,sub){
-  return `<g id="${id}"><rect id="${id}-card" x="${CX0-14}" y="${y0}" width="${CW+28}" height="${h}" rx="10" fill="#24211E" stroke="#45403A"/>
-  <text x="${CX0}" y="${y0+26}" font-size="16" font-weight="800" fill="${MUTED}" letter-spacing="1.4">${title}</text>
-  <text x="${CX0}" y="${y0+50}" font-size="17" font-weight="700" fill="${TEXT}">${sub}</text>`;
-}
-const bar=(id,x,y,w,h,col,op=1,extra='')=>`<rect id="${id}" x="${x.toFixed(1)}" y="${y}" width="${Math.max(0,w).toFixed(1)}" height="${h}" rx="3" fill="${col}" opacity="${op}" ${extra}/>`;
-// Card 1: VR copies of the pull laid end to end = the load + friction (P × VR × η = W)
-function cardForce(c){
-  const y0=10, tot=c.P*c.VR, k=CW/Math.max(tot,1e-9), wl=c.W*k, slices=c.VR<=8&&Number.isInteger(c.VR);
-  let s=card('vm-force',y0,262,'FORCE · P × VR = W + FRICTION', S.mode==='tackle'?`${tsp(COL.n,'n')} pulls of ${tsp(COL.P,'P')} hold ${tsp(COL.W,'W')}`:`${tsp(COL.P,'P')} × ${tsp(COL.n,'VR')} = ${tsp(COL.W,'W')} + friction`);
-  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.W}">Load W = ${wt(c.W)}</text>`;
-  s+=bar('vm-w',CX0,y0+96,wl,30,COL.W,.9);
-  s+=`<text x="${CX0}" y="${y0+152}" font-size="16" font-weight="700" fill="${COL.P}">${S.mode==='tackle'?nf(c.VR)+' × P':'P × VR'} = ${nf(c.VR)} × ${wt(c.P)} ${eq(c.VR*Math.round(c.P),tot)} ${wt(tot)}</text>`;
-  if(slices){ const pw=c.P*k;
-    for(let i=0;i<c.VR;i++){const x=CX0+i*pw;
-      s+=bar('vm-slice'+i,x,y0+162,pw-2,30,COL.P,.85);
-      if(x+pw>CX0+wl+.5)s+=bar('vm-loss'+i,Math.max(x,CX0+wl),y0+162,x+pw-2-Math.max(x,CX0+wl),30,COL.loss,.95);
-      if(pw>34)s+=`<text x="${x+pw/2}" y="${y0+183}" text-anchor="middle" font-size="14" font-weight="800" fill="#141414">P</text>`;}
-  } else { s+=bar('vm-slice0',CX0,y0+162,wl,30,COL.P,.85)+bar('vm-loss0',CX0+wl,y0+162,CW-wl,30,COL.loss,.95); }
-  s+=`<line x1="${CX0+wl}" y1="${y0+92}" x2="${CX0+wl}" y2="${y0+200}" stroke="${TEXT}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-  const fr=tot-c.W;
-  s+=`<text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${COL.loss}">${fr>0.5?'Friction (purple) = '+wt(fr):'No friction: n × P = W exactly'}</text>
-      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${TEXT}">Efficiency η = W ÷ (P × VR) = ${pct(c.eff)}</text></g>`;
-  return s;
-}
-// Card 2: lead (hand chain) travel vs load rise, measured bars that grow as the load rises
-function cardDist(c){
-  const y0=286, full=c.VR*riseMax(), k=CW/full, lt=c.travel*k, rr=c.rise*k;
-  const what=S.mode==='tackle'?'Lead line':'Hand chain';
-  let s=card('vm-dist',y0,262,`DISTANCE · ${what.toUpperCase()} MOVES VR × RISE`,`${tsp(COL.dist,what+' travel')} = ${tsp(COL.n,'VR')} × ${tsp(TEXT,'rise')}`);
-  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.dist}">${what} pulled = ${nf(c.VR,c.VR%1?2:0)} × ${len(c.rise)} = ${len(c.travel,c.travel>=100?0:2)}</text>`;
-  s+=bar('vm-bg-lead',CX0,y0+96,CW,30,'#2f2b27')+bar('vm-lead',CX0,y0+96,lt,30,COL.dist,.9);
-  if(c.VR<=12&&Number.isInteger(c.VR))for(let i=1;i<c.VR;i++)s+=`<line x1="${CX0+i*rr}" y1="${y0+96}" x2="${CX0+i*rr}" y2="${y0+126}" stroke="#141414" stroke-width="${rr>3?2:0}"/>`;
-  s+=`<text x="${CX0}" y="${y0+156}" font-size="16" font-weight="700" fill="${TEXT}">Load rise = ${len(c.rise)}</text>`;
-  s+=bar('vm-bg-rise',CX0,y0+166,CW,30,'#2f2b27')+bar('vm-rise',CX0,y0+166,Math.max(rr,c.rise>0?2:0),30,TEXT,.9);
-  s+=`<text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${MUTED}">${S.mode==='tackle'?'Every part shortens by the rise; the lead takes up all n.':'You trade distance for force: '+nf(c.VR,c.VR%1?2:0)+' to 1.'}</text>
-      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${MUTED}">Friction does not change the distance.</text></g>`;
-  return s;
-}
-// Card 3: work in = work out + lost
-function cardWork(c){
-  const y0=562, full=c.workIn/Math.max(c.rise,1e-9)*riseMax(), k=CW/Math.max(full,1e-9);
-  let s=card('vm-work',y0,262,'WORK · IN = OUT + LOST',`${tsp(COL.P,'P')} × ${tsp(COL.dist,'travel')} = ${tsp(COL.W,'W')} × rise + ${tsp(COL.loss,'lost')}`);
-  s+=`<text x="${CX0}" y="${y0+86}" font-size="16" font-weight="700" fill="${COL.P}">Work in = ${wt(c.P)} × ${len(c.travel,c.travel>=100?0:2)} ${eq(Math.round(c.P)*(+c.travel.toFixed(c.travel>=100?0:2))*(c.imp?1:G),c.workIn)} ${work(c.workIn)}</text>`;
-  s+=bar('vm-bg-in',CX0,y0+96,CW,30,'#2f2b27')+bar('vm-in',CX0,y0+96,c.workIn*k,30,'none',1,`stroke="${COL.P}" stroke-width="3"`);
-  s+=bar('vm-out',CX0,y0+99,c.workOut*k,24,COL.W,.9)+bar('vm-lost',CX0+c.workOut*k,y0+99,c.lost*k,24,COL.loss,.95);
-  s+=`<text x="${CX0}" y="${y0+156}" font-size="16" font-weight="700" fill="${COL.W}">Work out = ${wt(c.W)} × ${len(c.rise)} = ${work(c.workOut)}</text>
-      <text x="${CX0}" y="${y0+182}" font-size="16" font-weight="700" fill="${COL.loss}">Lost to friction = ${work(c.lost)}</text>
-      <text x="${CX0}" y="${y0+222}" font-size="16" font-weight="700" fill="${MUTED}">A machine never gives back more work than you put in.</text>
-      <text x="${CX0}" y="${y0+246}" font-size="16" font-weight="700" fill="${MUTED}">${c.rise>0?'':'Pull the load up to fill these bars.'}</text></g>`;
-  return s;
-}
-
-/* =====================================================================
-   FAILURE MODES (owner's standing rule, 2026-11-07), block and tackle only.
-   Rating: blockWll = WLL of each block, its hook and the overhead anchor (one number, stated on screen).
-   Design factor 4 : 1 (Crosby / McKissick blocks: "Ultimate load is 4 times the Working Load Limit").
-   Load on the top block and anchor = W + P (lead off the fixed block) or W − P (lead off the moving block);
-   load on the moving block hook = W. The most-loaded part fails when its load is strictly greater than blockWll × 4:
-     'anchor' the top block's hook opens on the beam (0 → THK ms), then the whole rig falls: the load lands, the top
-              block comes down on top of the moving block.
-     'hook'   the moving block's hook opens and the load drops out of it.
-   Gravity in screen px: the rise scale (214 px = 8 ft) → 26.75 px per ft × 32.2 ft/s².
-   Armed (fail:true) and over blockWll: the anchor / hook tag turns red and the creak meter replaces the work card.
-   ===================================================================== */
-const BLOCK_DF=4, GPXB=32.174*RISEPX/8, THK=700;
-let F={on:false,t:0};
-const rnd=(i,sd=0)=>{const x=Math.sin(i*12.9898+sd*78.233)*43758.5453;return x-Math.floor(x);};
-const xf=(r,df)=>{let t=r.toFixed(1);if(+t<=df)t=r.toFixed(2);if(+t<=df)t='just over '+df;return t;};
-function failCond(c){ if(!S.fail||S.mode!=='tackle'||!(c.breakAt>0))return null; return c.crit>c.breakAt?c.critPart:null; }
-function failText(c,kind){
-  const r=c.crit/c.blockWll, x=xf(r,BLOCK_DF), lm=c.leadMoving;
-  if(kind==='anchor')return {load:c.crit,ratio:r,
-    caption:`Anchor load ${wt(c.crit)} (W ${lm?'−':'+'} P) = ${x} × the ${wt(c.blockWll)} block rating: the hook opens and the load drops`,
-    card:{head:'LOAD ON THE TOP BLOCK AND ANCHOR',big:wt(c.crit),lines:[`= W ${lm?'−':'+'} P = ${wt(c.W)} ${lm?'−':'+'} ${wt(c.P)}`,`= ${x} × the ${wt(c.blockWll)} block rating`,
-      'Blocks and hooks break near 4 × WLL','(Crosby design factor 4 : 1).'],verdict:['THE HOOK OPENS.','THE LOAD DROPS.']}};
-  return {load:c.crit,ratio:r,
-    caption:`Moving block hook load ${wt(c.W)} = ${x} × the ${wt(c.blockWll)} block rating: the hook opens and the load drops`,
-    card:{head:'LOAD ON THE MOVING BLOCK HOOK',big:wt(c.W),lines:[`= W (the pull only helps the top block)`,`= ${x} × the ${wt(c.blockWll)} block rating`,
-      'Blocks and hooks break near 4 × WLL','(Crosby design factor 4 : 1).'],verdict:['THE HOOK OPENS.','THE LOAD DROPS.']}};
-}
-function updateFail(c,ms){
-  const kind=failCond(c);
-  if(!kind){if(F.on)F={on:false,t:0};return;}
-  if(!F.on||F.kind!==kind){
-    tweens=[];                                   // the trip freezes every running tween: numbers stop where it broke
-    const rp=risePx(), rg=rigGeo(c), g=tackleGeo(c), hh=rg.dx*Math.tan(SLING_ANG);
-    // anchor: the lower block keeps falling after the load lands until its hook rests on the load (sling goes slack),
-    // then the top block lands on the lower block. Distances in px, all on the virtual clock.
-    const lowFall=rp+hh+10-rg.hd.t, Ly0=lowerY(c);
-    const lowTop=c.n>1?Ly0+lowFall-SR-12:Ly0+lowFall-4, upBot=rg.UY0+(c.U>0?SR+12:12);
-    const grip0=g.lm?96:330;
-    F={on:true,t:0,kind,rp,lowFall,fallU:Math.max(0,lowTop-upBot-2),gripFall:FLOOR-26-grip0,...failText(c,kind)};
-    return;}
-  F.t+=ms;
-}
-/* Failure offsets for this frame: a pure function of F.t, so every frame is deterministic.
-   Free fall at g on the rise scale; each body stops where it lands (small settle bounce), nothing passes through. */
-function applyGO(){
-  Object.assign(GO,{up:0,low:0,load:0,hook:0,lhook:0,slack:false,grip:0,gripP:0,tau:0,detached:false});
-  if(!F.on)return null;
-  const u=clamp(F.t/THK,0,1), tau=Math.max(0,(F.t-THK)/1000), ev={parted:F.t>=THK,lands:[]};
-  const fall=dist=>{if(dist<=0)return {y:0,u:tau};const tl=Math.sqrt(2*dist/GPXB); if(tau<tl)return {y:.5*GPXB*tau*tau,u:-1};
-    const uu=tau-tl;return {y:dist-Math.min(8,dist*.04)*Math.exp(-uu/.1)*Math.abs(Math.sin(uu*26)),u:uu};};
-  GO.tau=tau;
-  const G=fall(F.gripFall);
-  if(F.kind==='anchor'){
-    GO.hook=u;
-    if(!ev.parted){GO.up=GO.low=Math.sin(F.t/9)*1.5*u;return ev;}
-    GO.slack=true;
-    const L=fall(F.rp), B=fall(F.lowFall), U=fall(F.fallU);
-    GO.low=B.y; GO.load=L.y-B.y; GO.up=U.y;
-    if(F.rp>0&&L.u>=0)ev.lands.push(['load',L.u]); if(U.u>=0)ev.lands.push(['block',U.u]);
-  } else {
-    GO.lhook=u;
-    if(!ev.parted){GO.low=Math.sin(F.t/9)*1.5*u;return ev;}
-    GO.slack=true; GO.detached=true;
-    const L=fall(F.rp);
-    GO.low=-(18*(1-Math.exp(-tau/.08))-8*Math.exp(-tau/.3)*Math.sin(tau*18));     // the empty block jumps up
-    GO.load=L.y-GO.low;
-    if(F.rp>0&&L.u>=0)ev.lands.push(['load',L.u]);
-  }
-  GO.grip=G.y; GO.gripP=F.gripFall>0?clamp(G.y/F.gripFall,0,1):1;
-  return ev;
-}
-/* load on the top block / anchor and on the moving block hook, against the block rating (armed only) */
-function blockTag(c,g,ucx,uL,lcx,lB,rg){
-  const col=v=>v>c.blockWll?BAD:v>.8*c.blockWll?WARN:TEXT;
-  let s=pill('anchor-tag',ucx-26,PIN+2,`Anchor W ${c.leadMoving?'−':'+'} P = ${wt(c.upper)}`,col(c.upper),15,'end');
-  if(c.leadMoving)s+=pill('hook-tag',lcx+rg.hd.R+26,lB+rg.hd.c,`Hook W = ${wt(c.W)}`,col(c.W),15,'start');
-  return s;
-}
-function creakOn(c){return !!(S.fail&&!F.on&&S.mode==='tackle'&&isFinite(c.blockUtil)&&c.blockUtil>1);}
-/* Creak meter (replaces the work card): load between the rating (1 ×) and breaking (4 ×), noise bars flicker harder */
-function creakCard(c){
-  const y0=562, st=clamp((c.blockUtil-1)/(BLOCK_DF-1),0,1), X=v=>CX0+CW*clamp((v-1)/(BLOCK_DF-1),0,1), col=st>.6?BAD:WARN;
-  let s=card('creak-meter',y0,262,'STRAIN · CREAK METER',`${c.critPart==='anchor'?'Top block and anchor':'Moving block hook'}: ${wt(c.crit)}`);
-  s+=bar('creak-bg',CX0,y0+80,CW,24,'#2f2b27')+bar('creak-bar',CX0,y0+80,X(c.blockUtil)-CX0,24,col);
-  s+=`<line x1="${CX0+CW}" y1="${y0+72}" x2="${CX0+CW}" y2="${y0+112}" stroke="${BAD}" stroke-width="3"/>`;
-  s+=`<text x="${CX0}" y="${y0+138}" font-size="20" font-weight="800" fill="${col}">${c.blockUtil.toFixed(2)} × the block rating</text>
-      <text x="${CX0+CW}" y="${y0+138}" text-anchor="end" font-size="15" font-weight="700" fill="${MUTED}">breaks at 4 ×</text><g id="creak-noise">`;
-  for(let i=0;i<20;i++){const hh=3+st*40*Math.abs(Math.sin(T/23+i*1.3)*Math.sin(T/57+i*.7));
-    s+=`<rect x="${(CX0+i*CW/20).toFixed(1)}" y="${(y0+240-hh).toFixed(1)}" width="${(CW/20-5).toFixed(1)}" height="${hh.toFixed(1)}" fill="${col}" opacity=".8"/>`;}
-  return s+`</g></g>`;
-}
-/* Caption card (replaces the force and distance cards). IDs: fail-card, fail-big, fail-verdict, fail-tag */
-function failCard(){
-  const P=F.card, x0=CX0-14, w=CW+28, op=clamp(F.t/250,0,1); let y=40, b='';
-  b+=`<text x="${CX0}" y="${y}" font-size="16" font-weight="700" fill="${MUTED}" letter-spacing="1.2">${P.head}</text>`; y+=50;
-  b+=`<text id="fail-big" x="${CX0}" y="${y}" font-size="44" font-weight="800" fill="${TEXT}">${P.big}</text>`; y+=40;
-  P.lines.forEach((l,i)=>{b+=`<text x="${CX0}" y="${y}" font-size="${i<2?22:19}" font-weight="${i<2?800:700}" fill="${i<2?TEXT:'#d9d3c7'}">${l}</text>`;y+=i<2?32:27;});
-  y+=12; b+=`<g id="fail-verdict">`;P.verdict.forEach(l=>{b+=`<text x="${CX0}" y="${y}" font-size="30" font-weight="800" fill="${BAD}">${l}</text>`;y+=38;});b+=`</g>`;
-  b+=`<g id="fail-tag"><rect x="${CX0}" y="${y}" width="${CW}" height="46" rx="8" fill="${BAD}"/><text x="${CX0+CW/2}" y="${y+31}" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">NEVER DO THIS ON THE JOB</text></g>`;
-  y+=64;
-  return `<g id="fail-card" opacity="${op.toFixed(3)}"><rect id="fail-card-box" x="${x0}" y="10" width="${w}" height="${y-10}" rx="10" fill="#2a1717" stroke="${BAD}" stroke-width="3"/>${b}</g>`;
-}
-function dust(x,y,span,u,seed){
-  if(u<0||u>1.8)return '';
-  let s=`<g id="fail-dust">`;
-  for(let i=0;i<24;i++){const r1=rnd(i,seed),r2=rnd(i+40,seed),r3=rnd(i+80,seed);
-    const x0=x+(r1-.5)*span, vx=(x0-x)/Math.max(1,span/2)*260+(r2-.5)*160, vy=-(60+r3*220), f=(1-Math.exp(-u/.45))*.45;
-    const px=x0+vx*f, py=y-4+vy*f+50*u*u, rr=5+u*(14+22*r2), op=.5*(1-u/1.8);
-    s+=`<circle cx="${px.toFixed(1)}" cy="${Math.min(py,y).toFixed(1)}" r="${rr.toFixed(1)}" fill="#8a7f72" opacity="${op.toFixed(3)}"/>`;}
-  if(u<.15)s+=`<line x1="${x-span/2-30}" y1="${y-2}" x2="${x+span/2+30}" y2="${y-2}" stroke="#fff" stroke-width="${(4*(1-u/.15)).toFixed(2)}" opacity=".7"/>`;
-  return s+`</g>`;
-}
-function failInfo(){return F.on?{on:true,kind:F.kind,t:F.t,parted:F.t>=THK,caption:F.caption,load:F.load,ratio:F.ratio}:{on:false};}
-
-/* Phone: the rig picture is cropped to the rig's own bounding box and its text scaled (FK) so no scene label
-   renders under ~11.5 px at 390 px wide. Refit only when the layout changes (mode, reeving, units, failure). */
-let FK=1, PHONE=false; const fz=n=>+(n*FK).toFixed(1);
-const PHC={key:'',k:1.6,vb:'0 0 830 900'};
-function draw(c){
-  let s='';
-  for(let gx=0;gx<=1300;gx+=50)s+=`<line x1="${gx}" y1="0" x2="${gx}" y2="900" stroke="#26231F"/>`;
-  for(let gy=0;gy<=900;gy+=50)s+=`<line x1="0" y1="${gy}" x2="1300" y2="${gy}" stroke="#26231F"/>`;
-  s+=`<rect x="0" y="${FLOOR}" width="1300" height="60" fill="#191714"/><line x1="0" y1="${FLOOR}" x2="1300" y2="${FLOOR}" stroke="#45403A" stroke-width="3"/>`;
-  const phone=PHONE=matchMedia('(max-width:1000px)').matches;
-  const ev=applyGO();                                 // FAILURE MODES: offsets for this frame (all zero normally)
-  const build=()=>{
-    if(S.mode==='tackle')UY=rigGeo(c).UY0+GO.up;
-    const rig=S.mode==='tackle'?drawTackle(c):S.chain==='geared'?drawGeared(c):drawDifferential(c);
-    let r='';
-    if(ev){const lcx=RIGV.lcx;
-      const land=ev.lands.find(l=>l[0]==='load'), blk=ev.lands.find(l=>l[0]==='block'), sh=[land,blk].filter(Boolean).map(l=>l[1]<.5?Math.exp(-l[1]/.1)*Math.sin(l[1]*80):0).reduce((a,b)=>a+b,0);
-      r+=`<g id="fail-scene" transform="translate(${(sh*3).toFixed(2)} ${(sh*6).toFixed(2)})">${rig}`;
-      if(land)r+=dust(lcx,FLOOR,260,land[1],1);
-      if(blk)r+=dust(lcx,lowerY(c)-SR-12,180,blk[1],2);
-      r+=`</g>`;}
-    else r+=rig;
-    // rise gauge beside the load (measured); on a phone the readouts carry it
-    const rp=risePx(), ly=FLOOR-10;
-    if(!F.on&&!phone)r+=`<g id="rise-dim"><line x1="40" y1="${ly}" x2="40" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly}" x2="52" y2="${ly}" stroke="${TEXT}" stroke-width="3"/><line x1="28" y1="${ly-rp}" x2="52" y2="${ly-rp}" stroke="${TEXT}" stroke-width="3"/>
-       <text x="58" y="${ly-rp/2+7}" font-size="18" font-weight="800" fill="${TEXT}">${len(c.rise)}</text></g>`;
-    return `<g id="rig">${r}</g>`;
+<script>/* CrewForge illustration kit (JS port of docs/concepts/hitches/src/lib.py; rules in docs/concepts/hitches/STYLE.md).
+   Plain functions that return SVG strings. Every scene: 1600 x 880 viewBox, one scale K (px per inch), light from
+   the top-left, outlines darker than the fill, CrewForge orange only for "the thing to look at".
+   Kept function-for-function with lib.py so the drawings match the approved concept pictures. */
+const KIT = (() => {
+  const W = 1600, H = 880;
+  const FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+  const C = {
+    BG: '#24211d', PANEL: '#2a2723', TEXT: '#F5F5F4', MUTED: '#b9b4ab', ACC: '#F08A2B',
+    OK: '#3ddc84', WARN: '#F2C230', BAD: '#ff5a4f',
+    STEEL_D: '#3b4247', ROPE_D: '#454c51', ROPE_M: '#aab3b9', ROPE_V: '#6a737a',
+    TIMBER_D: '#5e4426'
   };
-  FK=phone?PHC.k:1;
-  let rig=build();
-  if(phone){
-    $('svg').innerHTML=s+rig; $('svg2').innerHTML='';
-    const key=[S.mode,S.chain,S.parts,S.lead,S.units,S.fail,F.on&&F.t>=THK,innerWidth].join();
-    if(PHC.key!==key){
-      const W=Math.max(200,$('svgwrap').clientWidth-8);
-      for(let i=0;i<7;i++){
-        const bb=$('rig').getBBox(), y0=Math.min(bb.y-8,20), y1=Math.max(bb.y+bb.height+8,FLOOR+20), vw=bb.width+24;
-        PHC.vb=`${(bb.x-12).toFixed(0)} ${y0.toFixed(0)} ${vw.toFixed(0)} ${(y1-y0).toFixed(0)}`;
-        const need=11.8*vw/(W*14);                     // smallest scene font is 14 × FK
-        if(need<=FK&&(FK-need<.06||i===6))break;
-        FK=Math.max(need*1.02,1); rig=build(); $('svg').innerHTML=s+rig;
+  const f = v => { const r = Math.round(v * 10) / 10; return Math.abs(r - Math.round(r)) < 1e-6 ? String(Math.round(r)) : r.toFixed(1); };
+  const pathd = (P, closed) => P.length ? 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '') : '';
+
+  function catmull(P, n = 8, closed = false) {
+    const out = [], m = P.length;
+    const last = closed ? m : m - 1;
+    for (let i = 0; i < last; i++) {
+      const p0 = (closed || i > 0) ? P[(i - 1 + m) % m] : P[i], p1 = P[i], p2 = P[(i + 1) % m];
+      const p3 = (closed || i + 2 < m) ? P[(i + 2) % m] : P[(i + 1) % m];
+      for (let j = 0; j < n; j++) {
+        const t = j / n, t2 = t * t, t3 = t2 * t;
+        out.push([0, 1].map(k => 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3)));
       }
-      PHC.key=key; PHC.k=FK;
     }
-    const v=PHC.vb.split(' ').map(Number);
-    $('svgwrap').style.height=(($('svgwrap').clientWidth-8)*v[3]/v[2]+8).toFixed(0)+'px';
-    $('svg').setAttribute('viewBox',PHC.vb);
+    if (!closed) out.push(P[m - 1]);
+    return out;
   }
-  UY=0; Object.assign(GO,{up:0,low:0,load:0,hook:0,lhook:0,slack:false,grip:0,gripP:0,tau:0,detached:false});
-  FK=1;
-  const cards=(F.on?failCard():cardForce(c)+cardDist(c))+(creakOn(c)?creakCard(c):cardWork(c));
-  // phone: the rig fills the first picture and the maths cards stack in a second one below it
-  if(phone){$('svg2').innerHTML=cards;}
-  else {$('svgwrap').style.height='';$('svg').setAttribute('viewBox','0 0 1300 900');$('svg').innerHTML=s+rig+cards;$('svg2').innerHTML='';}
-}
-
-function formula(c){
-  const P=sp(COL.P,'P'), W=sp(COL.W,'W'), Wv=sp(COL.W,nf(Math.round(c.W))), Pv=sp(COL.P,wt(c.P));
-  if(S.mode==='tackle'){
-    const n=sp(COL.n,nf(c.n));
-    const f1=`MA = ${sp(COL.n,'parts holding the moving block')} = ${n}   ·   ${P} ideal = ${W} ÷ ${sp(COL.n,'n')} = ${Wv} ÷ ${n} = ${sp(COL.P,wt(c.Pideal))}`;
-    let f2;
-    if(S.friction==='ideal')f2=`No friction: ${P} = ${Pv}   ·   ${sp(COL.dist,'lead travel')} = ${n} × rise`;
-    else if(S.friction==='rule10')f2=`10 % rule: ${P} = ${W} × (1 + 0.10 × ${sp(COL.loss,'S')}) ÷ ${sp(COL.n,'n')} = ${Wv} × (1 + 0.10 × ${sp(COL.loss,c.S)}) ÷ ${n} = ${Pv}`;
-    else f2=`${S.friction==='bronze'?'Bronze bushed':'Roller bearing'} (Crosby): ${P} = ${W} ÷ ratio = ${Wv} ÷ ${sp(COL.loss,c.ratio.toFixed(2))} = ${Pv}`;
-    return [f1,f2];
-  }
-  const VR=sp(COL.n,'VR'), eta=sp(COL.loss,'η');
-  if(S.chain==='geared')return [`Maker: ${CAPNAME[S.cap]} ton lifts ${wt(c.rated)} with ${wt(c.pullRated)} pull, ${VR} = ${sp(COL.n,nf(c.VR))} ft of hand chain per ft   ·   ${eta} = ${sp(COL.loss,c.eta.toFixed(3))}`,
-    `${P} = ${W} ÷ (${VR} × ${eta}) = ${Wv} ÷ (${sp(COL.n,nf(c.VR))} × ${sp(COL.loss,c.eta.toFixed(3))}) = ${Pv}`];
-  const un=S.units==='imp'?2:0;
-  return [`${VR} = 2${sp(COL.dist,'D')} ÷ (${sp(COL.dist,'D')} − ${sp(ACC,'d')}) = 2 × ${nf(S.D,un)} ÷ (${nf(S.D,un)} − ${nf(S.d,un)}) = ${sp(COL.n,nf(c.VR,2))}`,
-    `${P} = ${W} ÷ (${VR} × ${eta}) = ${Wv} ÷ (${sp(COL.n,nf(c.VR,2))} × ${sp(COL.loss,S.eta.toFixed(2))}) = ${Pv}`];
-}
-
-/* ---------- panel ---------- */
-const RANGES={imp:{tackle:[100,80000,100],diff:[100,4000,50],D:[4,16,.25]},met:{tackle:[50,36000,50],diff:[50,2000,25],D:[100,400,5]}};
-function panel(c){
-  const set=(id,v)=>{$(id).textContent=v};
-  const tk=S.mode==='tackle';
-  set('ro-p',wt(c.P)); set('ro-pi',wt(c.Pideal));
-  $('ro-p-lbl').textContent=tk?'Line pull, with friction (P)':'Hand chain pull (P)';
-  $('ro-ma-lbl').textContent=tk?'Ideal MA (n)':'Velocity ratio (VR)';
-  set('ro-ma',nf(c.MA,c.MA%1?2:0));
-  $('ro-s-lbl').textContent=tk?'Sheaves (S)':S.chain==='geared'?'Load chain falls':'Set efficiency';
-  set('ro-s',tk?String(c.S):S.chain==='geared'?String(c.falls):pct(c.eta));
-  set('ro-act',nf(c.MAact,2)); set('ro-eff',pct(c.eff)); set('ro-kn',nf(c.kN,2)+' kN');
-  set('ro-rise',len(c.rise)); $('ro-travel-lbl').textContent=tk?'Lead line travel':'Hand chain travel';
-  set('ro-travel',len(c.travel,c.travel>=100?1:2));
-  set('ro-win',work(c.workIn)); set('ro-wout',work(c.workOut)); set('ro-lost',work(c.lost));
-  const st=$('status');
-  if(c.level==='info'){st.style.background='#34302B';st.style.color=TEXT;st.style.borderColor=ACC;
-    st.textContent=tk?`PULL ${wt(c.P)} TO LIFT ${wt(c.W)} · ${pct(c.eff)} EFFICIENT`
-      :(c.eta<.5?`UNDER 50 % EFFICIENT: LOAD HOLDS WHEN RELEASED`:`50 % OR MORE: LOAD CAN RUN BACK`);}
-  else {const col=levelCol(c.level);st.style.background=col;st.style.borderColor=col;st.style.color=c.level==='ok'?'#0b2416':c.level==='warn'?'#2a2203':'#fff';
-    st.textContent=c.util>1?`OVER RATED CAPACITY (${pct(c.util)}): DO NOT LIFT`:c.util>.8?`CAUTION: ${pct(c.util)} OF RATED CAPACITY`:`WITHIN RATED CAPACITY (${pct(c.util)})`;}
-  // controls
-  $('w-tackle').classList.toggle('hide',!tk); $('w-chain').classList.toggle('hide',tk);
-  $('w-cap').classList.toggle('hide',S.chain!=='geared'); $('w-diff').classList.toggle('hide',S.chain!=='differential');
-  segSync('c-mode',S.mode);segSync('c-parts',String(S.parts));segSync('c-lead',S.lead);segSync('c-friction',S.friction);
-  segSync('c-chain',S.chain);segSync('c-cap',String(S.cap));segSync('c-units',S.units);
-  segSync('c-lift',S.rise>=riseMax()/2?'up':'down');
-  document.querySelectorAll('#panel .seg button').forEach(b=>b.disabled=false);
-  document.querySelector('#c-lead button[data-v="moving"]').disabled=S.parts<2;
-  if(typeof LOCKED!=='undefined'&&LOCKED.size)applyLocks();
-  const R=RANGES[S.units], e=$('c-load');
-  if(tk)[e.min,e.max,e.step]=R.tackle;
-  else if(S.chain==='differential')[e.min,e.max,e.step]=R.diff;
-  else {const rt=c.rated;e.min=0;e.max=Math.round(rt*1.25);e.step=S.units==='imp'?10:5;}
-  e.value=S.load;
-  ['D','d'].forEach(k=>{const el=$('c-'+k);[el.min,el.max,el.step]=R.D;el.value=S[k];});
-  $('c-eta').value=S.eta;
-  $('l-load').textContent=wt(S.load); $('l-D').textContent=dia(S.D); $('l-d').textContent=dia(S.d); $('l-eta').textContent=pct(S.eta);
-}
-function segSync(id,v){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
-
-/* ---------- callouts (pulse + fade on the virtual clock) ---------- */
-function renderCallouts(){
-  const host=$('co'); host.innerHTML='';
-  callouts.forEach(co=>{
-    const el=$(co.target); if(!el)return;
-    const r=el.getBoundingClientRect(), pad=10, op=Math.min(1,co.age/300);
-    const pulse=co.age<1800?1+0.04*Math.sin(co.age/110):1;
-    const w=(r.width+2*pad)*pulse,h=(r.height+2*pad)*pulse;
-    const ring=document.createElement('div'); ring.className='ring';
-    Object.assign(ring.style,{left:(r.left+r.width/2-w/2)+'px',top:(r.top+r.height/2-h/2)+'px',width:w+'px',height:h+'px',opacity:op});
-    host.appendChild(ring);
-    if(co.text){const lb=document.createElement('div');lb.className='clabel';lb.textContent=co.text;lb.style.opacity=op;host.appendChild(lb);
-      const lw=lb.offsetWidth,lh=lb.offsetHeight,vw=innerWidth,vh=innerHeight, slide=(1-op)*14;
-      const pos=co.pos||(r.left>vw*0.55?'left':'right'); let x,y;
-      const inPanel=$('panel').contains(el)&&innerWidth>1000, edge=inPanel?$('panel').getBoundingClientRect().left:r.left;
-      if(pos==='left'){x=edge-pad-lw-18-slide;y=r.top+r.height/2-lh/2}
-      else if(pos==='right'){x=r.right+pad+18+slide;y=r.top+r.height/2-lh/2}
-      else if(pos==='top'){x=r.left+r.width/2-lw/2;y=r.top-pad-lh-18-slide}
-      else {x=r.left+r.width/2-lw/2;y=r.bottom+pad+18+slide}
-      lb.style.left=clamp(x,12,vw-lw-12)+'px'; lb.style.top=clamp(y,12,vh-lh-12)+'px';}
+  // points on a circle; degrees, screen coords (0 = +x, 90 = DOWN)
+  const arcPts = (cx, cy, r, a0, a1, n = 24) => Array.from({ length: n + 1 }, (_, i) => {
+    const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   });
-}
-
-/* ---------- virtual clock: ALL motion advances here ---------- */
-function step(ms){
-  const dt=ms/1000; T+=ms;
-  tweens.forEach(t=>{t.t=Math.min(t.dur,t.t+ms);S[t.key]=t.from+(t.to-t.from)*ease(t.t/t.dur);});
-  tweens=tweens.filter(t=>t.t<t.dur);
-  S.rise=clamp(S.rise,0,riseMax());
-  const c=calc();
-  updateFail(c,ms);                                                  // FAILURE MODES: trigger / latch / reset
-  // rope / chain material moves with the load: accumulate the load's travel in px (sign: up = positive)
-  const rp=risePx(), key=S.mode+S.chain+S.parts+S.lead;
-  if(A.lastRisePx!=null&&A.lastMode===key)A.disp+=rp-A.lastRisePx;
-  A.lastRisePx=rp; A.lastMode=key;
-  A.flow-=dt*40;                                                     // load path creeps toward the fixed block
-  // pull arrow: spring-damper toward the live pull (ω≈7 rad/s, ζ≈0.4)
-  const wn=7,z=.4;
-  if(ms>0&&ms<200){const sub=Math.max(1,Math.ceil(ms/8)),h=dt/sub,tg=F.on&&F.t>=THK?0:c.P;for(let i=0;i<sub;i++){const acc=wn*wn*(tg-A.arrow)-2*z*wn*A.arrowV;A.arrowV+=acc*h;A.arrow+=A.arrowV*h;}}
-  else if(ms>=200){A.arrow=c.P;A.arrowV=0;}
-  return c;
-}
-function frame(ms){
-  const c=step(ms);
-  draw(c); panel(c);
-  if(F.on){const st=$('status');st.style.background=BAD;st.style.borderColor=BAD;st.style.color='#fff';
-    st.textContent=(F.kind==='anchor'?'ANCHOR HOOK':'BLOCK HOOK')+' FAILED: NEVER DO THIS ON THE JOB';}
-  const f=formula(c); $('f1').innerHTML=f[0]; $('f2').innerHTML=f[1];
-  callouts.forEach(co=>co.age+=ms);
-  renderCallouts();
-}
-function set(p,dur=0){
-  p={...p};
-  if(p.units&&p.units!==S.units){
-    const toMet=p.units==='met', fw=toMet?LB_TO_KG:1/LB_TO_KG, fl=toMet?FT_TO_M:1/FT_TO_M, fd=toMet?IN_TO_MM:1/IN_TO_MM;
-    tweens=tweens.filter(t=>!['load','rise','D','d'].includes(t.key));
-    if(!('load' in p))S.load*=fw; if(!('rise' in p))S.rise*=fl;
-    if(!('D' in p))S.D*=fd; if(!('d' in p))S.d*=fd; if(!('blockWll' in p))S.blockWll*=fw;
-    S.units=p.units; delete p.units;
+  function resample(P, step) {
+    const out = [P[0]]; let acc = 0;
+    for (let i = 0; i + 1 < P.length; i++) {
+      const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+      if (!seg) continue;
+      let t = step - acc;
+      while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+      acc = seg - (t - step);
+    }
+    const e = P[P.length - 1], l = out[out.length - 1];
+    if (Math.hypot(e[0] - l[0], e[1] - l[1]) > 1e-3) out.push(e);
+    return out;
   }
-  const snap=p.snap; delete p.snap;
-  if('parts' in p)p.parts=clamp(Math.round(p.parts),1,8);
-  if('cap' in p)p.cap=clamp(Math.round(p.cap),0,8);
-  for(const [k,v] of Object.entries(p)){
-    tweens=tweens.filter(t=>t.key!==k);
-    if(NUMERIC.includes(k)&&dur>0)tweens.push({key:k,from:S[k],to:v,t:0,dur});
-    else S[k]=v;
+  function normals(P) {
+    return P.map((_, i) => {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L];
+    });
   }
-  if(S.parts<2&&S.lead==='moving')S.lead='fixed';
-  if(S.d>=S.D)S.d=S.D*.9;
-  S.rise=clamp(S.rise,0,riseMax());
-  if(snap){const c=calc();A.arrow=c.P;A.arrowV=0;A.disp=0;A.lastRisePx=null;A.flow=0;}
-  if(snap||'mode' in p||p.fail===false)F={on:false,t:0};          // FAILURE MODES: any reset restores the rig
-  if(!CAPTURE)frame(0);
-}
-function callout(target,text,opts={}){callouts=callouts.filter(c=>c.target!==target);callouts.push({target,text,pos:opts&&opts.pos,age:0});if(!CAPTURE)frame(0);}
-function clear(){callouts=[];if(!CAPTURE)frame(0);}
+  // shift each point toward the light (top-left) along its normal: where the highlight runs on a round part
+  function litOffset(P, amount) {
+    const N = normals(P), Lx = -0.7071, Ly = -0.7071;
+    return P.map((p, i) => { const [nx, ny] = N[i], s = nx * Lx + ny * Ly; return [p[0] + nx * s * amount, p[1] + ny * s * amount]; });
+  }
 
-/* ---------- lesson hooks (docs/LESSON_READY_SIMS.md): get, onChange, lock / unlock ---------- */
-const LISTEN=[], LOCKED=new Set();
-const CONTROLS=()=>[...document.querySelectorAll('#panel .seg[id], #panel input[id]')].map(e=>e.id);
-const userChanged=()=>{const st=getState();LISTEN.forEach(fn=>{try{fn(st)}catch(e){console.error(e)}});};
-function applyLocks(){
-  document.querySelectorAll('#panel .seg[id]').forEach(seg=>{const lk=LOCKED.has(seg.id);seg.classList.toggle('locked',lk);
-    seg.querySelectorAll('button').forEach(b=>{if(lk)b.disabled=true;});});
-  document.querySelectorAll('#panel input[id]').forEach(i=>{i.disabled=LOCKED.has(i.id);i.closest('.ctl')?.classList.toggle('locked',LOCKED.has(i.id));});
-}
-const normId=i=>$(i)?i:$('c-'+i)?'c-'+i:i;
-function lock(ids){(ids==='all'?CONTROLS():ids).forEach(i=>LOCKED.add(normId(i)));panel(calc());applyLocks();}
-function unlock(ids){if(ids==='all'||!ids)LOCKED.clear();else ids.forEach(i=>LOCKED.delete(normId(i)));panel(calc());applyLocks();}
-function getState(){const c=calc(),f=failInfo();
-  const out={P:c.P,Pideal:c.Pideal,MA:c.MA,VR:c.VR,MAact:c.MAact,eff:c.eff,rise:c.rise,travel:c.travel,workIn:c.workIn,workOut:c.workOut,lost:c.lost,kN:c.kN,
-    fail:!!f.on,failKind:f.on?f.kind:null};
-  if(S.mode==='tackle')Object.assign(out,{n:c.n,S:c.S,share:c.share,upper:c.upper,lower:c.lower,blockUtil:c.blockUtil,breakAt:c.breakAt});
-  else if(S.chain==='geared')Object.assign(out,{falls:c.falls,rated:c.rated,util:c.util,level:c.level});
-  return {...S,out};}
+  function defs() {
+    return `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gBlock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9a640"/><stop offset=".55" stop-color="#b8862a"/><stop offset="1" stop-color="#7d5a17"/></linearGradient>
+<radialGradient id="gSheave" cx=".38" cy=".34" r=".75"><stop offset="0" stop-color="#c9d0d5"/><stop offset=".55" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></radialGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gWeight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset=".6" stop-color="#4f5860"/><stop offset="1" stop-color="#3a4148"/></linearGradient>
+<linearGradient id="gBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d6670"/><stop offset="1" stop-color="#434b53"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b5650"/><stop offset="1" stop-color="#46423d"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDial" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fbfbf8"/><stop offset="1" stop-color="#d6d4cc"/></radialGradient>
+<filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+</defs>`;
+  }
 
-/* ---------- user controls ---------- */
-document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b||b.disabled||LOCKED.has(seg.id))return;const v=b.dataset.v;
-  ({'c-mode':()=>set({mode:v}),'c-parts':()=>set({parts:+v}),'c-lead':()=>set({lead:v}),'c-friction':()=>set({friction:v}),
-    'c-chain':()=>set({chain:v,load:v==='geared'?calc({...S,chain:'geared'}).rated*.75:S.units==='imp'?1000:500}),
-    'c-cap':()=>{set({cap:+v});set({load:calc().rated*.75});},
-    'c-units':()=>set({units:v}),
-    'c-lift':()=>{const to=v==='up'?riseMax():0;set({rise:to},Math.max(300,Math.abs(to-S.rise)/riseMax()*6000));}})[seg.id]?.();
-  userChanged();
-}));
-['load','D','d','eta'].forEach(k=>$('c-'+k).addEventListener('input',e=>{set({[k]:+e.target.value});userChanged();}));
-addEventListener('resize',()=>{if(!CAPTURE)frame(0)});
+  function styleBlock(extraPhone = '') {
+    return `<style>
+.lb{font:700 26px ${FONT};fill:${C.TEXT}} .lm{font:600 21px ${FONT};fill:${C.MUTED}} .la{font:800 30px ${FONT};fill:${C.ACC}}
+.ld{stroke:${C.MUTED};stroke-width:2;fill:none} .tag{font:700 12px ${FONT};fill:#1d1d1d} .tagb{font:800 15px ${FONT};fill:#1d1d1d}
+.pt{font:800 20px ${FONT}} .pts{font:700 16px ${FONT}} .halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round}
+.phOnly{display:none}
+@media (max-width:700px){ .lb{font-size:34px} .lm{font-size:28px} .la{font-size:38px} .pt{font-size:28px} .pts{font-size:24px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+  }
 
-frame(0);
-if(!CAPTURE){let last=performance.now();const loop=ts=>{frame(Math.min(100,ts-last));last=ts;requestAnimationFrame(loop)};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:frame,isIdle:()=>false,calc:()=>calc(),get:getState,onChange:fn=>{LISTEN.push(fn);return ()=>{const i=LISTEN.indexOf(fn);if(i>=0)LISTEN.splice(i,1);};},lock,unlock,
-  get view(){return {...A,...JSON.parse(JSON.stringify(RIGV))}},failure:failInfo,ready:true};
+  function backdrop(floor, wallLine = true) {
+    let s = `<rect width="${W}" height="${floor}" fill="url(#gWall)"/>`;
+    if (wallLine) {
+      s += `<rect x="0" y="${floor - 150}" width="${W}" height="150" fill="#ffffff" opacity=".018"/>`;
+      s += `<line x1="0" y1="${floor - 150}" x2="${W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+    }
+    s += `<rect x="0" y="${floor}" width="${W}" height="${H - floor}" fill="url(#gFloor)"/>`;
+    s += `<line x1="0" y1="${floor}" x2="${W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+    return s;
+  }
+  function column(x, floor, top = 0, w = 34) {
+    return `<g opacity=".55"><rect x="${x}" y="${top}" width="${w}" height="${floor - top}" fill="#2f2c28"/>` +
+      `<rect x="${x}" y="${top}" width="5" height="${floor - top}" fill="#3a3632"/>` +
+      `<rect x="${x + w - 5}" y="${top}" width="5" height="${floor - top}" fill="#262320"/>` +
+      `<rect x="${x - 14}" y="${floor - 8}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+  }
+  const contactShadow = (cx, y, w, h = 14, op = 1) =>
+    `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+
+  // any round steel part along a path: dark outline, body, a highlight line on the lit side
+  function roundBar(P, d, body = '#8d969d', dark = '#3b4247', hi = '#e8ecef', cap = 'round', hiOp = .85) {
+    const p = pathd(P);
+    return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+      `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+      `<path d="${pathd(litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+  }
+
+  /* Wire rope: steel body + strand valleys. Right regular lay: valleys run like "/" on a hanging rope, each strand
+     crosses the visible face in about 2 d, valleys about 1.1 d apart. `phase` (px along the rope) moves the strand
+     pattern with the rope's material so a running rope visibly runs (virtual clock only). */
+  function wireRope(P, d, phase = 0, opts = {}) {
+    const dense = resample(P, Math.max(.6, d / 6));
+    let s = roundBar(dense, d, opts.body || C.ROPE_M, opts.dark || C.ROPE_D, '#e9edf0', 'butt', .7);
+    if (d < 2.2 || dense.length < 2) return s;
+    const pitch = 1.08 * d, adv = 2.0 * d;
+    const L = [0];
+    for (let i = 0; i + 1 < dense.length; i++) L.push(L[i] + Math.hypot(dense[i + 1][0] - dense[i][0], dense[i + 1][1] - dense[i][1]));
+    const N = normals(dense), tot = L[L.length - 1];
+    let j0 = 0;
+    const at = sv => {
+      sv = Math.max(0, Math.min(tot, sv));
+      while (j0 > 0 && L[j0] > sv) j0--;
+      while (j0 < L.length - 2 && L[j0 + 1] < sv) j0++;
+      const t = (sv - L[j0]) / ((L[j0 + 1] - L[j0]) || 1);
+      return [dense[j0][0] + (dense[j0 + 1][0] - dense[j0][0]) * t, dense[j0][1] + (dense[j0 + 1][1] - dense[j0][1]) * t, N[j0]];
+    };
+    let v = '';
+    const ph = ((phase % pitch) + pitch) % pitch;
+    for (let sv = -adv - pitch + ph; sv < tot; sv += pitch) {
+      const seg = [];
+      for (let j = 0; j < 5; j++) {
+        const q = sv + adv * j / 4;
+        if (q >= 0 && q <= tot) { const [x, y, [nx, ny]] = at(q); const o = (-.5 + j / 4) * d * .86; seg.push([x + nx * o, y + ny * o]); }
+      }
+      if (seg.length > 1) v += pathd(seg) + ' ';
+      j0 = 0;
+    }
+    return s + `<path d="${v}" fill="none" stroke="${C.ROPE_V}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+  }
+
+  /* Crosby S-319N shank hook, ID code J (5 t carbon), inches, Kito Crosby 2026-27 p. 91 (same contour as lib.py).
+     Origin = bottom of the hook on the shank axis; y negative = up; the saddle is on the shank axis at -1.81. */
+  const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+    [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+  const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81;
+  let _hc = null;
+  function hookContour() {
+    if (_hc) return _hc;
+    let out = catmull(HOOK_OUT, 6);
+    out = out.concat([HOOK_TIP, [1.8, -4.5], [1.64, -4.0]]);
+    for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+    out = out.concat(catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+    _hc = [[-0.705, -10.43]].concat(out, [[0.705, -10.43]]);
+    return _hc;
+  }
+  /* Hook in profile, saddle at (x, ysad), k px per inch; `open` 0..1 straightens the throat (failure).
+     The shank top is at ysad - 8.62 k. */
+  function hookProfile(x, ysad, k, o = {}) {
+    const open = o.open || 0, flip = o.flip ? -1 : 1;
+    const T = p => {
+      let px = p[0], py = p[1];
+      if (open > 0 && py > -6.2) {                      // opening: the bowl and tip swing out about the neck
+        const a = open * 0.9 * Math.max(0, Math.min(1, (-py - 0) / 6.2 + .2)) * (px > -0.5 ? 1 : 0.35);
+        const cx = -0.7, cy = -6.2, dx = px - cx, dy = py - cy;
+        px = cx + dx * Math.cos(a) - dy * Math.sin(a); py = cy + dx * Math.sin(a) + dy * Math.cos(a);
+      }
+      return [x + flip * px * k, ysad + (py - HOOK_SADDLE) * k];
+    };
+    const c = hookContour().map(T);
+    let s = `<g id="${o.id || 'hook'}"><path d="${pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, k * .12))}" stroke-linejoin="round"/>`;
+    const back = catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+    s += `<path d="${pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+    s += `<path d="${pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+    if (!o.noLatch && open < .2) {                      // S-4320 spring latch, neck boss to inside the tip
+      const piv = T([0.92, -5.95]), end = T([1.9, -4.62]), mid = T([1.5, -5.35]);
+      const q = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+      s += `<path d="${q}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/>`;
+      s += `<path id="${o.id || 'hook'}-latch" d="${q}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+      s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+    }
+    return s + '</g>';
+  }
+  const HOOK = { SADDLE: HOOK_SADDLE, RI: HOOK_RI, CY: HOOK_CY, LEN: 10.43 };
+
+  /* Shackle seen square to the pin (U visible), pin horizontal; bow UP or DOWN. Crosby G-209 proportions scaled from
+     5/8 in (pin 0.75, jaw 1.06, inside length 2.38, bow 1.69 in). Returns {back, front, crown} (crown = inside of the
+     bow on the centreline: where an eye or hook bears). */
+  function shackleFace(x, ypin, k, up = true, size = 0.625) {
+    const sc = size / 0.625, pin = .75 * sc, iw = 1.06 * sc, il = 2.38 * sc, mat = .70 * sc, ear = 1.36 * sc;
+    const legx = (iw + mat) / 2, rBow = (1.69 * sc + mat) / 2, top = -(pin / 2 + il + mat / 2), yc = top + rBow;
+    const pts = [[-legx, -ear * .3], [-legx * 1.04, -(pin / 2 + il * .3)]];
+    for (let a = 205; a >= -25; a -= 15) pts.push([rBow * Math.cos(a * Math.PI / 180), yc - rBow * Math.sin(a * Math.PI / 180)]);
+    pts.push([legx * 1.04, -(pin / 2 + il * .3)], [legx, -ear * .3]);
+    const P = catmull(pts, 4).map(([px, py]) => [x + px * k, ypin + (up ? py : -py) * k]);
+    const back = roundBar(P, mat * k, '#a6aeb4', C.STEEL_D, '#eef1f3');
+    let front = '';
+    for (const ex of [-legx, legx]) front += `<circle cx="${f(x + ex * k)}" cy="${f(ypin)}" r="${f(ear / 2 * k)}" fill="#9aa2a8" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    front += `<rect x="${f(x - (legx + ear * .62) * k)}" y="${f(ypin - pin / 2 * k)}" width="${f((2 * legx + ear * .95) * k)}" height="${f(pin * k)}" rx="${f(pin * .2 * k)}" fill="#b3bbc1" stroke="${C.STEEL_D}" stroke-width="1.1"/>`;
+    front += `<rect x="${f(x - (legx + ear * .95) * k)}" y="${f(ypin - pin * .95 * k)}" width="${f(pin * .5 * k)}" height="${f(pin * 1.9 * k)}" rx="${f(pin * .12 * k)}" fill="#8e979d" stroke="${C.STEEL_D}" stroke-width="1.1"/>`;
+    const crown = up ? ypin + (top + mat / 2) * k : ypin - (top + mat / 2) * k;
+    return { back, front, crown, outer: up ? ypin + (top - mat / 2) * k : ypin - (top - mat / 2) * k };
+  }
+
+  function timberEnd(x, y, w, h, id) {
+    const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + (id || (Math.round(x) + '_' + Math.round(y)));
+    let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.TIMBER_D}" stroke-width="1.6"/>`;
+    s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+    for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+    s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/>`;
+    return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#ffffff" opacity=".08"/></g>`;
+  }
+  function timberSide(x, y, w, h, seed = 1) {
+    let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.TIMBER_D}" stroke-width="1.6"/>`;
+    const n = Math.max(2, Math.floor(h / 7));
+    for (let i = 1; i < n; i++) {
+      const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+      s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+    }
+    return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+  }
+
+  // few, large labels; leader ends in a dot ON the part; text never on the part it names
+  function label(tx, ty, text, target, o = {}) {
+    const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+    let s = '';
+    if (target) {
+      const [x2, y2] = target;
+      const sx = anchor === 'end' ? tx + 6 : anchor === 'start' ? tx - 6 : tx;
+      const sy = anchor === 'middle' ? ty + 8 : ty - 8;
+      s += o.elbow ? `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`
+        : `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+      s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.TEXT}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+    }
+    s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.id ? ` id="${o.id}"` : ''}>${text}</text>`;
+    if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}">${o.sub}</text>`;
+    return s;
+  }
+
+  // force arrow from (x0,y0) toward (x1,y1); head at (x1,y1)
+  function forceArrow(x0, y0, x1, y1, col, w = 5, id = '') {
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+    if (L < 4) return '';
+    const ux = dx / L, uy = dy / L, hl = Math.min(L * .6, 8 + w * 2.6), hw = 4 + w * 1.5;
+    const bx = x1 - ux * hl, by = y1 - uy * hl;
+    return `<g${id ? ` id="${id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" stroke-linecap="round"/>` +
+      `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>` +
+      `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1.5"/></g>`;
+  }
+
+  // magnified detail of the SAME drawing (same view), linked to a dashed ring on the source spot
+  function detailInset(refId, src, mag, cx, cy, r, title, sub, id) {
+    const [sx, sy] = src, rs = r / mag, cid = 'cl' + (id || Math.round(cx) + '_' + Math.round(cy));
+    let s = `<g${id ? ` id="${id}"` : ''}>`;
+    s += `<circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.TEXT}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    const d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d;
+    s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.TEXT}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath>`;
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+    s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/>`;
+    s += `<use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.TEXT}" stroke-width="2.5"/>`;
+    s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+    if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+    return s + '</g>';
+  }
+
+  // a value pill: dark rounded box with coloured text (tension tags, pull tag)
+  const PH = { v: 1 };                                   // phone text multiplier (set by the scene each frame)
+  function pill(x, y, text, col, o = {}) {
+    const fs = (o.fs || 18) * PH.v, w = Math.max(30, text.length * fs * .56 + 16), h = fs + 12, anchor = o.anchor || 'middle';
+    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+    return `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x0)}" y="${f(y - h / 2)}" width="${f(w)}" height="${f(h)}" rx="${f(h / 2)}" fill="#1F1D1A" stroke="${col}" stroke-width="2" opacity=".94"/>` +
+      `<text x="${f(x0 + w / 2)}" y="${f(y + fs * .36)}" text-anchor="middle" style="font:800 ${fs}px ${FONT};fill:${col}">${text}</text></g>`;
+  }
+
+  return { W, H, FONT, C, f, pathd, catmull, arcPts, resample, normals, litOffset, defs, styleBlock, backdrop, column,
+    contactShadow, roundBar, wireRope, hookProfile, HOOK, shackleFace, timberEnd, timberSide, label, forceArrow,
+    detailInset, pill, PH };
 })();
 </script>
-</body>
-</html>
+<script>/* CrewForge block and tackle scene (rigging remaster, docs/RIGGING_REMASTER_BRIEF.md).
+   One self-contained scene module: calc() (every number on screen), the drawing (STYLE.md, via KIT), motion on the
+   virtual clock, the anchor failure, and the window.sim contract. Page shells (lesson pages, the free simulator,
+   ?capture=1 video pages) mount it with TACKLE.mount({...}).
+
+   THE RIG (side elevation, one scale K px per inch):
+     W12x40 beam across the top -> beam clamp (the anchor) -> top (fixed) block on its hook -> n parts of wire rope ->
+     bottom (moving) block -> hook -> shackle -> lug on a steel test weight (its size follows its weight) on cribbing.
+     The blocks are drawn open with their sheaves spread side by side so every part of line can be counted (labelled
+     on the drawing); on a real block the sheaves sit side by side on one pin.
+     Lead off the fixed (top) block: you pull straight down. Lead off the moving (bottom) block ("reeved to
+     advantage"): the lead runs up to a lead block hung on its own clamp and comes back down to your hands.  */
+const TACKLE = (() => {
+  const { f, pathd, C } = KIT;
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const Q = new URLSearchParams(location.search);
+  const CAPTURE = Q.has('capture');
+
+  /* ===================================================================================== SOURCE DATA
+     Crosby Group general catalogue, blocks, "How to Figure Line Parts" (p. 443): ratio = load ÷ single line pull,
+       A bronze-bushed sheaves, B anti-friction bearing sheaves, 1-8 parts, lead line off the fixed block.
+     US Navy rigging (Steelworker / Builder): allow about 10 % of the load for every sheave the rope runs over.
+     Design factor of the anchor (beam clamp): ANCHOR_DF (see NOTES.md for the source and its status).          */
+  const CROSBY = { bronze: [.96, 1.87, 2.75, 3.59, 4.39, 5.16, 5.90, 6.60], roller: [.98, 1.94, 2.88, 3.81, 4.71, 5.60, 6.47, 7.32] };
+  const LB_TO_KG = 0.45359237, FT_TO_M = 0.3048, G = 9.80665, LBF_TO_N = 4.4482216;
+  const ANCHOR_DF = 5;                                    // beam clamp design factor 5:1 (Harrington UBC sell sheet, NOTES.md)
+  const STEEL_LB_IN3 = 0.2836;                            // steel density, lb per cubic inch (test weight size)
+  const FRIC = { ideal: 'No friction', rule10: '10 % per sheave', bronze: 'Bronze bushed', roller: 'Anti-friction bearing' };
+  // colours of the maths (same in the drawing, the cards and the formula): W off-white, P blue, n orange,
+  // friction purple, distance teal, anchor = W + P stacked. Orange is never a warning.
+  const COL = { W: '#e9e3d6', P: '#59b7ff', n: C.ACC, fr: '#b48af0', dist: '#7fd6c2', anc: '#e9e3d6' };
+
+  /* ===================================================================================== STATE */
+  const S = {
+    parts: 4, lead: 'fixed', friction: 'rule10', load: 4000, rise: 0, units: 'imp', anchorWll: 6000, fail: !CAPTURE,
+    tags: true, count: false, cards: 'all', inset: true
+  };
+  const NUMERIC = ['load', 'rise', 'anchorWll'];
+
+  /* ===================================================================================== GEOMETRY (px)
+     K = 5.2 px per inch (the rig fills the stage). Sheaves 12 in (R = 6 in) for 5/8 in wire rope (D/d about 19).
+     Lanes (parts of line) are one sheave diameter apart. Hooks: Crosby S-319N contour (KIT.hookProfile) scaled to
+     about 6.5 in (top block) and 7.8 in (bottom block) long. All heights below are worked from these.          */
+  const K = 5.2, FLOOR = 840, CRIB = 5.5 * K, R = 6 * K, LANE = 2 * R, ROPE_D = 0.625 * K * 1.15;
+  const X_A = 640;                                       // anchor (main beam clamp) x
+  const BEAM = { top: 6, d: 11.94 * K, tf: 0.515 * K, tw: 0.295 * K };   // W12x40 side elevation
+  const Y_BB = BEAM.top + BEAM.d;                         // underside of the bottom flange
+  const CLAMP_H = 7 * K, Y_PIN = Y_BB + CLAMP_H;          // beam clamp: 1 in pin the top hook hangs on
+  const HK_U = 0.62 * K, HK_L = 0.75 * K;                 // hook scales (px per hook-inch)
+  const Y_USAD = Y_PIN + 0.5 * K;                         // top hook saddle (pin in the bowl)
+  const Y_UT = Y_USAD + 8.62 * HK_U + 1.5 * K;            // top of the top block (yoke)
+  const PM = 1.7 * K, STRAP = PM + 1.2 * K, BOT = PM;     // cheek-plate margin round the sheaves, yoke on top
+  const Y_US = Y_UT + STRAP + R;                          // top block sheave centres
+  const Y_UB = Y_US + R + BOT;                            // bottom of the top block
+  const HOOKDROP = R + BOT + 2.5 * K + 8.62 * HK_L;       // bottom sheave centre -> bottom hook saddle
+  const SHK = 0.75;                                       // shackle size (in) at the load
+  const SHK_DROP = (0.75 * SHK / .625 / 2 + 2.38 * SHK / .625) * K;    // hook saddle (= shackle crown) -> shackle pin
+  const LUG_H = 2 * K;                                    // shackle pin -> top of the test weight
+  const RISE_CAP_FT = 3.5, RISE_CAP_M = 1.05;
+
+  const imp = () => S.units === 'imp';
+  const loadLb = () => imp() ? S.load : S.load / LB_TO_KG;
+  const sidePx = () => Math.cbrt(Math.max(200, loadLb()) / STEEL_LB_IN3) * K;   // test weight cube side
+  const lowSheave0 = () => FLOOR - CRIB - sidePx() - LUG_H - SHK_DROP - HOOKDROP;  // bottom sheave y at rise 0
+  const riseUnitPx = () => imp() ? 12 * K : 12 * K / FT_TO_M;                      // px per ft or per m
+  function riseMax() {                                    // keep 12 in between the blocks, never more than 3.5 ft (1.05 m)
+    const room = (lowSheave0() - (R + STRAP)) - (Y_UB + 12 * K);
+    const lim = n1() ? room + (R + STRAP) - 10 * K : room;
+    return Math.max(0, Math.min(imp() ? RISE_CAP_FT : RISE_CAP_M, lim / riseUnitPx()));
+  }
+  const n1 = () => S.parts === 1;
+
+  /* ===================================================================================== PHYSICS
+     Every number on screen comes from calc().
+     n = parts of line holding the moving block. The lead line counts only when it leaves the moving block.
+     Sheaves the rope runs over in the tackle: Sh = n (lead off the fixed block), n - 1 (lead off the moving block).
+       Ideal          P = W ÷ n
+       10 % rule      P = W × (1 + 0.10 × Sh) ÷ n           (US Navy: add 10 % of the load per sheave)
+       Crosby tables  P = W ÷ ratio(n)                      (A bronze, B roller; lead off the fixed block)
+                      lead off the moving block: ratio = 1 + ratio(n - 1) (the lead part carries P with no sheave in
+                      front of it; the other n - 1 parts run over n - 1 sheaves. Our derivation, NOTES.md)
+     Velocity ratio VR = n: the lead line runs n × the load's rise. Actual MA = W ÷ P. Efficiency = MA ÷ VR.
+     Work out = W × rise, work in = P × travel (ft·lb; metric J = kg × 9.80665 × m).
+     Anchor (statics on the top block, rope weight and block weight left out):
+       lead off the fixed block, pulled straight down: the top block holds every supporting part AND the lead: W + P.
+       lead off the moving block: the lead helps hold the moving block, so the top block holds W - P; the lead block
+       holds the lead twice (up and back down): 2P. The beam still carries W + P in all.
+     Part tensions (drawing tags): each sheave passes on a fraction e of the tension toward the lead (rope bending and
+       bearing friction). e is solved so the tags add up to W and the lead tag equals the method's P exactly, so the
+       picture and the exam formula always agree. Ideal: e = 1, every part W ÷ n.                              */
+  function calc(st = S) {
+    const W = st.load, n = st.parts, lm = st.lead === 'moving' && n >= 2;
+    const c = { W, n, lm, imp: st.units === 'imp', friction: st.friction };
+    c.Sh = lm ? n - 1 : n;
+    c.VR = n; c.MA = n; c.Pideal = W / n;
+    if (st.friction === 'ideal') c.P = W / n;
+    else if (st.friction === 'rule10') c.P = W * (1 + 0.10 * c.Sh) / n;
+    else { const t = CROSBY[st.friction]; c.ratio = lm ? 1 + t[n - 2] : t[n - 1]; c.P = W / c.ratio; }
+    c.fricForce = n * c.P - W;                             // what friction adds (force picture: n × P = W + this)
+    c.MAact = W / c.P; c.eff = c.MAact / c.VR;
+    c.rise = st.rise; c.travel = c.VR * st.rise;
+    const wk = c.imp ? 1 : G;
+    c.workOut = W * st.rise * wk; c.workIn = c.P * c.travel * wk; c.lost = c.workIn - c.workOut;
+    c.kN = c.imp ? c.P * LBF_TO_N / 1000 : c.P * G / 1000;
+    c.anchor = lm ? W - c.P : W + c.P;                     // load on the top block, its hook and the main anchor
+    c.leadBlock = lm ? 2 * c.P : 0;
+    c.beamTotal = c.anchor + c.leadBlock;
+    c.anchorWll = st.anchorWll; c.df = ANCHOR_DF; c.breakAt = st.anchorWll * ANCHOR_DF;
+    c.util = st.anchorWll > 0 ? c.anchor / st.anchorWll : Infinity;
+    c.level = c.util > 1 ? 'bad' : c.util > .8 ? 'warn' : 'ok';
+    // part tensions, lead end first: j = sheaves between the part and the lead
+    const js = []; for (let j = lm ? 0 : 1; j <= (lm ? n - 1 : n); j++) js.push(j);
+    const sumE = e => js.reduce((a, j) => a + Math.pow(e, j), 0);
+    let e = 1;
+    if (st.friction !== 'ideal') { let lo = .3, hi = 1; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (W / sumE(m) > c.P) lo = m; else hi = m; } e = (lo + hi) / 2; }
+    c.e = e; c.partT = js.map(j => c.P * Math.pow(e, j));  // partT[0] is the part nearest the lead
+    return c;
+  }
+
+  /* ===================================================================================== REEVING
+     m sheaves in a row of lanes 0..m (lane = one part of line). Sheave j joins lane j (left) and lane j+1 (right).
+     Lead off the fixed block: m = n, the last sheave is in the top block; lead = lane m, going down to your hands.
+     Lead off the moving block: m = n - 1, the last sheave is in the bottom block; lead = lane m, going up to the
+     lead block; your hand line = lane m + 1.
+     The dead end is lane 0, on whichever block sheave 0 is not in (on the load itself for a single sheave).     */
+  function reeving(n, lead) {
+    const lm = lead === 'moving' && n >= 2, m = lm ? n - 1 : n;
+    const sh = [];
+    for (let j = 0; j < m; j++) sh.push({ j, top: lm ? (m - 1 - j) % 2 === 1 : (m - 1 - j) % 2 === 0 });
+    const deadTop = m > 0 ? !sh[0].top : true;
+    const supporting = [];                               // lanes that hold the moving block
+    for (let l = 0; l < (lm ? m + 1 : m); l++) supporting.push(l);
+    const top = sh.filter(s => s.top), bot = sh.filter(s => !s.top);
+    const upLanes = []; for (let l = 0; l <= (lm ? m - 1 : m); l++) upLanes.push(l);
+    const x0 = X_A - (upLanes[0] + upLanes[upLanes.length - 1]) / 2 * LANE;
+    return { n, lm, m, sh, deadTop, supporting, top, bot, x0, lane: l => x0 + l * LANE, sx: j => x0 + (2 * j + 1) * R };
+  }
+
+  /* ===================================================================================== ANIMATION STATE */
+  let T = 0, tweens = [], callouts = [], ready = false;
+  const A = { D: 0, lastRisePx: null, key: '', arrow: 0, arrowV: 0, reeveT: 1, reeveFrom: 0, needle: 0, creak: 0 };
+  let F = { on: false, t: 0 };                           // failure state (a pure function of F.t when on)
+  const THK = 650;                                       // ms the clamp jaws spread before it lets go
+
+  function risePx() { return S.rise * riseUnitPx(); }
+
+  /* ===================================================================================== DRAWING */
+  let svgEl = null, opts = {};
+  const nf = (v, d = 0) => (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toLocaleString('en-CA', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const wu = () => imp() ? 'lb' : 'kg';
+  const wt = v => nf(Math.round(v)) + ' ' + wu();
+  const ln = (v, d = 1) => nf(v, d) + (imp() ? ' ft' : ' m');
+  const levelCol = l => l === 'bad' ? C.BAD : l === 'warn' ? C.WARN : C.OK;
+  const D2R = Math.PI / 180;
+  // a rigid-body pose: rotate r degrees about (cx, cy), then move (dx, dy)
+  const ID = { dx: 0, dy: 0, r: 0, cx: 0, cy: 0 };
+  const xf = (T, p) => { const a = T.r * D2R, x = p[0] - T.cx, y = p[1] - T.cy; return [T.cx + x * Math.cos(a) - y * Math.sin(a) + T.dx, T.cy + x * Math.sin(a) + y * Math.cos(a) + T.dy]; };
+  const tf = T => `translate(${f(T.dx)} ${f(T.dy)}) rotate(${f(T.r)} ${f(T.cx)} ${f(T.cy)})`;
+
+  function beam() {
+    const y = BEAM.top, d = BEAM.d, t = Math.max(2.5, BEAM.tf);
+    let s = '<g id="beam">';
+    s += `<rect x="-10" y="${f(y)}" width="1620" height="${f(d)}" fill="url(#gBeam)"/>`;                     // web (set back)
+    s += `<rect x="-10" y="${f(y + t)}" width="1620" height="7" fill="#000" opacity=".3"/>`;                 // shadow under the top flange
+    s += `<rect x="-10" y="${f(y)}" width="1620" height="${f(t)}" fill="#7a848e" stroke="#23282c" stroke-width="1"/>`;
+    s += `<rect x="-10" y="${f(y + d - t)}" width="1620" height="${f(t)}" fill="#8a949e" stroke="#23282c" stroke-width="1"/>`;
+    s += `<line x1="-10" y1="${f(y + d - t + .8)}" x2="1610" y2="${f(y + d - t + .8)}" stroke="#c3cad0" stroke-width="1" opacity=".55"/>`;
+    for (const x of [70, 330, 950, 1210, 1470]) s += `<rect x="${x}" y="${f(y + t)}" width="6" height="${f(d - 2 * t)}" fill="#5d6670" stroke="#2b3136" stroke-width=".8"/>`;
+    return s + '</g>';
+  }
+
+  /* Beam clamp (side elevation, as a Harrington UBC-style plate clamp): two jaw plates hooked over the bottom flange,
+     the adjusting spindle with its tommy bar, and a 1 in pin at the bottom that the block hook hangs on.
+     spread 0..1 opens the jaws (failure). Drawn about (x, Y_PIN). */
+  function beamClamp(x, id, o = {}) {
+    const sp = o.spread || 0, w = 10 * K, top = Y_BB - Math.max(2.5, BEAM.tf) - 1.2, py = Y_PIN;
+    let s = `<g id="${id}">`;
+    const jaw = side => {                                 // one jaw: lip over the flange edge, plate down to the pin
+      const a = side * sp * 22;                           // the jaw swings out about the pin as it spreads
+      const lipX = x + side * w / 2;
+      const P = [[x + side * 1.2 * K, py], [lipX - side * .6 * K, py - 2.6 * K], [lipX, top + 1.2 * K], [lipX, top - .6 * K], [lipX - side * 1.6 * K, top - .6 * K], [lipX - side * 1.6 * K, top + .5 * K], [x + side * .9 * K, top + 2.2 * K], [x, py - 1.4 * K]];
+      return `<g transform="rotate(${f(a)} ${f(x)} ${f(py)})"><path d="${KIT.pathd(P, true)}" fill="url(#gPaint)" stroke="#1b1f22" stroke-width="1.5" stroke-linejoin="round"/>` +
+        `<path d="${KIT.pathd([[lipX - side * 1.4 * K, top - .3 * K], [lipX - side * .2 * K, top - .3 * K]])}" stroke="#c3cad0" stroke-width="1.4" opacity=".7"/></g>`;
+    };
+    s += jaw(-1) + jaw(1);
+    // spindle across the jaws with its tommy bar (seen end-on as a boss, bar across)
+    const sy = top + 3.6 * K + sp * 1.5 * K;
+    s += `<line x1="${f(x - 3 * K)}" y1="${f(sy)}" x2="${f(x + 3 * K)}" y2="${f(sy)}" stroke="#2b3136" stroke-width="${f(.7 * K)}" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(x)}" cy="${f(sy)}" r="${f(1.1 * K)}" fill="#a6aeb4" stroke="#2b3136" stroke-width="1.2"/>`;
+    s += `<circle id="${id}-pin" cx="${f(x)}" cy="${f(py)}" r="${f(.5 * K)}" fill="#d3d9de" stroke="#1b1f22" stroke-width="1"/>`;
+    return s + '</g>';
+  }
+
+  // top hook of a block: the S-319 contour turned over (bowl up, shank down), saddle on the anchor pin; a swivel neck
+  // joins the shank to the block's yoke. Drawn in front of the clamp pin so the pin shows in the bowl.
+  const topHook = (x, ysad, id) => `<rect x="${f(x - .9 * K)}" y="${f(ysad + 8.62 * HK_U - 3)}" width="${f(1.8 * K)}" height="${f(Y_UT - ysad - 8.62 * HK_U + 5)}" rx="2" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>` +
+    `<g transform="rotate(180 ${f(x)} ${f(ysad)})">${KIT.hookProfile(x, ysad, HK_U, { id, flip: true })}</g>` +
+    `<circle cx="${f(x)}" cy="${f(Y_PIN)}" r="${f(.5 * K)}" fill="#d3d9de" stroke="#1b1f22" stroke-width="1"/>`;
+
+  function sheave(x, y, ang, id) {
+    let s = `<g id="${id}"><circle cx="${f(x)}" cy="${f(y)}" r="${f(R + .7 * K)}" fill="url(#gSheave)" stroke="#2b3136" stroke-width="1.5"/>`;
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R - .35 * K)}" fill="none" stroke="#3b4247" stroke-width="1.2" opacity=".8"/>`;  // groove root
+    for (let i = 0; i < 5; i++) {                       // lightening holes turn with the sheave
+      const a = ang + i * Math.PI * 2 / 5, hx = x + Math.cos(a) * R * .56, hy = y + Math.sin(a) * R * .56;
+      s += `<circle cx="${f(hx)}" cy="${f(hy)}" r="${f(R * .15)}" fill="#3a4147" stroke="#23282c" stroke-width=".8"/>`;
+    }
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R * .26)}" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>`;   // bushing
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R * .12)}" fill="#c9ced2" stroke="#23282c" stroke-width=".8"/>`;    // pin end
+    return s + '</g>';
+  }
+
+  /* A wire rope block, cheek plates in elevation (STYLE: painted steel). The back plate is solid; the front plate is
+     drawn cut away (a frame) so the sheaves inside can be seen. Sheaves are spread in a row so every part of line can
+     be counted (labelled once on the drawing). back() goes behind the rope, front() over it. */
+  function plateShape(xL, xR, ySh, isTop) {
+    const l = xL - R - PM, r = xR + R + PM, t = ySh - R - PM, b = ySh + R + PM, rr = R + PM;
+    return { l, r, t, b, rr, d: `M${f(l + rr)} ${f(t)} L${f(r - rr)} ${f(t)} A${f(rr)} ${f(rr)} 0 0 1 ${f(r - rr)} ${f(b)} L${f(l + rr)} ${f(b)} A${f(rr)} ${f(rr)} 0 0 1 ${f(l + rr)} ${f(t)}Z` };
+  }
+  function blockBack(xL, xR, ySh, isTop, id) {
+    const p = plateShape(xL, xR, ySh, isTop);
+    return `<g id="${id}"><path d="${p.d}" fill="#3a4148" stroke="#1d2226" stroke-width="2"/>` +
+      `<path d="${p.d}" fill="#000" opacity=".18" transform="translate(3 4)"/></g>`;
+  }
+  function blockFront(xL, xR, ySh, isTop, becketX) {
+    const p = plateShape(xL, xR, ySh, isTop), w = 1.35 * K;
+    const inner = plateShape(xL, xR, ySh, isTop);
+    // inner window = the outline inset by w
+    const il = p.l + w, ir = p.r - w, it = p.t + w, ib = p.b - w, irr = p.rr - w;
+    const win = `M${f(il + irr)} ${f(it)} L${f(ir - irr)} ${f(it)} A${f(irr)} ${f(irr)} 0 0 1 ${f(ir - irr)} ${f(ib)} L${f(il + irr)} ${f(ib)} A${f(irr)} ${f(irr)} 0 0 1 ${f(il + irr)} ${f(it)}Z`;
+    let s = `<path d="${p.d} ${win}" fill="url(#gPaintSide)" fill-rule="evenodd" stroke="#1d2226" stroke-width="1.8"/>`;
+    s += `<path d="${win}" fill="none" stroke="#9aa4ad" stroke-width="1" opacity=".55"/>`;                       // lit cut edge
+    s += `<path d="M${f(p.l + p.rr)} ${f(p.t + 2)} L${f(p.r - p.rr)} ${f(p.t + 2)}" stroke="#c3cad0" stroke-width="1.6" opacity=".55"/>`; // top-left light
+    // spacer bolts at the plate ends (they tie the two cheek plates together)
+    for (const bx of [p.l + w * .5 + 2, p.r - w * .5 - 2]) s += `<circle cx="${f(bx)}" cy="${f(ySh)}" r="${f(.55 * K)}" fill="#8d969d" stroke="#1d2226" stroke-width="1"/>`;
+    // yoke: the top block's swivel yoke over the plates; the bottom block's yoke under them carries the hook
+    const cx = (p.l + p.r) / 2;
+    if (isTop) s += `<path d="M${f(cx - 4 * K)} ${f(p.t + 1)} L${f(cx - 2.2 * K)} ${f(p.t - 1.2 * K)} L${f(cx + 2.2 * K)} ${f(p.t - 1.2 * K)} L${f(cx + 4 * K)} ${f(p.t + 1)}Z" fill="#6e7882" stroke="#1d2226" stroke-width="1.4"/>`;
+    else s += `<path d="M${f(cx - 4 * K)} ${f(p.b - 1)} L${f(cx - 2.2 * K)} ${f(p.b + 1.4 * K)} L${f(cx + 2.2 * K)} ${f(p.b + 1.4 * K)} L${f(cx + 4 * K)} ${f(p.b - 1)}Z" fill="#6e7882" stroke="#1d2226" stroke-width="1.4"/>`;
+    if (becketX != null) {                               // becket: forged eye where the dead end ties on
+      const by = isTop ? p.b : p.t, dir = isTop ? 1 : -1;
+      const q = `M${f(becketX - 1.3 * K)} ${f(by - dir * 2)} Q${f(becketX)} ${f(by + dir * 4.4 * K)} ${f(becketX + 1.3 * K)} ${f(by - dir * 2)}`;
+      s += `<path d="${q}" fill="none" stroke="#2b3136" stroke-width="${f(1.0 * K + 1.6)}"/><path d="${q}" fill="none" stroke="#a6aeb4" stroke-width="${f(1.0 * K)}"/>`;
+    }
+    return s;
+  }
+
+  // rope end at a becket: thimble eye + a pressed sleeve
+  function deadEnd(x, y, up) {
+    const s = up ? -1 : 1, eye = 3.4 * K, y0 = y + s * 2.6 * K;
+    let o = KIT.roundBar(KIT.catmull([[x, y0 + s * eye], [x - 1.2 * K, y0 + s * eye * .5], [x, y0], [x + 1.2 * K, y0 + s * eye * .5], [x, y0 + s * eye]], 6), ROPE_D * .9, '#b9c1c7', C.ROPE_D, '#eef1f3');
+    o += `<rect x="${f(x - 1.1 * K)}" y="${f(y0 + s * (eye + .3 * K) - (s < 0 ? 2.4 * K : 0))}" width="${f(2.2 * K)}" height="${f(2.4 * K)}" rx="2" fill="#a3abb1" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    return o;
+  }
+
+  function testWeight(cx, top, id) {
+    const s = sidePx(), x = cx - s / 2;
+    let o = `<g id="${id}">`;
+    o += `<rect x="${f(x)}" y="${f(top)}" width="${f(s)}" height="${f(s)}" rx="3" fill="url(#gWeight)" stroke="#23282c" stroke-width="2"/>`;
+    o += `<rect x="${f(x + 3)}" y="${f(top + 3)}" width="${f(s - 6)}" height="${f(Math.min(6, s * .08))}" fill="#fff" opacity=".12"/>`;
+    o += `<rect x="${f(x + s - Math.max(4, s * .1))}" y="${f(top + 2)}" width="${f(Math.max(4, s * .1) - 2)}" height="${f(s - 4)}" fill="#000" opacity=".16"/>`;
+    const fs = clamp(s * .2, KIT.PH.v > 1 ? 15 : 11, 30) * KIT.PH.v;
+    o += `<text x="${f(cx)}" y="${f(top + s / 2 + fs * .35)}" text-anchor="middle" id="load-label" style="font:800 ${f(fs)}px ${KIT.FONT};fill:#efe9dc;letter-spacing:.02em">${nf(S.load)} ${wu()}</text>`;
+    o += `<rect id="load-lug" x="${f(cx - .5 * K)}" y="${f(top - 3.6 * K)}" width="${f(1 * K)}" height="${f(3.8 * K)}" rx="1.5" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>`;
+    return o + '</g>';
+  }
+  function cribbing(cx, w) {
+    const h = CRIB, cw = 6 * K * .917;                  // 6x6 cribbing, 5.5 in actual
+    let o = '<g id="cribbing">';
+    for (const dx of [-w * .32, w * .32]) o += KIT.timberEnd(cx + dx - cw / 2, FLOOR - h, cw, h, 'cr' + Math.round(dx));
+    return o + '</g>';
+  }
+  // hand line below your hands: hangs to the floor and piles up as you pull
+  function tail(x, yGrip, travelPx, phase) {
+    let o = KIT.wireRope([[x, yGrip], [x, FLOOR - 10]], ROPE_D, -phase);
+    const coils = clamp(Math.floor(travelPx / 70), 0, 9);
+    for (let i = 0; i < coils; i++) {
+      const cy = FLOOR - 6 - i * 3.4, rx = 34 + (i % 3) * 3;
+      o += `<ellipse cx="${f(x + 30)}" cy="${f(cy)}" rx="${f(rx)}" ry="8" fill="none" stroke="${C.ROPE_D}" stroke-width="${f(ROPE_D + 1.4)}"/>`;
+      o += `<ellipse cx="${f(x + 30)}" cy="${f(cy)}" rx="${f(rx)}" ry="8" fill="none" stroke="${C.ROPE_M}" stroke-width="${f(ROPE_D)}"/>`;
+    }
+    return o;
+  }
+  function ropeArc(x, y, top) {
+    return KIT.roundBar(KIT.arcPts(x, y, R, 180, top ? 360 : 0, 20), ROPE_D, C.ROPE_M, C.ROPE_D, '#e9edf0', 'butt', .7);
+  }
+  // a rope between two points; slack (length L0 > chord) hangs in a catenary-like sag that never goes under the floor
+  function ropeBetween(a, b, L0, phase, id) {
+    a = [a[0], Math.min(a[1], FLOOR - 5)]; b = [b[0], Math.min(b[1], FLOOR - 5)];   // a rope end never goes through the floor
+    const ch = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    let P = [a, b];
+    if (L0 > ch + 2) {
+      const sagv = Math.min(Math.sqrt(Math.max(0, L0 * L0 - ch * ch)) * .5, 260);
+      const m = [(a[0] + b[0]) / 2 + (b[1] - a[1]) * .08, Math.min(FLOOR - 8, (a[1] + b[1]) / 2 + sagv)];
+      P = KIT.catmull([a, m, b], 12);
+    }
+    return `<g${id ? ` id="${id}"` : ''}>${KIT.wireRope(P, ROPE_D, phase)}</g>`;
+  }
+
+  /* ---------------------------------------------------------------- the whole scene, one frame */
+  function draw(c) {
+    KIT.PH.v = !CAPTURE && window.matchMedia && matchMedia('(max-width:700px)').matches ? 1.75 : 1;
+    const rv = reeving(S.parts, S.lead), lm = rv.lm, rp = risePx();
+    const side = sidePx();
+    const topSh = rv.sh.filter(q => q.top), botSh = rv.sh.filter(q => !q.top);
+    const bcx = rv.n > 1 ? (rv.lane(rv.supporting[0]) + rv.lane(rv.supporting[rv.supporting.length - 1])) / 2 : rv.lane(0);
+    const yLow0 = lowSheave0() - rp;                      // bottom sheave centres (rope eye for one part)
+    const tL = Math.min(topSh.length ? rv.sx(topSh[0].j) : X_A, rv.deadTop && rv.n > 1 ? rv.lane(0) + R : 1e9);
+    const tR = Math.max(topSh.length ? rv.sx(topSh[topSh.length - 1].j) : X_A, tL);
+    const bL = Math.min(botSh.length ? rv.sx(botSh[0].j) : bcx, !rv.deadTop ? rv.lane(0) + R : 1e9);
+    const bR = Math.max(botSh.length ? rv.sx(botSh[botSh.length - 1].j) : bcx, bL);
+    const pose = failPose(rv, { side, yLow0, bcx, tL, tR, bL, bR });   // rigid-body poses (identity until the anchor fails)
+    const PT = pose.top, PB = pose.bot, PL = pose.load, PC = pose.clamp;
+    const vel = laneSpeeds(rv), reeve = A.reeveT;
+    const handX = lm ? rv.lane(rv.m + 1) : rv.lane(rv.m), yGrip = 600;
+    const leadBlockX = lm ? rv.sx(rv.m) : null;
+    const loadTop = lowSheave0() - rp + HOOKDROP + SHK_DROP + LUG_H;
+
+    let s = KIT.styleBlock(phoneCss()) + KIT.defs() + KIT.backdrop(FLOOR);
+    s += KIT.column(18, FLOOR, Y_BB, 30) + KIT.column(1552, FLOOR, Y_BB, 30);
+    s += '<g id="anchor-src">' + beam();
+    if (lm) s += beamClamp(leadBlockX, 'lead-anchor', {});
+    s += `<g id="anchor-g" transform="${tf(PC)}">` + beamClamp(X_A, 'anchor', { spread: pose.spread }) + '</g>';
+
+    // ---- the load, its shackle and the bottom hook (drawn first: the blocks may land in front of it)
+    const hookSad = yLow0 + HOOKDROP;
+    s += `<g id="load-g" transform="${tf(PL)}">` + loadStack(bcx, hookSad, loadTop, side, rv.n === 1) + '</g>';
+    s += KIT.contactShadow(bcx, FLOOR + 4, side * 1.2, 16, clamp(1 - (FLOOR - CRIB - side - (loadTop + PL.dy)) / 300, .25, 1)) + cribbing(bcx, side);
+
+    // ---- block backs
+    if (rv.n > 1) s += `<g transform="${tf(PB)}">` + blockBack(bL, bR, yLow0, false, 'lower-block') + '</g>';
+    s += `<g transform="${tf(PT)}">` + blockBack(tL, tR, Y_US, true, 'upper-block') + '</g>';
+    if (lm) s += blockBack(leadBlockX, leadBlockX, Y_US, true, 'lead-block');
+
+    // ---- the rope: every part between the blocks (ends follow the blocks; slack when the anchor has let go)
+    const yBotEnd = rv.n > 1 ? yLow0 : hookSad - 6.5 * K;
+    for (let l = 0; l < rv.m + (lm ? 1 : 0); l++) {
+      const x = rv.lane(l);
+      let top = [x, Y_US], bot = [x, yBotEnd], Tt = PT, Tb = PB;
+      if (l === 0 && rv.deadTop && rv.n > 1) top = [x, Y_UB + 6 * K];
+      if (l === 0 && !rv.deadTop && rv.n > 1) bot = [x, yLow0 - R - PM - 6 * K];
+      if (rv.n === 1) Tb = PL;
+      if (l === rv.m && lm) { top = [x, Y_US]; Tt = ID; }
+      const a = xf(Tb, bot), b = xf(Tt, top), L0 = Math.abs(top[1] - bot[1]);
+      let A2 = a, B2 = b;
+      if (reeve < 1 && l >= rv.m - 1) B2 = [a[0] + (b[0] - a[0]) * reeve, a[1] + (b[1] - a[1]) * reeve];
+      s += ropeBetween(A2, B2, reeve < 1 ? 0 : L0, vel[l] * A.D, 'part-' + l);
+    }
+
+    // ---- sheaves, the rope in their grooves, dead ends, front plates
+    s += `<g id="lower-block-g" transform="${tf(PB)}">`;
+    if (rv.n > 1) {
+      botSh.forEach((q, i) => { s += sheave(rv.sx(q.j), yLow0, (vel[q.j] - 1) * A.D / R, 'sheave-l' + i) + ropeArc(rv.sx(q.j), yLow0, false); });
+      if (!rv.deadTop) s += deadEnd(rv.lane(0), yLow0 - R - PM, true);
+      s += blockFront(bL, bR, yLow0, false, !rv.deadTop ? rv.lane(0) : null);
+      s += `<rect x="${f(bcx - .9 * K)}" y="${f(yLow0 + R + PM + 1.2 * K)}" width="${f(1.8 * K)}" height="${f(1.4 * K)}" fill="#6e7882" stroke="#23282c" stroke-width="1"/>`;
+    }
+    s += '</g>';
+    if (rv.n > 1) s += `<g transform="${tf(pose.hook)}">` + KIT.hookProfile(bcx, hookSad, HK_L, { id: 'hook' }) + '</g>';
+    s += `<g id="upper-block-g" transform="${tf(PT)}">` + topHook(X_A, Y_USAD, 'top-hook');
+    topSh.forEach((q, i) => { s += sheave(rv.sx(q.j), Y_US, vel[q.j] * A.D / R, 'sheave-u' + i) + ropeArc(rv.sx(q.j), Y_US, true); });
+    if (rv.deadTop && rv.n > 1 && !(F.on && F.t > THK)) s += deadEnd(rv.lane(0), Y_UB, false);   // the eye flops out of sight once the block falls
+    s += blockFront(tL, tR, Y_US, true, rv.deadTop && rv.n > 1 ? rv.lane(0) : null) + '</g>';
+    if (lm) {
+      s += topHook(leadBlockX, Y_USAD, 'lead-hook');
+      s += sheave(leadBlockX, Y_US, vel[rv.m] * A.D / R, 'sheave-lead') + ropeArc(leadBlockX, Y_US, true) + blockFront(leadBlockX, leadBlockX, Y_US, true, null);
+    }
+
+    // ---- the hand line: from the last sheave down through your hands to the coil on the floor
+    if (!F.on) {
+      const handTop = Y_US;
+      let P = [[handX, yGrip], [handX, handTop]];
+      if (reeve < 1) P = [[handX, handTop + (yGrip - handTop) * reeve], [handX, handTop]];
+      s += `<g id="lead-line">${KIT.wireRope(P, ROPE_D, -rv.n * A.D)}${reeve >= 1 ? tail(handX, yGrip, c.travel * riseUnitPx(), rv.n * A.D) : ''}</g>`;
+    } else {
+      const from = lm ? [handX, Y_US] : xf(PT, [handX, Y_US]);
+      s += ropeBetween(from, [handX + 30, FLOOR - 8], Math.max(0, FLOOR - Y_US), 0, 'lead-line');
+      s += tail(handX, FLOOR - 9, c.travel * riseUnitPx(), 0).replace(/<g[^>]*>/, '');
+    }
+    s += '</g>';                                           // end of anchor-src (the whole rig: the inset magnifies it)
+
+    // ---- visual maths, labels, inset, cards, failure
+    if (!F.on) s += overlays(c, rv, { yU: Y_US, yLow: yLow0, handX, yGrip, leadBlockX, tL, tR });
+    if (S.inset) {
+      const src = F.on ? xf(PC, [X_A, Y_PIN - 3 * K]) : [X_A, Y_PIN - 3 * K];
+      s += KIT.detailInset('anchor-src', src, 3, 215, (!F.on && yLow0 > 200 && yLow0 < 450) ? 650 : 345, 85, '', F.on ? 'CLAMP ×3 · jaws spread' : 'ANCHOR ×3 · beam clamp', 'anchor-inset');
+    }
+    if (!F.on) s += sceneLabels(c, rv, { yLow: yLow0, tL, tR, bL });
+    if (S.cards && S.cards !== 'none' && !F.on) s += cards(c);
+    if (F.on) s += failOverlay(c, rv, pose, side, bcx);
+    return s;
+  }
+
+  function loadStack(cx, hookSad, loadTop, side, eyeOnly) {
+    let s = '';
+    if (eyeOnly) {                                       // one part: the rope's own thimble eye carries the shackle
+      const x = cx, ey = hookSad;
+      s += KIT.roundBar(KIT.catmull([[x, ey - 6.5 * K], [x - 1.4 * K, ey - 3.6 * K], [x - 1.2 * K, ey - 1 * K], [x, ey], [x + 1.2 * K, ey - 1 * K], [x + 1.4 * K, ey - 3.6 * K], [x, ey - 6.5 * K]], 6), ROPE_D * .9, '#b9c1c7', C.ROPE_D, '#eef1f3');
+      s += `<rect x="${f(x - 1.2 * K)}" y="${f(ey - 9 * K)}" width="${f(2.4 * K)}" height="${f(2.6 * K)}" rx="2" fill="#a3abb1" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    }
+    const sh = KIT.shackleFace(cx, loadTop - LUG_H, K, true, SHK);
+    return s + `<g id="shackle">${sh.back}</g>` + testWeight(cx, loadTop, 'load-box') + `<g>${sh.front}</g>`;
+  }
+
+  /* material speed of the rope in each lane, as a multiple of the load speed (upward +). Fixed sheave: the speed carries
+     over with its sign flipped; moving sheave (moving at 1): u(next) = 2 - u. */
+  function laneSpeeds(rv) {
+    const u = [];
+    u[0] = rv.deadTop ? 0 : 1;
+    if (rv.n === 1) u[0] = 1;
+    for (let j = 0; j < rv.m; j++) u[j + 1] = rv.sh[j].top ? -u[j] : 2 - u[j];
+    if (rv.lm) u[rv.m + 1] = -u[rv.m];
+    return u;
+  }
+
+  function overlays(c, rv, g) {
+    let s = '';
+    const W = c.W;
+    const gap = (g.yLow - R - PM) - (Y_UB), crowded = gap < 150;   // blocks close together: one row of tags, no numbers
+    if (S.count && !crowded) {                            // part numbers on every part that holds the moving block
+      rv.supporting.forEach((l, i) => {
+        const x = rv.lane(l), y = rv.n > 1 ? g.yLow - R - PM - 30 : g.yLow - 120;
+        const cm = KIT.PH.v > 1 ? 1.65 : 1;            // phone: bigger count bubbles
+        s += `<g id="count-${i + 1}"><circle cx="${f(x)}" cy="${f(y)}" r="${f(14 * cm)}" fill="${C.ACC}" stroke="#1F1D1A" stroke-width="2"/><text x="${f(x)}" y="${f(y + 6 * cm)}" text-anchor="middle" class="pts" style="fill:#1F1D1A;font-weight:900;font-size:${f(16 * cm)}px">${i + 1}</text></g>`;
+      });
+    }
+    if (S.tags) {                                         // tension on each part (two staggered rows)
+      const ymid = (g.yU + R + PM + g.yLow - R - PM) / 2 - (S.count && !crowded ? 14 : 0), T = c.partT;
+      rv.supporting.forEach((l, i) => {
+        const j = c.lm ? rv.n - 1 - i : rv.n - i, t = c.lm ? T[j] : T[j - 1];
+        s += KIT.pill(rv.lane(l), crowded ? (Y_UB + g.yLow - R - PM) / 2 : ymid + (l % 2 ? 20 : -20), nf(Math.round(t)), C.TEXT, { id: 'tag-' + i, fs: crowded && KIT.PH.v === 1 ? 13 : 15 });
+      });
+    }
+    if (c.friction !== 'ideal' && g.yLow - g.yU > 200) {  // friction badges between each sheave's own two parts
+      const txt = c.friction === 'rule10' ? '+10 %' : (Math.round(c.e * 1000) / 10) + ' %';
+      rv.sh.forEach((q, i) => {
+        const y = q.top ? Y_UB + 20 : g.yLow - R - PM - (S.count ? 58 : 20);
+        s += KIT.pill(rv.sx(q.j), y, txt, COL.fr, { fs: KIT.PH.v > 1 ? 14.5 : 13, id: 'fric-' + i });
+      });
+    }
+    const L = clamp(130 * c.P / W, 18, 190);
+    s += KIT.forceArrow(g.handX + 18, g.yGrip, g.handX + 18, g.yGrip + L, COL.P, 6, 'pull-arrow');
+    s += `<circle id="grip" cx="${f(g.handX)}" cy="${f(g.yGrip)}" r="15" fill="none" stroke="${C.ACC}" stroke-width="3"${CAPTURE ? ' opacity="0"' : ''}/>`;
+    s += KIT.pill(g.handX + 14, g.yGrip - 30, 'Pull ' + wt(c.P), COL.P, { id: 'pull-tag', fs: 18, anchor: 'start' });
+    const col = S.fail ? levelCol(c.level) : C.TEXT;
+    s += KIT.pill(c.lm ? X_A - 7 * K : X_A + 7 * K, (Y_BB + Y_UT) / 2 + 2, 'Anchor ' + wt(c.anchor), col, { id: 'anchor-tag', fs: 16, anchor: c.lm ? 'end' : 'start' });
+    if (c.lm) s += KIT.pill(g.handX + 16, Y_US, 'Lead block anchor ' + wt(c.leadBlock) + ' (2P)', C.TEXT, { id: 'lead-anchor-tag', fs: 16, anchor: 'start' });
+    return s;
+  }
+
+  function sceneLabels(c, rv, g) {
+    if (!S.labels) return '';
+    const lx = Math.min(g.tL, g.bL) - R - PM - 24;
+    let s = KIT.label(lx, Y_US + 9, 'Top block · fixed', [g.tL - R - PM * .5, Y_US], { anchor: 'end' });
+    if (rv.n > 1) s += KIT.label(lx, g.yLow + 9, 'Bottom block · moving', [g.bL - R - PM * .5, g.yLow], { anchor: 'end' });
+    s += `<text class="lm halo" x="${f(lx)}" y="${f(Y_US + 36)}" text-anchor="end" style="font-size:17px">front plate cut away · sheaves spread for counting</text>`;
+    return s;
+  }
+
+  /* ---------------------------------------------------------------- the maths cards (right side of the stage) */
+  const CX = 1110, CW = 460;
+  function card(id, y, h, title) {
+    return `<g id="${id}"><rect x="${CX}" y="${y}" width="${CW}" height="${h}" rx="14" fill="#1c1a17" stroke="#4a4640" stroke-width="1.5" opacity=".96"/>` +
+      `<text x="${CX + 18}" y="${y + 28}" class="pts" style="fill:${C.MUTED};letter-spacing:.1em;font-size:14px">${title}</text>`;
+  }
+  function cards(c) {
+    let s = '';
+    const want = S.cards === 'all' ? ['anchor', 'force', 'dist', 'work'] : String(S.cards).split(',');
+    let y = Y_BB + 14;
+    const W = c.W, x0 = CX + 20, w = CW - 40;
+    if (want.includes('anchor')) {
+      const h = 150, sc = w / Math.max(c.W + c.P, c.anchorWll, 1), col = S.fail ? levelCol(c.level) : C.TEXT;
+      s += card('vm-anchor', y, h, 'ANCHOR · ' + (c.lm ? 'W − P (the lead helps hold the block)' : 'W + P (you pull down on it too)'));
+      if (!c.lm) s += `<rect x="${x0}" y="${y + 44}" width="${f(c.W * sc)}" height="26" fill="${COL.W}" rx="3"/><rect x="${f(x0 + c.W * sc)}" y="${y + 44}" width="${f(c.P * sc)}" height="26" fill="${COL.P}" rx="3"/>`;
+      else s += `<rect x="${x0}" y="${y + 44}" width="${f((c.W - c.P) * sc)}" height="26" fill="${COL.W}" rx="3"/><rect x="${f(x0 + (c.W - c.P) * sc)}" y="${y + 44}" width="${f(c.P * sc)}" height="26" fill="none" stroke="${COL.P}" stroke-width="2" stroke-dasharray="5 4" rx="3"/>`;
+      s += `<line x1="${f(x0 + c.anchorWll * sc)}" y1="${y + 36}" x2="${f(x0 + c.anchorWll * sc)}" y2="${y + 80}" stroke="${C.WARN}" stroke-width="3"/>`;
+      s += `<text x="${f(Math.min(x0 + c.anchorWll * sc, CX + CW - 20))}" y="${y + 98}" text-anchor="end" class="pts" style="fill:${C.WARN};font-size:14px">rated ${wt(c.anchorWll)}</text>`;
+      s += `<text x="${x0}" y="${y + 128}" class="pts" style="fill:${col}">${wt(c.anchor)} = ${nf(c.util * 100)} % of rating</text>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('force')) {
+      const h = 160, sc = w / Math.max(c.n * c.P, W);
+      s += card('vm-force', y, h, 'FORCE · ' + c.n + ' × P = W' + (c.friction !== 'ideal' ? ' + friction' : ''));
+      s += `<rect x="${x0}" y="${y + 44}" width="${f(W * sc)}" height="26" fill="${COL.W}" rx="3"/><text x="${x0 + 8}" y="${y + 63}" class="pts" style="fill:#1F1D1A">W ${wt(W)}</text>`;
+      for (let i = 0; i < c.n; i++) s += `<rect x="${f(x0 + i * c.P * sc)}" y="${y + 82}" width="${f(c.P * sc - 2)}" height="26" fill="${COL.P}" rx="3" opacity="${.75 + .25 * (i % 2)}"/>`;
+      if (c.fricForce > 0.5) s += `<rect x="${f(x0 + W * sc)}" y="${y + 78}" width="${f(c.fricForce * sc)}" height="34" fill="none" stroke="${COL.fr}" stroke-width="3" rx="3"/>` +
+        `<text x="${f(Math.min(x0 + W * sc + 6, CX + CW - 150))}" y="${y + 134}" class="pts" style="fill:${COL.fr}">friction ${wt(c.fricForce)}</text>`;
+      s += `<text x="${x0}" y="${y + 134}" class="pts" style="fill:${COL.P}"><tspan style="fill:${COL.n}">${c.n}</tspan> × ${wt(c.P)} = ${wt(c.n * c.P)}</text>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('dist')) {
+      const h = 150, maxT = Math.max(c.VR * riseMax(), 1e-6), sc = w / maxT;
+      s += card('vm-dist', y, h, 'DISTANCE · lead travel = ' + c.n + ' × rise');
+      s += `<g id="vm-rise"><rect x="${x0}" y="${y + 46}" width="${f(w)}" height="20" fill="#2a2723" rx="3"/><rect x="${x0}" y="${y + 46}" width="${f(c.rise * sc)}" height="20" fill="${COL.dist}" rx="3"/>` +
+        `<text x="${x0}" y="${y + 88}" class="pts" style="fill:${COL.dist}">Load rise ${ln(c.rise, 2)}</text></g>`;
+      s += `<g id="vm-lead"><rect x="${x0}" y="${y + 100}" width="${f(w)}" height="20" fill="#2a2723" rx="3"/><rect x="${x0}" y="${y + 100}" width="${f(c.travel * sc)}" height="20" fill="${COL.P}" rx="3"/>`;
+      for (let i = 1; i < c.n && c.rise > 0; i++) s += `<line x1="${f(x0 + i * c.rise * sc)}" y1="${y + 98}" x2="${f(x0 + i * c.rise * sc)}" y2="${y + 122}" stroke="#1F1D1A" stroke-width="2"/>`;
+      s += `<text x="${x0}" y="${y + 142}" class="pts" style="fill:${COL.P}">Lead line ${ln(c.travel, 2)} = <tspan style="fill:${COL.n}">${c.n}</tspan> × ${ln(c.rise, 2)}</text></g>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('work')) {
+      const h = 160, mx = Math.max(c.workIn, c.workOut, 1e-9), sc = w / mx, wu2 = imp() ? ' ft·lb' : ' J';
+      s += card('vm-work', y, h, 'WORK · in = out + friction');
+      s += `<g id="vm-in"><rect x="${x0}" y="${y + 46}" width="${f(Math.max(0, c.workIn * sc))}" height="22" fill="none" stroke="${COL.P}" stroke-width="2.5" rx="3"/>` +
+        `<text x="${x0}" y="${y + 90}" class="pts" style="fill:${COL.P}">In: ${wt(c.P)} × ${ln(c.travel, 2)} = ${nf(Math.round(c.workIn))}${wu2}</text></g>`;
+      s += `<g id="vm-out"><rect x="${x0}" y="${y + 104}" width="${f(c.workOut * sc)}" height="22" fill="${COL.W}" rx="3"/>` +
+        (c.lost > 1 ? `<rect x="${f(x0 + c.workOut * sc)}" y="${y + 104}" width="${f(c.lost * sc)}" height="22" fill="${COL.fr}" rx="3"/>` : '') +
+        `<text x="${x0}" y="${y + 148}" class="pts" style="fill:${COL.W}">Out: ${wt(c.W)} × ${ln(c.rise, 2)} = ${nf(Math.round(c.workOut))}${wu2}${c.lost > 1 ? `<tspan style="fill:${COL.fr}">  lost ${nf(Math.round(c.lost))}</tspan>` : ''}</text></g>`;
+      s += '</g>';
+    }
+    return s;
+  }
+
+  // the live formula, colour-matched to the drawing (HTML, under the stage)
+  function formulaHtml(c) {
+    const sp = (col, t) => `<span style="color:${col}">${t}</span>`;
+    const P = sp(COL.P, 'P'), Wt = sp(COL.W, nf(c.W)), nT = sp(COL.n, c.n);
+    if (c.friction === 'ideal') return `${P} = W ÷ n = ${Wt} ÷ ${nT} = ${sp(COL.P, wt(c.P))}`;
+    if (c.friction === 'rule10') return `${P} = W × (1 + 0.10 × ${sp(COL.fr, c.Sh)} sheaves) ÷ n = ${Wt} × ${sp(COL.fr, nf(1 + .1 * c.Sh, 1))} ÷ ${nT} = ${sp(COL.P, wt(c.P))}`;
+    return `${P} = W ÷ ratio = ${Wt} ÷ ${sp(COL.fr, nf(c.ratio, 2))} (maker's table, ${FRIC[c.friction].toLowerCase()}) = ${sp(COL.P, wt(c.P))}`;
+  }
+
+  /* ===================================================================================== FAILURE
+     The anchor (beam clamp) breaks when its load is greater than its WLL × ANCHOR_DF. Every pose below is a pure
+     function of the failure clock (deterministic frames), with g = 386 in/s² on the drawing scale:
+       0 - THK ms   the jaws spread, the rig shudders.
+       then         everything falls freely together (½ g t²) until the load lands on its cribbing.
+                    The bottom block keeps falling until it lies on top of the load (hook folded beside the shackle).
+                    The top block keeps falling until it hits the bottom block, then tips off and lands flat on the
+                    floor beside the load; the clamp, still on its hook, follows it down and lands on its side with
+                    its jaws open. Ropes go slack between their real ends. Dust where things land; the clamp rocks
+                    to a stop.                                                                                    */
+  const GPX = 386.1 * K / 1e6;                            // px per ms²
+  const SET = 650;                                        // ms to tip off and settle once a part lands
+  function failPose(rv, g) {
+    const P = { top: { ...ID }, bot: { ...ID }, load: { ...ID }, clamp: { ...ID }, hook: { ...ID }, spread: 0, shake: 0, land: {} };
+    if (!F.on) return P;
+    P.spread = clamp(F.t / THK, 0, 1);
+    if (F.t < THK) {                                       // shudder while the jaws open
+      const sh = Math.sin(F.t / 16) * 2.4 * P.spread;
+      for (const k of ['top', 'bot', 'load', 'clamp', 'hook']) P[k].dx = sh;
+      return P;
+    }
+    const t = F.t - THK, d = .5 * GPX * t * t, fallT = h => Math.sqrt(2 * Math.max(0, h) / GPX);
+    const side = g.side, restTop = FLOOR - CRIB - side, loadTop = g.yLow0 + HOOKDROP + SHK_DROP + LUG_H;
+    // load
+    const hL = Math.max(0, restTop - loadTop);
+    P.load.dy = Math.min(d, hL); P.land.load = fallT(hL);
+    // bottom block: comes down onto the load top; its hook (still in the shackle) folds over sideways
+    const bBottom = g.yLow0 + R + PM, hookSad = g.yLow0 + HOOKDROP;
+    const hB = Math.max(hL, restTop - 3 - bBottom), tb = fallT(hB);
+    P.bot.dy = Math.min(d, hB); P.bot.cx = (g.bL + g.bR) / 2; P.bot.cy = g.yLow0;
+    P.hook = { dx: 0, dy: Math.min(d, hL), r: 0, cx: g.bcx, cy: hookSad };
+    if (t > P.land.load) { const k = ease(clamp((t - P.land.load) / SET, 0, 1)); P.hook.r = 78 * k; }
+    if (t > tb) { const k = ease(clamp((t - tb) / SET, 0, 1)); P.bot.r = -6 * k; P.bot.dx = 8.62 * HK_L * .8 * k; }
+    P.land.bot = tb;
+    // top block: falls until it meets the bottom block, then tips off to the floor on the lead side
+    const contactDrop = Math.max(0, (restTop - 3 - 2 * (R + PM) - 4) - Y_UB);
+    const tc = fallT(contactDrop);
+    const tw = (g.tR - g.tL) + 2 * (R + PM), th = 2 * (R + PM);
+    P.top.cx = (g.tL + g.tR) / 2; P.top.cy = Y_US;
+    const finalDx = (g.bcx + side / 2 + tw / 2 + 24) - P.top.cx, finalDy = (FLOOR - th / 2 - 2) - Y_US;
+    if (t <= tc) P.top.dy = Math.min(d, contactDrop);
+    else {
+      const k = clamp((t - tc) / (SET * 1.3), 0, 1), e2 = ease(k);
+      P.top.dx = finalDx * e2; P.top.dy = contactDrop + (finalDy - contactDrop) * (k * k);
+      P.top.r = 28 * Math.sin(Math.PI * k) * (1 - k * .3) + 4 * e2;
+    }
+    P.land.top = tc + SET * 1.3;
+    // clamp: stays on the top hook while falling, then drops off beside the top block, jaws open, and rocks to rest
+    if (t <= tc) { P.clamp = { ...P.top }; }
+    else {
+      const k = clamp((t - tc) / (SET * 1.6), 0, 1), e2 = ease(k);
+      const fx = (g.bcx + side / 2 + tw + 60) - X_A, fy = (FLOOR - 4 * K) - Y_PIN;
+      P.clamp.dx = (P.top.dx) * (1 - e2) + fx * e2; P.clamp.dy = contactDrop * (1 - e2) + fy * e2;
+      P.clamp.cx = X_A; P.clamp.cy = Y_PIN - 3 * K;
+      const after = Math.max(0, t - tc - SET * 1.6);
+      P.clamp.r = 95 * e2 + (after > 0 ? 9 * Math.exp(-after / 900) * Math.sin(after / 140) : 0);
+    }
+    P.land.clamp = tc + SET * 1.6;
+    return P;
+  }
+  function dustPuff(cx, w, dt, seed) {
+    if (dt < 0 || dt > 2600) return '';
+    const k = dt / 2600; let s = '';
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 9) * Math.PI, r = 18 + k * (70 + 12 * ((i + seed) % 3));
+      s += `<circle cx="${f(cx + Math.cos(a) * (w / 2 + r * .9) * (i % 2 ? 1 : -1))}" cy="${f(FLOOR - 8 - Math.sin(a) * r * .4 - k * 14)}" r="${f(9 + k * 26)}" fill="#8a8178" opacity="${f((1 - k) * .42)}"/>`;
+    }
+    return s;
+  }
+  function failOverlay(c, rv, P, side, bcx) {
+    const t = F.t - THK;
+    let s = '';
+    if (t > 0) {
+      s += dustPuff(bcx, side, t - P.land.load, 0);
+      s += dustPuff(bcx + side / 2 + 120, 120, t - P.land.top, 1);
+    }
+    s += `<g id="fail-card"><rect x="${CX}" y="${Y_BB + 14}" width="${CW}" height="210" rx="14" fill="#2a1312" stroke="${C.BAD}" stroke-width="3"/>` +
+      `<text x="${CX + 20}" y="${Y_BB + 48}" class="pts" style="fill:${C.BAD};letter-spacing:.06em;font-size:15px">SIMULATION ONLY · NEVER DO THIS ON THE JOB</text>` +
+      `<text id="fail-big" x="${CX + 20}" y="${Y_BB + 94}" class="pt" style="fill:#fff;font-size:30px">${nf(F.ratio, 1)} × the clamp rating</text>`;
+    const words = F.caption.split(' '); let line = '', yy = Y_BB + 130;
+    for (const w of words) { if ((line + ' ' + w).length > 44) { s += `<text x="${CX + 20}" y="${yy}" class="pts" style="fill:${C.TEXT}">${line.trim()}</text>`; yy += 24; line = ''; } line += ' ' + w; }
+    return s + `<text x="${CX + 20}" y="${yy}" class="pts" style="fill:${C.TEXT}">${line.trim()}</text></g>`;
+  }
+  function failCaption(c) {
+    return `Anchor load ${wt(c.anchor)} (${c.lm ? 'W − P' : 'W + P'}) on a clamp rated ${wt(c.anchorWll)}: the jaws spread, the clamp pulls off the beam and the load drops.`;
+  }
+  function updateFail(c, ms) {
+    if (F.on) { F.t += ms; return; }
+    if (S.fail && isFinite(c.breakAt) && c.anchor > c.breakAt) {
+      F = { on: true, t: 0, ratio: c.anchor / c.anchorWll, caption: failCaption(c), load: c.anchor };
+      tweens = [];                                         // the numbers stop where it broke
+    }
+  }
+  function failInfo() { return F.on ? { on: true, kind: 'anchor', t: F.t, parted: F.t >= THK, caption: F.caption, load: F.load, ratio: F.ratio } : { on: false }; }
+
+  function phoneCss() { return '.lb,.ld,.lm{display:none} #anchor-inset,#vm-anchor,#vm-force,#vm-dist,#vm-work{display:none} #fail-card{transform:translate(-560px,420px) scale(1.5)}'; }
+
+  /* ===================================================================================== CLOCK */
+  function step(ms) {
+    T += ms;
+    tweens.forEach(t => { t.t = Math.min(t.dur, t.t + ms); if (t.t >= 0) S[t.key] = t.from + (t.to - t.from) * ease(clamp(t.t / t.dur, 0, 1)); });
+    tweens = tweens.filter(t => t.t < t.dur);
+    S.rise = clamp(S.rise, 0, riseMax());
+    const c = calc();
+    updateFail(c, ms);
+    const rp = risePx(), key = S.parts + S.lead + S.units;
+    if (A.lastRisePx != null && A.key === key) A.D += rp - A.lastRisePx;
+    A.lastRisePx = rp; A.key = key;
+    if (A.reeveT < 1) A.reeveT = Math.min(1, A.reeveT + ms / 700);
+    return c;
+  }
+  let lastC = null;
+  function frame(ms) {
+    const c = step(ms); lastC = c;
+    if (svgEl) svgEl.innerHTML = draw(c);
+    if (opts.onFrame) opts.onFrame(c, getState());
+    renderCallouts();
+    callouts.forEach(co => co.age += ms);
+    return c;
+  }
+
+  /* ===================================================================================== API */
+  function set(p, dur = 0) {
+    p = { ...p };
+    if ('blockWll' in p) { p.anchorWll = p.blockWll; delete p.blockWll; }
+    if (p.units && p.units !== S.units) {
+      const toMet = p.units === 'met', fw = toMet ? LB_TO_KG : 1 / LB_TO_KG, fl = toMet ? FT_TO_M : 1 / FT_TO_M;
+      tweens = tweens.filter(t => !['load', 'rise', 'anchorWll'].includes(t.key));
+      if (!('load' in p)) S.load = Math.round(S.load * fw);
+      if (!('rise' in p)) S.rise *= fl;
+      if (!('anchorWll' in p)) S.anchorWll = Math.round(S.anchorWll * fw);
+      S.units = p.units; A.lastRisePx = null;
+    }
+    delete p.units;
+    const snap = p.snap; delete p.snap;
+    const delay = p.delay || 0; delete p.delay;
+    if ('parts' in p) p.parts = clamp(Math.round(p.parts), 1, 8);
+    if ('travel' in p) { p.rise = p.travel / Math.max(1, ('parts' in p ? p.parts : S.parts)); delete p.travel; }
+    const oldN = S.parts, oldLead = S.lead;
+    for (const [k, v] of Object.entries(p)) {
+      tweens = tweens.filter(t => t.key !== k);
+      if (NUMERIC.includes(k) && (dur > 0 || delay > 0)) tweens.push({ key: k, from: S[k], to: v, t: -delay, dur: Math.max(1, dur) });
+      else S[k] = v;
+    }
+    if (S.parts < 2 && S.lead === 'moving') S.lead = 'fixed';
+    S.rise = clamp(S.rise, 0, riseMax());
+    if ((S.parts !== oldN || S.lead !== oldLead) && !snap) { A.reeveT = 0; }
+    if (snap) { A.D = 0; A.lastRisePx = null; A.reeveT = 1; }
+    if (snap || p.fail === false || 'parts' in p || 'lead' in p) F = { on: false, t: 0 };
+    if (!CAPTURE) frame(0);
+  }
+  function callout(target, text, o = {}) { callouts = callouts.filter(c => c.target !== target); callouts.push({ target, text, pos: o && o.pos, age: 0 }); if (!CAPTURE) frame(0); }
+  function clear() { callouts = []; if (!CAPTURE) frame(0); }
+  let coLayer = null;
+  function renderCallouts() {
+    if (!coLayer) return;
+    coLayer.innerHTML = '';
+    callouts.forEach(co => {
+      const el = document.getElementById(co.target);
+      if (!el) return;
+      const r = el.getBoundingClientRect(), lr = coLayer.getBoundingClientRect();
+      const ring = document.createElement('div');
+      ring.className = 'co-ring';
+      Object.assign(ring.style, { left: (r.left - lr.left - 6) + 'px', top: (r.top - lr.top - 6) + 'px', width: (r.width + 12) + 'px', height: (r.height + 12) + 'px' });
+      coLayer.appendChild(ring);
+      if (!co.text) return;
+      const lb = document.createElement('div'); lb.className = 'co-label'; lb.textContent = co.text; coLayer.appendChild(lb);
+      const lw = lb.offsetWidth, lh = lb.offsetHeight, pad = 14, vw = lr.width, vh = lr.height, a = clamp(co.age / 250, 0, 1);
+      lb.style.opacity = 1;                               // full strength at once: a fade could be caught half-way in a video frame
+      let x, y; const cx = r.left - lr.left, cy = r.top - lr.top;
+      if (co.pos === 'left') { x = cx - lw - pad - 10; y = cy + r.height / 2 - lh / 2; }
+      else if (co.pos === 'top') { x = cx + r.width / 2 - lw / 2; y = cy - lh - pad - 10; }
+      else if (co.pos === 'bottom') { x = cx + r.width / 2 - lw / 2; y = cy + r.height + pad + 10; }
+      else { x = cx + r.width + pad + 10; y = cy + r.height / 2 - lh / 2; }
+      lb.style.left = clamp(x, 8, vw - lw - 8) + 'px'; lb.style.top = clamp(y, 8, vh - lh - 8) + 'px';
+    });
+  }
+
+  const LISTEN = [], LOCKED = new Set();
+  function getState() {
+    const c = lastC || calc(), fi = failInfo();
+    const out = { P: c.P, Pideal: c.Pideal, MA: c.MA, VR: c.VR, MAact: c.MAact, eff: c.eff, rise: c.rise, travel: c.travel, workIn: c.workIn,
+      workOut: c.workOut, lost: c.lost, kN: c.kN, n: c.n, S: c.Sh, share: c.W / c.n, anchor: c.anchor, leadBlock: c.leadBlock,
+      beamTotal: c.beamTotal, util: c.util, breakAt: c.breakAt, level: c.level, fricForce: c.fricForce, partT: c.partT,
+      riseMax: riseMax(), fail: !!fi.on, failure: fi, upper: c.anchor, lower: c.W, blockUtil: c.util };
+    return { ...S, mode: 'tackle', out };
+  }
+  const userChanged = () => { const st = getState(); LISTEN.forEach(fn => { try { fn(st); } catch (e) { console.error(e); } }); };
+
+  /* drag the hand line: the rope moves with your hand; the load rises 1/n as far */
+  function bindDrag(svg) {
+    let drag = null;
+    const pt = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+    svg.addEventListener('pointerdown', e => {
+      if (LOCKED.has('c-haul') || F.on) return;
+      const q = pt(e), rv = reeving(S.parts, S.lead), hx = rv.lm ? rv.lane(rv.m + 1) : rv.lane(rv.m);
+      if (Math.abs(q.x - hx) < 34 && q.y > 300 && q.y < FLOOR) { drag = { y: q.y, rise: S.rise }; svg.setPointerCapture(e.pointerId); e.preventDefault(); }
+      // tap the ghost sheave to reeve one more part
+      if (!drag && !LOCKED.has('c-parts')) { const g = e.target.closest && e.target.closest('#reeve-next'); if (g) { set({ parts: S.parts + 1 }); userChanged(); } }
+    });
+    svg.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const q = pt(e), dy = q.y - drag.y;                 // px of rope through your hands
+      set({ rise: clamp(drag.rise + dy / S.parts / riseUnitPx(), 0, riseMax()) });
+    });
+    const end = () => { if (drag) { drag = null; userChanged(); } };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  }
+
+  function mount(o) {
+    opts = o || {};
+    svgEl = o.svg; coLayer = o.callouts || null;
+    if (o.state) Object.assign(S, o.state);
+    if (!CAPTURE) bindDrag(svgEl);
+    frame(0);
+    if (o.external) { ready = true; return; }      // lesson page shell: it runs the clock and owns window.sim
+    if (!CAPTURE) {
+      let last = performance.now();
+      const loop = ts => { frame(Math.min(100, ts - last)); last = ts; requestAnimationFrame(loop); };
+      requestAnimationFrame(loop);
+    }
+    ready = true;
+    window.sim = {
+      set, callout, clear, advance: ms => { frame(ms); }, isIdle: () => !tweens.length && !(F.on && F.t < 7000) && A.reeveT >= 1 && callouts.every(co => co.age >= 300),   // a callout fading in is motion (the renderer reuses idle frames)
+      calc: () => calc(), get: getState, failure: failInfo, ready: true,
+      onChange: fn => { LISTEN.push(fn); return () => { const i = LISTEN.indexOf(fn); if (i >= 0) LISTEN.splice(i, 1); }; },
+      lock: ids => { (ids === 'all' ? (opts.controls ? opts.controls() : []) : ids).forEach(i => LOCKED.add(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },
+      unlock: ids => { if (ids === 'all' || !ids) LOCKED.clear(); else ids.forEach(i => LOCKED.delete(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },
+      controls: () => opts.controls ? opts.controls() : [],
+      view: { K, FLOOR, R, LANE, X_A, Y_PIN, Y_US, reeving: () => reeving(S.parts, S.lead) },
+      userChanged
+    };
+  }
+
+  return { mount, frame, failInfo, isBusy: () => !!tweens.length || (F.on && F.t < 7000) || A.reeveT < 1, calc, set, S, CAPTURE, formulaHtml, CROSBY, ANCHOR_DF, riseMax, FRIC, COL, wt, nf, ln, LOCKED, userChanged, getState, reeving };
+})();
+</script>
+<script>/* Free simulator page glue: controls -> TACKLE.set, readouts from calc(). The lesson pages use the shared lesson
+   shell instead; they mount the same TACKLE scene and the same control ids. */
+(() => {
+  const $ = id => document.getElementById(id);
+  const T = TACKLE, CAP = T.CAPTURE;
+  if (CAP) document.body.classList.add('capture');
+  const svg = $('scene');
+  const pcVB = svg.getAttribute('viewBox'), phVB = svg.dataset.phoneViewbox;
+  // phone: crop to the rig (left part to the pull tag), full height, so the drawing text stays >= 11 px
+  const fitVB = () => {
+    if (innerWidth >= 700) { svg.setAttribute('viewBox', pcVB); return; }
+    const rv = T.reeving(T.S.parts, T.S.lead), hand = rv.lm ? rv.lane(rv.m + 1) : rv.lane(rv.m);
+    let x0 = rv.lane(0) - 60, x1 = hand + 250, w = Math.max(560, x1 - x0);
+    x0 = (x0 + x1) / 2 - w / 2;
+    svg.setAttribute('viewBox', `${Math.round(x0)} 0 ${Math.round(w)} 880`);
+  };
+  fitVB(); addEventListener('resize', fitVB);
+  const DEF = { parts: 4, lead: 'fixed', friction: 'rule10', load: 4000, rise: 0, units: 'imp', anchorWll: 6000, fail: !CAP,
+    tags: true, count: false, cards: 'all', inset: true, labels: true };
+  const CONTROLS = ['c-parts', 'c-lead', 'c-friction', 'c-load', 'c-haul', 'c-units', 'c-anchorWll', 'c-reset'];
+  const segSync = (id, v) => document.querySelectorAll('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
+  function readouts(c, st) {
+    $('formula').innerHTML = T.formulaHtml(c);
+    if (innerWidth < 700) fitVB();
+    const S = T.S, imp = S.units === 'imp', u = imp ? 'lb' : 'kg';
+    $('ro-n').textContent = c.n + (c.lm ? ' (lead counts)' : '');
+    $('ro-p').textContent = T.wt(c.P);
+    $('ro-dist').textContent = T.ln(c.travel, 2) + ' / ' + T.ln(c.rise, 2);
+    $('ro-eff').textContent = T.nf(c.eff * 100, 1) + ' %';
+    const a = $('ro-anchor'); a.textContent = T.wt(c.anchor) + ' · ' + T.nf(c.util * 100) + ' %';
+    a.style.color = c.util > 1 ? 'var(--bad)' : c.util > .8 ? 'var(--warn)' : 'var(--ok)';
+    if (CAP) return;
+    $('v-parts').textContent = c.n; $('v-load').textContent = T.wt(S.load); $('v-anchor').textContent = T.wt(S.anchorWll);
+    segSync('c-lead', S.lead); segSync('c-friction', S.friction); segSync('c-units', S.units);
+    const l = $('c-load'); l.min = imp ? 500 : 250; l.max = imp ? 40000 : 18000; l.step = imp ? 100 : 50;
+    if (document.activeElement !== l) l.value = S.load;
+    document.querySelectorAll('#c-anchorWll button').forEach((b, i) => { const v = [2000, 4000, 6000, 10000][i] * (imp ? 1 : 0.5); b.dataset.v = v; b.classList.toggle('on', Math.abs(S.anchorWll - v) < 1); });
+    const h = $('c-haul'), rm = T.riseMax();
+    h.max = rm * c.n || 1; h.step = imp ? 0.05 : 0.01;
+    if (document.activeElement !== h) h.value = c.travel;
+    $('v-haul').textContent = T.ln(c.travel, 2) + ' → load up ' + T.ln(c.rise, 2);
+    const st2 = $('status'), f = st.out.failure;
+    if (f.on) { st2.textContent = 'ANCHOR FAILED: NEVER DO THIS ON THE JOB. Press Reset.'; st2.style.borderColor = 'var(--bad)'; st2.style.color = 'var(--bad)'; }
+    else if (c.util > 1) { st2.textContent = 'Anchor over its rating (' + T.nf(c.util * 100) + ' %). It breaks past ' + T.ANCHOR_DF + ' × the rating.'; st2.style.borderColor = 'var(--bad)'; st2.style.color = 'var(--bad)'; }
+    else { st2.textContent = 'Anchor ' + T.nf(c.util * 100) + ' % of its rating. Top block and anchor carry ' + (c.lm ? 'W − P.' : 'W + P.'); st2.style.borderColor = c.util > .8 ? 'var(--warn)' : 'var(--ok)'; st2.style.color = c.util > .8 ? 'var(--warn)' : 'var(--ok)'; }
+    $('c-parts').disabled = c.n >= 8 || T.LOCKED.has('c-parts'); $('c-parts-dn').disabled = c.n <= 1 || T.LOCKED.has('c-parts');
+  }
+  function onLock(L) { CONTROLS.forEach(id => { const e = $(id); if (!e) return; const w = e.closest('.ctl') || e; w.classList.toggle('locked', L.has(id)); }); }
+  T.mount({ svg, callouts: $('co'), state: DEF, onFrame: readouts, controls: () => CONTROLS, onLock });
+  const ch = () => T.userChanged();
+  if (!CAP) {
+    $('c-parts').onclick = () => { if (T.LOCKED.has('c-parts')) return; T.set({ parts: T.S.parts + 1 }); ch(); };
+    $('c-parts-dn').onclick = () => { if (T.LOCKED.has('c-parts')) return; T.set({ parts: T.S.parts - 1 }); ch(); };
+    document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b || T.LOCKED.has(seg.id)) return;
+      const v = b.dataset.v;
+      ({ 'c-lead': () => T.set({ lead: v }), 'c-friction': () => T.set({ friction: v }), 'c-units': () => T.set({ units: v }),
+        'c-anchorWll': () => T.set({ anchorWll: +v }) })[seg.id]?.();
+      ch();
+    }));
+    $('c-load').addEventListener('input', e => { if (!T.LOCKED.has('c-load')) T.set({ load: +e.target.value }); });
+    $('c-load').addEventListener('change', ch);
+    $('c-haul').addEventListener('input', e => { if (!T.LOCKED.has('c-haul')) T.set({ travel: +e.target.value }); });
+    $('c-haul').addEventListener('change', ch);
+    $('c-reset').onclick = () => { T.set({ ...DEF, snap: true }); ch(); };
+  }
+})();
+</script>
+</body></html>

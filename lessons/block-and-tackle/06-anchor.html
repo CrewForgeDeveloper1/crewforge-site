@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="cf-lesson-page" content="block-and-tackle:6">
+<title>The anchor · Block and tackle · CrewForge</title>
+<!-- CrewForge simulator-lesson page (built by simulators/block-and-tackle/src/build_lesson.py; do not edit by hand) -->
+<style>/* CrewForge simulator-lesson page shell (approved layout, docs/mockups/lesson-page.html; docs/LESSON_DESIGN.md s.2) */
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --fill:#C05A00;--ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  font-weight:700;font-size:15px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#6a645b}.btn:focus-visible,.opt:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+.btn.ghost{background:transparent}.btn[disabled]{opacity:.45;cursor:default}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:6px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{background:var(--accent)}.dots i.done{background:#7a5a3a}
+.voice{display:flex;align-items:center;gap:6px}
+.voice .btn{padding:6px 10px;font-size:13px}
+.voice .btn.off{color:var(--muted)}
+.what{margin:10px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15.5px}
+.what .wt{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800;background:none;border:0;padding:0;min-height:0;display:flex;gap:8px;align-items:center}
+.what .wt .chev{display:none}
+.what b.hl{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+.read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
+.caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
+  background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
+.caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
+.caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
+.caption.on{display:block}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step .sh{display:flex;align-items:center;gap:8px}
+.step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
+.step p{font-size:18px;margin:6px 0 10px;font-weight:600}
+.step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
+.step .hint{font-size:15px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,138,43,.10);border:1px solid rgba(240,138,43,.5)}
+.step .good{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(61,220,132,.10);border:1px solid var(--ok)}
+.step .good b{color:var(--ok)}
+.step .bad{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(242,194,48,.10);border:1px solid var(--warn)}
+.step .bad b{color:var(--warn)}
+.step .never{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--bad);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.skip{background:none;border:0;color:var(--muted);text-decoration:underline;min-height:44px;padding:0 6px;font-size:14px}
+.q h3{margin:4px 0 8px;font-size:17px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:10px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:15.5px;font-weight:600;min-height:44px}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,79,.12)}
+.opt.right{border-color:var(--ok);background:rgba(61,220,132,.12)}
+.opt.ans{border-color:var(--ok)}
+.free{border:2px dashed var(--accent)}
+.free .fk{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800}
+.ctrlcard{display:flex;flex-direction:column;gap:12px}
+.ctrlcard:empty{display:none}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl .lab{font-weight:700;width:96px;flex:none;font-size:15px;line-height:1.15}
+.ctrl .val{font-weight:800;color:var(--accent);min-width:72px;text-align:right;background:none;border:0;padding:0;min-height:44px;font-size:16px}
+.ctrl input[type=range]{flex:1;min-width:60px;accent-color:var(--accent);height:44px}
+.ctrl .tv{width:80px;font:inherit;font-weight:800;padding:6px;border-radius:8px;border:2px solid var(--accent);background:#171512;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipwrap .lab{font-weight:700;font-size:15px;margin-bottom:6px;display:block}
+.chip{padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);font-weight:700;min-height:44px;font-size:14.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.spotlit{box-shadow:0 0 0 3px var(--accent),0 0 18px rgba(240,138,43,.6);border-radius:12px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px var(--accent),0 0 28px rgba(240,138,43,.75)}}
+#start{position:fixed;inset:0;background:rgba(15,14,12,.82);display:flex;align-items:center;justify-content:center;z-index:20}
+#start .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center}
+#start h2{margin:0 0 6px;font-size:24px}#start p{color:var(--muted);margin:0 0 18px}
+#start .btn{font-size:18px;padding:12px 22px}
+/* phone portrait: top bar -> what (collapsible) -> step -> simulator -> control tray (no page scroll) */
+body.phone .app{grid-template-rows:auto auto minmax(0,1fr)}
+body.phone .bar{flex-wrap:wrap;padding:6px 8px;gap:6px}
+body.phone .title{order:-1;flex-basis:100%;display:flex;gap:8px;align-items:baseline}
+body.phone .kick{font-size:11px}body.phone .h{font-size:16px}
+body.phone .dots{flex:1;justify-content:center}body.phone .dots i{width:14px}
+body.phone .what{margin:6px 8px 0;padding:6px 10px;font-size:14px}
+body.phone .what .wt{min-height:44px;width:100%}
+body.phone .what .wt .chev{display:inline}
+body.phone .what:not(.open) .wx{display:none}
+body.phone .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 8px 8px;gap:6px}
+body.phone .side{display:contents}
+body.phone .step{order:1;padding:8px 12px}body.phone .stage{order:2}body.phone .ctrlcard{order:3;padding:8px 10px;gap:6px}
+body.phone .step p{font-size:15.5px;margin:2px 0 6px}
+body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
+body.phone .q h3{font-size:15px;margin:2px 0 4px}
+body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
+body.phone .read{padding:4px 6px;gap:4px}
+body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .ctrl .lab{width:70px;font-size:13px}
+body.phone .chip{padding:6px 9px;font-size:13px}
+body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
+body.phone .caption{font-size:13px;padding:6px 10px;top:6px}
+body.phone .btn{padding:6px 10px;font-size:14px}
+body.phone .step .sh{min-height:28px}
+body.phone .main{grid-template-columns:minmax(0,1fr)}
+body.phone .card,body.phone .stage{min-width:0}
+body.phone .bar .btn{padding:4px 10px;font-size:14px}
+body.phone .voice .vt{display:none}
+body.phone .ro .lf{display:none}
+.ro .ls{display:none}body.phone .ro .ls{display:inline}
+body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
+.what .wt{pointer-events:none}body.phone .what .wt{pointer-events:auto}
+.main{grid-template-rows:minmax(0,1fr)}
+
+/* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
+body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
+body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
+body.phone .chip{flex:none}
+body.phone .chipwrap{display:flex;align-items:center;gap:8px}
+body.phone .chipwrap .lab{margin:0;width:70px;flex:none}
+body.phone .bar{row-gap:2px}
+body.phone .what{padding:0 10px}
+.chip{min-width:44px}
+body.phone .caption .ct{display:none}body.phone .caption b{font-size:12px}body.phone .caption{padding:4px 10px;bottom:56px}
+
+/* hold-to-run controls (shell.js: type 'hold' and data-hk buttons inside 'custom' controls) */
+.ctrl.holdc{display:block}
+.btn.hold{width:100%;min-height:52px;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn.hold.on{background:var(--fill);border-color:var(--accent);color:var(--text)}
+.ctrl.custom{display:block}
+.step ul.points{margin:4px 0 10px;padding-left:20px;font-size:16px}.step ul.points li{margin:3px 0}
+.step .wrongsay{color:var(--warn);font-weight:700}
+body.phone .btn.hold{min-height:48px}
+/* video layout (content capture:'stage' + ?capture=1): the stage and its readouts fill the window */
+body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
+body.capture .app{grid-template-rows:minmax(0,1fr)}
+body.capture .main{grid-template-columns:1fr;padding:10px 12px}
+body.capture .read{padding:10px 12px}
+body.capture .ro{padding:7px 10px}
+
+.fbar{padding:6px 16px;border-top:1px solid var(--line);font-weight:800;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.phone .fbar{display:none}
+body.phone #fail-card{display:none}</style></head>
+<body><noscript>This lesson needs JavaScript.</noscript>
+<script>/* CrewForge illustration kit (JS port of docs/concepts/hitches/src/lib.py; rules in docs/concepts/hitches/STYLE.md).
+   Plain functions that return SVG strings. Every scene: 1600 x 880 viewBox, one scale K (px per inch), light from
+   the top-left, outlines darker than the fill, CrewForge orange only for "the thing to look at".
+   Kept function-for-function with lib.py so the drawings match the approved concept pictures. */
+const KIT = (() => {
+  const W = 1600, H = 880;
+  const FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+  const C = {
+    BG: '#24211d', PANEL: '#2a2723', TEXT: '#F5F5F4', MUTED: '#b9b4ab', ACC: '#F08A2B',
+    OK: '#3ddc84', WARN: '#F2C230', BAD: '#ff5a4f',
+    STEEL_D: '#3b4247', ROPE_D: '#454c51', ROPE_M: '#aab3b9', ROPE_V: '#6a737a',
+    TIMBER_D: '#5e4426'
+  };
+  const f = v => { const r = Math.round(v * 10) / 10; return Math.abs(r - Math.round(r)) < 1e-6 ? String(Math.round(r)) : r.toFixed(1); };
+  const pathd = (P, closed) => P.length ? 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '') : '';
+
+  function catmull(P, n = 8, closed = false) {
+    const out = [], m = P.length;
+    const last = closed ? m : m - 1;
+    for (let i = 0; i < last; i++) {
+      const p0 = (closed || i > 0) ? P[(i - 1 + m) % m] : P[i], p1 = P[i], p2 = P[(i + 1) % m];
+      const p3 = (closed || i + 2 < m) ? P[(i + 2) % m] : P[(i + 1) % m];
+      for (let j = 0; j < n; j++) {
+        const t = j / n, t2 = t * t, t3 = t2 * t;
+        out.push([0, 1].map(k => 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3)));
+      }
+    }
+    if (!closed) out.push(P[m - 1]);
+    return out;
+  }
+  // points on a circle; degrees, screen coords (0 = +x, 90 = DOWN)
+  const arcPts = (cx, cy, r, a0, a1, n = 24) => Array.from({ length: n + 1 }, (_, i) => {
+    const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  function resample(P, step) {
+    const out = [P[0]]; let acc = 0;
+    for (let i = 0; i + 1 < P.length; i++) {
+      const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+      if (!seg) continue;
+      let t = step - acc;
+      while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+      acc = seg - (t - step);
+    }
+    const e = P[P.length - 1], l = out[out.length - 1];
+    if (Math.hypot(e[0] - l[0], e[1] - l[1]) > 1e-3) out.push(e);
+    return out;
+  }
+  function normals(P) {
+    return P.map((_, i) => {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L];
+    });
+  }
+  // shift each point toward the light (top-left) along its normal: where the highlight runs on a round part
+  function litOffset(P, amount) {
+    const N = normals(P), Lx = -0.7071, Ly = -0.7071;
+    return P.map((p, i) => { const [nx, ny] = N[i], s = nx * Lx + ny * Ly; return [p[0] + nx * s * amount, p[1] + ny * s * amount]; });
+  }
+
+  function defs() {
+    return `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gBlock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9a640"/><stop offset=".55" stop-color="#b8862a"/><stop offset="1" stop-color="#7d5a17"/></linearGradient>
+<radialGradient id="gSheave" cx=".38" cy=".34" r=".75"><stop offset="0" stop-color="#c9d0d5"/><stop offset=".55" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></radialGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gWeight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset=".6" stop-color="#4f5860"/><stop offset="1" stop-color="#3a4148"/></linearGradient>
+<linearGradient id="gBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d6670"/><stop offset="1" stop-color="#434b53"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b5650"/><stop offset="1" stop-color="#46423d"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDial" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fbfbf8"/><stop offset="1" stop-color="#d6d4cc"/></radialGradient>
+<filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+</defs>`;
+  }
+
+  function styleBlock(extraPhone = '') {
+    return `<style>
+.lb{font:700 26px ${FONT};fill:${C.TEXT}} .lm{font:600 21px ${FONT};fill:${C.MUTED}} .la{font:800 30px ${FONT};fill:${C.ACC}}
+.ld{stroke:${C.MUTED};stroke-width:2;fill:none} .tag{font:700 12px ${FONT};fill:#1d1d1d} .tagb{font:800 15px ${FONT};fill:#1d1d1d}
+.pt{font:800 20px ${FONT}} .pts{font:700 16px ${FONT}} .halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round}
+.phOnly{display:none}
+@media (max-width:700px){ .lb{font-size:34px} .lm{font-size:28px} .la{font-size:38px} .pt{font-size:28px} .pts{font-size:24px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+  }
+
+  function backdrop(floor, wallLine = true) {
+    let s = `<rect width="${W}" height="${floor}" fill="url(#gWall)"/>`;
+    if (wallLine) {
+      s += `<rect x="0" y="${floor - 150}" width="${W}" height="150" fill="#ffffff" opacity=".018"/>`;
+      s += `<line x1="0" y1="${floor - 150}" x2="${W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+    }
+    s += `<rect x="0" y="${floor}" width="${W}" height="${H - floor}" fill="url(#gFloor)"/>`;
+    s += `<line x1="0" y1="${floor}" x2="${W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+    return s;
+  }
+  function column(x, floor, top = 0, w = 34) {
+    return `<g opacity=".55"><rect x="${x}" y="${top}" width="${w}" height="${floor - top}" fill="#2f2c28"/>` +
+      `<rect x="${x}" y="${top}" width="5" height="${floor - top}" fill="#3a3632"/>` +
+      `<rect x="${x + w - 5}" y="${top}" width="5" height="${floor - top}" fill="#262320"/>` +
+      `<rect x="${x - 14}" y="${floor - 8}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+  }
+  const contactShadow = (cx, y, w, h = 14, op = 1) =>
+    `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+
+  // any round steel part along a path: dark outline, body, a highlight line on the lit side
+  function roundBar(P, d, body = '#8d969d', dark = '#3b4247', hi = '#e8ecef', cap = 'round', hiOp = .85) {
+    const p = pathd(P);
+    return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+      `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+      `<path d="${pathd(litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+  }
+
+  /* Wire rope: steel body + strand valleys. Right regular lay: valleys run like "/" on a hanging rope, each strand
+     crosses the visible face in about 2 d, valleys about 1.1 d apart. `phase` (px along the rope) moves the strand
+     pattern with the rope's material so a running rope visibly runs (virtual clock only). */
+  function wireRope(P, d, phase = 0, opts = {}) {
+    const dense = resample(P, Math.max(.6, d / 6));
+    let s = roundBar(dense, d, opts.body || C.ROPE_M, opts.dark || C.ROPE_D, '#e9edf0', 'butt', .7);
+    if (d < 2.2 || dense.length < 2) return s;
+    const pitch = 1.08 * d, adv = 2.0 * d;
+    const L = [0];
+    for (let i = 0; i + 1 < dense.length; i++) L.push(L[i] + Math.hypot(dense[i + 1][0] - dense[i][0], dense[i + 1][1] - dense[i][1]));
+    const N = normals(dense), tot = L[L.length - 1];
+    let j0 = 0;
+    const at = sv => {
+      sv = Math.max(0, Math.min(tot, sv));
+      while (j0 > 0 && L[j0] > sv) j0--;
+      while (j0 < L.length - 2 && L[j0 + 1] < sv) j0++;
+      const t = (sv - L[j0]) / ((L[j0 + 1] - L[j0]) || 1);
+      return [dense[j0][0] + (dense[j0 + 1][0] - dense[j0][0]) * t, dense[j0][1] + (dense[j0 + 1][1] - dense[j0][1]) * t, N[j0]];
+    };
+    let v = '';
+    const ph = ((phase % pitch) + pitch) % pitch;
+    for (let sv = -adv - pitch + ph; sv < tot; sv += pitch) {
+      const seg = [];
+      for (let j = 0; j < 5; j++) {
+        const q = sv + adv * j / 4;
+        if (q >= 0 && q <= tot) { const [x, y, [nx, ny]] = at(q); const o = (-.5 + j / 4) * d * .86; seg.push([x + nx * o, y + ny * o]); }
+      }
+      if (seg.length > 1) v += pathd(seg) + ' ';
+      j0 = 0;
+    }
+    return s + `<path d="${v}" fill="none" stroke="${C.ROPE_V}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+  }
+
+  /* Crosby S-319N shank hook, ID code J (5 t carbon), inches, Kito Crosby 2026-27 p. 91 (same contour as lib.py).
+     Origin = bottom of the hook on the shank axis; y negative = up; the saddle is on the shank axis at -1.81. */
+  const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+    [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+  const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81;
+  let _hc = null;
+  function hookContour() {
+    if (_hc) return _hc;
+    let out = catmull(HOOK_OUT, 6);
+    out = out.concat([HOOK_TIP, [1.8, -4.5], [1.64, -4.0]]);
+    for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+    out = out.concat(catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+    _hc = [[-0.705, -10.43]].concat(out, [[0.705, -10.43]]);
+    return _hc;
+  }
+  /* Hook in profile, saddle at (x, ysad), k px per inch; `open` 0..1 straightens the throat (failure).
+     The shank top is at ysad - 8.62 k. */
+  function hookProfile(x, ysad, k, o = {}) {
+    const open = o.open || 0, flip = o.flip ? -1 : 1;
+    const T = p => {
+      let px = p[0], py = p[1];
+      if (open > 0 && py > -6.2) {                      // opening: the bowl and tip swing out about the neck
+        const a = open * 0.9 * Math.max(0, Math.min(1, (-py - 0) / 6.2 + .2)) * (px > -0.5 ? 1 : 0.35);
+        const cx = -0.7, cy = -6.2, dx = px - cx, dy = py - cy;
+        px = cx + dx * Math.cos(a) - dy * Math.sin(a); py = cy + dx * Math.sin(a) + dy * Math.cos(a);
+      }
+      return [x + flip * px * k, ysad + (py - HOOK_SADDLE) * k];
+    };
+    const c = hookContour().map(T);
+    let s = `<g id="${o.id || 'hook'}"><path d="${pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, k * .12))}" stroke-linejoin="round"/>`;
+    const back = catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+    s += `<path d="${pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+    s += `<path d="${pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+    if (!o.noLatch && open < .2) {                      // S-4320 spring latch, neck boss to inside the tip
+      const piv = T([0.92, -5.95]), end = T([1.9, -4.62]), mid = T([1.5, -5.35]);
+      const q = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+      s += `<path d="${q}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/>`;
+      s += `<path id="${o.id || 'hook'}-latch" d="${q}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+      s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+    }
+    return s + '</g>';
+  }
+  const HOOK = { SADDLE: HOOK_SADDLE, RI: HOOK_RI, CY: HOOK_CY, LEN: 10.43 };
+
+  /* Shackle seen square to the pin (U visible), pin horizontal; bow UP or DOWN. Crosby G-209 proportions scaled from
+     5/8 in (pin 0.75, jaw 1.06, inside length 2.38, bow 1.69 in). Returns {back, front, crown} (crown = inside of the
+     bow on the centreline: where an eye or hook bears). */
+  function shackleFace(x, ypin, k, up = true, size = 0.625) {
+    const sc = size / 0.625, pin = .75 * sc, iw = 1.06 * sc, il = 2.38 * sc, mat = .70 * sc, ear = 1.36 * sc;
+    const legx = (iw + mat) / 2, rBow = (1.69 * sc + mat) / 2, top = -(pin / 2 + il + mat / 2), yc = top + rBow;
+    const pts = [[-legx, -ear * .3], [-legx * 1.04, -(pin / 2 + il * .3)]];
+    for (let a = 205; a >= -25; a -= 15) pts.push([rBow * Math.cos(a * Math.PI / 180), yc - rBow * Math.sin(a * Math.PI / 180)]);
+    pts.push([legx * 1.04, -(pin / 2 + il * .3)], [legx, -ear * .3]);
+    const P = catmull(pts, 4).map(([px, py]) => [x + px * k, ypin + (up ? py : -py) * k]);
+    const back = roundBar(P, mat * k, '#a6aeb4', C.STEEL_D, '#eef1f3');
+    let front = '';
+    for (const ex of [-legx, legx]) front += `<circle cx="${f(x + ex * k)}" cy="${f(ypin)}" r="${f(ear / 2 * k)}" fill="#9aa2a8" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    front += `<rect x="${f(x - (legx + ear * .62) * k)}" y="${f(ypin - pin / 2 * k)}" width="${f((2 * legx + ear * .95) * k)}" height="${f(pin * k)}" rx="${f(pin * .2 * k)}" fill="#b3bbc1" stroke="${C.STEEL_D}" stroke-width="1.1"/>`;
+    front += `<rect x="${f(x - (legx + ear * .95) * k)}" y="${f(ypin - pin * .95 * k)}" width="${f(pin * .5 * k)}" height="${f(pin * 1.9 * k)}" rx="${f(pin * .12 * k)}" fill="#8e979d" stroke="${C.STEEL_D}" stroke-width="1.1"/>`;
+    const crown = up ? ypin + (top + mat / 2) * k : ypin - (top + mat / 2) * k;
+    return { back, front, crown, outer: up ? ypin + (top - mat / 2) * k : ypin - (top - mat / 2) * k };
+  }
+
+  function timberEnd(x, y, w, h, id) {
+    const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + (id || (Math.round(x) + '_' + Math.round(y)));
+    let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.TIMBER_D}" stroke-width="1.6"/>`;
+    s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+    for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+    s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/>`;
+    return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#ffffff" opacity=".08"/></g>`;
+  }
+  function timberSide(x, y, w, h, seed = 1) {
+    let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.TIMBER_D}" stroke-width="1.6"/>`;
+    const n = Math.max(2, Math.floor(h / 7));
+    for (let i = 1; i < n; i++) {
+      const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+      s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+    }
+    return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+  }
+
+  // few, large labels; leader ends in a dot ON the part; text never on the part it names
+  function label(tx, ty, text, target, o = {}) {
+    const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+    let s = '';
+    if (target) {
+      const [x2, y2] = target;
+      const sx = anchor === 'end' ? tx + 6 : anchor === 'start' ? tx - 6 : tx;
+      const sy = anchor === 'middle' ? ty + 8 : ty - 8;
+      s += o.elbow ? `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`
+        : `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+      s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.TEXT}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+    }
+    s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.id ? ` id="${o.id}"` : ''}>${text}</text>`;
+    if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}">${o.sub}</text>`;
+    return s;
+  }
+
+  // force arrow from (x0,y0) toward (x1,y1); head at (x1,y1)
+  function forceArrow(x0, y0, x1, y1, col, w = 5, id = '') {
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+    if (L < 4) return '';
+    const ux = dx / L, uy = dy / L, hl = Math.min(L * .6, 8 + w * 2.6), hw = 4 + w * 1.5;
+    const bx = x1 - ux * hl, by = y1 - uy * hl;
+    return `<g${id ? ` id="${id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" stroke-linecap="round"/>` +
+      `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>` +
+      `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1.5"/></g>`;
+  }
+
+  // magnified detail of the SAME drawing (same view), linked to a dashed ring on the source spot
+  function detailInset(refId, src, mag, cx, cy, r, title, sub, id) {
+    const [sx, sy] = src, rs = r / mag, cid = 'cl' + (id || Math.round(cx) + '_' + Math.round(cy));
+    let s = `<g${id ? ` id="${id}"` : ''}>`;
+    s += `<circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.TEXT}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    const d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d;
+    s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.TEXT}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath>`;
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+    s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/>`;
+    s += `<use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.TEXT}" stroke-width="2.5"/>`;
+    s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+    if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+    return s + '</g>';
+  }
+
+  // a value pill: dark rounded box with coloured text (tension tags, pull tag)
+  const PH = { v: 1 };                                   // phone text multiplier (set by the scene each frame)
+  function pill(x, y, text, col, o = {}) {
+    const fs = (o.fs || 18) * PH.v, w = Math.max(30, text.length * fs * .56 + 16), h = fs + 12, anchor = o.anchor || 'middle';
+    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+    return `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x0)}" y="${f(y - h / 2)}" width="${f(w)}" height="${f(h)}" rx="${f(h / 2)}" fill="#1F1D1A" stroke="${col}" stroke-width="2" opacity=".94"/>` +
+      `<text x="${f(x0 + w / 2)}" y="${f(y + fs * .36)}" text-anchor="middle" style="font:800 ${fs}px ${FONT};fill:${col}">${text}</text></g>`;
+  }
+
+  return { W, H, FONT, C, f, pathd, catmull, arcPts, resample, normals, litOffset, defs, styleBlock, backdrop, column,
+    contactShadow, roundBar, wireRope, hookProfile, HOOK, shackleFace, timberEnd, timberSide, label, forceArrow,
+    detailInset, pill, PH };
+})();
+</script>
+<script>/* CrewForge block and tackle scene (rigging remaster, docs/RIGGING_REMASTER_BRIEF.md).
+   One self-contained scene module: calc() (every number on screen), the drawing (STYLE.md, via KIT), motion on the
+   virtual clock, the anchor failure, and the window.sim contract. Page shells (lesson pages, the free simulator,
+   ?capture=1 video pages) mount it with TACKLE.mount({...}).
+
+   THE RIG (side elevation, one scale K px per inch):
+     W12x40 beam across the top -> beam clamp (the anchor) -> top (fixed) block on its hook -> n parts of wire rope ->
+     bottom (moving) block -> hook -> shackle -> lug on a steel test weight (its size follows its weight) on cribbing.
+     The blocks are drawn open with their sheaves spread side by side so every part of line can be counted (labelled
+     on the drawing); on a real block the sheaves sit side by side on one pin.
+     Lead off the fixed (top) block: you pull straight down. Lead off the moving (bottom) block ("reeved to
+     advantage"): the lead runs up to a lead block hung on its own clamp and comes back down to your hands.  */
+const TACKLE = (() => {
+  const { f, pathd, C } = KIT;
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const Q = new URLSearchParams(location.search);
+  const CAPTURE = Q.has('capture');
+
+  /* ===================================================================================== SOURCE DATA
+     Crosby Group general catalogue, blocks, "How to Figure Line Parts" (p. 443): ratio = load ÷ single line pull,
+       A bronze-bushed sheaves, B anti-friction bearing sheaves, 1-8 parts, lead line off the fixed block.
+     US Navy rigging (Steelworker / Builder): allow about 10 % of the load for every sheave the rope runs over.
+     Design factor of the anchor (beam clamp): ANCHOR_DF (see NOTES.md for the source and its status).          */
+  const CROSBY = { bronze: [.96, 1.87, 2.75, 3.59, 4.39, 5.16, 5.90, 6.60], roller: [.98, 1.94, 2.88, 3.81, 4.71, 5.60, 6.47, 7.32] };
+  const LB_TO_KG = 0.45359237, FT_TO_M = 0.3048, G = 9.80665, LBF_TO_N = 4.4482216;
+  const ANCHOR_DF = 5;                                    // beam clamp design factor 5:1 (Harrington UBC sell sheet, NOTES.md)
+  const STEEL_LB_IN3 = 0.2836;                            // steel density, lb per cubic inch (test weight size)
+  const FRIC = { ideal: 'No friction', rule10: '10 % per sheave', bronze: 'Bronze bushed', roller: 'Anti-friction bearing' };
+  // colours of the maths (same in the drawing, the cards and the formula): W off-white, P blue, n orange,
+  // friction purple, distance teal, anchor = W + P stacked. Orange is never a warning.
+  const COL = { W: '#e9e3d6', P: '#59b7ff', n: C.ACC, fr: '#b48af0', dist: '#7fd6c2', anc: '#e9e3d6' };
+
+  /* ===================================================================================== STATE */
+  const S = {
+    parts: 4, lead: 'fixed', friction: 'rule10', load: 4000, rise: 0, units: 'imp', anchorWll: 6000, fail: !CAPTURE,
+    tags: true, count: false, cards: 'all', inset: true
+  };
+  const NUMERIC = ['load', 'rise', 'anchorWll'];
+
+  /* ===================================================================================== GEOMETRY (px)
+     K = 5.2 px per inch (the rig fills the stage). Sheaves 12 in (R = 6 in) for 5/8 in wire rope (D/d about 19).
+     Lanes (parts of line) are one sheave diameter apart. Hooks: Crosby S-319N contour (KIT.hookProfile) scaled to
+     about 6.5 in (top block) and 7.8 in (bottom block) long. All heights below are worked from these.          */
+  const K = 5.2, FLOOR = 840, CRIB = 5.5 * K, R = 6 * K, LANE = 2 * R, ROPE_D = 0.625 * K * 1.15;
+  const X_A = 640;                                       // anchor (main beam clamp) x
+  const BEAM = { top: 6, d: 11.94 * K, tf: 0.515 * K, tw: 0.295 * K };   // W12x40 side elevation
+  const Y_BB = BEAM.top + BEAM.d;                         // underside of the bottom flange
+  const CLAMP_H = 7 * K, Y_PIN = Y_BB + CLAMP_H;          // beam clamp: 1 in pin the top hook hangs on
+  const HK_U = 0.62 * K, HK_L = 0.75 * K;                 // hook scales (px per hook-inch)
+  const Y_USAD = Y_PIN + 0.5 * K;                         // top hook saddle (pin in the bowl)
+  const Y_UT = Y_USAD + 8.62 * HK_U + 1.5 * K;            // top of the top block (yoke)
+  const PM = 1.7 * K, STRAP = PM + 1.2 * K, BOT = PM;     // cheek-plate margin round the sheaves, yoke on top
+  const Y_US = Y_UT + STRAP + R;                          // top block sheave centres
+  const Y_UB = Y_US + R + BOT;                            // bottom of the top block
+  const HOOKDROP = R + BOT + 2.5 * K + 8.62 * HK_L;       // bottom sheave centre -> bottom hook saddle
+  const SHK = 0.75;                                       // shackle size (in) at the load
+  const SHK_DROP = (0.75 * SHK / .625 / 2 + 2.38 * SHK / .625) * K;    // hook saddle (= shackle crown) -> shackle pin
+  const LUG_H = 2 * K;                                    // shackle pin -> top of the test weight
+  const RISE_CAP_FT = 3.5, RISE_CAP_M = 1.05;
+
+  const imp = () => S.units === 'imp';
+  const loadLb = () => imp() ? S.load : S.load / LB_TO_KG;
+  const sidePx = () => Math.cbrt(Math.max(200, loadLb()) / STEEL_LB_IN3) * K;   // test weight cube side
+  const lowSheave0 = () => FLOOR - CRIB - sidePx() - LUG_H - SHK_DROP - HOOKDROP;  // bottom sheave y at rise 0
+  const riseUnitPx = () => imp() ? 12 * K : 12 * K / FT_TO_M;                      // px per ft or per m
+  function riseMax() {                                    // keep 12 in between the blocks, never more than 3.5 ft (1.05 m)
+    const room = (lowSheave0() - (R + STRAP)) - (Y_UB + 12 * K);
+    const lim = n1() ? room + (R + STRAP) - 10 * K : room;
+    return Math.max(0, Math.min(imp() ? RISE_CAP_FT : RISE_CAP_M, lim / riseUnitPx()));
+  }
+  const n1 = () => S.parts === 1;
+
+  /* ===================================================================================== PHYSICS
+     Every number on screen comes from calc().
+     n = parts of line holding the moving block. The lead line counts only when it leaves the moving block.
+     Sheaves the rope runs over in the tackle: Sh = n (lead off the fixed block), n - 1 (lead off the moving block).
+       Ideal          P = W ÷ n
+       10 % rule      P = W × (1 + 0.10 × Sh) ÷ n           (US Navy: add 10 % of the load per sheave)
+       Crosby tables  P = W ÷ ratio(n)                      (A bronze, B roller; lead off the fixed block)
+                      lead off the moving block: ratio = 1 + ratio(n - 1) (the lead part carries P with no sheave in
+                      front of it; the other n - 1 parts run over n - 1 sheaves. Our derivation, NOTES.md)
+     Velocity ratio VR = n: the lead line runs n × the load's rise. Actual MA = W ÷ P. Efficiency = MA ÷ VR.
+     Work out = W × rise, work in = P × travel (ft·lb; metric J = kg × 9.80665 × m).
+     Anchor (statics on the top block, rope weight and block weight left out):
+       lead off the fixed block, pulled straight down: the top block holds every supporting part AND the lead: W + P.
+       lead off the moving block: the lead helps hold the moving block, so the top block holds W - P; the lead block
+       holds the lead twice (up and back down): 2P. The beam still carries W + P in all.
+     Part tensions (drawing tags): each sheave passes on a fraction e of the tension toward the lead (rope bending and
+       bearing friction). e is solved so the tags add up to W and the lead tag equals the method's P exactly, so the
+       picture and the exam formula always agree. Ideal: e = 1, every part W ÷ n.                              */
+  function calc(st = S) {
+    const W = st.load, n = st.parts, lm = st.lead === 'moving' && n >= 2;
+    const c = { W, n, lm, imp: st.units === 'imp', friction: st.friction };
+    c.Sh = lm ? n - 1 : n;
+    c.VR = n; c.MA = n; c.Pideal = W / n;
+    if (st.friction === 'ideal') c.P = W / n;
+    else if (st.friction === 'rule10') c.P = W * (1 + 0.10 * c.Sh) / n;
+    else { const t = CROSBY[st.friction]; c.ratio = lm ? 1 + t[n - 2] : t[n - 1]; c.P = W / c.ratio; }
+    c.fricForce = n * c.P - W;                             // what friction adds (force picture: n × P = W + this)
+    c.MAact = W / c.P; c.eff = c.MAact / c.VR;
+    c.rise = st.rise; c.travel = c.VR * st.rise;
+    const wk = c.imp ? 1 : G;
+    c.workOut = W * st.rise * wk; c.workIn = c.P * c.travel * wk; c.lost = c.workIn - c.workOut;
+    c.kN = c.imp ? c.P * LBF_TO_N / 1000 : c.P * G / 1000;
+    c.anchor = lm ? W - c.P : W + c.P;                     // load on the top block, its hook and the main anchor
+    c.leadBlock = lm ? 2 * c.P : 0;
+    c.beamTotal = c.anchor + c.leadBlock;
+    c.anchorWll = st.anchorWll; c.df = ANCHOR_DF; c.breakAt = st.anchorWll * ANCHOR_DF;
+    c.util = st.anchorWll > 0 ? c.anchor / st.anchorWll : Infinity;
+    c.level = c.util > 1 ? 'bad' : c.util > .8 ? 'warn' : 'ok';
+    // part tensions, lead end first: j = sheaves between the part and the lead
+    const js = []; for (let j = lm ? 0 : 1; j <= (lm ? n - 1 : n); j++) js.push(j);
+    const sumE = e => js.reduce((a, j) => a + Math.pow(e, j), 0);
+    let e = 1;
+    if (st.friction !== 'ideal') { let lo = .3, hi = 1; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (W / sumE(m) > c.P) lo = m; else hi = m; } e = (lo + hi) / 2; }
+    c.e = e; c.partT = js.map(j => c.P * Math.pow(e, j));  // partT[0] is the part nearest the lead
+    return c;
+  }
+
+  /* ===================================================================================== REEVING
+     m sheaves in a row of lanes 0..m (lane = one part of line). Sheave j joins lane j (left) and lane j+1 (right).
+     Lead off the fixed block: m = n, the last sheave is in the top block; lead = lane m, going down to your hands.
+     Lead off the moving block: m = n - 1, the last sheave is in the bottom block; lead = lane m, going up to the
+     lead block; your hand line = lane m + 1.
+     The dead end is lane 0, on whichever block sheave 0 is not in (on the load itself for a single sheave).     */
+  function reeving(n, lead) {
+    const lm = lead === 'moving' && n >= 2, m = lm ? n - 1 : n;
+    const sh = [];
+    for (let j = 0; j < m; j++) sh.push({ j, top: lm ? (m - 1 - j) % 2 === 1 : (m - 1 - j) % 2 === 0 });
+    const deadTop = m > 0 ? !sh[0].top : true;
+    const supporting = [];                               // lanes that hold the moving block
+    for (let l = 0; l < (lm ? m + 1 : m); l++) supporting.push(l);
+    const top = sh.filter(s => s.top), bot = sh.filter(s => !s.top);
+    const upLanes = []; for (let l = 0; l <= (lm ? m - 1 : m); l++) upLanes.push(l);
+    const x0 = X_A - (upLanes[0] + upLanes[upLanes.length - 1]) / 2 * LANE;
+    return { n, lm, m, sh, deadTop, supporting, top, bot, x0, lane: l => x0 + l * LANE, sx: j => x0 + (2 * j + 1) * R };
+  }
+
+  /* ===================================================================================== ANIMATION STATE */
+  let T = 0, tweens = [], callouts = [], ready = false;
+  const A = { D: 0, lastRisePx: null, key: '', arrow: 0, arrowV: 0, reeveT: 1, reeveFrom: 0, needle: 0, creak: 0 };
+  let F = { on: false, t: 0 };                           // failure state (a pure function of F.t when on)
+  const THK = 650;                                       // ms the clamp jaws spread before it lets go
+
+  function risePx() { return S.rise * riseUnitPx(); }
+
+  /* ===================================================================================== DRAWING */
+  let svgEl = null, opts = {};
+  const nf = (v, d = 0) => (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toLocaleString('en-CA', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const wu = () => imp() ? 'lb' : 'kg';
+  const wt = v => nf(Math.round(v)) + ' ' + wu();
+  const ln = (v, d = 1) => nf(v, d) + (imp() ? ' ft' : ' m');
+  const levelCol = l => l === 'bad' ? C.BAD : l === 'warn' ? C.WARN : C.OK;
+  const D2R = Math.PI / 180;
+  // a rigid-body pose: rotate r degrees about (cx, cy), then move (dx, dy)
+  const ID = { dx: 0, dy: 0, r: 0, cx: 0, cy: 0 };
+  const xf = (T, p) => { const a = T.r * D2R, x = p[0] - T.cx, y = p[1] - T.cy; return [T.cx + x * Math.cos(a) - y * Math.sin(a) + T.dx, T.cy + x * Math.sin(a) + y * Math.cos(a) + T.dy]; };
+  const tf = T => `translate(${f(T.dx)} ${f(T.dy)}) rotate(${f(T.r)} ${f(T.cx)} ${f(T.cy)})`;
+
+  function beam() {
+    const y = BEAM.top, d = BEAM.d, t = Math.max(2.5, BEAM.tf);
+    let s = '<g id="beam">';
+    s += `<rect x="-10" y="${f(y)}" width="1620" height="${f(d)}" fill="url(#gBeam)"/>`;                     // web (set back)
+    s += `<rect x="-10" y="${f(y + t)}" width="1620" height="7" fill="#000" opacity=".3"/>`;                 // shadow under the top flange
+    s += `<rect x="-10" y="${f(y)}" width="1620" height="${f(t)}" fill="#7a848e" stroke="#23282c" stroke-width="1"/>`;
+    s += `<rect x="-10" y="${f(y + d - t)}" width="1620" height="${f(t)}" fill="#8a949e" stroke="#23282c" stroke-width="1"/>`;
+    s += `<line x1="-10" y1="${f(y + d - t + .8)}" x2="1610" y2="${f(y + d - t + .8)}" stroke="#c3cad0" stroke-width="1" opacity=".55"/>`;
+    for (const x of [70, 330, 950, 1210, 1470]) s += `<rect x="${x}" y="${f(y + t)}" width="6" height="${f(d - 2 * t)}" fill="#5d6670" stroke="#2b3136" stroke-width=".8"/>`;
+    return s + '</g>';
+  }
+
+  /* Beam clamp (side elevation, as a Harrington UBC-style plate clamp): two jaw plates hooked over the bottom flange,
+     the adjusting spindle with its tommy bar, and a 1 in pin at the bottom that the block hook hangs on.
+     spread 0..1 opens the jaws (failure). Drawn about (x, Y_PIN). */
+  function beamClamp(x, id, o = {}) {
+    const sp = o.spread || 0, w = 10 * K, top = Y_BB - Math.max(2.5, BEAM.tf) - 1.2, py = Y_PIN;
+    let s = `<g id="${id}">`;
+    const jaw = side => {                                 // one jaw: lip over the flange edge, plate down to the pin
+      const a = side * sp * 22;                           // the jaw swings out about the pin as it spreads
+      const lipX = x + side * w / 2;
+      const P = [[x + side * 1.2 * K, py], [lipX - side * .6 * K, py - 2.6 * K], [lipX, top + 1.2 * K], [lipX, top - .6 * K], [lipX - side * 1.6 * K, top - .6 * K], [lipX - side * 1.6 * K, top + .5 * K], [x + side * .9 * K, top + 2.2 * K], [x, py - 1.4 * K]];
+      return `<g transform="rotate(${f(a)} ${f(x)} ${f(py)})"><path d="${KIT.pathd(P, true)}" fill="url(#gPaint)" stroke="#1b1f22" stroke-width="1.5" stroke-linejoin="round"/>` +
+        `<path d="${KIT.pathd([[lipX - side * 1.4 * K, top - .3 * K], [lipX - side * .2 * K, top - .3 * K]])}" stroke="#c3cad0" stroke-width="1.4" opacity=".7"/></g>`;
+    };
+    s += jaw(-1) + jaw(1);
+    // spindle across the jaws with its tommy bar (seen end-on as a boss, bar across)
+    const sy = top + 3.6 * K + sp * 1.5 * K;
+    s += `<line x1="${f(x - 3 * K)}" y1="${f(sy)}" x2="${f(x + 3 * K)}" y2="${f(sy)}" stroke="#2b3136" stroke-width="${f(.7 * K)}" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(x)}" cy="${f(sy)}" r="${f(1.1 * K)}" fill="#a6aeb4" stroke="#2b3136" stroke-width="1.2"/>`;
+    s += `<circle id="${id}-pin" cx="${f(x)}" cy="${f(py)}" r="${f(.5 * K)}" fill="#d3d9de" stroke="#1b1f22" stroke-width="1"/>`;
+    return s + '</g>';
+  }
+
+  // top hook of a block: the S-319 contour turned over (bowl up, shank down), saddle on the anchor pin; a swivel neck
+  // joins the shank to the block's yoke. Drawn in front of the clamp pin so the pin shows in the bowl.
+  const topHook = (x, ysad, id) => `<rect x="${f(x - .9 * K)}" y="${f(ysad + 8.62 * HK_U - 3)}" width="${f(1.8 * K)}" height="${f(Y_UT - ysad - 8.62 * HK_U + 5)}" rx="2" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>` +
+    `<g transform="rotate(180 ${f(x)} ${f(ysad)})">${KIT.hookProfile(x, ysad, HK_U, { id, flip: true })}</g>` +
+    `<circle cx="${f(x)}" cy="${f(Y_PIN)}" r="${f(.5 * K)}" fill="#d3d9de" stroke="#1b1f22" stroke-width="1"/>`;
+
+  function sheave(x, y, ang, id) {
+    let s = `<g id="${id}"><circle cx="${f(x)}" cy="${f(y)}" r="${f(R + .7 * K)}" fill="url(#gSheave)" stroke="#2b3136" stroke-width="1.5"/>`;
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R - .35 * K)}" fill="none" stroke="#3b4247" stroke-width="1.2" opacity=".8"/>`;  // groove root
+    for (let i = 0; i < 5; i++) {                       // lightening holes turn with the sheave
+      const a = ang + i * Math.PI * 2 / 5, hx = x + Math.cos(a) * R * .56, hy = y + Math.sin(a) * R * .56;
+      s += `<circle cx="${f(hx)}" cy="${f(hy)}" r="${f(R * .15)}" fill="#3a4147" stroke="#23282c" stroke-width=".8"/>`;
+    }
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R * .26)}" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>`;   // bushing
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(R * .12)}" fill="#c9ced2" stroke="#23282c" stroke-width=".8"/>`;    // pin end
+    return s + '</g>';
+  }
+
+  /* A wire rope block, cheek plates in elevation (STYLE: painted steel). The back plate is solid; the front plate is
+     drawn cut away (a frame) so the sheaves inside can be seen. Sheaves are spread in a row so every part of line can
+     be counted (labelled once on the drawing). back() goes behind the rope, front() over it. */
+  function plateShape(xL, xR, ySh, isTop) {
+    const l = xL - R - PM, r = xR + R + PM, t = ySh - R - PM, b = ySh + R + PM, rr = R + PM;
+    return { l, r, t, b, rr, d: `M${f(l + rr)} ${f(t)} L${f(r - rr)} ${f(t)} A${f(rr)} ${f(rr)} 0 0 1 ${f(r - rr)} ${f(b)} L${f(l + rr)} ${f(b)} A${f(rr)} ${f(rr)} 0 0 1 ${f(l + rr)} ${f(t)}Z` };
+  }
+  function blockBack(xL, xR, ySh, isTop, id) {
+    const p = plateShape(xL, xR, ySh, isTop);
+    return `<g id="${id}"><path d="${p.d}" fill="#3a4148" stroke="#1d2226" stroke-width="2"/>` +
+      `<path d="${p.d}" fill="#000" opacity=".18" transform="translate(3 4)"/></g>`;
+  }
+  function blockFront(xL, xR, ySh, isTop, becketX) {
+    const p = plateShape(xL, xR, ySh, isTop), w = 1.35 * K;
+    const inner = plateShape(xL, xR, ySh, isTop);
+    // inner window = the outline inset by w
+    const il = p.l + w, ir = p.r - w, it = p.t + w, ib = p.b - w, irr = p.rr - w;
+    const win = `M${f(il + irr)} ${f(it)} L${f(ir - irr)} ${f(it)} A${f(irr)} ${f(irr)} 0 0 1 ${f(ir - irr)} ${f(ib)} L${f(il + irr)} ${f(ib)} A${f(irr)} ${f(irr)} 0 0 1 ${f(il + irr)} ${f(it)}Z`;
+    let s = `<path d="${p.d} ${win}" fill="url(#gPaintSide)" fill-rule="evenodd" stroke="#1d2226" stroke-width="1.8"/>`;
+    s += `<path d="${win}" fill="none" stroke="#9aa4ad" stroke-width="1" opacity=".55"/>`;                       // lit cut edge
+    s += `<path d="M${f(p.l + p.rr)} ${f(p.t + 2)} L${f(p.r - p.rr)} ${f(p.t + 2)}" stroke="#c3cad0" stroke-width="1.6" opacity=".55"/>`; // top-left light
+    // spacer bolts at the plate ends (they tie the two cheek plates together)
+    for (const bx of [p.l + w * .5 + 2, p.r - w * .5 - 2]) s += `<circle cx="${f(bx)}" cy="${f(ySh)}" r="${f(.55 * K)}" fill="#8d969d" stroke="#1d2226" stroke-width="1"/>`;
+    // yoke: the top block's swivel yoke over the plates; the bottom block's yoke under them carries the hook
+    const cx = (p.l + p.r) / 2;
+    if (isTop) s += `<path d="M${f(cx - 4 * K)} ${f(p.t + 1)} L${f(cx - 2.2 * K)} ${f(p.t - 1.2 * K)} L${f(cx + 2.2 * K)} ${f(p.t - 1.2 * K)} L${f(cx + 4 * K)} ${f(p.t + 1)}Z" fill="#6e7882" stroke="#1d2226" stroke-width="1.4"/>`;
+    else s += `<path d="M${f(cx - 4 * K)} ${f(p.b - 1)} L${f(cx - 2.2 * K)} ${f(p.b + 1.4 * K)} L${f(cx + 2.2 * K)} ${f(p.b + 1.4 * K)} L${f(cx + 4 * K)} ${f(p.b - 1)}Z" fill="#6e7882" stroke="#1d2226" stroke-width="1.4"/>`;
+    if (becketX != null) {                               // becket: forged eye where the dead end ties on
+      const by = isTop ? p.b : p.t, dir = isTop ? 1 : -1;
+      const q = `M${f(becketX - 1.3 * K)} ${f(by - dir * 2)} Q${f(becketX)} ${f(by + dir * 4.4 * K)} ${f(becketX + 1.3 * K)} ${f(by - dir * 2)}`;
+      s += `<path d="${q}" fill="none" stroke="#2b3136" stroke-width="${f(1.0 * K + 1.6)}"/><path d="${q}" fill="none" stroke="#a6aeb4" stroke-width="${f(1.0 * K)}"/>`;
+    }
+    return s;
+  }
+
+  // rope end at a becket: thimble eye + a pressed sleeve
+  function deadEnd(x, y, up) {
+    const s = up ? -1 : 1, eye = 3.4 * K, y0 = y + s * 2.6 * K;
+    let o = KIT.roundBar(KIT.catmull([[x, y0 + s * eye], [x - 1.2 * K, y0 + s * eye * .5], [x, y0], [x + 1.2 * K, y0 + s * eye * .5], [x, y0 + s * eye]], 6), ROPE_D * .9, '#b9c1c7', C.ROPE_D, '#eef1f3');
+    o += `<rect x="${f(x - 1.1 * K)}" y="${f(y0 + s * (eye + .3 * K) - (s < 0 ? 2.4 * K : 0))}" width="${f(2.2 * K)}" height="${f(2.4 * K)}" rx="2" fill="#a3abb1" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    return o;
+  }
+
+  function testWeight(cx, top, id) {
+    const s = sidePx(), x = cx - s / 2;
+    let o = `<g id="${id}">`;
+    o += `<rect x="${f(x)}" y="${f(top)}" width="${f(s)}" height="${f(s)}" rx="3" fill="url(#gWeight)" stroke="#23282c" stroke-width="2"/>`;
+    o += `<rect x="${f(x + 3)}" y="${f(top + 3)}" width="${f(s - 6)}" height="${f(Math.min(6, s * .08))}" fill="#fff" opacity=".12"/>`;
+    o += `<rect x="${f(x + s - Math.max(4, s * .1))}" y="${f(top + 2)}" width="${f(Math.max(4, s * .1) - 2)}" height="${f(s - 4)}" fill="#000" opacity=".16"/>`;
+    const fs = clamp(s * .2, KIT.PH.v > 1 ? 15 : 11, 30) * KIT.PH.v;
+    o += `<text x="${f(cx)}" y="${f(top + s / 2 + fs * .35)}" text-anchor="middle" id="load-label" style="font:800 ${f(fs)}px ${KIT.FONT};fill:#efe9dc;letter-spacing:.02em">${nf(S.load)} ${wu()}</text>`;
+    o += `<rect id="load-lug" x="${f(cx - .5 * K)}" y="${f(top - 3.6 * K)}" width="${f(1 * K)}" height="${f(3.8 * K)}" rx="1.5" fill="#6e7882" stroke="#23282c" stroke-width="1.2"/>`;
+    return o + '</g>';
+  }
+  function cribbing(cx, w) {
+    const h = CRIB, cw = 6 * K * .917;                  // 6x6 cribbing, 5.5 in actual
+    let o = '<g id="cribbing">';
+    for (const dx of [-w * .32, w * .32]) o += KIT.timberEnd(cx + dx - cw / 2, FLOOR - h, cw, h, 'cr' + Math.round(dx));
+    return o + '</g>';
+  }
+  // hand line below your hands: hangs to the floor and piles up as you pull
+  function tail(x, yGrip, travelPx, phase) {
+    let o = KIT.wireRope([[x, yGrip], [x, FLOOR - 10]], ROPE_D, -phase);
+    const coils = clamp(Math.floor(travelPx / 70), 0, 9);
+    for (let i = 0; i < coils; i++) {
+      const cy = FLOOR - 6 - i * 3.4, rx = 34 + (i % 3) * 3;
+      o += `<ellipse cx="${f(x + 30)}" cy="${f(cy)}" rx="${f(rx)}" ry="8" fill="none" stroke="${C.ROPE_D}" stroke-width="${f(ROPE_D + 1.4)}"/>`;
+      o += `<ellipse cx="${f(x + 30)}" cy="${f(cy)}" rx="${f(rx)}" ry="8" fill="none" stroke="${C.ROPE_M}" stroke-width="${f(ROPE_D)}"/>`;
+    }
+    return o;
+  }
+  function ropeArc(x, y, top) {
+    return KIT.roundBar(KIT.arcPts(x, y, R, 180, top ? 360 : 0, 20), ROPE_D, C.ROPE_M, C.ROPE_D, '#e9edf0', 'butt', .7);
+  }
+  // a rope between two points; slack (length L0 > chord) hangs in a catenary-like sag that never goes under the floor
+  function ropeBetween(a, b, L0, phase, id) {
+    a = [a[0], Math.min(a[1], FLOOR - 5)]; b = [b[0], Math.min(b[1], FLOOR - 5)];   // a rope end never goes through the floor
+    const ch = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    let P = [a, b];
+    if (L0 > ch + 2) {
+      const sagv = Math.min(Math.sqrt(Math.max(0, L0 * L0 - ch * ch)) * .5, 260);
+      const m = [(a[0] + b[0]) / 2 + (b[1] - a[1]) * .08, Math.min(FLOOR - 8, (a[1] + b[1]) / 2 + sagv)];
+      P = KIT.catmull([a, m, b], 12);
+    }
+    return `<g${id ? ` id="${id}"` : ''}>${KIT.wireRope(P, ROPE_D, phase)}</g>`;
+  }
+
+  /* ---------------------------------------------------------------- the whole scene, one frame */
+  function draw(c) {
+    KIT.PH.v = !CAPTURE && window.matchMedia && matchMedia('(max-width:700px)').matches ? 1.75 : 1;
+    const rv = reeving(S.parts, S.lead), lm = rv.lm, rp = risePx();
+    const side = sidePx();
+    const topSh = rv.sh.filter(q => q.top), botSh = rv.sh.filter(q => !q.top);
+    const bcx = rv.n > 1 ? (rv.lane(rv.supporting[0]) + rv.lane(rv.supporting[rv.supporting.length - 1])) / 2 : rv.lane(0);
+    const yLow0 = lowSheave0() - rp;                      // bottom sheave centres (rope eye for one part)
+    const tL = Math.min(topSh.length ? rv.sx(topSh[0].j) : X_A, rv.deadTop && rv.n > 1 ? rv.lane(0) + R : 1e9);
+    const tR = Math.max(topSh.length ? rv.sx(topSh[topSh.length - 1].j) : X_A, tL);
+    const bL = Math.min(botSh.length ? rv.sx(botSh[0].j) : bcx, !rv.deadTop ? rv.lane(0) + R : 1e9);
+    const bR = Math.max(botSh.length ? rv.sx(botSh[botSh.length - 1].j) : bcx, bL);
+    const pose = failPose(rv, { side, yLow0, bcx, tL, tR, bL, bR });   // rigid-body poses (identity until the anchor fails)
+    const PT = pose.top, PB = pose.bot, PL = pose.load, PC = pose.clamp;
+    const vel = laneSpeeds(rv), reeve = A.reeveT;
+    const handX = lm ? rv.lane(rv.m + 1) : rv.lane(rv.m), yGrip = 600;
+    const leadBlockX = lm ? rv.sx(rv.m) : null;
+    const loadTop = lowSheave0() - rp + HOOKDROP + SHK_DROP + LUG_H;
+
+    let s = KIT.styleBlock(phoneCss()) + KIT.defs() + KIT.backdrop(FLOOR);
+    s += KIT.column(18, FLOOR, Y_BB, 30) + KIT.column(1552, FLOOR, Y_BB, 30);
+    s += '<g id="anchor-src">' + beam();
+    if (lm) s += beamClamp(leadBlockX, 'lead-anchor', {});
+    s += `<g id="anchor-g" transform="${tf(PC)}">` + beamClamp(X_A, 'anchor', { spread: pose.spread }) + '</g>';
+
+    // ---- the load, its shackle and the bottom hook (drawn first: the blocks may land in front of it)
+    const hookSad = yLow0 + HOOKDROP;
+    s += `<g id="load-g" transform="${tf(PL)}">` + loadStack(bcx, hookSad, loadTop, side, rv.n === 1) + '</g>';
+    s += KIT.contactShadow(bcx, FLOOR + 4, side * 1.2, 16, clamp(1 - (FLOOR - CRIB - side - (loadTop + PL.dy)) / 300, .25, 1)) + cribbing(bcx, side);
+
+    // ---- block backs
+    if (rv.n > 1) s += `<g transform="${tf(PB)}">` + blockBack(bL, bR, yLow0, false, 'lower-block') + '</g>';
+    s += `<g transform="${tf(PT)}">` + blockBack(tL, tR, Y_US, true, 'upper-block') + '</g>';
+    if (lm) s += blockBack(leadBlockX, leadBlockX, Y_US, true, 'lead-block');
+
+    // ---- the rope: every part between the blocks (ends follow the blocks; slack when the anchor has let go)
+    const yBotEnd = rv.n > 1 ? yLow0 : hookSad - 6.5 * K;
+    for (let l = 0; l < rv.m + (lm ? 1 : 0); l++) {
+      const x = rv.lane(l);
+      let top = [x, Y_US], bot = [x, yBotEnd], Tt = PT, Tb = PB;
+      if (l === 0 && rv.deadTop && rv.n > 1) top = [x, Y_UB + 6 * K];
+      if (l === 0 && !rv.deadTop && rv.n > 1) bot = [x, yLow0 - R - PM - 6 * K];
+      if (rv.n === 1) Tb = PL;
+      if (l === rv.m && lm) { top = [x, Y_US]; Tt = ID; }
+      const a = xf(Tb, bot), b = xf(Tt, top), L0 = Math.abs(top[1] - bot[1]);
+      let A2 = a, B2 = b;
+      if (reeve < 1 && l >= rv.m - 1) B2 = [a[0] + (b[0] - a[0]) * reeve, a[1] + (b[1] - a[1]) * reeve];
+      s += ropeBetween(A2, B2, reeve < 1 ? 0 : L0, vel[l] * A.D, 'part-' + l);
+    }
+
+    // ---- sheaves, the rope in their grooves, dead ends, front plates
+    s += `<g id="lower-block-g" transform="${tf(PB)}">`;
+    if (rv.n > 1) {
+      botSh.forEach((q, i) => { s += sheave(rv.sx(q.j), yLow0, (vel[q.j] - 1) * A.D / R, 'sheave-l' + i) + ropeArc(rv.sx(q.j), yLow0, false); });
+      if (!rv.deadTop) s += deadEnd(rv.lane(0), yLow0 - R - PM, true);
+      s += blockFront(bL, bR, yLow0, false, !rv.deadTop ? rv.lane(0) : null);
+      s += `<rect x="${f(bcx - .9 * K)}" y="${f(yLow0 + R + PM + 1.2 * K)}" width="${f(1.8 * K)}" height="${f(1.4 * K)}" fill="#6e7882" stroke="#23282c" stroke-width="1"/>`;
+    }
+    s += '</g>';
+    if (rv.n > 1) s += `<g transform="${tf(pose.hook)}">` + KIT.hookProfile(bcx, hookSad, HK_L, { id: 'hook' }) + '</g>';
+    s += `<g id="upper-block-g" transform="${tf(PT)}">` + topHook(X_A, Y_USAD, 'top-hook');
+    topSh.forEach((q, i) => { s += sheave(rv.sx(q.j), Y_US, vel[q.j] * A.D / R, 'sheave-u' + i) + ropeArc(rv.sx(q.j), Y_US, true); });
+    if (rv.deadTop && rv.n > 1 && !(F.on && F.t > THK)) s += deadEnd(rv.lane(0), Y_UB, false);   // the eye flops out of sight once the block falls
+    s += blockFront(tL, tR, Y_US, true, rv.deadTop && rv.n > 1 ? rv.lane(0) : null) + '</g>';
+    if (lm) {
+      s += topHook(leadBlockX, Y_USAD, 'lead-hook');
+      s += sheave(leadBlockX, Y_US, vel[rv.m] * A.D / R, 'sheave-lead') + ropeArc(leadBlockX, Y_US, true) + blockFront(leadBlockX, leadBlockX, Y_US, true, null);
+    }
+
+    // ---- the hand line: from the last sheave down through your hands to the coil on the floor
+    if (!F.on) {
+      const handTop = Y_US;
+      let P = [[handX, yGrip], [handX, handTop]];
+      if (reeve < 1) P = [[handX, handTop + (yGrip - handTop) * reeve], [handX, handTop]];
+      s += `<g id="lead-line">${KIT.wireRope(P, ROPE_D, -rv.n * A.D)}${reeve >= 1 ? tail(handX, yGrip, c.travel * riseUnitPx(), rv.n * A.D) : ''}</g>`;
+    } else {
+      const from = lm ? [handX, Y_US] : xf(PT, [handX, Y_US]);
+      s += ropeBetween(from, [handX + 30, FLOOR - 8], Math.max(0, FLOOR - Y_US), 0, 'lead-line');
+      s += tail(handX, FLOOR - 9, c.travel * riseUnitPx(), 0).replace(/<g[^>]*>/, '');
+    }
+    s += '</g>';                                           // end of anchor-src (the whole rig: the inset magnifies it)
+
+    // ---- visual maths, labels, inset, cards, failure
+    if (!F.on) s += overlays(c, rv, { yU: Y_US, yLow: yLow0, handX, yGrip, leadBlockX, tL, tR });
+    if (S.inset) {
+      const src = F.on ? xf(PC, [X_A, Y_PIN - 3 * K]) : [X_A, Y_PIN - 3 * K];
+      s += KIT.detailInset('anchor-src', src, 3, 215, (!F.on && yLow0 > 200 && yLow0 < 450) ? 650 : 345, 85, '', F.on ? 'CLAMP ×3 · jaws spread' : 'ANCHOR ×3 · beam clamp', 'anchor-inset');
+    }
+    if (!F.on) s += sceneLabels(c, rv, { yLow: yLow0, tL, tR, bL });
+    if (S.cards && S.cards !== 'none' && !F.on) s += cards(c);
+    if (F.on) s += failOverlay(c, rv, pose, side, bcx);
+    return s;
+  }
+
+  function loadStack(cx, hookSad, loadTop, side, eyeOnly) {
+    let s = '';
+    if (eyeOnly) {                                       // one part: the rope's own thimble eye carries the shackle
+      const x = cx, ey = hookSad;
+      s += KIT.roundBar(KIT.catmull([[x, ey - 6.5 * K], [x - 1.4 * K, ey - 3.6 * K], [x - 1.2 * K, ey - 1 * K], [x, ey], [x + 1.2 * K, ey - 1 * K], [x + 1.4 * K, ey - 3.6 * K], [x, ey - 6.5 * K]], 6), ROPE_D * .9, '#b9c1c7', C.ROPE_D, '#eef1f3');
+      s += `<rect x="${f(x - 1.2 * K)}" y="${f(ey - 9 * K)}" width="${f(2.4 * K)}" height="${f(2.6 * K)}" rx="2" fill="#a3abb1" stroke="${C.STEEL_D}" stroke-width="1.2"/>`;
+    }
+    const sh = KIT.shackleFace(cx, loadTop - LUG_H, K, true, SHK);
+    return s + `<g id="shackle">${sh.back}</g>` + testWeight(cx, loadTop, 'load-box') + `<g>${sh.front}</g>`;
+  }
+
+  /* material speed of the rope in each lane, as a multiple of the load speed (upward +). Fixed sheave: the speed carries
+     over with its sign flipped; moving sheave (moving at 1): u(next) = 2 - u. */
+  function laneSpeeds(rv) {
+    const u = [];
+    u[0] = rv.deadTop ? 0 : 1;
+    if (rv.n === 1) u[0] = 1;
+    for (let j = 0; j < rv.m; j++) u[j + 1] = rv.sh[j].top ? -u[j] : 2 - u[j];
+    if (rv.lm) u[rv.m + 1] = -u[rv.m];
+    return u;
+  }
+
+  function overlays(c, rv, g) {
+    let s = '';
+    const W = c.W;
+    const gap = (g.yLow - R - PM) - (Y_UB), crowded = gap < 150;   // blocks close together: one row of tags, no numbers
+    if (S.count && !crowded) {                            // part numbers on every part that holds the moving block
+      rv.supporting.forEach((l, i) => {
+        const x = rv.lane(l), y = rv.n > 1 ? g.yLow - R - PM - 30 : g.yLow - 120;
+        const cm = KIT.PH.v > 1 ? 1.65 : 1;            // phone: bigger count bubbles
+        s += `<g id="count-${i + 1}"><circle cx="${f(x)}" cy="${f(y)}" r="${f(14 * cm)}" fill="${C.ACC}" stroke="#1F1D1A" stroke-width="2"/><text x="${f(x)}" y="${f(y + 6 * cm)}" text-anchor="middle" class="pts" style="fill:#1F1D1A;font-weight:900;font-size:${f(16 * cm)}px">${i + 1}</text></g>`;
+      });
+    }
+    if (S.tags) {                                         // tension on each part (two staggered rows)
+      const ymid = (g.yU + R + PM + g.yLow - R - PM) / 2 - (S.count && !crowded ? 14 : 0), T = c.partT;
+      rv.supporting.forEach((l, i) => {
+        const j = c.lm ? rv.n - 1 - i : rv.n - i, t = c.lm ? T[j] : T[j - 1];
+        s += KIT.pill(rv.lane(l), crowded ? (Y_UB + g.yLow - R - PM) / 2 : ymid + (l % 2 ? 20 : -20), nf(Math.round(t)), C.TEXT, { id: 'tag-' + i, fs: crowded && KIT.PH.v === 1 ? 13 : 15 });
+      });
+    }
+    if (c.friction !== 'ideal' && g.yLow - g.yU > 200) {  // friction badges between each sheave's own two parts
+      const txt = c.friction === 'rule10' ? '+10 %' : (Math.round(c.e * 1000) / 10) + ' %';
+      rv.sh.forEach((q, i) => {
+        const y = q.top ? Y_UB + 20 : g.yLow - R - PM - (S.count ? 58 : 20);
+        s += KIT.pill(rv.sx(q.j), y, txt, COL.fr, { fs: KIT.PH.v > 1 ? 14.5 : 13, id: 'fric-' + i });
+      });
+    }
+    const L = clamp(130 * c.P / W, 18, 190);
+    s += KIT.forceArrow(g.handX + 18, g.yGrip, g.handX + 18, g.yGrip + L, COL.P, 6, 'pull-arrow');
+    s += `<circle id="grip" cx="${f(g.handX)}" cy="${f(g.yGrip)}" r="15" fill="none" stroke="${C.ACC}" stroke-width="3"${CAPTURE ? ' opacity="0"' : ''}/>`;
+    s += KIT.pill(g.handX + 14, g.yGrip - 30, 'Pull ' + wt(c.P), COL.P, { id: 'pull-tag', fs: 18, anchor: 'start' });
+    const col = S.fail ? levelCol(c.level) : C.TEXT;
+    s += KIT.pill(c.lm ? X_A - 7 * K : X_A + 7 * K, (Y_BB + Y_UT) / 2 + 2, 'Anchor ' + wt(c.anchor), col, { id: 'anchor-tag', fs: 16, anchor: c.lm ? 'end' : 'start' });
+    if (c.lm) s += KIT.pill(g.handX + 16, Y_US, 'Lead block anchor ' + wt(c.leadBlock) + ' (2P)', C.TEXT, { id: 'lead-anchor-tag', fs: 16, anchor: 'start' });
+    return s;
+  }
+
+  function sceneLabels(c, rv, g) {
+    if (!S.labels) return '';
+    const lx = Math.min(g.tL, g.bL) - R - PM - 24;
+    let s = KIT.label(lx, Y_US + 9, 'Top block · fixed', [g.tL - R - PM * .5, Y_US], { anchor: 'end' });
+    if (rv.n > 1) s += KIT.label(lx, g.yLow + 9, 'Bottom block · moving', [g.bL - R - PM * .5, g.yLow], { anchor: 'end' });
+    s += `<text class="lm halo" x="${f(lx)}" y="${f(Y_US + 36)}" text-anchor="end" style="font-size:17px">front plate cut away · sheaves spread for counting</text>`;
+    return s;
+  }
+
+  /* ---------------------------------------------------------------- the maths cards (right side of the stage) */
+  const CX = 1110, CW = 460;
+  function card(id, y, h, title) {
+    return `<g id="${id}"><rect x="${CX}" y="${y}" width="${CW}" height="${h}" rx="14" fill="#1c1a17" stroke="#4a4640" stroke-width="1.5" opacity=".96"/>` +
+      `<text x="${CX + 18}" y="${y + 28}" class="pts" style="fill:${C.MUTED};letter-spacing:.1em;font-size:14px">${title}</text>`;
+  }
+  function cards(c) {
+    let s = '';
+    const want = S.cards === 'all' ? ['anchor', 'force', 'dist', 'work'] : String(S.cards).split(',');
+    let y = Y_BB + 14;
+    const W = c.W, x0 = CX + 20, w = CW - 40;
+    if (want.includes('anchor')) {
+      const h = 150, sc = w / Math.max(c.W + c.P, c.anchorWll, 1), col = S.fail ? levelCol(c.level) : C.TEXT;
+      s += card('vm-anchor', y, h, 'ANCHOR · ' + (c.lm ? 'W − P (the lead helps hold the block)' : 'W + P (you pull down on it too)'));
+      if (!c.lm) s += `<rect x="${x0}" y="${y + 44}" width="${f(c.W * sc)}" height="26" fill="${COL.W}" rx="3"/><rect x="${f(x0 + c.W * sc)}" y="${y + 44}" width="${f(c.P * sc)}" height="26" fill="${COL.P}" rx="3"/>`;
+      else s += `<rect x="${x0}" y="${y + 44}" width="${f((c.W - c.P) * sc)}" height="26" fill="${COL.W}" rx="3"/><rect x="${f(x0 + (c.W - c.P) * sc)}" y="${y + 44}" width="${f(c.P * sc)}" height="26" fill="none" stroke="${COL.P}" stroke-width="2" stroke-dasharray="5 4" rx="3"/>`;
+      s += `<line x1="${f(x0 + c.anchorWll * sc)}" y1="${y + 36}" x2="${f(x0 + c.anchorWll * sc)}" y2="${y + 80}" stroke="${C.WARN}" stroke-width="3"/>`;
+      s += `<text x="${f(Math.min(x0 + c.anchorWll * sc, CX + CW - 20))}" y="${y + 98}" text-anchor="end" class="pts" style="fill:${C.WARN};font-size:14px">rated ${wt(c.anchorWll)}</text>`;
+      s += `<text x="${x0}" y="${y + 128}" class="pts" style="fill:${col}">${wt(c.anchor)} = ${nf(c.util * 100)} % of rating</text>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('force')) {
+      const h = 160, sc = w / Math.max(c.n * c.P, W);
+      s += card('vm-force', y, h, 'FORCE · ' + c.n + ' × P = W' + (c.friction !== 'ideal' ? ' + friction' : ''));
+      s += `<rect x="${x0}" y="${y + 44}" width="${f(W * sc)}" height="26" fill="${COL.W}" rx="3"/><text x="${x0 + 8}" y="${y + 63}" class="pts" style="fill:#1F1D1A">W ${wt(W)}</text>`;
+      for (let i = 0; i < c.n; i++) s += `<rect x="${f(x0 + i * c.P * sc)}" y="${y + 82}" width="${f(c.P * sc - 2)}" height="26" fill="${COL.P}" rx="3" opacity="${.75 + .25 * (i % 2)}"/>`;
+      if (c.fricForce > 0.5) s += `<rect x="${f(x0 + W * sc)}" y="${y + 78}" width="${f(c.fricForce * sc)}" height="34" fill="none" stroke="${COL.fr}" stroke-width="3" rx="3"/>` +
+        `<text x="${f(Math.min(x0 + W * sc + 6, CX + CW - 150))}" y="${y + 134}" class="pts" style="fill:${COL.fr}">friction ${wt(c.fricForce)}</text>`;
+      s += `<text x="${x0}" y="${y + 134}" class="pts" style="fill:${COL.P}"><tspan style="fill:${COL.n}">${c.n}</tspan> × ${wt(c.P)} = ${wt(c.n * c.P)}</text>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('dist')) {
+      const h = 150, maxT = Math.max(c.VR * riseMax(), 1e-6), sc = w / maxT;
+      s += card('vm-dist', y, h, 'DISTANCE · lead travel = ' + c.n + ' × rise');
+      s += `<g id="vm-rise"><rect x="${x0}" y="${y + 46}" width="${f(w)}" height="20" fill="#2a2723" rx="3"/><rect x="${x0}" y="${y + 46}" width="${f(c.rise * sc)}" height="20" fill="${COL.dist}" rx="3"/>` +
+        `<text x="${x0}" y="${y + 88}" class="pts" style="fill:${COL.dist}">Load rise ${ln(c.rise, 2)}</text></g>`;
+      s += `<g id="vm-lead"><rect x="${x0}" y="${y + 100}" width="${f(w)}" height="20" fill="#2a2723" rx="3"/><rect x="${x0}" y="${y + 100}" width="${f(c.travel * sc)}" height="20" fill="${COL.P}" rx="3"/>`;
+      for (let i = 1; i < c.n && c.rise > 0; i++) s += `<line x1="${f(x0 + i * c.rise * sc)}" y1="${y + 98}" x2="${f(x0 + i * c.rise * sc)}" y2="${y + 122}" stroke="#1F1D1A" stroke-width="2"/>`;
+      s += `<text x="${x0}" y="${y + 142}" class="pts" style="fill:${COL.P}">Lead line ${ln(c.travel, 2)} = <tspan style="fill:${COL.n}">${c.n}</tspan> × ${ln(c.rise, 2)}</text></g>`;
+      s += '</g>'; y += h + 10;
+    }
+    if (want.includes('work')) {
+      const h = 160, mx = Math.max(c.workIn, c.workOut, 1e-9), sc = w / mx, wu2 = imp() ? ' ft·lb' : ' J';
+      s += card('vm-work', y, h, 'WORK · in = out + friction');
+      s += `<g id="vm-in"><rect x="${x0}" y="${y + 46}" width="${f(Math.max(0, c.workIn * sc))}" height="22" fill="none" stroke="${COL.P}" stroke-width="2.5" rx="3"/>` +
+        `<text x="${x0}" y="${y + 90}" class="pts" style="fill:${COL.P}">In: ${wt(c.P)} × ${ln(c.travel, 2)} = ${nf(Math.round(c.workIn))}${wu2}</text></g>`;
+      s += `<g id="vm-out"><rect x="${x0}" y="${y + 104}" width="${f(c.workOut * sc)}" height="22" fill="${COL.W}" rx="3"/>` +
+        (c.lost > 1 ? `<rect x="${f(x0 + c.workOut * sc)}" y="${y + 104}" width="${f(c.lost * sc)}" height="22" fill="${COL.fr}" rx="3"/>` : '') +
+        `<text x="${x0}" y="${y + 148}" class="pts" style="fill:${COL.W}">Out: ${wt(c.W)} × ${ln(c.rise, 2)} = ${nf(Math.round(c.workOut))}${wu2}${c.lost > 1 ? `<tspan style="fill:${COL.fr}">  lost ${nf(Math.round(c.lost))}</tspan>` : ''}</text></g>`;
+      s += '</g>';
+    }
+    return s;
+  }
+
+  // the live formula, colour-matched to the drawing (HTML, under the stage)
+  function formulaHtml(c) {
+    const sp = (col, t) => `<span style="color:${col}">${t}</span>`;
+    const P = sp(COL.P, 'P'), Wt = sp(COL.W, nf(c.W)), nT = sp(COL.n, c.n);
+    if (c.friction === 'ideal') return `${P} = W ÷ n = ${Wt} ÷ ${nT} = ${sp(COL.P, wt(c.P))}`;
+    if (c.friction === 'rule10') return `${P} = W × (1 + 0.10 × ${sp(COL.fr, c.Sh)} sheaves) ÷ n = ${Wt} × ${sp(COL.fr, nf(1 + .1 * c.Sh, 1))} ÷ ${nT} = ${sp(COL.P, wt(c.P))}`;
+    return `${P} = W ÷ ratio = ${Wt} ÷ ${sp(COL.fr, nf(c.ratio, 2))} (maker's table, ${FRIC[c.friction].toLowerCase()}) = ${sp(COL.P, wt(c.P))}`;
+  }
+
+  /* ===================================================================================== FAILURE
+     The anchor (beam clamp) breaks when its load is greater than its WLL × ANCHOR_DF. Every pose below is a pure
+     function of the failure clock (deterministic frames), with g = 386 in/s² on the drawing scale:
+       0 - THK ms   the jaws spread, the rig shudders.
+       then         everything falls freely together (½ g t²) until the load lands on its cribbing.
+                    The bottom block keeps falling until it lies on top of the load (hook folded beside the shackle).
+                    The top block keeps falling until it hits the bottom block, then tips off and lands flat on the
+                    floor beside the load; the clamp, still on its hook, follows it down and lands on its side with
+                    its jaws open. Ropes go slack between their real ends. Dust where things land; the clamp rocks
+                    to a stop.                                                                                    */
+  const GPX = 386.1 * K / 1e6;                            // px per ms²
+  const SET = 650;                                        // ms to tip off and settle once a part lands
+  function failPose(rv, g) {
+    const P = { top: { ...ID }, bot: { ...ID }, load: { ...ID }, clamp: { ...ID }, hook: { ...ID }, spread: 0, shake: 0, land: {} };
+    if (!F.on) return P;
+    P.spread = clamp(F.t / THK, 0, 1);
+    if (F.t < THK) {                                       // shudder while the jaws open
+      const sh = Math.sin(F.t / 16) * 2.4 * P.spread;
+      for (const k of ['top', 'bot', 'load', 'clamp', 'hook']) P[k].dx = sh;
+      return P;
+    }
+    const t = F.t - THK, d = .5 * GPX * t * t, fallT = h => Math.sqrt(2 * Math.max(0, h) / GPX);
+    const side = g.side, restTop = FLOOR - CRIB - side, loadTop = g.yLow0 + HOOKDROP + SHK_DROP + LUG_H;
+    // load
+    const hL = Math.max(0, restTop - loadTop);
+    P.load.dy = Math.min(d, hL); P.land.load = fallT(hL);
+    // bottom block: comes down onto the load top; its hook (still in the shackle) folds over sideways
+    const bBottom = g.yLow0 + R + PM, hookSad = g.yLow0 + HOOKDROP;
+    const hB = Math.max(hL, restTop - 3 - bBottom), tb = fallT(hB);
+    P.bot.dy = Math.min(d, hB); P.bot.cx = (g.bL + g.bR) / 2; P.bot.cy = g.yLow0;
+    P.hook = { dx: 0, dy: Math.min(d, hL), r: 0, cx: g.bcx, cy: hookSad };
+    if (t > P.land.load) { const k = ease(clamp((t - P.land.load) / SET, 0, 1)); P.hook.r = 78 * k; }
+    if (t > tb) { const k = ease(clamp((t - tb) / SET, 0, 1)); P.bot.r = -6 * k; P.bot.dx = 8.62 * HK_L * .8 * k; }
+    P.land.bot = tb;
+    // top block: falls until it meets the bottom block, then tips off to the floor on the lead side
+    const contactDrop = Math.max(0, (restTop - 3 - 2 * (R + PM) - 4) - Y_UB);
+    const tc = fallT(contactDrop);
+    const tw = (g.tR - g.tL) + 2 * (R + PM), th = 2 * (R + PM);
+    P.top.cx = (g.tL + g.tR) / 2; P.top.cy = Y_US;
+    const finalDx = (g.bcx + side / 2 + tw / 2 + 24) - P.top.cx, finalDy = (FLOOR - th / 2 - 2) - Y_US;
+    if (t <= tc) P.top.dy = Math.min(d, contactDrop);
+    else {
+      const k = clamp((t - tc) / (SET * 1.3), 0, 1), e2 = ease(k);
+      P.top.dx = finalDx * e2; P.top.dy = contactDrop + (finalDy - contactDrop) * (k * k);
+      P.top.r = 28 * Math.sin(Math.PI * k) * (1 - k * .3) + 4 * e2;
+    }
+    P.land.top = tc + SET * 1.3;
+    // clamp: stays on the top hook while falling, then drops off beside the top block, jaws open, and rocks to rest
+    if (t <= tc) { P.clamp = { ...P.top }; }
+    else {
+      const k = clamp((t - tc) / (SET * 1.6), 0, 1), e2 = ease(k);
+      const fx = (g.bcx + side / 2 + tw + 60) - X_A, fy = (FLOOR - 4 * K) - Y_PIN;
+      P.clamp.dx = (P.top.dx) * (1 - e2) + fx * e2; P.clamp.dy = contactDrop * (1 - e2) + fy * e2;
+      P.clamp.cx = X_A; P.clamp.cy = Y_PIN - 3 * K;
+      const after = Math.max(0, t - tc - SET * 1.6);
+      P.clamp.r = 95 * e2 + (after > 0 ? 9 * Math.exp(-after / 900) * Math.sin(after / 140) : 0);
+    }
+    P.land.clamp = tc + SET * 1.6;
+    return P;
+  }
+  function dustPuff(cx, w, dt, seed) {
+    if (dt < 0 || dt > 2600) return '';
+    const k = dt / 2600; let s = '';
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 9) * Math.PI, r = 18 + k * (70 + 12 * ((i + seed) % 3));
+      s += `<circle cx="${f(cx + Math.cos(a) * (w / 2 + r * .9) * (i % 2 ? 1 : -1))}" cy="${f(FLOOR - 8 - Math.sin(a) * r * .4 - k * 14)}" r="${f(9 + k * 26)}" fill="#8a8178" opacity="${f((1 - k) * .42)}"/>`;
+    }
+    return s;
+  }
+  function failOverlay(c, rv, P, side, bcx) {
+    const t = F.t - THK;
+    let s = '';
+    if (t > 0) {
+      s += dustPuff(bcx, side, t - P.land.load, 0);
+      s += dustPuff(bcx + side / 2 + 120, 120, t - P.land.top, 1);
+    }
+    s += `<g id="fail-card"><rect x="${CX}" y="${Y_BB + 14}" width="${CW}" height="210" rx="14" fill="#2a1312" stroke="${C.BAD}" stroke-width="3"/>` +
+      `<text x="${CX + 20}" y="${Y_BB + 48}" class="pts" style="fill:${C.BAD};letter-spacing:.06em;font-size:15px">SIMULATION ONLY · NEVER DO THIS ON THE JOB</text>` +
+      `<text id="fail-big" x="${CX + 20}" y="${Y_BB + 94}" class="pt" style="fill:#fff;font-size:30px">${nf(F.ratio, 1)} × the clamp rating</text>`;
+    const words = F.caption.split(' '); let line = '', yy = Y_BB + 130;
+    for (const w of words) { if ((line + ' ' + w).length > 44) { s += `<text x="${CX + 20}" y="${yy}" class="pts" style="fill:${C.TEXT}">${line.trim()}</text>`; yy += 24; line = ''; } line += ' ' + w; }
+    return s + `<text x="${CX + 20}" y="${yy}" class="pts" style="fill:${C.TEXT}">${line.trim()}</text></g>`;
+  }
+  function failCaption(c) {
+    return `Anchor load ${wt(c.anchor)} (${c.lm ? 'W − P' : 'W + P'}) on a clamp rated ${wt(c.anchorWll)}: the jaws spread, the clamp pulls off the beam and the load drops.`;
+  }
+  function updateFail(c, ms) {
+    if (F.on) { F.t += ms; return; }
+    if (S.fail && isFinite(c.breakAt) && c.anchor > c.breakAt) {
+      F = { on: true, t: 0, ratio: c.anchor / c.anchorWll, caption: failCaption(c), load: c.anchor };
+      tweens = [];                                         // the numbers stop where it broke
+    }
+  }
+  function failInfo() { return F.on ? { on: true, kind: 'anchor', t: F.t, parted: F.t >= THK, caption: F.caption, load: F.load, ratio: F.ratio } : { on: false }; }
+
+  function phoneCss() { return '.lb,.ld,.lm{display:none} #anchor-inset,#vm-anchor,#vm-force,#vm-dist,#vm-work{display:none} #fail-card{transform:translate(-560px,420px) scale(1.5)}'; }
+
+  /* ===================================================================================== CLOCK */
+  function step(ms) {
+    T += ms;
+    tweens.forEach(t => { t.t = Math.min(t.dur, t.t + ms); if (t.t >= 0) S[t.key] = t.from + (t.to - t.from) * ease(clamp(t.t / t.dur, 0, 1)); });
+    tweens = tweens.filter(t => t.t < t.dur);
+    S.rise = clamp(S.rise, 0, riseMax());
+    const c = calc();
+    updateFail(c, ms);
+    const rp = risePx(), key = S.parts + S.lead + S.units;
+    if (A.lastRisePx != null && A.key === key) A.D += rp - A.lastRisePx;
+    A.lastRisePx = rp; A.key = key;
+    if (A.reeveT < 1) A.reeveT = Math.min(1, A.reeveT + ms / 700);
+    return c;
+  }
+  let lastC = null;
+  function frame(ms) {
+    const c = step(ms); lastC = c;
+    if (svgEl) svgEl.innerHTML = draw(c);
+    if (opts.onFrame) opts.onFrame(c, getState());
+    renderCallouts();
+    callouts.forEach(co => co.age += ms);
+    return c;
+  }
+
+  /* ===================================================================================== API */
+  function set(p, dur = 0) {
+    p = { ...p };
+    if ('blockWll' in p) { p.anchorWll = p.blockWll; delete p.blockWll; }
+    if (p.units && p.units !== S.units) {
+      const toMet = p.units === 'met', fw = toMet ? LB_TO_KG : 1 / LB_TO_KG, fl = toMet ? FT_TO_M : 1 / FT_TO_M;
+      tweens = tweens.filter(t => !['load', 'rise', 'anchorWll'].includes(t.key));
+      if (!('load' in p)) S.load = Math.round(S.load * fw);
+      if (!('rise' in p)) S.rise *= fl;
+      if (!('anchorWll' in p)) S.anchorWll = Math.round(S.anchorWll * fw);
+      S.units = p.units; A.lastRisePx = null;
+    }
+    delete p.units;
+    const snap = p.snap; delete p.snap;
+    const delay = p.delay || 0; delete p.delay;
+    if ('parts' in p) p.parts = clamp(Math.round(p.parts), 1, 8);
+    if ('travel' in p) { p.rise = p.travel / Math.max(1, ('parts' in p ? p.parts : S.parts)); delete p.travel; }
+    const oldN = S.parts, oldLead = S.lead;
+    for (const [k, v] of Object.entries(p)) {
+      tweens = tweens.filter(t => t.key !== k);
+      if (NUMERIC.includes(k) && (dur > 0 || delay > 0)) tweens.push({ key: k, from: S[k], to: v, t: -delay, dur: Math.max(1, dur) });
+      else S[k] = v;
+    }
+    if (S.parts < 2 && S.lead === 'moving') S.lead = 'fixed';
+    S.rise = clamp(S.rise, 0, riseMax());
+    if ((S.parts !== oldN || S.lead !== oldLead) && !snap) { A.reeveT = 0; }
+    if (snap) { A.D = 0; A.lastRisePx = null; A.reeveT = 1; }
+    if (snap || p.fail === false || 'parts' in p || 'lead' in p) F = { on: false, t: 0 };
+    if (!CAPTURE) frame(0);
+  }
+  function callout(target, text, o = {}) { callouts = callouts.filter(c => c.target !== target); callouts.push({ target, text, pos: o && o.pos, age: 0 }); if (!CAPTURE) frame(0); }
+  function clear() { callouts = []; if (!CAPTURE) frame(0); }
+  let coLayer = null;
+  function renderCallouts() {
+    if (!coLayer) return;
+    coLayer.innerHTML = '';
+    callouts.forEach(co => {
+      const el = document.getElementById(co.target);
+      if (!el) return;
+      const r = el.getBoundingClientRect(), lr = coLayer.getBoundingClientRect();
+      const ring = document.createElement('div');
+      ring.className = 'co-ring';
+      Object.assign(ring.style, { left: (r.left - lr.left - 6) + 'px', top: (r.top - lr.top - 6) + 'px', width: (r.width + 12) + 'px', height: (r.height + 12) + 'px' });
+      coLayer.appendChild(ring);
+      if (!co.text) return;
+      const lb = document.createElement('div'); lb.className = 'co-label'; lb.textContent = co.text; coLayer.appendChild(lb);
+      const lw = lb.offsetWidth, lh = lb.offsetHeight, pad = 14, vw = lr.width, vh = lr.height, a = clamp(co.age / 250, 0, 1);
+      lb.style.opacity = 1;                               // full strength at once: a fade could be caught half-way in a video frame
+      let x, y; const cx = r.left - lr.left, cy = r.top - lr.top;
+      if (co.pos === 'left') { x = cx - lw - pad - 10; y = cy + r.height / 2 - lh / 2; }
+      else if (co.pos === 'top') { x = cx + r.width / 2 - lw / 2; y = cy - lh - pad - 10; }
+      else if (co.pos === 'bottom') { x = cx + r.width / 2 - lw / 2; y = cy + r.height + pad + 10; }
+      else { x = cx + r.width + pad + 10; y = cy + r.height / 2 - lh / 2; }
+      lb.style.left = clamp(x, 8, vw - lw - 8) + 'px'; lb.style.top = clamp(y, 8, vh - lh - 8) + 'px';
+    });
+  }
+
+  const LISTEN = [], LOCKED = new Set();
+  function getState() {
+    const c = lastC || calc(), fi = failInfo();
+    const out = { P: c.P, Pideal: c.Pideal, MA: c.MA, VR: c.VR, MAact: c.MAact, eff: c.eff, rise: c.rise, travel: c.travel, workIn: c.workIn,
+      workOut: c.workOut, lost: c.lost, kN: c.kN, n: c.n, S: c.Sh, share: c.W / c.n, anchor: c.anchor, leadBlock: c.leadBlock,
+      beamTotal: c.beamTotal, util: c.util, breakAt: c.breakAt, level: c.level, fricForce: c.fricForce, partT: c.partT,
+      riseMax: riseMax(), fail: !!fi.on, failure: fi, upper: c.anchor, lower: c.W, blockUtil: c.util };
+    return { ...S, mode: 'tackle', out };
+  }
+  const userChanged = () => { const st = getState(); LISTEN.forEach(fn => { try { fn(st); } catch (e) { console.error(e); } }); };
+
+  /* drag the hand line: the rope moves with your hand; the load rises 1/n as far */
+  function bindDrag(svg) {
+    let drag = null;
+    const pt = e => { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+    svg.addEventListener('pointerdown', e => {
+      if (LOCKED.has('c-haul') || F.on) return;
+      const q = pt(e), rv = reeving(S.parts, S.lead), hx = rv.lm ? rv.lane(rv.m + 1) : rv.lane(rv.m);
+      if (Math.abs(q.x - hx) < 34 && q.y > 300 && q.y < FLOOR) { drag = { y: q.y, rise: S.rise }; svg.setPointerCapture(e.pointerId); e.preventDefault(); }
+      // tap the ghost sheave to reeve one more part
+      if (!drag && !LOCKED.has('c-parts')) { const g = e.target.closest && e.target.closest('#reeve-next'); if (g) { set({ parts: S.parts + 1 }); userChanged(); } }
+    });
+    svg.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const q = pt(e), dy = q.y - drag.y;                 // px of rope through your hands
+      set({ rise: clamp(drag.rise + dy / S.parts / riseUnitPx(), 0, riseMax()) });
+    });
+    const end = () => { if (drag) { drag = null; userChanged(); } };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  }
+
+  function mount(o) {
+    opts = o || {};
+    svgEl = o.svg; coLayer = o.callouts || null;
+    if (o.state) Object.assign(S, o.state);
+    if (!CAPTURE) bindDrag(svgEl);
+    frame(0);
+    if (o.external) { ready = true; return; }      // lesson page shell: it runs the clock and owns window.sim
+    if (!CAPTURE) {
+      let last = performance.now();
+      const loop = ts => { frame(Math.min(100, ts - last)); last = ts; requestAnimationFrame(loop); };
+      requestAnimationFrame(loop);
+    }
+    ready = true;
+    window.sim = {
+      set, callout, clear, advance: ms => { frame(ms); }, isIdle: () => !tweens.length && !(F.on && F.t < 7000) && A.reeveT >= 1 && callouts.every(co => co.age >= 300),   // a callout fading in is motion (the renderer reuses idle frames)
+      calc: () => calc(), get: getState, failure: failInfo, ready: true,
+      onChange: fn => { LISTEN.push(fn); return () => { const i = LISTEN.indexOf(fn); if (i >= 0) LISTEN.splice(i, 1); }; },
+      lock: ids => { (ids === 'all' ? (opts.controls ? opts.controls() : []) : ids).forEach(i => LOCKED.add(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },
+      unlock: ids => { if (ids === 'all' || !ids) LOCKED.clear(); else ids.forEach(i => LOCKED.delete(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },
+      controls: () => opts.controls ? opts.controls() : [],
+      view: { K, FLOOR, R, LANE, X_A, Y_PIN, Y_US, reeving: () => reeving(S.parts, S.lead) },
+      userChanged
+    };
+  }
+
+  return { mount, frame, failInfo, isBusy: () => !!tweens.length || (F.on && F.t < 7000) || A.reeveT < 1, calc, set, S, CAPTURE, formulaHtml, CROSBY, ANCHOR_DF, riseMax, FRIC, COL, wt, nf, ln, LOCKED, userChanged, getState, reeving };
+})();
+</script>
+<script>window.BT_SCENE="tackle";window.BT_START={"parts": 4, "lead": "fixed", "friction": "ideal", "load": 2400, "rise": 1, "units": "imp", "anchorWll": 4000, "fail": true, "count": false, "tags": true, "cards": "anchor,force", "inset": true, "labels": true};</script>
+<script>/* Block and tackle simulator-lesson: scene adapters for the shared page shell (simulators/_lesson/shell.js).
+   The TACKLE and CHAINFALL scenes (tackle.js, chainfall.js) keep their own state, drawing, motion and failure, exactly
+   as on the free simulator / ?capture=1 video pages (index.html, chainfall.html). Here they are mounted in "external"
+   mode (no clock or window.sim of their own) inside a nested <svg> in the shell's stage; the shell owns the lesson
+   state and the clock and this adapter keeps the two in step:
+     shell state -> scene.set(diff) in apply(); scene state (drag, reeve tap, clamping, units) -> shell in advance().
+   calc() is the scene's calc(): every number on the page comes from it.
+   window.BT_SCENE ('tackle' | 'chainfall') picks the scene; window.PAGE_SCENE is what the shell runs. */
+(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const pick = (rng, a) => a[Math.floor(rng() * a.length)];
+const uniq = (ans, cands) => { const seen = new Set([ans.t]), out = []; for (const c of cands) if (!seen.has(c.t)) { seen.add(c.t); out.push(c); } return out.slice(0, 3); };
+
+/* the shared parts: nested svg, readouts, spot (bbox of a drawing part, in stage units), state sync */
+function base(M, keys) {
+  const A = { M, keys, inner: null, api: null, cur: null, out: null };
+  A.mountSvg = (svg, api) => {
+    A.api = api;
+    A.inner = document.createElementNS(NS, 'svg');
+    for (const [k, v] of Object.entries({ x: 0, y: 0, width: 1600, height: 880, viewBox: '0 0 1600 880', overflow: 'visible', id: 'bt-scene' })) A.inner.setAttribute(k, v);
+    svg.insertBefore(A.inner, svg.firstChild);
+    return A.inner;
+  };
+  A.diff = st => { const d = {}; for (const k of keys) if (k in st && st[k] !== M.S[k]) d[k] = st[k]; return d; };
+  A.pull = st => { for (const k of keys) if (k in M.S && st[k] !== M.S[k]) st[k] = M.S[k]; };    // the scene clamps / converts / drags
+  A.spot = id => {
+    const el = document.getElementById(id); if (!el || !A.inner || !A.inner.contains(el) || !el.getBBox) return null;
+    let b; try { b = el.getBBox(); } catch (e) { return null; }
+    if (!b.width && !b.height) return null;
+    const m = el.getCTM(), ip = A.inner.getCTM();
+    if (!m || !ip) return null;
+    const rel = ip.inverse().multiply(m), pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => [rel.a * x + rel.c * y + rel.e, rel.b * x + rel.d * y + rel.f]);
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+    return [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2, Math.min(260, Math.max(w, h) / 2 + 8)];
+  };
+  /* phone crop: a window PHW drawing units wide (so drawing text >= 11 px on a 390 px phone) at the stage's aspect,
+     centred on cx; it shows top..bottom when that fits, else the top part (anchor and blocks), or the floor while the
+     rig is falling */
+  const PHW = 800;
+  A.phoneCrop = (cx, top, bottom, asp, falling) => {
+    const h = PHW / Math.max(.6, asp);
+    let y0 = h >= bottom - top ? (top + bottom) / 2 - h / 2 : falling ? bottom - h : top;
+    y0 = Math.max(Math.min(y0, 880 - Math.min(h, 880)), h > 880 ? (880 - h) / 2 : 0);
+    return `${Math.round(cx - PHW / 2)} ${Math.round(y0)} ${PHW} ${Math.round(h)}`;
+  };
+  A.box = id => { const e = document.getElementById(id); if (!e || !e.getBBox) return null; try { return e.getBBox(); } catch (x) { return null; } };
+  /* failure caption: on a phone the scene's own card is hidden (too small to read) and the shell caption says it */
+  A.caption = fi => fi && fi.on && document.body.classList.contains('phone') ? { kind: 'fail', title: 'SIMULATION ONLY · NEVER DO THIS ON THE JOB', text: fi.caption } : null;
+  return A;
+}
+
+/* ===================================================================================== block and tackle */
+function tackleScene() {
+  const T = TACKLE,   // top-level const of tackle.js (not a window property)
+    KEYS = ['parts', 'lead', 'friction', 'load', 'rise', 'units', 'anchorWll', 'fail', 'tags', 'count', 'cards', 'inset', 'labels'];
+  const A = base(T, KEYS);
+  const imp = () => (A.cur ? A.cur.units : T.S.units) === 'imp';
+  let lastTravel = null, fbar = null;
+  const sc = {
+    defaults: Object.assign({}, window.BT_START, { travel: Math.round((window.BT_START.rise || 0) * (window.BT_START.parts || 1) * 1e6) / 1e6 }),   // travel follows rise (keeps Reset exact)
+    viewBox: '0 0 1600 880',
+    controls: {
+      parts: { type: 'slider', label: 'Parts of line', min: 1, max: 8, step: 1, fmt: v => v + (v === 1 ? ' part' : ' parts') },
+      lead: { type: 'chips', label: 'Lead line leaves', options: [{ v: 'fixed', t: 'Fixed block' }, { v: 'moving', t: 'Moving block' }] },
+      friction: { type: 'chips', label: 'Friction', options: Object.keys(T.FRIC).map(k => ({ v: k, t: T.FRIC[k] })) },
+      load: { type: 'slider', label: 'Load', get min() { return imp() ? 500 : 250; }, get max() { return imp() ? 40000 : 18000; }, get step() { return imp() ? 100 : 50; }, fmt: v => T.nf(v) + (imp() ? ' lb' : ' kg') },
+      travel: { type: 'slider', label: 'Lead line pulled', min: 0, get max() { return Math.max(.05, Math.round(T.riseMax() * T.S.parts * 100) / 100); }, get step() { return imp() ? .05 : .01; }, fmt: v => T.nf(v, 2) + (imp() ? ' ft' : ' m') },
+      anchorWll: { type: 'chips', label: 'Clamp rated', get options() { return [[2000, '1 t'], [4000, '2 t'], [6000, '3 t'], [10000, '5 t']].map(([v, t]) => ({ v: imp() ? v : v / 2, t })); } },
+      units: { type: 'chips', label: 'Units', options: [{ v: 'imp', t: 'lb · ft' }, { v: 'met', t: 'kg · m' }] },
+    },
+    mount(svg, api) {
+      const inner = A.mountSvg(svg, api);
+      const st = Object.assign({}, sc.defaults); delete st.travel;
+      T.mount({ svg: inner, state: st, external: true, onFrame: c => { if (fbar) fbar.innerHTML = T.formulaHtml(c); } });
+      fbar = document.createElement('div'); fbar.className = 'fbar'; fbar.id = 'formula';
+      const read = document.getElementById('read'); read.parentNode.insertBefore(fbar, read);
+      fbar.innerHTML = T.formulaHtml(T.calc());
+    },
+    apply(state, prev, initial) {
+      if (prev && state.travel !== prev.travel && state.travel !== lastTravel) state.rise = state.travel / Math.max(1, state.parts);
+      const d = initial ? Object.assign(A.diff(state), { snap: true }) : A.diff(state);
+      if (initial) for (const k of KEYS) if (k in state) d[k] = state[k];
+      if (Object.keys(d).length) T.set(d);
+      A.pull(state); state.travel = lastTravel = Math.round(state.rise * state.parts * 1e6) / 1e6; A.cur = state;
+    },
+    advance(ms, state) {
+      // what the learner may do with the drawing right now: drag the hand line (travel), tap the ghost sheave (parts)
+      const s = A.api && A.api.step(), ok = k => !s || s.free || (s.step && (s.step.controls || []).includes(k));
+      ['travel', 'parts'].forEach(k => { const id = k === 'travel' ? 'c-haul' : 'c-parts'; if (ok(k)) T.LOCKED.delete(id); else T.LOCKED.add(id); });
+      T.frame(ms);
+      A.pull(state); state.travel = lastTravel = Math.round(state.rise * state.parts * 1e6) / 1e6; A.cur = state;
+    },
+    calc(state) {
+      const c = T.calc(Object.assign({}, T.S, state)), fi = T.failInfo();
+      return { P: c.P, Pideal: c.Pideal, MA: c.MA, VR: c.VR, MAact: c.MAact, eff: c.eff, rise: c.rise, travel: c.travel, workIn: c.workIn,
+        workOut: c.workOut, n: c.n, S: c.Sh, anchor: c.anchor, leadBlock: c.leadBlock, util: c.util, breakAt: c.breakAt, level: c.level,
+        riseMax: T.riseMax(), fail: !!fi.on, failure: fi };
+    },
+    readouts(state, o) {
+      const lv = o.util > 1 ? 'bad' : o.util > .8 ? 'warn' : 'ok', u = imp() ? 'ft' : 'm', ph = document.body.classList.contains('phone');
+      return [
+        { id: 'n', label: 'Parts of line (n)', short: 'Parts n', value: o.n + (state.lead === 'moving' && o.n >= 2 ? ' (lead counts)' : ''), color: 'var(--accent)' },
+        { id: 'p', label: 'Pull on the lead (P)', short: 'Pull P', value: T.wt(o.P), color: '#59b7ff' },
+        { id: 'dist', label: 'Lead travel / rise', short: 'Lead travel', value: ph ? T.nf(o.travel, 2) + ' ' + u : T.nf(o.travel, 2) + ' / ' + T.nf(o.rise, 2) + ' ' + u },
+        { id: 'eff', label: 'Efficiency', short: 'Eff.', value: T.nf(o.eff * 100, ph ? 0 : 1) + ' %' },
+        { id: 'anchor', label: 'Anchor load', short: 'Anchor', value: ph ? T.nf(o.util * 100) + ' %' : T.wt(o.anchor) + ' · ' + T.nf(o.util * 100) + ' %', cls: lv },
+      ];
+    },
+    caption: () => A.caption(T.failInfo()),     // PC: the scene draws its own failure card ("SIMULATION ONLY · NEVER DO THIS ON THE JOB")
+    spot: A.spot,
+    busy: () => T.isBusy(),
+    reset() { },
+    phoneViewBox(state, asp) {
+      const rv = T.reeving(T.S.parts, T.S.lead), hand = rv.lm ? rv.lane(rv.m + 1) : rv.lane(rv.m), lb = A.box('load-box');
+      return A.phoneCrop((rv.lane(0) - 60 + hand + 200) / 2, 50, lb ? Math.min(870, lb.y + lb.height + 30) : 860, asp || 1, T.failInfo().on);
+    },
+    challenge(rng) {
+      const kind = pick(rng, ['pull', 'anchor', 'travel']);
+      const n = pick(rng, [2, 3, 4, 5, 6]), W = pick(rng, [2000, 3000, 4000, 4500, 6000, 8000]), fr = pick(rng, ['ideal', 'rule10']);
+      const setup = { snap: true, parts: n, lead: 'fixed', friction: fr, load: W, rise: 0, units: 'imp', anchorWll: 10000, fail: false, count: true, tags: true, cards: 'anchor,force', inset: false, labels: true };
+      const c = T.calc(Object.assign({}, T.S, setup)), lb = v => T.nf(Math.round(v)) + ' lb', how = fr === 'rule10' ? '10 % per sheave' : 'no friction';
+      if (kind === 'pull') {
+        const ans = { t: lb(c.P) };
+        const wrong = uniq(ans, [{ t: lb(W / n), why: 'That leaves out friction: add 10 % of the load for each sheave.' }, { t: lb(W * (1.1) / n), why: 'That adds 10 % once, not once per sheave.' },
+          { t: lb(W / (n - 1)), why: 'That leaves out the dead end: count every part at the moving block.' }, { t: lb(W * (1 + .1 * n)), why: 'That forgets to divide by the parts of line.' }]);
+        return { setup, q: `Lift **${lb(W)}** with **${n} parts**, lead off the fixed block, ${how}. Pull on the lead?`, choices: [ans].concat(wrong), answer: 0,
+          hint: fr === 'rule10' ? 'P = W × (1 + 0.10 × sheaves) ÷ n. Off the fixed block, sheaves = n.' : 'P = W ÷ n.',
+          explain: fr === 'rule10' ? `${lb(W)} × ${T.nf(1 + .1 * n, 1)} ÷ ${n} = **${lb(c.P)}**.` : `${lb(W)} ÷ ${n} = **${lb(c.P)}**.` };
+      }
+      if (kind === 'anchor') {
+        const ans = { t: lb(c.anchor) };
+        const wrong = uniq(ans, [{ t: lb(W), why: 'That is the load alone. You pull down on the top block too: W + P.' }, { t: lb(c.P), why: 'That is the pull, not the load on the anchor.' },
+          { t: lb(W + n * c.P), why: 'That adds n × P. The anchor carries the load plus one pull.' }, { t: lb(2 * W), why: 'That doubles the load. Only a single fixed sheave does that.' }]);
+        return { setup, q: `**${lb(W)}** on **${n} parts**, lead pulled straight down off the fixed block, ${how}. Load on the anchor?`, choices: [ans].concat(wrong), answer: 0,
+          hint: 'Lead pulled down off the top block: anchor = W + P.', explain: `P = ${lb(c.P)}; anchor = ${lb(W)} + ${lb(c.P)} = **${lb(c.anchor)}**.` };
+      }
+      const rise = pick(rng, [0.5, 1, 1.5, 2, 3]), tr = n * rise, ft = v => T.nf(v, v % 1 ? 1 : 0) + ' ft', ans = { t: ft(tr) };
+      const wrong = uniq(ans, [{ t: ft(rise), why: 'That is the rise. The lead line moves n times as far as the load.' }, { t: ft(rise / n), why: 'That divides. The lead line always moves farther than the load.' },
+        { t: ft(n + rise), why: 'That adds the parts and the rise. Multiply instead.' }, { t: ft(2 * rise), why: 'That only works for 2 parts. Travel = n × rise.' }]);
+      return { setup: Object.assign(setup, { rise: Math.min(rise, 1) }), q: `**${n} parts** of line lift the load **${ft(rise)}**. How far is the lead line pulled?`, choices: [ans].concat(wrong), answer: 0,
+        hint: 'Lead line travel = parts × rise.', explain: `${n} × ${ft(rise)} = **${ft(tr)}**.` };
+    },
+  };
+  return sc;
+}
+
+/* ===================================================================================== chain falls */
+function chainScene() {
+  const T = CHAINFALL, KEYS = ['chain', 'cap', 'load', 'rise', 'units', 'D', 'd', 'eta'];
+  const A = base(T, KEYS);
+  const imp = () => (A.cur ? A.cur.units : T.S.units) === 'imp';
+  const sc = {
+    defaults: Object.assign({}, window.BT_START),
+    viewBox: '0 0 1600 880',
+    controls: {
+      chain: { type: 'chips', label: 'Hoist', options: [{ v: 'geared', t: 'Geared chain hoist' }, { v: 'differential', t: 'Differential block' }] },
+      cap: { type: 'chips', label: 'Capacity', options: T.CAPNAME.map((n, i) => ({ v: i, t: n + ' t' })) },
+      load: { type: 'slider', label: 'Load', get min() { return imp() ? 200 : 100; }, get max() { return imp() ? 12000 : 5400; }, get step() { return imp() ? 100 : 50; }, fmt: v => T.nf(v) + (imp() ? ' lb' : ' kg') },
+      rise: { type: 'slider', label: 'Load rise', min: 0, get max() { return Math.max(.05, Math.floor(T.riseMax() * 100) / 100); }, step: .01, fmt: v => T.nf(v, 2) + (imp() ? ' ft' : ' m') },
+      D: { type: 'slider', label: 'Large wheel D', get min() { return imp() ? 6 : 150; }, get max() { return imp() ? 14 : 350; }, get step() { return imp() ? .5 : 5; }, fmt: v => T.nf(v, 1) + (imp() ? ' in' : ' mm') },
+      d: { type: 'slider', label: 'Small wheel d', get min() { return imp() ? 5 : 125; }, get max() { return imp() ? 13.5 : 340; }, get step() { return imp() ? .5 : 5; }, fmt: v => T.nf(v, 1) + (imp() ? ' in' : ' mm') },
+      units: { type: 'chips', label: 'Units', options: [{ v: 'imp', t: 'lb · ft' }, { v: 'met', t: 'kg · m' }] },
+    },
+    mount(svg, api) { const inner = A.mountSvg(svg, api); T.mount({ svg: inner, state: Object.assign({}, sc.defaults), external: true }); },
+    apply(state, prev, initial) {
+      // a new hoist starts a fresh lift with its usual test load (as on the free simulator), unless the same change sets the load
+      if (prev && !initial && state.chain !== prev.chain) { state.rise = 0; if (state.load === prev.load) state.load = state.chain === 'geared' ? (imp() ? 4000 : 1800) : (imp() ? 1000 : 450); }
+      const d = A.diff(state); if (initial) { for (const k of KEYS) if (k in state) d[k] = state[k]; d.snap = true; }
+      if (Object.keys(d).length) T.set(d);
+      A.pull(state); A.cur = state;
+    },
+    advance(ms, state) { T.frame(ms); A.pull(state); A.cur = state; },
+    calc(state) {
+      const c = T.calc(Object.assign({}, T.S, state));
+      return { P: c.P, Pideal: c.Pideal, VR: c.VR, MA: c.VR, MAact: c.MAact, eff: c.eff, eta: c.eta, rise: c.rise, travel: c.travel, rated: c.rated, util: c.util,
+        falls: c.falls, holds: c.holds, riseMax: T.riseMax(), fail: false, failure: { on: false } };
+    },
+    readouts(state, o) {
+      const g = state.chain === 'geared', u = imp() ? 'ft' : 'm', ph = document.body.classList.contains('phone');
+      return [
+        { id: 'vr', label: 'Velocity ratio', short: 'VR', value: T.nf(o.VR, o.VR % 1 ? 1 : 0) + ' : 1', color: 'var(--accent)' },
+        { id: 'p', label: 'Pull on the hand chain', short: 'Pull', value: T.wt(o.P), color: '#59b7ff' },
+        { id: 'dist', label: 'Hand chain / rise', short: 'Hand chain', value: ph ? T.nf(o.travel, 1) + ' ' + u : T.nf(o.travel, 1) + ' / ' + T.nf(o.rise, 2) + ' ' + u },
+        { id: 'eff', label: 'Efficiency', short: 'Eff.', value: T.nf(o.eff * 100, ph ? 0 : 1) + ' %' },
+        g ? { id: 'cap', label: 'Of capacity', short: 'Capacity', value: T.nf(o.util * 100) + ' %', cls: o.util > 1 ? 'bad' : o.util > .8 ? 'warn' : 'ok' }
+          : { id: 'cap', label: 'Holds by itself', short: 'Holds', value: o.eff < .5 ? (ph ? 'Yes' : 'Yes (under 50 %)') : 'No', cls: o.eff < .5 ? 'ok' : 'warn' },
+      ];
+    },
+    caption: () => null,
+    spot: A.spot,
+    busy: () => T.isBusy(),
+    reset() { },
+    phoneViewBox(state, asp) { const lb = A.box('load-box'); return A.phoneCrop(650, 60, lb ? Math.min(870, lb.y + lb.height + 30) : 860, asp || 1, false); },
+    challenge(rng) {
+      if (rng() < .5) {
+        const i = pick(rng, [1, 2, 3, 5]), [cap, pr, ratio] = T.CB[i], rated = cap * 2000, W = Math.round(rated * pick(rng, [.5, .6, .75]) / 100) * 100;
+        const lift = pick(rng, [2, 3]), setup = { snap: true, chain: 'geared', cap: i, load: W, rise: 0, units: 'imp' };
+        if (rng() < .5) {
+          const ft = v => T.nf(v) + ' ft', ans = { t: ft(ratio * lift) };
+          return { setup, q: `A ${T.CAPNAME[i]} t chain hoist has an overhaul ratio of **${ratio} : 1**. How much hand chain lifts the load **${lift} ft**?`, answer: 0,
+            choices: [ans].concat(uniq(ans, [{ t: ft(ratio), why: 'That is one foot of lift. Multiply by the lift.' }, { t: ft(ratio + lift), why: 'That adds the ratio and the lift. Multiply instead.' },
+              { t: T.nf(ratio / lift, 1) + ' ft', why: 'That divides. The hand chain moves farther than the load.' }])),
+            hint: 'Hand chain = overhaul ratio × lift.', explain: `${ratio} × ${lift} ft = **${ft(ratio * lift)}**.` };
+        }
+        const P = pr * W / rated, lb = v => T.nf(Math.round(v)) + ' lb', ans = { t: lb(P) };
+        return { setup, q: `A ${T.CAPNAME[i]} t hoist (${T.nf(rated)} lb) needs **${pr} lb** of pull at its rated load. About what pull lifts **${T.nf(W)} lb**?`, answer: 0,
+          choices: [ans].concat(uniq(ans, [{ t: lb(pr), why: 'That is the pull at the full rated load. Pull scales with the load.' }, { t: lb(pr * rated / W), why: 'That is upside down: multiply by load ÷ rated.' },
+            { t: lb(W / ratio), why: 'That uses the overhaul ratio alone. Use the maker\'s pull, scaled by the load.' }])),
+          hint: 'Pull = rated pull × load ÷ rated load.', explain: `${pr} × ${T.nf(W)} ÷ ${T.nf(rated)} = **${lb(P)}**.` };
+      }
+      const D = pick(rng, [8, 10, 12]), d = D - pick(rng, [.5, 1, 2]), VR = 2 * D / (D - d), f = v => T.nf(v, v % 1 ? 1 : 0), ans = { t: f(VR) };
+      return { setup: { snap: true, chain: 'differential', D, d, eta: .35, load: 1000, rise: 0, units: 'imp' }, answer: 0,
+        q: `Differential block: large wheel **D = ${f(D)} in**, small wheel **d = ${f(d)} in**. Velocity ratio?`,
+        choices: [ans].concat(uniq(ans, [{ t: f(D / (D - d)), why: 'That leaves out the 2. VR = 2D ÷ (D − d).' }, { t: f(D / d), why: 'That is D ÷ d. VR = 2D ÷ (D − d).' },
+          { t: f(2 * D / (D + d)), why: 'That adds the wheels. The loop shortens by the difference, D − d.' }])),
+        hint: 'VR = 2D ÷ (D − d).', explain: `2 × ${f(D)} ÷ (${f(D)} − ${f(d)}) = **${f(VR)}**.` };
+    },
+  };
+  return sc;
+}
+
+const SC = window.BT_SCENE === 'chainfall' ? chainScene() : tackleScene();
+/* challenges leave the learner's rig alone: set up on the drawing, the tags and readouts would give the answer away */
+const gen = SC.challenge;
+SC.challenge = (rng, n) => { const q = gen(rng, n); delete q.setup; q.explain += ' Set it up on the simulator to check.'; return q; };
+window.PAGE_SCENE = SC;
+})();
+</script>
+<script>/* CrewForge simulator-lesson page shell (2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+   Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
+   top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
+   at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
+   (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
+   Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
+   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
+   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+
+   Scene interface (one per page):
+     defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
+     mount(svg, api), apply(state, prev, initial), advance(ms, state), calc(state) -> out,
+     readouts(state, out) -> [{label, short, value, cls:'ok'|'warn'|'bad', color, id}],
+     caption(state, out) -> null | {kind:'fail'|'warn', title, text}, spot(id) -> [x, y, r] (svg units),
+     drag (optional, wired by the scene; it calls api.input(partial)), challenge(rng, n) -> question, busy() -> bool,
+     phoneViewBox, viewBox, reset().
+     Optional generic hooks (added 2026-11-13 for the hoisting and block-and-tackle ports):
+       instant: [keys]            never tweened by sim.set(partial, ms) (e.g. a hoist size that rebuilds the rig)
+       onSet(state, keys)         after every sim.set / learner input (not on tween frames): rebuild what those keys need
+       normalize(state)           after any change, before calc()
+       callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
+       fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+     step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
+
+   Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
+     slider  {min, max, step, unit, fmt(v)}: - / + steppers (hold to repeat), range, tap the value to type it
+     chips   {options:[{v, t}]}: one choice
+     hold    {key, on = 1, label, hotkey}: PRESS-AND-HOLD TO RUN. state[key] = on while the button is held (pointer,
+             Space / Enter on the focused button, or the optional hotkey anywhere on the page), 0 on release, lost
+             pointer capture, blur or leaving the page. The scene moves on its own clock (advance), so in ?capture=1
+             a script does the same with sim.set({key: 1}) ... sim.set({key: 0}) on the virtual clock. 52 px tall.
+             Dragging the part itself in the drawing is the scene's job (drag + api.input).
+     custom  {html(state)}: scene-made markup (e.g. a crane pendant); any element in it with data-hk="key" is a
+             hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
+   Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
+     the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
+     every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
+     while it matches), points [..] (teach: a short list), hint2 on question variants.
+   Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
+     or "fn:name" for the whole goal.
+   Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
+     sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
+(function () {
+'use strict';
+const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
+const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
+const NS = 'http://www.w3.org/2000/svg';
+
+window.CFShell = { start };
+
+function start(C, S) {
+  const log = [], T0 = performance.now(), L = (type, d = {}) => log.push({ t: Math.round(performance.now() - T0), type, ...d });
+  let state = Object.assign({}, S.defaults), out = S.calc(state), tweens = [], listeners = [], dirty = true;
+  let idx = 0, phase = 'step', hintLvl = 0, done = new Set(), helped = new Set(), qv = {}, qState = null, goalSince = null;
+  let free = false, challenge = null, chalN = 0, finished = false;
+  const N = C.lesson.pages.length, PN = C.n, steps = C.steps;
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const KEY = 'cf-lp:' + C.lesson.id;
+  const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
+  let muted = !!prefs.muted, rate = prefs.rate || 1;
+
+  /* ---------------------------------------------------------------- layout */
+  document.body.innerHTML = '';
+  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  if (STAGE_ONLY) document.body.classList.add('capture');
+  const app = el('div', { class: 'app' });
+  const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
+  app.innerHTML = `<header class="bar">
+    <button class="btn" id="b-back" aria-label="Back">&#9664; Back</button>
+    <div class="title"><div class="kick">${C.lesson.title.toUpperCase()} · PAGE ${PN} OF ${N}</div><div class="h">${C.title}</div></div>
+    <div class="dots" aria-label="page ${PN} of ${N}">${dots}</div>
+    <div class="voice"><button class="btn" id="b-mute" aria-label="Voice on or off"></button><button class="btn" id="b-rate" aria-label="Voice speed"></button></div>
+    <button class="btn pri" id="b-next" aria-label="Next page">${PN === N ? 'Finish' : 'Next'} &#9654;</button></header>
+  <section class="what" id="what"><button class="wt" id="b-what" aria-expanded="false">WHAT YOU'RE LOOKING AT <span class="chev">&#9662;</span></button><div class="wx">${md(C.what)}</div></section>
+  <div class="main"><div class="stage" id="stage"><svg id="sv" xmlns="${NS}" viewBox="${S.viewBox || '0 0 1600 880'}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${C.title} simulator"></svg>
+    <div class="caption" id="caption" role="status"></div><div class="read" id="read"></div></div>
+    <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
+  document.body.appendChild(app);
+  const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  let spotG, calloutG;
+
+  /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
+  let lastVB = '';
+  function fit() {
+    const phone = innerWidth < 700 && innerHeight > innerWidth;
+    document.body.classList.toggle('phone', phone);
+    const asp = Math.max(0.6, Math.min(3, (svg.clientWidth || 1) / (svg.clientHeight || 1)));
+    const vb = phone && S.phoneViewBox ? (typeof S.phoneViewBox === 'function' ? S.phoneViewBox(state, asp) : S.phoneViewBox) : (S.viewBox || '0 0 1600 880');
+    if (vb !== lastVB) { svg.setAttribute('viewBox', vb); lastVB = vb; }
+  }
+  addEventListener('resize', fit); fit();
+  $('#b-what').onclick = () => { const w = $('#what'); w.classList.toggle('open'); $('#b-what').setAttribute('aria-expanded', w.classList.contains('open')); };
+
+  /* ---------------------------------------------------------------- host / progress (SCORM wrapper or localStorage) */
+  const host = (() => { try { return window.parent !== window && window.parent.CFHost ? window.parent.CFHost : null; } catch (e) { return null; } })();
+  function progress() {
+    if (host) host.page(PN, N, C.file);
+    else if (store) { try { const p = JSON.parse(store.getItem(KEY) || '{}'); p.seen = Array.from(new Set((p.seen || []).concat([PN]))); p.last = PN; if (PN === N) p.complete = true; store.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+  }
+  const firstVisit = !(store && store.getItem(KEY));
+  progress();
+  const go = d => {
+    stopVoice();
+    const target = PN + d;
+    if (target < 1) return;
+    if (target > N) { finish(); return; }
+    L('page', { to: target });
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+  };
+  $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
+  if (PN === 1) $('#b-back').disabled = true;
+
+  /* ---------------------------------------------------------------- voice (Kokoro af_heart clips beside the page) */
+  const audio = new Audio(); audio.preload = 'auto';
+  let voiceOK = false, queue = [];
+  function setVoiceUI() {
+    $('#b-mute').innerHTML = muted ? '&#128263;<span class="vt"> Off</span>' : '&#128266;<span class="vt"> On</span>'; $('#b-mute').classList.toggle('off', muted);
+    $('#b-rate').textContent = rate === 1 ? '1×' : '0.8×';
+    try { store && store.setItem('cf-voice', JSON.stringify({ muted, rate })); } catch (e) {}
+  }
+  setVoiceUI();
+  $('#b-mute').onclick = () => { muted = !muted; setVoiceUI(); if (muted) stopVoice(); else speak(curKey()); L('voice', { muted }); };
+  $('#b-rate').onclick = () => { rate = rate === 1 ? 0.8 : 1; audio.playbackRate = rate; setVoiceUI(); };
+  function stopVoice() { queue = []; try { audio.pause(); } catch (e) {} }
+  function speak(...keys) {
+    queue = keys.filter(k => k && C.audio && C.audio[k]);
+    try { audio.pause(); } catch (e) {}
+    playNext();
+  }
+  function playNext() {
+    if (muted || !voiceOK || CAPTURE || !queue.length) return;
+    const k = queue.shift();
+    audio.src = (C.audioBase || 'audio/') + C.audio[k]; audio.playbackRate = rate;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    audio.play().catch(() => { showStart(); });
+  }
+  audio.addEventListener('ended', () => setTimeout(playNext, 250));
+  function curKey() { if (free) return challenge ? null : 'free'; const st = steps[idx]; if (!st) return null; if (st.type === 'question') return `s${idx}v${(qv[idx] || 0) % st.variants.length}`; return 's' + idx; }
+  function showStart() {
+    if (CAPTURE || $('#start')) return;
+    const first = PN === 1 && firstVisit;
+    const o = el('div', { id: 'start' }, `<div class="box"><h2>${first ? C.lesson.title : C.title}</h2><p>${first ? 'The narrator reads each step aloud. You can mute it or slow it down at the top right.' : 'Tap to hear this page read aloud.'}</p>
+      <button class="btn pri" id="b-start">&#9654; ${first ? 'Start lesson' : 'Start page'}</button> <button class="btn" id="b-quiet">Read it myself</button></div>`);
+    document.body.appendChild(o);
+    $('#b-start').onclick = () => { o.remove(); voiceOK = true; muted = false; setVoiceUI(); speak('what', curKey()); L('start'); };
+    $('#b-quiet').onclick = () => { o.remove(); voiceOK = true; muted = true; setVoiceUI(); L('start', { quiet: true }); };
+  }
+
+  /* ---------------------------------------------------------------- sim state */
+  function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+  function full() { return Object.assign({}, state, { out }); }
+  function applyState(next, user) {
+    const prev = state; state = Object.assign({}, state, next); if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, prev); dirty = true;
+    if (user) { if (S.onSet) { S.onSet(state, Object.keys(next)); out = S.calc(state); } listeners.forEach(fn => fn(full())); }
+  }
+  function snapTo(partial) {      // sim.set({snap: true, ...}): page defaults first, no tweens, then the rest
+    tweens = []; S.reset && S.reset(); state = Object.assign({}, S.defaults, partial); delete state.snap;
+    if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, null, true); dirty = true;
+  }
+  function set(partial, dur = 0) {
+    if (!partial) return;
+    if (partial.snap) return snapTo(partial);
+    const inst = {}, tw = {}, keys = Object.keys(partial), noTween = S.instant || [];
+    for (const k in partial) { if (dur > 0 && typeof partial[k] === 'number' && typeof state[k] === 'number' && !noTween.includes(k)) tw[k] = [state[k], partial[k]]; else inst[k] = partial[k]; }
+    if (Object.keys(tw).length) tweens.forEach(T => { for (const k in tw) delete T.tw[k]; });   // a new tween on a key replaces the old one
+    if (Object.keys(inst).length) applyState(inst);
+    if (Object.keys(tw).length) tweens.push({ tw, t: 0, dur });
+    if (S.onSet) { S.onSet(state, keys); out = S.calc(state); dirty = true; }
+  }
+  function stepTweens(ms) {
+    if (!tweens.length) return;
+    const next = {};
+    tweens = tweens.filter(T => { T.t += ms; const u = Math.min(1, T.t / T.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; for (const k in T.tw) next[k] = T.tw[k][0] + (T.tw[k][1] - T.tw[k][0]) * e; return u < 1; });
+    applyState(next);
+  }
+  function advance(ms) {
+    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+  }
+  function checkGame(ms) {
+    const c = challenge; if (!c || !c.game || c.result || !free) return;
+    c.t = (c.t || 0) + ms / 1000;
+    const r = c.goal(state, out, c.t) || {}; c.live = r.live || '';
+    const g = card.querySelector('#glive'); if (g && g.innerHTML !== md(c.live)) g.innerHTML = md(c.live);
+    if (r.done) { c.result = { ok: !!r.ok, msg: r.msg || '' }; L('challenge', { right: c.result.ok }); renderFree(); }
+  }
+  const api = {
+    input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
+    get: full, redraw() { dirty = true; },
+    step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
+  };
+  S.mount(svg, api);
+  spotG = document.createElementNS(NS, 'g'); spotG.id = 'spotg'; svg.appendChild(spotG);
+  calloutG = document.createElementNS(NS, 'g'); calloutG.id = 'calloutg'; svg.appendChild(calloutG);
+  /* video contract */
+  window.sim = {
+    set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
+    get: full, advance, isIdle: () => !tweens.length && !(S.busy && S.busy()), ready: false,
+    onChange: fn => listeners.push(fn),
+    callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+    clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
+  };
+
+  /* ---------------------------------------------------------------- readouts + caption */
+  let lastRead = '', lastCap = '';
+  function render() {
+    if (!dirty) return; dirty = false;
+    if (document.body.classList.contains('phone')) fit();
+    S.draw && S.draw(state, out);
+    const r = S.readouts(state, out).map(o => `<div class="ro ${o.cls || ''}" id="ro-${o.id || ''}"><small><span class="lf">${o.label}</span><span class="ls">${o.short || o.label}</span></small><span${o.color ? ` style="color:${o.color}"` : ''}>${o.value}</span></div>`).join('');
+    if (r !== lastRead) { read.innerHTML = r; lastRead = r; }
+    const c = S.caption && S.caption(state, out), cs = c ? JSON.stringify(c) : '';
+    if (cs !== lastCap) { lastCap = cs; cap.className = 'caption' + (c ? ' on ' + (c.kind || '') : ''); cap.innerHTML = c ? `<b>${c.title}</b><span class="ct">${c.text}</span>` : ''; }
+    drawSpot(); syncTray(); liveLine();
+  }
+  /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
+  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function tpl(t) {
+    const f = fn(t); if (f) return String(f(state, out));
+    const st = full();
+    return String(t || '').replace(/\{([\w.]+)(?::(%|\d))?\}/g, (m, p, d) => { const v = getPath(st, p); if (typeof v !== 'number') return v == null ? m : String(v);
+      return d === '%' ? Math.round(v * 100).toLocaleString('en-CA') + ' %' : v.toLocaleString('en-CA', { minimumFractionDigits: +(d || 0), maximumFractionDigits: +(d || 0) }); });
+  }
+  let lastLive = '';
+  function liveLine() {
+    const st = !free && steps[idx], box = card.querySelector('#live'); if (!box || !st) return;
+    let h = st.live ? md(tpl(st.live)) : '';
+    const w = (st.wrong || []).find(x => goalMet(x.when)); if (w && !done.has(idx)) h += (h ? '<br>' : '') + `<span class="wrongsay">${md(w.say)}</span>`;
+    if (h !== lastLive) { lastLive = h; box.innerHTML = h; box.style.display = h ? '' : 'none'; }
+  }
+  function syncTray() {               // programmatic changes (Show me, setups, tweens) move the controls too
+    const ae = document.activeElement;
+    trayKeys.forEach(k => { const c = S.controls[k], v = state[k];
+      if (c.type === 'hold' || c.type === 'custom') return;
+      if (c.type === 'chips') tray.querySelectorAll(`.chip[data-k="${k}"]`).forEach(b => { const on = String(v) === b.dataset.v; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+      else { const r = tray.querySelector(`input[data-k="${k}"]`), t = tray.querySelector(`.val[data-k="${k}"]`), txt = (c.fmt || (x => x + (c.unit || '')))(v);
+        if (r && r !== ae && +r.value !== v) r.value = v; if (t && t.textContent !== txt) t.textContent = txt; } });
+    tray.querySelectorAll('[data-hk]').forEach(b => { const on = !!state[b.dataset.hk]; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+  }
+
+  /* ---------------------------------------------------------------- control tray */
+  function ctrlHTML(key) {
+    const c = S.controls[key], v = state[key], fmt = c.fmt || (x => x + (c.unit || ''));
+    if (c.type === 'hold') return `<div class="ctrl holdc" id="c-${key}"><button class="btn hold" data-hk="${c.key || key}" data-on="${c.on != null ? c.on : 1}" aria-pressed="false" title="Press and hold${c.hotkey ? ' (or hold the ' + c.hotkey + ' key)' : ''}">${c.label}</button></div>`;
+    if (c.type === 'custom') return `<div class="ctrl custom" id="c-${key}">${c.html(state)}</div>`;
+    if (c.type === 'chips') return `<div class="chipwrap" id="c-${key}"><span class="lab">${c.label}</span><div class="chips" role="group" aria-label="${c.label}">${c.options.map(o => `<button class="chip${o.v === v ? ' on' : ''}" data-k="${key}" data-v="${o.v}" aria-pressed="${o.v === v}">${o.t}</button>`).join('')}</div></div>`;
+    return `<div class="ctrl" id="c-${key}"><span class="lab">${c.label}</span><button class="btn" data-k="${key}" data-d="-1" aria-label="${c.label} down">&minus;</button>
+      <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-k="${key}" aria-label="${c.label}"><button class="btn" data-k="${key}" data-d="1" aria-label="${c.label} up">+</button>
+      <button class="val" data-k="${key}" title="Tap to type a value">${fmt(v)}</button></div>`;
+  }
+  let trayKeys = [];
+  function renderTray(keys) {
+    if (keys) trayKeys = keys;
+    const ae = document.activeElement, activeRange = ae && ae.type === 'range' && tray.contains(ae) ? ae.dataset.k : null;
+    if (activeRange) {           // never rebuild under a finger: update values only
+      trayKeys.forEach(k => { const c = S.controls[k]; const v = $(`#c-${k} .val`); if (v) v.textContent = (c.fmt || (x => x + (c.unit || '')))(state[k]); });
+      return;
+    }
+    tray.innerHTML = trayKeys.map(ctrlHTML).join('');
+    tray.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k, c = S.controls[k], o = c.options.find(o => String(o.v) === b.dataset.v); api.input({ [k]: o.v }); });
+    tray.querySelectorAll('.chip.on').forEach(c => { const p = c.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = c.offsetLeft - p.offsetLeft - 8; });   // phone: the picked chip in view
+    tray.querySelectorAll('input[type=range]').forEach(r => { r.oninput = () => api.input({ [r.dataset.k]: +r.value }); r.onchange = () => renderTray(); });
+    tray.querySelectorAll('.btn[data-d]').forEach(b => {
+      let h = null; const k = b.dataset.k, c = S.controls[k];
+      const bump = () => { const v = Math.max(c.min, Math.min(c.max, +(state[k] + (+b.dataset.d) * c.step).toFixed(6))); api.input({ [k]: v }); };
+      b.onpointerdown = e => { e.preventDefault(); bump(); h = setTimeout(function rep() { bump(); h = setTimeout(rep, 90); }, 420); };
+      const stop = () => { clearTimeout(h); h = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; addEventListener('pointerup', stop);
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } };
+    });
+    tray.querySelectorAll('[data-hk]').forEach(wireHold);
+    tray.querySelectorAll('.val').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, c = S.controls[k], inp = el('input', { class: 'tv', type: 'number', inputmode: 'decimal', min: c.min, max: c.max, step: c.step, value: state[k], 'aria-label': c.label });
+      b.replaceWith(inp); inp.focus(); inp.select();
+      const ok = () => { const v = +inp.value; if (isFinite(v)) api.input({ [k]: Math.max(c.min, Math.min(c.max, v)) }); renderTray(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') renderTray(); }; inp.onblur = ok;
+    });
+  }
+
+  /* hold-to-run: state[key] = on while held (pointer, Space / Enter on the button, or the control's hotkey) */
+  const held = new Set();
+  function hold(k, on, v) {
+    if (on ? held.has(k) : !held.has(k)) return;
+    if (on) held.add(k); else held.delete(k);
+    api.input({ [k]: on ? (v != null ? v : 1) : 0 });
+  }
+  function wireHold(b) {
+    const k = b.dataset.hk, v = b.dataset.on != null ? +b.dataset.on : 1;
+    b.style.touchAction = 'none';
+    b.onpointerdown = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} hold(k, true, v); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => hold(k, false);
+    b.oncontextmenu = e => e.preventDefault();
+    b.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(k, true, v); } };
+    b.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); hold(k, false); } };
+    b.onblur = () => hold(k, false);
+  }
+  const releaseAll = () => Array.from(held).forEach(k => hold(k, false));
+  addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT') return; trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) { e.preventDefault(); hold(c.key || k, true, c.on); } }); });
+  addEventListener('keyup', e => { trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) hold(c.key || k, false); }); });
+
+  /* ---------------------------------------------------------------- spotlight (hint level 2) */
+  let spotIds = [];
+  function drawSpot() {
+    if (STAGE_ONLY) return;                 // video: no lesson spotlight on the stage
+    spotG.innerHTML = spotIds.map(id => { const p = S.spot && S.spot(id, state); if (!p) return ''; const [x, y, r] = p;
+      return `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/><circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="10 7"/>`; }).join('');
+  }
+  function spot(ids, ctrls) {
+    spotIds = ids || []; drawSpot();
+    tray.querySelectorAll('.spotlit').forEach(e => e.classList.remove('spotlit'));
+    (ctrls || []).forEach(k => { const e = $('#c-' + k); if (e) e.classList.add('spotlit'); });
+  }
+
+  /* ---------------------------------------------------------------- steps */
+  let tries = 0;
+  function markTry() { tries++; }
+  function goalMet(g) {
+    if (!g) return false;
+    const f = fn(g); if (f) return !!f(state, out);
+    const st = full();
+    return Object.keys(g).every(k => { const v = getPath(st, k), m = g[k];
+      if (Array.isArray(m)) return v >= m[0] - 1e-9 && v <= m[1] + 1e-9;
+      if (m && typeof m === 'object') { if ('in' in m) return m.in.includes(v); if ('near' in m) return Math.abs(v - m.near) <= (m.tol != null ? m.tol : 1e-6);
+        if ('gte' in m) return v >= m.gte - 1e-9; if ('lte' in m) return v <= m.lte + 1e-9; if ('gt' in m) return v > m.gt; if ('lt' in m) return v < m.lt; if ('not' in m) return v !== m.not; }
+      return v === m; });
+  }
+  function checkGoal(ms) {
+    if (free || phase !== 'step') return;
+    const st = steps[idx]; if (!st || done.has(idx) || !(st.type === 'do' || st.type === 'fail' || (st.type === 'predict' && qState === 'answered' && st.goal))) return;
+    if (goalMet(st.goal)) { goalSince = (goalSince || 0) + ms; if (goalSince >= (st.hold != null ? st.hold : 450)) complete(); }
+    else goalSince = null;
+  }
+  function complete(how) {
+    if (done.has(idx)) return;
+    done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+  }
+  function enter(i, opts = {}) {
+    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    const st = steps[idx];
+    if (!opts.noSetup) {
+      if (st.setup) set(st.setup, 0);
+      if (st.set) set(st.set, st.dur || 1200);
+      if (st.type === 'question') { const v = st.variants[(qv[idx] || 0) % st.variants.length]; if (v.setup) set(v.setup, 0); }
+    }
+    releaseAll(); lastLive = '';
+    if (!opts.noSetup) { window.sim.clear(); if (st.callout) [].concat(st.callout).forEach(c => window.sim.callout(c.id, c.text, { pos: c.pos })); }
+    L('enter', { step: idx, type: st.type });
+    spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
+  }
+  function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
+  function stepHead(label) {
+    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  }
+  function wireHead() {
+    const p = $('#b-sprev'), n = $('#b-snext');
+    if (p) { p.onclick = () => { if (free) enter(steps.length - 1); else if (idx > 0) enter(idx - 1); }; p.disabled = !free && idx === 0; }
+    if (n) n.onclick = () => { if (free) go(1); else { L('skip', { step: idx }); if (!done.has(idx)) helped.add(idx); nextStep(); } };
+  }
+  function hintBlock(st) {
+    let h = '';
+    if (hintLvl >= 1) h += `<div class="hint">${md(st.hint || 'Look at the readouts under the drawing.')}</div>`;
+    if (hintLvl >= 2 && st.hint2) h += `<div class="hint">${md(st.hint2)}</div>`;
+    return h;
+  }
+  function hintButtons(st, showLabel = 'Show me') {
+    return `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; ${showLabel}</button>${hintLvl >= 2 || helped.has(idx) ? '<button class="skip" id="b-skip">Skip this step</button>' : ''}</div>`;
+  }
+  function renderStep() {
+    if (free) return renderFree();
+    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    const ctrls = st.controls || [];
+    if (st.type === 'teach') {
+      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+    } else if (st.type === 'do' || st.type === 'fail') {
+      if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
+      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      else h += hintBlock(st) + hintButtons(st);
+    } else if (st.type === 'predict') {
+      h += `<p>${md(st.text)}</p>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      else {
+        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
+        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      }
+    } else if (st.type === 'question') {
+      const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
+      h += `<h3>${md(v.q)}</h3>`;
+      if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
+        `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+      else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
+        `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
+      else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
+        `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
+    lastLive = ''; liveLine();
+  }
+  let predPick = null, qPick = null;
+  function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
+  function choose(i) {
+    const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'predict') {
+      if (qState) return; predPick = i; qState = 'answered';
+      if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+      if (!st.goal) done.add(idx);
+      renderStep(); return;
+    }
+    if (st.type !== 'question' || qState) return;
+    const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
+    if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
+    else qState = 'wrong';
+    renderStep();
+  }
+  function newQuestion() {
+    if (challenge) { return nextChallenge(); }
+    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
+    L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
+  }
+  function hint() {
+    if (challenge) { hintLvl++; renderFree(); return; }
+    const st = steps[idx]; hintLvl = Math.min(2, hintLvl + 1); L('hint', { step: idx, lvl: hintLvl });
+    renderStep();
+    if (hintLvl >= 2) spot(st.hintSpot ? [].concat(st.hintSpot) : (st.spot ? [].concat(st.spot) : []), st.controls || []);
+  }
+  function showMe() {
+    if (challenge) { challenge.shown = true; renderFree(); return; }
+    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
+  }
+
+  /* ---------------------------------------------------------------- free play */
+  const allKeys = (C.freeControls || Object.keys(S.controls)).filter(k => S.controls[k] && !(S.controls[k].lessonOnly));
+  function enterFree() { stopVoice(); free = true; challenge = null; spot([], []); releaseAll(); window.sim.clear(); L('free'); renderFree(); speak('free'); }
+  function renderFree() {
+    card.className = 'card step free';
+    let h = stepHead('FREE PLAY · EVERYTHING UNLOCKED');
+    if (!challenge) {
+      h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
+    } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
+      h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    } else {
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
+      if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
+      else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
+      else h += opts(c.choices, ord, () => '', true) + (hintLvl ? `<div class="hint">${md(c.hint)}</div>` : '');
+      h += `<div class="row">${c.state === 'wrong' || c.state === 'right' || c.shown ? '<button class="btn pri" id="b-newq">Try a new question &#9654;</button>' : '<button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button>'}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(challenge ? (challenge.game ? (challenge.controls || allKeys) : []) : allKeys);
+    const ch = $('#b-chal'); if (ch) ch.onclick = () => nextChallenge();
+    const rs = $('#b-reset'); if (rs) rs.onclick = () => reset();
+    const np = $('#b-np'); if (np) np.onclick = () => go(1);
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => nextChallenge();
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => { const c = challenge; c.pick = +b.dataset.i; c.state = c.pick === c.answer ? 'right' : 'wrong'; L('challenge', { right: c.state === 'right' }); renderFree(); });
+  }
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function nextChallenge() {
+    chalN++; hintLvl = 0;
+    const c = S.challenge(rng(PN * 1000 + chalN * 7919 + (Q.get('seed') | 0)), chalN);
+    if (c.setup) set(c.setup, 0);
+    challenge = Object.assign({ state: null, pick: null }, c); free = true; L('challenge', { n: chalN }); renderFree();
+  }
+  function reset() { tweens = []; held.clear(); S.reset && S.reset(); state = Object.assign({}, S.defaults); out = S.calc(state); S.apply(state, null, true); dirty = true; challenge = null; L('reset'); renderFree(); }
+
+  function finish() {
+    finished = true; stopVoice(); L('finish'); if (host && host.finish) host.finish();
+    card.className = 'card step free';
+    card.innerHTML = `<div class="sh"><b>LESSON COMPLETE</b></div><p>${md(C.lesson.done)}</p><div class="row">${C.lesson.sheet ? `<a class="btn pri" href="${C.lesson.sheet}" target="_blank" rel="noopener">&#128196; Summary sheet (PDF)</a>` : ''}<button class="btn" id="b-again">Back to free play</button></div>`;
+    tray.innerHTML = ''; $('#b-again').onclick = () => enterFree();
+    speak('done');
+  }
+
+  /* ---------------------------------------------------------------- loop */
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+    if (!CAPTURE) advance(dt);
+    requestAnimationFrame(frame);
+  }
+  S.apply(state, null, true); render();
+  enter(0, { quiet: true, noSetup: STAGE_ONLY });     // a video page starts from the page defaults: the script sets it up
+  if (!CAPTURE) {
+    requestAnimationFrame(frame);
+    if ((PN === 1 && firstVisit) || host && host.fresh) showStart();
+    else { voiceOK = true; speak('what', curKey()); }      // later pages: autoplay; if the browser refuses, play() shows the Start tap
+  }
+  if (CAPTURE) { voiceOK = false; }
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight' && e.altKey) go(1); if (e.key === 'ArrowLeft' && e.altKey) go(-1); });
+  window.sim.ready = true;
+
+  /* test / run-through API */
+  window.lessonPage = {
+    log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
+      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+  };
+}
+})();
+</script>
+<script>CFShell.start({"n":6,"file":"06-anchor.html","title":"The anchor","what":"A four-part tackle on a 2 t (4,000 lb) beam clamp. The clamp is built with a design factor of 5 (Harrington UBC). The inset shows the clamp on the beam flange.","steps":[{"type":"teach","text":"You pull down on the top block too. Anchor = 2,400 + 600 = **3,000 lb**: 75 % of the clamp rating.","spot":["anchor-tag","vm-anchor"]},{"type":"do","text":"Raise the **Load** until the anchor reaches **100 %** of its rating (4,000 lb on the anchor).","goal":{"out.anchor":{"near":4000,"tol":130}},"solve":{"load":3200},"live":"Anchor {out.anchor:0} lb · {out.util:%}","hint":"W + P = 1.25 W with 4 parts. 4,000 ÷ 1.25 = 3,200 lb.","ok":"A 3,200 lb load already puts **4,000 lb** on a 4,000 lb clamp. Rate the anchor for W + P, not W.","controls":["load"]},{"type":"teach","text":"Next you push far past the rating. In real life you never do this: there is no warning before a clamp lets go.","setup":{"load":3200}},{"type":"fail","text":"Raise the load until the anchor passes **5 × 4,000 = 20,000 lb**. Watch the clamp.","goal":{"out.failure.parted":true},"solve":{"load":17000},"hint":"Drag the Load slider all the way up.","controls":["load"],"ok":"The clamp let go far past its rating. The design factor hides how close you are: there is no warning. Rate the anchor for W + P and never go over it.","hold":0},{"type":"question","variants":[{"q":"A 4-part tackle (no friction) lifts 4,000 lb, lead pulled straight down. What should the top block and its anchor be rated for, at least?","choices":[{"t":"1,000 lb","why":"That is the pull, not the load on the anchor."},{"t":"4,000 lb","why":"That leaves out your pull on the top block."},{"t":"5,000 lb","why":""},{"t":"8,000 lb","why":"That doubles the load."}],"answer":2,"explain":"Anchor = W + P = 4,000 + 1,000 = **5,000 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"ideal"},"key":"anchor","value":5000}},{"q":"A 2-part tackle (no friction) lifts 3,000 lb, lead pulled down. Load on the top block?","choices":[{"t":"1,500 lb","why":"That is the pull only. Add the load."},{"t":"3,000 lb","why":"That is the load only. Add your pull."},{"t":"4,500 lb","why":""},{"t":"6,000 lb","why":"That doubles the load. Anchor = W + P."}],"answer":2,"explain":"3,000 + 1,500 = **4,500 lb**.","calc":{"state":{"parts":2,"load":3000,"friction":"ideal"},"key":"anchor","value":4500}},{"q":"4 parts, 4,000 lb, 10 % rule, lead pulled down. Load on the top block?","choices":[{"t":"5,000 lb","why":"Friction raises the pull."},{"t":"5,400 lb","why":""},{"t":"5,600 lb","why":"That is n × P. The anchor carries W + P."},{"t":"4,000 lb","why":"That is the load only. Add your pull."}],"answer":1,"explain":"P = 1,400; 4,000 + 1,400 = **5,400 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"rule10"},"key":"anchor","value":5400}},{"q":"A beam clamp is rated 2 t (4,000 lb) with a 5:1 design factor. At about what anchor load would it be expected to fail?","choices":[{"t":"4,000 lb","why":"That is the working load limit, not the breaking load."},{"t":"8,000 lb","why":"2:1 is not its design factor."},{"t":"20,000 lb","why":""},{"t":"800 lb","why":"That divides by 5. The breaking load is WLL × 5."}],"answer":2,"explain":"4,000 × 5 = **20,000 lb**. Never use the margin: it covers wear, shock and side loads.","calc":{"state":{"parts":4,"load":4000,"anchorWll":4000},"key":"breakAt","value":20000}}]},{"type":"teach","text":"Remember:","points":["Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W).","Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174).","The design factor is not extra capacity."],"say":"Remember. Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W). Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174). The design factor is not extra capacity."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p6-what-227a3f3e.mp3","s0":"p6-s0-e2748437.mp3","s1":"p6-s1-b284e951.mp3","s2":"p6-s2-bbbbf5df.mp3","s3":"p6-s3-73bea5fb.mp3","s4v0":"p6-s4v0-2b583a41.mp3","s4v1":"p6-s4v1-1429ab85.mp3","s4v2":"p6-s4v2-fbb64013.mp3","s4v3":"p6-s4v3-592b746e.mp3","s5":"p6-s5-ce226063.mp3","free":"p6-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+</body></html>

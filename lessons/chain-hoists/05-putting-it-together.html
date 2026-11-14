@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="cf-lesson-page" content="chain-hoists:5">
+<title>Putting it together · Chain hoists · CrewForge</title>
+<!-- CrewForge simulator-lesson page (built by simulators/hoisting/build.py from src/; do not edit by hand) -->
+<style>/* CrewForge simulator-lesson page shell (approved layout, docs/mockups/lesson-page.html; docs/LESSON_DESIGN.md s.2) */
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --fill:#C05A00;--ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  font-weight:700;font-size:15px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#6a645b}.btn:focus-visible,.opt:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+.btn.ghost{background:transparent}.btn[disabled]{opacity:.45;cursor:default}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:6px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{background:var(--accent)}.dots i.done{background:#7a5a3a}
+.voice{display:flex;align-items:center;gap:6px}
+.voice .btn{padding:6px 10px;font-size:13px}
+.voice .btn.off{color:var(--muted)}
+.what{margin:10px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15.5px}
+.what .wt{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800;background:none;border:0;padding:0;min-height:0;display:flex;gap:8px;align-items:center}
+.what .wt .chev{display:none}
+.what b.hl{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+.read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
+.caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
+  background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
+.caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
+.caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
+.caption.on{display:block}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step .sh{display:flex;align-items:center;gap:8px}
+.step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
+.step p{font-size:18px;margin:6px 0 10px;font-weight:600}
+.step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
+.step .hint{font-size:15px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,138,43,.10);border:1px solid rgba(240,138,43,.5)}
+.step .good{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(61,220,132,.10);border:1px solid var(--ok)}
+.step .good b{color:var(--ok)}
+.step .bad{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(242,194,48,.10);border:1px solid var(--warn)}
+.step .bad b{color:var(--warn)}
+.step .never{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--bad);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.skip{background:none;border:0;color:var(--muted);text-decoration:underline;min-height:44px;padding:0 6px;font-size:14px}
+.q h3{margin:4px 0 8px;font-size:17px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:10px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:15.5px;font-weight:600;min-height:44px}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,79,.12)}
+.opt.right{border-color:var(--ok);background:rgba(61,220,132,.12)}
+.opt.ans{border-color:var(--ok)}
+.free{border:2px dashed var(--accent)}
+.free .fk{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800}
+.ctrlcard{display:flex;flex-direction:column;gap:12px}
+.ctrlcard:empty{display:none}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl .lab{font-weight:700;width:96px;flex:none;font-size:15px;line-height:1.15}
+.ctrl .val{font-weight:800;color:var(--accent);min-width:72px;text-align:right;background:none;border:0;padding:0;min-height:44px;font-size:16px}
+.ctrl input[type=range]{flex:1;min-width:60px;accent-color:var(--accent);height:44px}
+.ctrl .tv{width:80px;font:inherit;font-weight:800;padding:6px;border-radius:8px;border:2px solid var(--accent);background:#171512;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipwrap .lab{font-weight:700;font-size:15px;margin-bottom:6px;display:block}
+.chip{padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);font-weight:700;min-height:44px;font-size:14.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.spotlit{box-shadow:0 0 0 3px var(--accent),0 0 18px rgba(240,138,43,.6);border-radius:12px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px var(--accent),0 0 28px rgba(240,138,43,.75)}}
+#start{position:fixed;inset:0;background:rgba(15,14,12,.82);display:flex;align-items:center;justify-content:center;z-index:20}
+#start .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center}
+#start h2{margin:0 0 6px;font-size:24px}#start p{color:var(--muted);margin:0 0 18px}
+#start .btn{font-size:18px;padding:12px 22px}
+/* phone portrait: top bar -> what (collapsible) -> step -> simulator -> control tray (no page scroll) */
+body.phone .app{grid-template-rows:auto auto minmax(0,1fr)}
+body.phone .bar{flex-wrap:wrap;padding:6px 8px;gap:6px}
+body.phone .title{order:-1;flex-basis:100%;display:flex;gap:8px;align-items:baseline}
+body.phone .kick{font-size:11px}body.phone .h{font-size:16px}
+body.phone .dots{flex:1;justify-content:center}body.phone .dots i{width:14px}
+body.phone .what{margin:6px 8px 0;padding:6px 10px;font-size:14px}
+body.phone .what .wt{min-height:44px;width:100%}
+body.phone .what .wt .chev{display:inline}
+body.phone .what:not(.open) .wx{display:none}
+body.phone .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 8px 8px;gap:6px}
+body.phone .side{display:contents}
+body.phone .step{order:1;padding:8px 12px}body.phone .stage{order:2}body.phone .ctrlcard{order:3;padding:8px 10px;gap:6px}
+body.phone .step p{font-size:15.5px;margin:2px 0 6px}
+body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
+body.phone .q h3{font-size:15px;margin:2px 0 4px}
+body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
+body.phone .read{padding:4px 6px;gap:4px}
+body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .ctrl .lab{width:70px;font-size:13px}
+body.phone .chip{padding:6px 9px;font-size:13px}
+body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
+body.phone .caption{font-size:13px;padding:6px 10px;top:6px}
+body.phone .btn{padding:6px 10px;font-size:14px}
+body.phone .step .sh{min-height:28px}
+body.phone .main{grid-template-columns:minmax(0,1fr)}
+body.phone .card,body.phone .stage{min-width:0}
+body.phone .bar .btn{padding:4px 10px;font-size:14px}
+body.phone .voice .vt{display:none}
+body.phone .ro .lf{display:none}
+.ro .ls{display:none}body.phone .ro .ls{display:inline}
+body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
+.what .wt{pointer-events:none}body.phone .what .wt{pointer-events:auto}
+.main{grid-template-rows:minmax(0,1fr)}
+
+/* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
+body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
+body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
+body.phone .chip{flex:none}
+body.phone .chipwrap{display:flex;align-items:center;gap:8px}
+body.phone .chipwrap .lab{margin:0;width:70px;flex:none}
+body.phone .bar{row-gap:2px}
+body.phone .what{padding:0 10px}
+.chip{min-width:44px}
+body.phone .caption .ct{display:none}body.phone .caption b{font-size:12px}body.phone .caption{padding:4px 10px;bottom:56px}
+
+/* hold-to-run controls (shell.js: type 'hold' and data-hk buttons inside 'custom' controls) */
+.ctrl.holdc{display:block}
+.btn.hold{width:100%;min-height:52px;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn.hold.on{background:var(--fill);border-color:var(--accent);color:var(--text)}
+.ctrl.custom{display:block}
+.step ul.points{margin:4px 0 10px;padding-left:20px;font-size:16px}.step ul.points li{margin:3px 0}
+.step .wrongsay{color:var(--warn);font-weight:700}
+body.phone .btn.hold{min-height:48px}
+/* video layout (content capture:'stage' + ?capture=1): the stage and its readouts fill the window */
+body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
+body.capture .app{grid-template-rows:minmax(0,1fr)}
+body.capture .main{grid-template-columns:1fr;padding:10px 12px}
+body.capture .read{padding:10px 12px}
+body.capture .ro{padding:7px 10px}
+</style></head>
+<body><noscript>This lesson needs JavaScript.</noscript>
+<script>(function (root) {
+'use strict';
+const K = {};
+K.W = 1600; K.H = 880; K.FLOOR = 800;
+K.FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+K.C = { bg: '#24211d', panel: '#2a2723', text: '#F5F5F4', muted: '#b9b4ab', acc: '#F08A2B', ok: '#3ddc84', warn: '#F2C230',
+  bad: '#ff5a4f', steelD: '#3b4247', steelM: '#8d969d', steelL: '#b9c1c7', steelHi: '#eef1f3', ropeD: '#454c51',
+  ropeM: '#aab3b9', ropeV: '#6a737a', timberD: '#5e4426', paint: '#5d6670', paintD: '#23282c' };
+const C = K.C;
+const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+K.f = f;
+K.pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+K.esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+K.catmull = function (P, n = 8, closed = false) {
+  const out = [], m = P.length, last = closed ? m : m - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = P[(closed || i > 0) ? (i - 1 + m) % m : i], p1 = P[i], p2 = P[(i + 1) % m];
+    const p3 = P[(closed || i + 2 < m) ? (i + 2) % m : (i + 1) % m];
+    for (let j = 0; j < n; j++) {
+      const t = j / n, t2 = t * t, t3 = t2 * t;
+      out.push([0, 1].map(c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 +
+        (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+    }
+  }
+  if (!closed) out.push(P[m - 1]);
+  return out;
+};
+K.arcPts = (cx, cy, r, a0, a1, n = 24) => { const o = []; for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return o; };
+K.resample = function (P, step) {
+  const out = [P[0]]; let acc = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+    if (!seg) continue;
+    let t = step - acc;
+    while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+    acc = seg - (t - step);
+  }
+  return out;
+};
+K.normals = P => P.map((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; });
+K.litOffset = function (P, amt) {
+  const N = K.normals(P), Lx = -0.7071, Ly = -0.7071;
+  return P.map((p, i) => { const s = N[i][0] * Lx + N[i][1] * Ly; return [p[0] + N[i][0] * s * amt, p[1] + N[i][1] * s * amt]; });
+};
+K.walker = function (P) {
+  const L = [0];
+  for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const at = s => {
+    s = Math.max(0, Math.min(L[L.length - 1], s));
+    let i = 0; while (i < L.length - 2 && L[i + 1] < s) i++;
+    const seg = (L[i + 1] - L[i]) || 1, t = (s - L[i]) / seg, a = P[i], b = P[i + 1] || a;
+    const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1;
+    return [a[0] + dx * t, a[1] + dy * t, dx / d, dy / d];
+  };
+  return { len: L[L.length - 1], at };
+};
+K.defs = () => `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gGB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a8396"/><stop offset=".5" stop-color="#4c6273"/><stop offset="1" stop-color="#34444f"/></linearGradient>
+<radialGradient id="gWheel" cx=".38" cy=".34" r=".8"><stop offset="0" stop-color="#7d97aa"/><stop offset=".6" stop-color="#4c6273"/><stop offset="1" stop-color="#2c3a44"/></radialGradient>
+<linearGradient id="gCrane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b04a"/><stop offset=".5" stop-color="#b98f2c"/><stop offset="1" stop-color="#7d5f19"/></linearGradient>
+<linearGradient id="gMotor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7a8f"/><stop offset=".35" stop-color="#8aa6b8"/><stop offset=".7" stop-color="#4a6577"/><stop offset="1" stop-color="#2e4250"/></linearGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c8780"/><stop offset="1" stop-color="#5f5a53"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDust"><stop offset="0" stop-color="#b9ad98" stop-opacity=".55"/><stop offset="1" stop-color="#b9ad98" stop-opacity="0"/></radialGradient>
+<marker id="mAcc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.acc}"/></marker>
+<marker id="mTxt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.text}"/></marker>
+<marker id="mMut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.muted}"/></marker>
+</defs>`;
+K.style = (extraPhone = '') => `<style>
+.lb{font:700 26px ${K.FONT};fill:${C.text}} .lm{font:600 21px ${K.FONT};fill:${C.muted}} .la{font:800 30px ${K.FONT};fill:${C.acc}}
+.ld{stroke:${C.muted};stroke-width:2;fill:none} .tag{font:700 12px ${K.FONT};fill:#1d1d1d} .tagb{font:800 15px ${K.FONT};fill:#1d1d1d}
+.halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round} .phOnly{display:none}
+.drag{cursor:grab} .drag:active{cursor:grabbing}
+@media (max-width:700px){ .lb{font-size:33px} .lm{font-size:29px} .la{font-size:36px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+K.backdrop = function (floor = K.FLOOR, wainscot = true) {
+  let s = `<rect width="${K.W}" height="${floor}" fill="url(#gWall)"/>`;
+  if (wainscot) s += `<rect x="0" y="${floor - 150}" width="${K.W}" height="150" fill="#fff" opacity=".018"/><line x1="0" y1="${floor - 150}" x2="${K.W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+  s += `<rect x="0" y="${floor}" width="${K.W}" height="${K.H - floor}" fill="url(#gFloor)"/><line x1="0" y1="${floor}" x2="${K.W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+  return s;
+};
+K.column = (x, floor = K.FLOOR, top = 0, w = 34, op = .55) =>
+  `<g opacity="${op}"><rect x="${f(x)}" y="${f(top)}" width="${w}" height="${f(floor - top)}" fill="#2f2c28"/><rect x="${f(x)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#3a3632"/>` +
+  `<rect x="${f(x + w - 5)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#262320"/><rect x="${f(x - 14)}" y="${f(floor - 8)}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+K.shadow = (cx, y, w, h = 14, op = 1) => `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+K.roundBar = function (P, d, body = '#8d969d', dark = C.steelD, hi = '#e8ecef', cap = 'round', hiOp = .85) {
+  const p = K.pathd(P);
+  return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${K.pathd(K.litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+};
+K.wireRope = function (P, d, phase = 0) {
+  const dense = K.resample(P, Math.max(.8, d / 4));
+  if (dense.length < 2) dense.push(P[P.length - 1]);
+  let s = K.roundBar(dense, d, C.ropeM, C.ropeD, '#e9edf0', 'butt', .7);
+  if (d < 2.2) return s;
+  const pitch = 1.08 * d, adv = 2.0 * d, w = K.walker(dense);
+  let v = '', sv = -adv - (((phase % pitch) + pitch) % pitch);
+  while (sv < w.len) {
+    const seg = [];
+    for (let j = 0; j < 5; j++) {
+      const q = sv + adv * j / 4;
+      if (q >= 0 && q <= w.len) { const [x, y, ux, uy] = w.at(q), o = (-0.5 + j / 4) * d * .86; seg.push([x - uy * o, y + ux * o]); }
+    }
+    if (seg.length > 1) v += K.pathd(seg) + ' ';
+    sv += pitch;
+  }
+  return s + `<path d="${v}" fill="none" stroke="${C.ropeV}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+};
+K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b') {
+  const w = K.walker(P);
+  let s = '', idx = Math.floor(phase / pitch), s0 = -(((phase % pitch) + pitch) % pitch);
+  const L = pitch + d;
+  for (let sv = s0, n = 0; sv < w.len + pitch; sv += pitch, n++) {
+    const a = Math.max(0, sv), b = Math.min(w.len, sv + pitch);
+    if (b - a < pitch * .25) continue;
+    const [x, y, ux, uy] = w.at((a + b) / 2), ang = Math.atan2(uy, ux) * 180 / Math.PI;
+    const face = ((n + idx) & 1) === 0, len = (b - a) / pitch * L;
+    if (face) {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.4)}"/>` +
+        `<rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${col}" stroke-width="${f(d)}"/>` +
+        `<path d="M${f(-len / 2 + d * 1.4)} ${f(-d * 1.95)} L${f(len / 2 - d * 1.4)} ${f(-d * 1.95)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.7, d * .3))}" opacity=".75"/></g>`;
+    } else {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-d * .62)}" width="${f(len)}" height="${f(d * 1.24)}" rx="${f(d * .6)}" fill="${col}" stroke="${dark}" stroke-width="1.1"/>` +
+        `<path d="M${f(-len / 2 + d)} ${f(-d * .3)} L${f(len / 2 - d)} ${f(-d * .3)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.6, d * .25))}" opacity=".7"/></g>`;
+    }
+  }
+  return s;
+};
+K.timberEnd = function (x, y, w, h, id = '') {
+  const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + Math.round(x) + '_' + Math.round(y);
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+  for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+  s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#fff" opacity=".08"/></g>`;
+  return s;
+};
+K.timberSide = function (x, y, w, h, seed = 1) {
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  const n = Math.max(2, Math.floor(h / 7));
+  for (let i = 1; i < n; i++) {
+    const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+    s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+  }
+  return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+};
+const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+  [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81, HOOK_L = 10.43;
+K.HOOK = { saddle: HOOK_SADDLE, L: HOOK_L, ri: HOOK_RI, cy: HOOK_CY };
+function hookContour(open = 0) {
+  const tip = HOOK_OUT.map(p => p[1] < -2.4 && p[0] > 0 ? [p[0] + open * 1.2 * ((-p[1] - 2.4) / 2.4), p[1] + open * .5 * ((-p[1] - 2.4) / 2.4)] : p);
+  let out = K.catmull(tip, 6);
+  const tp = [HOOK_TIP[0] + open * 1.3, HOOK_TIP[1] + open * .55];
+  out = out.concat([tp, [1.8 + open * 1.25, -4.5 + open * .5], [1.64 + open * .6, -4.0 + open * .2]]);
+  for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+  out = out.concat(K.catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+  return [[-0.705, -HOOK_L]].concat(out, [[0.705, -HOOK_L]]);
+}
+K.hookProfile = function (x, ysad, k, o = {}) {
+  const m = o.mirror ? -1 : 1, open = o.open || 0;
+  const T = p => [x + m * p[0] * k, ysad + (p[1] - HOOK_SADDLE) * k];
+  const c = hookContour(open).map(T);
+  let s = `<g id="${o.id || 'hook'}"${o.rot ? ` transform="rotate(${f(o.rot)} ${f(x)} ${f(ysad)})"` : ''}><path d="${K.pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, Math.min(1.8, k * .2)))}" stroke-linejoin="round"/>`;
+  const back = K.catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+  s += `<path d="${K.pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+  s += `<path d="${K.pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+  if (k > 4) for (const p of [[0.95, -5.55], [1.95 + open * 1.1, -4.15 + open * .3]]) { const q = T(p); s += `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(k * .09)}" fill="#20252a"/>`; }
+  if (o.latch === 'missing') {
+    const pv = T([0.92, -5.95]);
+    s += `<circle cx="${f(pv[0])}" cy="${f(pv[1])}" r="${f(k * .3)}" fill="none" stroke="${C.bad}" stroke-width="2"/>`;
+  } else if (o.latch !== false) {
+    const piv = T([0.92, -5.95]), end = T([1.9 + open * 0.2, -4.62 + open * .1]), mid = T([1.5, -5.35]);
+    const d = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+    s += `<path d="${d}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+  }
+  return s + '</g>';
+};
+K.hookEdge = function (x, ysad, k, id = 'hook') {
+  const T = (px, py) => [x + px * k, ysad + (py - HOOK_SADDLE) * k];
+  const body = [T(-0.705, -10.43), T(-0.705, -6.59), T(-0.78, -6.1), T(-0.8, -3.0), T(-0.72, -0.9), T(-0.45, -0.12), T(0, 0),
+    T(0.45, -0.12), T(0.72, -0.9), T(0.8, -3.0), T(0.78, -6.1), T(0.705, -6.59), T(0.705, -10.43)];
+  return `<g id="${id}"><path d="${K.pathd(K.catmull(body, 4), true)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1.6"/></g>`;
+};
+K.hookNeck = function (x, ytop, ysad, k) {
+  const yShank = ysad - (HOOK_L + HOOK_SADDLE) * k;
+  let s = '';
+  if (ytop < yShank) s += `<rect x="${f(x - .55 * k)}" y="${f(ytop)}" width="${f(1.1 * k)}" height="${f(yShank - ytop + 1)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1"/>`;
+  return s;
+};
+K.wbeamSide = function (x0, x1, ytop, d, tf, stiff = [], paint = '#5b6168') {
+  let s = `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(d)}" fill="#3f454b" stroke="#202427" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(x1 - x0)}" height="${f(d * .28)}" fill="#000" opacity=".25"/>`;
+  for (const xs of stiff) s += `<rect x="${f(xs - 3)}" y="${f(ytop + tf)}" width="6" height="${f(d - 2 * tf)}" fill="#646b72" stroke="#2a3035" stroke-width="1"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#7b838a" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf * .35)}" fill="#c3cad0" opacity=".55"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#656d74" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(Math.max(1, tf * .3))}" fill="#aab2b8" opacity=".5"/>`;
+  return s;
+};
+K.wbeamEnd = function (cx, ytop, d, bf, tf, tw, bend = 0, col = '#6e767d') {
+  const yb = ytop + d;
+  const fl = (y, down) => {
+    const tip = down ? bend : 0;
+    return `<path d="M${f(cx - bf / 2)} ${f(y + tip)} L${f(cx - tw / 2)} ${f(y)} L${f(cx + tw / 2)} ${f(y)} L${f(cx + bf / 2)} ${f(y + tip)} L${f(cx + bf / 2)} ${f(y + tf + tip)} L${f(cx + tw / 2)} ${f(y + tf)} L${f(cx - tw / 2)} ${f(y + tf)} L${f(cx - bf / 2)} ${f(y + tf + tip)}Z" fill="${col}" stroke="#202427" stroke-width="1.6" stroke-linejoin="round"/>`;
+  };
+  let s = `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(tw)}" height="${f(d - 2 * tf)}" fill="${col}" stroke="#202427" stroke-width="1.6"/>`;
+  s += fl(ytop, false) + fl(yb - tf, true);
+  s += `<rect x="${f(cx - bf / 2)}" y="${f(ytop)}" width="${f(bf)}" height="${f(Math.max(1.5, tf * .3))}" fill="#c3cad0" opacity=".5"/>`;
+  s += `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(Math.max(1, tw * .35))}" height="${f(d - 2 * tf)}" fill="#c3cad0" opacity=".35"/>`;
+  return s;
+};
+K.label = function (tx, ty, text, target, o = {}) {
+  const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}${o.cl ? ` class="${o.cl}"` : ''}>`;
+  if (target) {
+    const [x2, y2] = target, sx = anchor === 'start' ? tx - 6 : anchor === 'end' ? tx + 6 : tx, sy = anchor === 'middle' ? ty + 8 : ty - 8;
+    if (o.elbow) s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`;
+    else s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+    s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.text}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+  }
+  s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}"${o.subFill ? ` style="fill:${o.subFill}"` : ''}>${o.sub}</text>`;
+  return s + '</g>';
+};
+K.angleArc = function (cx, cy, r, a0, a1, text, tx, ty, o = {}) {
+  const col = o.col || C.acc, P = K.arcPts(cx, cy, r, a0, a1, 40);
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><path d="${K.pathd(P)}" fill="none" stroke="#1F1D1A" stroke-width="7" stroke-linecap="round" opacity=".6"/><path d="${K.pathd(P)}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
+  for (const a of [a0, a1]) { const r1 = a * Math.PI / 180; s += `<line x1="${f(cx + (r - 9) * Math.cos(r1))}" y1="${f(cy + (r - 9) * Math.sin(r1))}" x2="${f(cx + (r + 9) * Math.cos(r1))}" y2="${f(cy + (r + 9) * Math.sin(r1))}" stroke="${col}" stroke-width="3"/>`; }
+  s += `<text class="la halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 24)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.arrow = function (x0, y0, x1, y1, o = {}) {
+  const col = o.col || C.text, w = o.w || 4, d = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / d, uy = (y1 - y0) / d, hl = o.head || 18, hw = hl * .55;
+  const bx = x1 - ux * hl, by = y1 - uy * hl;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (d > hl) s += `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" opacity=".5"/><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}"/>`;
+  s += `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1"/>`;
+  if (o.text) s += `<text class="${o.cls || 'lb'} halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f(o.ty != null ? o.ty : y1)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${o.text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f((o.ty != null ? o.ty : y1) + 25)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.dim = function (x0, y0, x1, y1, text, o = {}) {
+  const col = o.col || C.muted, d = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / d * 9, ny = (x1 - x0) / d * 9;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${col}" stroke-width="2" marker-start="url(#mMut)" marker-end="url(#mMut)"/>`;
+  for (const [x, y] of [[x0, y0], [x1, y1]]) s += `<line x1="${f(x - nx)}" y1="${f(y - ny)}" x2="${f(x + nx)}" y2="${f(y + ny)}" stroke="${col}" stroke-width="2"/>`;
+  const tx = o.tx != null ? o.tx : (x0 + x1) / 2, ty = o.ty != null ? o.ty : (y0 + y1) / 2 - 10;
+  s += `<text class="${o.cls || 'lb'} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'middle'}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  return s + '</g>';
+};
+K.inset = function (refId, sx, sy, mag, cx, cy, r, title, sub, id) {
+  const rs = r / mag, d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d, cid = 'ci' + Math.round(cx) + '_' + Math.round(cy);
+  let s = `<g${id ? ` id="${id}"` : ''}><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+  s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
+  if (title) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+  if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+  return s + '</g>';
+};
+K.plate = function (x, y, w, rows, o = {}) {
+  const lh = o.lh || 22, h = 12 + rows.length * lh;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" fill="#d9dcdf" stroke="#23282c" stroke-width="1.5"/>`;
+  rows.forEach((r, i) => {
+    const yy = y + 6 + lh * (i + 1) - 6;
+    if (r.hi) s += `<rect x="${f(x + 4)}" y="${f(yy - lh + 6)}" width="${f(w - 8)}" height="${f(lh)}" rx="4" fill="none" stroke="${C.acc}" stroke-width="2.5"/>`;
+    s += `<text class="mk" x="${f(x + 10)}" y="${f(yy)}" style="font:${r.b ? 800 : 700} ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.l}</text>`;
+    if (r.r != null) s += `<text class="mk" x="${f(x + w - 10)}" y="${f(yy)}" text-anchor="end" style="font:800 ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.r}</text>`;
+  });
+  return s + '</g>';
+};
+K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
+  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
+  const x = (K.W - w) / 2;
+  return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
+    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+};
+K.dust = (cx, y, t, w = 160) => {
+  if (t < 0 || t > 1.6) return '';
+  const a = 1 - t / 1.6, r = 30 + t * 70;
+  return `<g opacity="${f(a)}"><ellipse cx="${f(cx - w * .35 - t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/>` +
+    `<ellipse cx="${f(cx + w * .35 + t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/></g>`;
+};
+K.skid = function (cx, yTop, w, h, label, o = {}) {
+  const x0 = cx - w / 2, rot = o.rot || 0;
+  let s = `<g id="${o.id || 'load'}"${rot ? ` transform="rotate(${f(rot)} ${f(cx)} ${f(yTop + h / 2)})"` : ''}>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h * .16)}" fill="#7b858e"/><rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="3" fill="#c3cad0" opacity=".5"/>`;
+  for (let i = 1; i < 5; i++) s += `<rect x="${f(x0 + w * i / 5 - 3)}" y="${f(yTop + h * .16)}" width="6" height="${f(h * .84)}" fill="#4a525a"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop + h * .8)}" width="${f(w)}" height="${f(h * .2)}" fill="#3f474e"/>`;
+  if (label) s += `<rect x="${f(cx - 50)}" y="${f(yTop + h * .38)}" width="100" height="26" rx="3" fill="#d9dcdf" stroke="#23282c"/><text x="${f(cx)}" y="${f(yTop + h * .38 + 18)}" text-anchor="middle" class="mk" style="font:800 15px ${K.FONT};fill:#1d1d1d">${label}</text>`;
+  const lug = o.lug != null ? o.lug : w * .4;
+  for (const sg of (o.lugs || [-1, 1])) s += `<path d="M${f(cx + sg * lug - 12)} ${f(yTop)} L${f(cx + sg * lug - 7)} ${f(yTop - 18)} A7 7 0 0 1 ${f(cx + sg * lug + 7)} ${f(yTop - 18)} L${f(cx + sg * lug + 12)} ${f(yTop)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/><circle cx="${f(cx + sg * lug)}" cy="${f(yTop - 16)}" r="3" fill="#1b1a18"/>`;
+  return s + '</g>';
+};
+K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa')}${K.chain([hk, b], pitch, d, 0, '#9aa3aa')}</g>`; };
+K.miniHoist = function (x, yPin, kk, run = 0, label = '', dropIn = 22) {
+  let s = `<g id="hoist"><rect x="${f(x - 3.2 * kk)}" y="${f(yPin + 2 * kk)}" width="${f(6.4 * kk)}" height="${f(6.6 * kk)}" rx="${f(1.5 * kk)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+  s += `<circle cx="${f(x)}" cy="${f(yPin + 5.3 * kk)}" r="${f(2.5 * kk)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.2"/>`;
+  for (let i = 0; i < 6; i++) { const a = run + i * Math.PI / 3; s += `<line x1="${f(x)}" y1="${f(yPin + 5.3 * kk)}" x2="${f(x + 2.3 * kk * Math.cos(a))}" y2="${f(yPin + 5.3 * kk + 2.3 * kk * Math.sin(a))}" stroke="#76828c" stroke-width="2"/>`; }
+  s += `<rect x="${f(x - .9 * kk)}" y="${f(yPin)}" width="${f(1.8 * kk)}" height="${f(2.2 * kk)}" fill="#4c6273" stroke="#1b232a"/>`;
+  const hy = yPin + 5.3 * kk, drop = dropIn * kk, ang = K.sway(2.4, 1.6);
+  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, run * 30, '#a9b1b7')}</g>`;
+  if (label) s += `<text class="mk" x="${f(x)}" y="${f(yPin + 8.2 * kk)}" text-anchor="middle" style="font:800 ${f(Math.max(9, 1.1 * kk))}px ${K.FONT};fill:#e6edf2">${label}</text>`;
+  return { svg: s + '</g>', yBot: yPin + 8.6 * kk, xl: x - .9 * kk, hr: 2.5 * kk };
+};
+K.n0 = v => Math.round(v).toLocaleString('en-CA');
+K.n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+K.n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+K.LB2KG = 0.45359237;
+K.T = 0;
+K.sway = (period, amp, phase = 0) => amp * Math.sin(2 * Math.PI * K.T / period + phase);
+root.CFK = K;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+
+<script>(function () {
+'use strict';
+const K = window.CFK, C = K.C, f = K.f;
+const CB = { 0.5: [48, 25, 5.0, 1, 11.2], 1: [58, 43, 6.3, 1, 11.6], 1.5: [70, 57, 7.1, 1, 13.8], 2: [72, 70, 8.0, 1, 14.8], 3: [72, 114, 7.1, 2, 20.1], 5: [68, 198, 9.0, 2, 23.6] };
+const LB = { 0.75: [54, 9.6], 1: [72, 9.6], 1.5: [64, 10.4], 3: [69, 16.3] };
+const THROAT = { 0.5: 32, 0.75: 32, 1: 34, 1.5: 37, 2: 42, 3: 45.5, 5: 49.5 };
+const GAUGE = { 5.0: [75.5, 77.7], 6.3: [95.5, 98.3], 7.1: [106.0, 109.1], 8.0: [121.0, 124.6], 9.0: [136.0, 140.0] };
+const PERSON = 100, CLUTCH = 1.2, LETGO = 3.0, PACE = 1.5, G_IN = 386.09;
+const k = 10, FLOOR = K.FLOOR, X0 = 470, BEAM_TOP = 20, BEAM_D = 8 * k, TF = .4 * k;
+const PIN_Y = BEAM_TOP + BEAM_D + 5 * k, PIN_R = .5 * k;
+function hookScale(cap) { return Math.min(1, .5 + cap * .12); }
+window.CFScenes = window.CFScenes || {};
+window.CFScenes.chain = function (opts) {
+  const sc = {};
+  sc.defaults = { units: 'imp', htype: 'hand', cap: 1, load: 1500, lift: 0, slip: 0, pulling: 0, lowering: 0, speed: 1,
+    people: 1, clutch: true, cheater: false, reach: 36, brake: 'ok', throat: 0, latch: 'ok', fail: true, showMath: true,
+    stroke: 0, card: 'ratio', stretch: 0, detail: false, liftTo: 0 };
+  sc.instant = ['cap', 'htype'];
+  let fx = null, still = 0, strokeT = 0;
+  sc.calc = function (S) {
+    const rated = S.cap * 2000, W = S.load, o = { rated, W, util: W / rated, mode: S.htype };
+    if (S.htype === 'lever') {
+      const d = LB[S.cap] || LB[1];
+      o.pullRated = d[0]; o.handle = d[1];
+      o.pull = W * d[0] / rated;
+      o.reachUsed = S.cheater ? S.reach : d[1];
+      o.hand = o.pull * d[1] / o.reachUsed;
+      o.leverage = o.reachUsed / d[1];
+      o.maxLoad = PERSON * o.leverage / d[0] * rated;
+      o.falls = 1; o.perFall = W; o.ratio = null;
+      o.stall = o.hand > PERSON ? 'person' : null;
+    } else {
+      const d = CB[S.cap] || CB[1];
+      o.pullRated = d[0]; o.ratio = d[1]; o.chain = d[2]; o.falls = d[3]; o.headroom = d[4];
+      o.ideal = d[0] * d[1];
+      o.eff = rated / o.ideal;
+      o.pull = W * d[0] / rated;
+      o.perFall = W / d[3];
+      o.handChain = S.lift * d[1];
+      o.run = o.handChain + S.slip;
+      o.canPull = PERSON * S.people;
+      o.stall = (S.clutch && W > CLUTCH * rated) ? 'clutch' : (o.pull > o.canPull ? 'person' : null);
+    }
+    o.letgo = !o.stall && S.fail && W >= LETGO * rated;
+    o.throatNew = THROAT[S.cap] || 34; o.throatNow = o.throatNew * (1 + S.throat / 100); o.throatLim = o.throatNew * 1.05;
+    o.throatBad = S.throat > 5 + 1e-9;
+    const gq = GAUGE[o.chain || 6.3] || GAUGE[6.3]; o.gaugeNew = gq[0]; o.gaugeLim = gq[1];
+    o.gaugeNow = gq[0] * (1 + S.stretch / 100); o.stretchBad = o.gaugeNow > gq[1] + 1e-9;
+    o.defects = (o.throatBad ? 1 : 0) + (o.stretchBad ? 1 : 0) + (S.latch === 'missing' ? 1 : 0) + (S.brake === 'slips' ? 1 : 0);
+    o.fail = fx ? { on: true, kind: fx.kind, caption: fx.caption, landed: fx.landed } : { on: false };
+    o.status = o.fail.on ? 'bad' : o.util > 1 ? 'bad' : o.util > .9 ? 'warn' : 'ok';
+    return o;
+  };
+  sc.reset = function () { fx = null; still = 0; strokeT = 0; };
+  sc.onSet = function (S, ch) { if (ch.includes('brake') && S.brake === 'ok' && fx && fx.kind === 'drift') fx = null; if (ch.includes('fail') && !S.fail) fx = null; if (ch.includes('load') || ch.includes('cap') || ch.includes('htype')) { if (fx && fx.landed) { fx = null; S.lift = 0; } } };
+  sc.failure = (S, o) => o.fail;
+  sc.busy = (S) => !!(S.pulling || S.lowering || (fx && !fx.landed));
+  sc.moving = sc.busy;
+  sc.step = function (dt, S, o) {
+    let moved = false;
+    if (fx && fx.kind === 'drift') {
+      fx.t += dt; if (!fx.landed) { S.lift = Math.max(0, S.lift - (.03 + .35 * fx.t * fx.t) * dt); if (S.lift <= 0) { fx.landed = true; fx.tLand = fx.t; } }
+      return true;
+    }
+    if (fx) { fx.t += dt; if (!fx.landed && fx.t >= fx.tLand) fx.landed = true; return true; }
+    const v = PACE * S.speed * dt;
+    if (S.htype === 'hand') {
+      if (S.pulling) {
+        if (o.stall === 'clutch') { S.slip += v; moved = true; }
+        else if (!o.stall) { S.lift = Math.min(sc.maxLift(S), S.liftTo || 99, S.lift + v / o.ratio); moved = true; if (S.liftTo && S.lift >= S.liftTo - 1e-9) S.pulling = 0; }
+      }
+      if (S.lowering && S.lift > 0) { S.lift = Math.max(0, S.lift - v / o.ratio); moved = true; }
+    } else {
+      if (S.pulling && !o.stall) {
+        strokeT += dt * S.speed; S.stroke = strokeT;
+        const perStroke = 1.2 / S.cap / 12;
+        S.lift = Math.min(sc.maxLift(S), S.liftTo || 99, S.lift + perStroke * dt * S.speed / 1.4); if (S.liftTo && S.lift >= S.liftTo - 1e-9 && !o.letgo) S.pulling = 0;
+        moved = true;
+      }
+      if (S.lowering && S.lift > 0) { S.lift = Math.max(0, S.lift - .05 * dt * S.speed); moved = true; }
+    }
+    if (o.letgo && S.lift > .08 && !fx) startFail(S, o);
+    if (S.brake === 'slips' && S.fail && S.lift > .02 && !S.pulling && !S.lowering && o.util > .25 && !fx) {
+      still += dt; if (still > 1.5) fx = { kind: 'drift', t: 0, h: S.lift, tLand: 99, landed: false, caption: 'The brake slips (worn or oily discs): the load drifts down on its own' };
+    } else still = 0;
+    return moved;
+  };
+  function startFail(S, o) {
+    const hPx = geom(S, o).lift;
+    const kind = S.htype === 'lever' ? 'pawl' : 'letgo';
+    const x = K.n1(o.util);
+    const caption = kind === 'pawl'
+      ? `Cheater bar: ${K.n1(o.leverage)}× the leverage drove ${x}× rated load. The pawl lets go`
+      : `${x}× rated load, no overload clutch: the hook opens and the load falls`;
+    fx = { kind, t: 0, h: hPx, tLand: Math.sqrt(2 * (hPx / k) / G_IN) + (kind === 'letgo' ? .35 : .1), landed: false, caption };
+    S.pulling = 0;
+  }
+  function motorDims(W) { const s = Math.max(.65, Math.min(1.9, Math.cbrt(W / 1500))); return { L: 30 * s * k, H: 21 * s * k, s }; }
+  function maxLiftPx(S) {
+    const m = motorDims(S.load), hs = hookScale(S.cap);
+    const rest = FLOOR - 3.5 * k - m.H + .06 * m.H - 3.35 * Math.max(.8, Math.min(1.4, m.s)) * k;
+    const head = (S.htype === 'lever' ? 13 : (CB[S.cap] || CB[1])[4]) * k;
+    return Math.max(0, rest - (PIN_Y - PIN_R + head));
+  }
+  sc.maxLift = S => maxLiftPx(S) / (12 * k);
+  function geom(S, o) {
+    const hs = hookScale(S.cap), m = motorDims(S.load);
+    const cribTop = FLOOR - 3.5 * k, motorTop = cribTop - m.H;
+    const es = Math.max(.8, Math.min(1.4, m.s)), eyeH = 3.35 * es * k;
+    const lift = Math.min(S.lift * 12 * k, maxLiftPx(S));
+    let drop = 0, open = 0, chainOut = 0;
+    if (fx) {
+      const tf = Math.max(0, fx.t - (fx.kind === 'letgo' ? .35 : .1));
+      if (fx.kind === 'letgo') open = Math.min(1, fx.t / .35);
+      drop = Math.min(fx.h, .5 * G_IN * k * tf * tf);
+      if (fx.kind === 'pawl') chainOut = drop;
+    }
+    const ysadRest = motorTop + .06 * m.H - eyeH;
+    const ysad = ysadRest - lift + chainOut;
+    return { hs, m, es, cribTop, motorTop, eyeH, lift, drop, open, ysad, loadDy: -lift + drop };
+  }
+  function beamAndClamp() {
+    let s = K.wbeamSide(0, K.W, BEAM_TOP, BEAM_D, TF, [X0 - 210, X0 + 330, 1240]);
+    const lipY = BEAM_TOP + BEAM_D - TF, yb = PIN_Y;
+    s += `<g id="clamp"><path d="M${X0 - 30} ${lipY - 7} L${X0 + 30} ${lipY - 7} L${X0 + 30} ${lipY + 2} L${X0 + 26} ${lipY + 2} L${X0 + 26} ${BEAM_TOP + BEAM_D + 5} L${X0 + 15} ${yb + 10} L${X0 - 15} ${yb + 10} L${X0 - 26} ${BEAM_TOP + BEAM_D + 5} L${X0 - 26} ${lipY + 2} L${X0 - 30} ${lipY + 2}Z" fill="url(#gPaintSide)" stroke="${C.paintD}" stroke-width="1.6" stroke-linejoin="round"/>`;
+    s += `<rect x="${X0 - 30}" y="${lipY - 7}" width="60" height="3" fill="#9aa4ad" opacity=".6"/>`;
+    s += `<circle cx="${X0 - 18}" cy="${BEAM_TOP + BEAM_D + 12}" r="3" fill="#3e454b"/><circle cx="${X0 + 18}" cy="${BEAM_TOP + BEAM_D + 12}" r="3" fill="#3e454b"/>`;
+    s += `<circle cx="${X0}" cy="${PIN_Y}" r="${PIN_R + 2}" fill="#59626a" stroke="${C.paintD}" stroke-width="1.2"/></g>`;
+    return s;
+  }
+  function loadChainPts(x, y0, y1) { return [[x, y0], [x, y1]]; }
+  function handWheel(cx, cy, r, ang) {
+    let s = `<g id="handwheel"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 3)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.5"/>`;
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="#7f8b95" stroke-width="4"/>`;
+    for (let i = 0; i < 6; i++) { const a = ang + i * Math.PI / 3; s += `<line x1="${f(cx)}" y1="${f(cy)}" x2="${f(cx + (r - 2) * Math.cos(a))}" y2="${f(cy + (r - 2) * Math.sin(a))}" stroke="#76828c" stroke-width="3.2" stroke-linecap="round"/>`; }
+    for (let i = 0; i < 16; i++) { const a = ang + i * Math.PI / 8; s += `<circle cx="${f(cx + r * Math.cos(a))}" cy="${f(cy + r * Math.sin(a))}" r="1.6" fill="#2b3237"/>`; }
+    s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r * .28)}" fill="#59626a" stroke="#1b232a" stroke-width="1.2"/>`;
+    const a = ang; s += `<circle cx="${f(cx + r * .62 * Math.cos(a))}" cy="${f(cy + r * .62 * Math.sin(a))}" r="3.4" fill="${C.acc}"/>`;
+    return s + '</g>';
+  }
+  function hoistHand(S, o, g) {
+    const hs = g.hs, xs = X0;
+    const ysadTop = PIN_Y - PIN_R;
+    const bodyTop = ysadTop + 2.2 * k, bodyH = 6.8 * k, bodyW = 6.4 * k, cy = bodyTop + bodyH * .52;
+    const rHW = 2.7 * k, rLS = .9 * k;
+    let s = '';
+    s += K.hookProfile(xs, ysadTop, k * hs * .62, { id: 'top-hook', rot: 180, latch: true });
+    s += `<g id="hoist"><rect x="${f(xs - bodyW / 2)}" y="${f(bodyTop)}" width="${f(bodyW)}" height="${f(bodyH)}" rx="${f(1.6 * k)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="2"/>`;
+    s += `<rect x="${f(xs - bodyW / 2 + 4)}" y="${f(bodyTop + 3)}" width="${f(bodyW - 8)}" height="5" rx="2" fill="#9db3c3" opacity=".45"/>`;
+    s += `<rect x="${f(xs - 1.1 * k)}" y="${f(bodyTop - 1.2 * k)}" width="${f(2.2 * k)}" height="${f(1.4 * k)}" rx="3" fill="#4c6273" stroke="#1b232a" stroke-width="1.4"/>`;
+    s += '</g>';
+    const ang = (o.run * 12) / (rHW / k);
+    s += handWheel(xs, cy, rHW, ang);
+    s += `<path d="M${f(xs - rHW - 5)} ${f(cy + 2)} A ${f(rHW + 5)} ${f(rHW + 5)} 0 0 1 ${f(xs + rHW + 5)} ${f(cy + 2)}Z" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+    s += `<text class="mk" x="${f(xs)}" y="${f(cy - rHW * .35)}" text-anchor="middle" style="font:800 ${f(1.25 * k)}px ${K.FONT};fill:#e6edf2">${S.cap < 1 ? '½' : S.cap === 1.5 ? '1½' : S.cap} TON</text>`;
+    const yLS = cy + rLS, yBot = bodyTop + bodyH;
+    const loadPhase = (S.lift * 12 * k), pitchLC = (o.chain || 6.3) / 25.4 * 3 * k, dLC = (o.chain || 6.3) / 25.4 * k;
+    const yoke = 2.4 * k;
+    const hookTop = g.ysad - (K.HOOK.L + K.HOOK.saddle) * k * hs * .62;
+    const chainEnd = hookTop - yoke + 2;
+    const two = (o.falls || 1) >= 2, hx0 = two ? xs : xs - rLS;
+    if (two) {
+      const by = chainEnd + 1.2 * k;
+      s += `<g id="load-chain">${K.chain([[xs - rLS, yBot - 4], [xs - rLS, by]], pitchLC, dLC, -loadPhase / 2)}${K.chain([[xs + rLS, yBot - 4], [xs + rLS, by]], pitchLC, dLC, loadPhase / 2)}</g>`;
+      s += `<g id="yoke"><rect x="${f(xs - rLS - 1.1 * k)}" y="${f(chainEnd - .4 * k)}" width="${f(2 * rLS + 2.2 * k)}" height="${f(yoke + .4 * k)}" rx="5" fill="#59626a" stroke="#1b232a" stroke-width="1.4"/><circle cx="${f(xs)}" cy="${f(by)}" r="${f(rLS * .9)}" fill="#3e454b"/></g>`;
+      s += `<g id="slack-chain">${K.chain([[xs + rLS + 1.6 * k, yBot - 4], [xs + rLS + 1.6 * k, yBot + 90], [xs + rLS + 1.6 * k + 10, yBot + 120]], pitchLC, dLC, loadPhase)}</g>`;
+    } else {
+      s += `<g id="load-chain">${K.chain(loadChainPts(xs - rLS, yBot - 4, chainEnd), pitchLC, dLC, -loadPhase)}</g>`;
+      const slackLen = Math.max(30, 3.2 * 12 * k - (chainEnd - yBot) + 40);
+      s += `<g id="slack-chain">${K.chain([[xs + rLS, yBot - 4], [xs + rLS, yBot + slackLen * .55], [xs + rLS + 10, yBot + slackLen * .7]], pitchLC, dLC, loadPhase)}</g>`;
+      s += `<rect id="yoke" x="${f(xs - rLS - 1.1 * k)}" y="${f(chainEnd)}" width="${f(2.2 * k)}" height="${f(yoke)}" rx="3" fill="#59626a" stroke="#1b232a" stroke-width="1.4"/>`;
+    }
+    s += K.hookProfile(hx0, g.ysad, k * hs * .62, { id: 'hook', latch: S.latch === 'missing' ? 'missing' : true, open: Math.max(g.open, S.throat / 15) });
+    const loopBot = cy + 30 * k, ph = o.run * 12 * k;
+    const xr = xs + rHW, xl = xs - rHW, hx = xr, hy = Math.min(loopBot - 60, cy + 22 * k);
+    const loop = [[xl, cy]].concat(K.catmull([[xl, loopBot - rHW], [xl + rHW * .3, loopBot - rHW * .3], [xs, loopBot], [xr - rHW * .3, loopBot - rHW * .3], [xr, loopBot - rHW]], 6)).concat([[xr, cy]]);
+    const pitchH = .9 * k, dH = .2 * k;
+    s += `<g id="hand-chain" data-act="handchain" class="drag" transform="rotate(${f(S.pulling ? 0 : K.sway(3.3, 1.2))} ${f(xs)} ${f(cy)})">${K.chain(loop, pitchH, dH, -ph, '#a9b1b7')}` +
+      `<path d="${K.pathd(loop)}" stroke="transparent" stroke-width="40" fill="none"/></g>`;
+    s += `<rect id="hand-pull" x="${f(xr - 9)}" y="${f(hy - 50)}" width="18" height="100" fill="transparent"/>`;
+    g.hand = [hx, hy]; g.cy = cy; g.rHW = rHW; g.bodyTop = bodyTop; g.bodyBot = yBot; g.loadX = hx0;
+    return s;
+  }
+  function hoistLever(S, o, g) {
+    const hs = g.hs, xs = X0, ysadTop = PIN_Y - PIN_R;
+    const bodyTop = ysadTop + 2.2 * k, bodyH = 5.8 * k, bodyW = 5.4 * k, cy = bodyTop + bodyH * .5;
+    let s = K.hookProfile(xs, ysadTop, k * hs * .62, { id: 'top-hook', rot: 180, latch: true });
+    s += `<g id="hoist"><rect x="${f(xs - bodyW / 2)}" y="${f(bodyTop)}" width="${f(bodyW)}" height="${f(bodyH)}" rx="${f(1.4 * k)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="2"/>`;
+    s += `<circle cx="${f(xs)}" cy="${f(cy)}" r="${f(1.7 * k)}" fill="#4c6273" stroke="#1b232a" stroke-width="1.6"/><circle cx="${f(xs)}" cy="${f(cy)}" r="${f(.6 * k)}" fill="#2c3a44"/>`;
+    s += `<text class="mk" x="${f(xs)}" y="${f(bodyTop + bodyH - 6)}" text-anchor="middle" style="font:800 ${f(1.1 * k)}px ${K.FONT};fill:#e6edf2">${S.cap} TON</text></g>`;
+    const d = LB[S.cap] || LB[1];
+    let a = 18 + (S.pulling && !o.stall ? 24 * Math.sin(S.stroke * 4.5) : 0);
+    if (fx && fx.kind === 'pawl') a = 18 - Math.min(1, fx.t / .25) * 150;
+    const ra = a * Math.PI / 180, hl = d[1] * k, ux = Math.cos(ra), uy = Math.sin(ra);
+    const hx0 = xs + 1.2 * k * ux, hy0 = cy + 1.2 * k * uy, hx1 = xs + hl * ux, hy1 = cy + hl * uy;
+    s += `<g id="lever">${K.roundBar([[hx0, hy0], [hx1, hy1]], 1.1 * k, '#c0392b', '#5a1a14', '#f0a39a')}<rect x="${f(hx1 - 2.4 * k)}" y="${f(hy1 - .9 * k)}" width="${f(2.4 * k)}" height="${f(1.8 * k)}" rx="6" fill="#222" transform="rotate(${f(a)} ${f(hx1)} ${f(hy1)})"/></g>`;
+    g.handEnd = [hx1, hy1]; g.u = [ux, uy];
+    if (S.cheater) {
+      let pr = S.reach * k, x0 = xs + (hl - 4 * k) * ux, y0 = cy + (hl - 4 * k) * uy, x1 = xs + pr * ux, y1 = cy + pr * uy;
+      if (fx && fx.kind === 'pawl' && fx.t > .2) {
+        const t = fx.t - .2, vx = 260, vy = -220;
+        const cx2 = (x0 + x1) / 2 + vx * t, cy2 = Math.min(FLOOR - 1.2 * k, (y0 + y1) / 2 + vy * t + .5 * G_IN * k * t * t), rot = Math.min(1, t * 2) * 160;
+        const L = pr - hl + 4 * k;
+        s += `<g id="cheater" transform="rotate(${f(a + rot)} ${f(cx2)} ${f(cy2)})">${K.roundBar([[cx2 - L / 2, cy2], [cx2 + L / 2, cy2]], 2.2 * k, '#6f777d', '#2b3034', '#c9cfd3', 'butt')}</g>`;
+      } else s += `<g id="cheater">${K.roundBar([[x0, y0], [x1, y1]], 2.2 * k, '#6f777d', '#2b3034', '#c9cfd3', 'butt')}</g>`;
+      g.handEnd = [x1, y1];
+    }
+    const pitchLC = 6.3 / 25.4 * 3 * k, dLC = 6.3 / 25.4 * k, yBot = bodyTop + bodyH;
+    const hookTop = g.ysad - (K.HOOK.L + K.HOOK.saddle) * k * hs * .62, yoke = 2.2 * k, chainEnd = hookTop - yoke + 2;
+    const ph = S.lift * 12 * k - (fx && fx.kind === 'pawl' ? g.drop * 3 : 0);
+    s += `<g id="load-chain">${K.chain([[xs - .8 * k, yBot - 3], [xs - .8 * k, chainEnd]], pitchLC, dLC, -ph)}</g>`;
+    s += `<g id="slack-chain" transform="rotate(${f(K.sway(2.2, 4))} ${f(xs + .8 * k)} ${f(yBot)})">${K.chain([[xs + .8 * k, yBot - 3], [xs + .8 * k, yBot + 120], [xs + .8 * k + 12, yBot + 150]], pitchLC, dLC, ph)}</g>`;
+    s += `<rect id="yoke" x="${f(xs - .8 * k - 1 * k)}" y="${f(chainEnd)}" width="${f(2 * k)}" height="${f(yoke)}" rx="3" fill="#59626a" stroke="#1b232a" stroke-width="1.4"/>`;
+    s += K.hookProfile(xs - .8 * k, g.ysad, k * hs * .62, { id: 'hook', latch: S.latch === 'missing' ? 'missing' : true, open: S.throat / 15 });
+    g.cy = cy; g.loadX = xs - .8 * k; g.bodyBot = yBot;
+    return s;
+  }
+  function motor(S, g, x) {
+    const m = g.m, L = m.L, H = m.H, top = g.motorTop + g.loadDy, bot = top + H, x0 = x - L / 2;
+    const frame = H * .78, shaftY = top + H * .45;
+    let s = `<g id="load">`;
+    s += `<rect x="${f(x0 + L * .1)}" y="${f(bot - H * .12)}" width="${f(L * .8)}" height="${f(H * .12)}" fill="#3d5464" stroke="#1b2731" stroke-width="1.4"/>`;
+    s += `<rect x="${f(x0 + L * .06)}" y="${f(top + H * .06)}" width="${f(L * .74)}" height="${f(frame)}" rx="${f(H * .1)}" fill="url(#gMotor)" stroke="#1b2731" stroke-width="2"/>`;
+    for (let i = 1; i < 9; i++) { const yy = top + H * .06 + frame * i / 9; s += `<line x1="${f(x0 + L * .09)}" y1="${f(yy)}" x2="${f(x0 + L * .77)}" y2="${f(yy)}" stroke="#1f3240" stroke-width="1.4" opacity=".55"/>`; }
+    s += `<path d="M${f(x0 + L * .8)} ${f(top + H * .12)} L${f(x0 + L * .97)} ${f(top + H * .2)} L${f(x0 + L * .97)} ${f(top + H * .76)} L${f(x0 + L * .8)} ${f(top + H * .84)}Z" fill="#4a6577" stroke="#1b2731" stroke-width="1.6"/>`;
+    for (let i = 1; i < 6; i++) { const xx = x0 + L * (.8 + .17 * i / 6); s += `<line x1="${f(xx)}" y1="${f(top + H * (.12 + .08 * i / 6))}" x2="${f(xx)}" y2="${f(top + H * (.84 - .08 * i / 6))}" stroke="#22313c" stroke-width="1.2"/>`; }
+    s += `<rect x="${f(x0)}" y="${f(top + H * .22)}" width="${f(L * .07)}" height="${f(H * .5)}" rx="4" fill="#557085" stroke="#1b2731" stroke-width="1.4"/>`;
+    s += K.roundBar([[x0 - L * .1, shaftY], [x0 + 2, shaftY]], H * .11, '#b3bbc1', C.steelD, '#eef1f3', 'butt');
+    s += `<rect x="${f(x + L * .16)}" y="${f(top - H * .05)}" width="${f(L * .16)}" height="${f(H * .14)}" rx="3" fill="#4a6577" stroke="#1b2731" stroke-width="1.3"/>`;
+    s += `<rect x="${f(x0 + L * .2)}" y="${f(top + H * .3)}" width="${f(L * .2)}" height="${f(H * .2)}" rx="3" fill="#cfd5da" stroke="#1b2731" stroke-width="1"/>`;
+    s += `<text class="mk" x="${f(x0 + L * .3)}" y="${f(top + H * .43)}" text-anchor="middle" style="font:800 ${f(Math.max(9, H * .075))}px ${K.FONT};fill:#1d1d1d">${K.n0(S.units === 'met' ? S.load * K.LB2KG : S.load)} ${S.units === 'met' ? 'kg' : 'lb'}</text>`;
+    const es = g.es, bodyTop = top + H * .06, bossT = bodyTop - .5 * es * k;
+    s += `<path d="M${f(x - 1.1 * es * k)} ${f(bodyTop + 2)} L${f(x - .8 * es * k)} ${f(bossT)} L${f(x + .8 * es * k)} ${f(bossT)} L${f(x + 1.1 * es * k)} ${f(bodyTop + 2)}Z" fill="#4a6577" stroke="#1b2731" stroke-width="1.3"/>`;
+    const shoulderT = bossT - .3 * es * k;
+    s += K.roundBar([[x, bossT], [x, shoulderT]], .62 * es * k, '#a6aeb4', C.steelD, '#eef1f3', 'butt');
+    s += `<rect x="${f(x - .8 * es * k)}" y="${f(shoulderT - .4 * es * k)}" width="${f(1.6 * es * k)}" height="${f(.4 * es * k)}" rx="2" fill="#9aa2a8" stroke="${C.steelD}" stroke-width="1.2"/>`;
+    g.eyeBottom = shoulderT - .4 * es * k;
+    return s + '</g>';
+  }
+  sc.draw = function (S, o, T) {
+    const g = geom(S, o);
+    let s = K.backdrop() + K.column(1460, FLOOR, 0, 40) + K.column(60, FLOOR, 0, 40);
+    s += beamAndClamp();
+    const m = g.m, mx = X0 - .8 * k + (S.htype === 'hand' ? -.1 * k : 0);
+    const lx = S.htype === 'hand' ? X0 - .9 * k : X0 - .8 * k;
+    s += K.shadow(lx, FLOOR + 3, m.L + 40, 16, Math.max(.25, 1 - g.lift / 300));
+    for (const sx of [-.3, .3]) s += K.timberEnd(lx + sx * m.L - 1.75 * k, g.cribTop, 3.5 * k, 3.5 * k);
+    if (S.htype === 'lever') g.loadX = X0 - .8 * k; else g.loadX = (CB[S.cap] || CB[1])[3] >= 2 ? X0 : X0 - .9 * k;
+    s += motor(S, g, g.loadX);
+    s += `<g id="hoist-assy">${S.htype === 'lever' ? hoistLever(S, o, g) : hoistHand(S, o, g)}</g>`;
+    { const es = g.es, ex = g.loadX, eb = g.eyeBottom, et = eb - 2.9 * es * k, w = .75 * es * k;
+      s += `<g id="eyebolt"><rect x="${f(ex - w / 2)}" y="${f(et)}" width="${f(w)}" height="${f(eb - et)}" rx="${f(w / 2)}" fill="#a6aeb4" stroke="${C.steelD}" stroke-width="1.4"/>` +
+        `<line x1="${f(ex - w * .18)}" y1="${f(et + w * .5)}" x2="${f(ex - w * .18)}" y2="${f(eb - w * .5)}" stroke="#eef1f3" stroke-width="${f(w * .2)}" opacity=".8"/></g>`; }
+    if (S.detail && !fx) s += '<g class="pcOnly">' + K.inset('hoist-assy', X0, g.cy + 10, 2.4, 800, 330, 140, 'DETAIL ×2.4', 'the hand wheel turns as you pull', 'detail') + '</g>';
+    const unit = S.units === 'met';
+    s += K.label(X0 - 60, PIN_Y - 8, 'Beam clamp', [X0 - 24, BEAM_TOP + BEAM_D + 8], { anchor: 'end', sub: 'on the bottom flange' });
+    if (S.htype === 'hand') {
+      s += K.label(X0 - 100, g.cy + 70, `${S.cap === 1.5 ? '1½' : S.cap === .5 ? '½' : S.cap} ton hand chain hoist`, [X0 - 6.4 * k / 2, g.cy], { anchor: 'end', sub: `pull ${o.pullRated} lb at rated · ratio ${o.ratio}` });
+      const [hx, hy] = g.hand;
+      const pullCol = o.stall ? C.bad : C.acc;
+      if (!fx && S.card !== 'inspect' && g.motorTop + g.loadDy > hy + 30) s += K.arrow(hx + 22, hy - 30, hx + 22, hy + 10 + Math.min(110, o.pull * .9), { id: 'pull-arrow', col: pullCol, w: 5, text: `${K.n0(unit ? o.pull * K.LB2KG : o.pull)} ${unit ? 'kg' : 'lb'}`, tx: hx + 40, ty: hy - 4, sub: o.stall === 'person' ? (S.people > 1 ? 'more than two people can pull' : 'more than one person can pull') : 'your pull' });
+    } else {
+      const [ex, ey] = g.handEnd;
+      if (!fx) s += K.arrow(ex, ey, ex, ey + 30 + Math.min(110, o.hand * .9), { id: 'pull-arrow', col: o.stall ? C.bad : C.acc, w: 5, text: `${K.n0(unit ? o.hand * K.LB2KG : o.hand)} ${unit ? 'kg' : 'lb'}`, tx: ex + 18, ty: ey + 50, sub: S.cheater ? `at the end of the ${unit ? Math.round(S.reach * 25.4) + ' mm' : S.reach + ' in'} pipe` : 'on the handle' });
+      s += K.label(X0 - 100, g.cy + 70, `${S.cap} ton lever hoist`, [X0 - 2.7 * k, g.cy], { anchor: 'end', sub: `${o.pullRated} lb on a ${o.handle} in handle at rated` });
+    }
+    s += K.label(Math.max(40, g.loadX - g.m.L * .5), FLOOR + 56, `Motor · ${K.n0(unit ? S.load * K.LB2KG : S.load)} ${unit ? 'kg' : 'lb'} (nameplate)`, [g.loadX - g.m.L * .25, g.motorTop + g.loadDy + g.m.H * .95], { anchor: 'start' });
+    if (!fx && S.card !== 'inspect' && S.load <= 2500 && S.lift < .05) s += K.label(g.loadX - 70, g.eyeBottom - 40, 'Lifting eye', [g.loadX - .5 * g.es * k, g.eyeBottom - 1.4 * g.es * k], { anchor: 'end', sub: 'over the centre of gravity' });
+    if (S.showMath) s += S.card === 'inspect' ? inspectCard(S, o, g) : S.htype === 'lever' ? leverCard(S, o) : ratioCard(S, o);
+    if (!fx && o.stall === 'clutch') s += K.banner('Overload clutch slips: the hand wheel turns, the hook stays', `${K.n0(S.load)} lb is ${K.n0(o.util * 100)} % of rated. The clutch refuses it (set about 20 % over rated)`, C.warn, 'stall-note');
+    if (!fx && o.stall === 'person' && S.htype === 'lever') s += K.banner(`${K.n0(o.hand)} lb at the hand: more than one person can pull`, 'The hoist is telling you the load is too heavy for it', C.warn, 'stall-note');
+    if (fx) {
+      s += K.dust(g.loadX, FLOOR, fx.t - fx.tLand, g.m.L);
+      s += K.banner(fx.caption, 'SIMULATION ONLY · NEVER DO THIS ON THE JOB');
+    }
+    return s;
+  };
+  function ratioCard(S, o) {
+    const x = 980, y = 150, w = 560, unit = S.units === 'met';
+    const fmtF = v => unit ? `${K.n0(v * K.LB2KG)} kg` : `${K.n0(v)} lb`;
+    let s = `<g id="math-card" class="pcOnly"><rect x="${x}" y="${y}" width="${w}" height="590" rx="14" fill="#2a2723" stroke="#4a4640" stroke-width="2" opacity=".96"/>`;
+    s += `<text x="${x + 22}" y="${y + 40}" style="font:800 20px ${K.FONT};letter-spacing:.12em;fill:${C.muted}">PULL × RATIO × EFFICIENCY = LIFT</text>`;
+    const sc = (w - 220) / Math.max(o.ideal, S.load, 1), bx = x + 200;
+    const row = (yy, lab, v, col, id, txt) => `<g id="${id}"><text x="${x + 22}" y="${yy + 22}" style="font:700 20px ${K.FONT};fill:${C.text}">${lab}</text><rect x="${bx}" y="${yy}" width="${f(Math.max(3, v * sc))}" height="30" rx="5" fill="${col}"/><text x="${f(bx + 10)}" y="${yy + 22}" style="font:800 19px ${K.FONT};fill:#1F1D1A">${txt}</text></g>`;
+    s += `<g id="m-pull"><text x="${x + 22}" y="${y + 92}" style="font:700 20px ${K.FONT};fill:${C.text}">Pull</text><rect x="${bx}" y="${y + 70}" width="${f(Math.max(4, o.pullRated * sc))}" height="30" rx="4" fill="${C.acc}"/><text x="${f(bx + o.pullRated * sc + 10)}" y="${y + 92}" style="font:800 20px ${K.FONT};fill:${C.acc}">${fmtF(o.pullRated)} at rated</text></g>`;
+    s += `<text id="m-ratio" x="${x + 22}" y="${y + 140}" style="font:800 22px ${K.FONT};fill:${C.acc}">× ${o.ratio}  (overhaul ratio: ft of hand chain per ft of lift)</text>`;
+    s += row(y + 160, 'No friction', o.ideal, '#cfc6b4', 'm-ideal', `${fmtF(o.ideal)}`);
+    s += `<text id="m-eff" x="${x + 22}" y="${y + 232}" style="font:800 22px ${K.FONT};fill:${C.acc}">× ${K.n1(o.eff * 100)} %  (efficiency: gears and brake take the rest)</text>`;
+    s += row(y + 252, 'Lifts', o.rated, '#e9e4da', 'm-cap', `${fmtF(o.rated)} = rated`);
+    s += row(y + 300, 'This load', S.load, S.load > o.rated ? C.bad : '#8fb3c9', 'm-load', `${fmtF(S.load)} → pull ${fmtF(o.pull)}`);
+    const fy = y + 380, ps = 8 * (w - 60) / (8 * Math.max(o.ratio, o.run + .01, 43));
+    s += `<text x="${x + 22}" y="${fy}" style="font:800 20px ${K.FONT};letter-spacing:.12em;fill:${C.muted}">CHAIN PULLED vs HOOK RISE (same scale)</text>`;
+    s += `<g id="vm-chain"><rect x="${x + 22}" y="${fy + 18}" width="${w - 44}" height="26" rx="5" fill="#3a3631"/><rect x="${x + 22}" y="${fy + 18}" width="${f(Math.min(w - 44, Math.abs(o.run) * ps))}" height="26" rx="5" fill="${C.acc}"/>`;
+    s += `<text x="${x + 30}" y="${fy + 70}" style="font:800 22px ${K.FONT};fill:${C.text}">Hand chain pulled: ${unit ? K.n2(o.run * .3048) + ' m' : K.n1(o.run) + ' ft'}</text></g>`;
+    s += `<g id="vm-rise"><rect x="${x + 22}" y="${fy + 86}" width="${f(Math.max(2, S.lift * ps))}" height="26" rx="5" fill="${C.ok}"/><text x="${x + 30}" y="${fy + 138}" style="font:800 22px ${K.FONT};fill:${C.text}">Hook rose: ${unit ? K.n2(S.lift * .3048) + ' m' : K.n2(S.lift) + ' ft'}  ·  ${o.ratio} ft of chain for each foot</text></g>`;
+    s += `<text x="${x + 22}" y="${fy + 180}" style="font:600 18px ${K.FONT};fill:${C.muted}">${o.falls} fall${o.falls > 1 ? 's' : ''} of ${o.chain} mm load chain · ${fmtF(o.perFall)} on each fall</text>`;
+    return s + '</g>';
+  }
+  function inspectCard(S, o, g) {
+    const unit = S.units === 'met', mm = v => unit ? `${K.n1(v)} mm` : `${K.n2(v / 25.4)} in`;
+    const hs = g.hs * .62, hx = g.loadX, hy = g.ysad, mag = 6;
+    const sx = hx + .4 * k * hs, sy = hy - 2.6 * k * hs, cx = 1110, cy = 300, r = 150;
+    let s = '<g class="pcOnly">' + K.inset('hook', sx, sy, mag, cx, cy, r, 'HOOK THROAT ×' + K.n1(mag), null, 'throat-gauge');
+    const P = (px, py) => [cx + mag * (hx + px * k * hs - sx), cy + mag * (hy + (py - K.HOOK.saddle) * k * hs - sy)];
+    const op = S.throat / 15, a = P(2.08 + op * 1.3 - .25, -4.82 + op * .55), b = P(.72, -5.6);
+    s += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}" stroke="${C.acc}" stroke-width="4" marker-start="url(#mAcc)" marker-end="url(#mAcc)"/>`;
+    const col = o.throatBad ? C.bad : C.ok;
+    s += `<g id="throat-read"><text x="${cx + r + 24}" y="${cy - 40}" style="font:800 24px ${K.FONT};fill:${C.text}">Throat now ${mm(o.throatNow)}</text>`;
+    s += `<text x="${cx + r + 24}" y="${cy - 8}" style="font:600 20px ${K.FONT};fill:${C.muted}">new ${mm(o.throatNew)} · remove over ${mm(o.throatLim)}</text>`;
+    s += `<text x="${cx + r + 24}" y="${cy + 26}" style="font:800 22px ${K.FONT};fill:${col}">${o.throatBad ? 'OPENED: REMOVE FROM SERVICE' : '+' + K.n1(S.throat) + ' %: OK (limit 5 %)'}</text>`;
+    s += `<text x="${cx + r + 24}" y="${cy + 56}" style="font:600 17px ${K.FONT};fill:${C.muted}">${S.throat > 0 ? 'opening drawn × 4 so you can see it' : 'latch closes the throat'}</text></g>`;
+    const lx = g.loadX, ly = (g.bodyBot + (g.ysad - 40)) / 2, cm = 3, c2x = 1110, c2y = 640, r2 = 130;
+    s += K.inset('load-chain', lx, ly, cm, c2x, c2y, r2, 'LOAD CHAIN ×3', null, 'gauge');
+    const pitch = (o.chain || 6.3) / 25.4 * 3 * k * cm;
+    s += `<line x1="${f(c2x - 40)}" y1="${f(c2y - pitch * 2.5)}" x2="${f(c2x - 40)}" y2="${f(c2y + pitch * 2.5)}" stroke="${C.acc}" stroke-width="4" marker-start="url(#mAcc)" marker-end="url(#mAcc)"/>`;
+    const col2 = o.stretchBad ? C.bad : C.ok;
+    s += `<g id="gauge-read"><text x="${c2x + r2 + 24}" y="${c2y - 40}" style="font:800 24px ${K.FONT};fill:${C.text}">5 pitches: ${mm(o.gaugeNow)}</text>`;
+    s += `<text x="${c2x + r2 + 24}" y="${c2y - 8}" style="font:600 20px ${K.FONT};fill:${C.muted}">new ${mm(o.gaugeNew)} · discard ${mm(o.gaugeLim)}</text>`;
+    s += `<text x="${c2x + r2 + 24}" y="${c2y + 26}" style="font:800 22px ${K.FONT};fill:${col2}">${o.stretchBad ? 'STRETCHED: REPLACE THE CHAIN' : 'Within the maker\'s gauge'}</text>`;
+    s += `<text x="${c2x + r2 + 24}" y="${c2y + 56}" style="font:600 17px ${K.FONT};fill:${C.muted}">${o.chain || 6.3} mm chain · Harrington CB Table 5-8</text></g></g>`;
+    return s;
+  }
+  function leverCard(S, o) {
+    const x = 980, y = 150, w = 560, unit = S.units === 'met', F = v => unit ? `${K.n0(v * K.LB2KG)} kg` : `${K.n0(v)} lb`;
+    let s = `<g id="math-card" class="pcOnly"><rect x="${x}" y="${y}" width="${w}" height="520" rx="14" fill="#2a2723" stroke="#4a4640" stroke-width="2" opacity=".96"/>`;
+    s += `<text x="${x + 22}" y="${y + 40}" style="font:800 20px ${K.FONT};letter-spacing:.12em;fill:${C.muted}">LEVER: FORCE × ARM STAYS THE SAME</text>`;
+    const ax = x + 60, ay = y + 140, pxIn = Math.min(8, (w - 120) / Math.max(o.reachUsed, o.handle));
+    s += `<circle cx="${ax}" cy="${ay}" r="10" fill="#59626a" stroke="#1b232a" stroke-width="2"/>`;
+    s += `<g id="arm-handle"><line x1="${ax}" y1="${ay}" x2="${f(ax + o.handle * pxIn)}" y2="${ay}" stroke="#c0392b" stroke-width="12" stroke-linecap="round"/><text x="${f(ax + o.handle * pxIn / 2)}" y="${ay - 16}" text-anchor="middle" style="font:800 18px ${K.FONT};fill:${C.text}">handle ${o.handle} in</text></g>`;
+    if (S.cheater) s += `<g id="arm-bar"><line x1="${f(ax + (o.handle - 4) * pxIn)}" y1="${ay + 22}" x2="${f(ax + S.reach * pxIn)}" y2="${ay + 22}" stroke="#7d868c" stroke-width="16" stroke-linecap="butt"/><text x="${f(ax + S.reach * pxIn)}" y="${ay + 58}" text-anchor="end" style="font:800 18px ${K.FONT};fill:${C.text}">cheater pipe ${S.reach} in</text></g>`;
+    const tipX = ax + o.reachUsed * pxIn;
+    s += K.arrow(tipX, ay + 34, tipX, ay + 34 + Math.min(120, o.hand * .8), { col: o.stall ? C.bad : C.acc, w: 5, text: F(o.hand), tx: tipX - 12, ty: ay + 110, anchor: 'end', id: 'arm-x' });
+    s += `<text id="m-pull" x="${x + 22}" y="${y + 330}" style="font:700 21px ${K.FONT};fill:${C.text}">Handle pull for this load: ${F(o.pull)}</text>`;
+    s += `<text x="${x + 22}" y="${y + 362}" style="font:600 18px ${K.FONT};fill:${C.muted}">${K.n0(S.load)} ÷ ${K.n0(o.rated)} × ${o.pullRated} lb (maker's pull at rated)</text>`;
+    s += `<text id="m-cheat" x="${x + 22}" y="${y + 404}" style="font:700 21px ${K.FONT};fill:${S.cheater ? C.warn : C.text}">${S.cheater ? `With the pipe: ${F(o.pull)} × ${o.handle} ÷ ${S.reach} = ${F(o.hand)}` : 'No pipe: your hand pulls the full handle force'}</text>`;
+    s += `<text id="m-need" x="${x + 22}" y="${y + 446}" style="font:700 21px ${K.FONT};fill:${o.util > 1 ? C.bad : C.text}">Load ${K.n0(o.util * 100)} % of rated${S.cheater ? ` · ${K.n1(o.leverage)}× the leverage` : ''}</text>`;
+    s += `<text x="${x + 22}" y="${y + 486}" style="font:600 18px ${K.FONT};fill:${C.muted}">One person: about ${PERSON} lb (example). More = overload.</text>`;
+    return s + '</g>';
+  }
+  sc.pointer = function (type, act, p, S, d) {
+    if (act !== 'handchain' || S.htype !== 'hand') return;
+    if (type === 'down') { d.y = p.y; return; }
+    if (type === 'move') {
+      const o = sc.calc(S), dy = (p.y - d.y) / k / 12; d.y = p.y;
+      if (dy > 0) { if (o.stall === 'clutch') S.slip += dy; else if (!o.stall) S.lift = Math.min(sc.maxLift(S), S.lift + dy / o.ratio); }
+      else if (S.lift > 0) S.lift = Math.max(0, S.lift + dy / o.ratio);
+    }
+  };
+  sc.controls = {
+    cap: { type: 'seg', label: 'Hoist', options: [[.5, '½ t'], [1, '1 t'], [1.5, '1½ t'], [2, '2 t'], [3, '3 t'], [5, '5 t']] },
+    load: { type: 'range', label: 'Load', min: 0, max: 12000, step: 100, fmt: (v, S) => S.units === 'met' ? K.n0(v * K.LB2KG) + ' kg' : K.n0(v) + ' lb' },
+    pull: { type: 'hold', key: 'pulling', label: '✋ Hold to pull the hand chain' },
+    lower: { type: 'hold', key: 'lowering', label: '⬇ Hold to lower (pull the other side)' },
+    speed: { type: 'seg', label: 'Time', options: [[1, 'Real'], [10, '× 10']] },
+    people: { type: 'seg', label: 'On the chain', options: [[1, 'One person'], [2, 'Two people']] },
+    clutch: { type: 'seg', label: 'Overload clutch', options: [[true, 'Fitted'], [false, 'None']] },
+    cheater: { type: 'seg', label: 'Cheater pipe', options: [[false, 'No pipe'], [true, 'Pipe on the handle']] },
+    reach: { type: 'range', label: 'Pipe reach', min: 12, max: 60, step: 6, fmt: (v, S) => S.units === 'met' ? Math.round(v * 25.4) + ' mm' : v + ' in' },
+    brake: { type: 'seg', label: 'Brake', options: [['ok', 'Holds'], ['slips', 'Slips (worn)']] },
+    throat: { type: 'range', label: 'Hook throat', min: 0, max: 15, step: .5, fmt: v => '+' + K.n1(v) + ' %' },
+    stretch: { type: 'range', label: 'Chain wear', min: 0, max: 5, step: .1, fmt: v => '+' + K.n1(v) + ' %' },
+    latch: { type: 'seg', label: 'Latch', options: [['ok', 'Closes the throat'], ['missing', 'Missing']] },
+    units: { type: 'seg', label: 'Units', options: [['imp', 'Imperial'], ['met', 'Metric']] }
+  };
+  sc.phoneVB = (S) => S.htype === 'lever' ? '0 20 880 860' : '0 20 830 860';
+  sc.phoneCss = '';
+  return sc;
+};
+})();</script>
+<script>(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+window.HoistAdapter = function (C, PC) {
+  const K = window.CFK, sc = window.CFScenes[C.scene](C.sceneOpts || {});
+  window.HOIST_SCENE = sc;
+  let svg = null, g = null, api = null, cur = null, T = 0, callouts = [], drag = null;
+  const A = {};
+  A.defaults = Object.assign({}, sc.defaults, C.start || {}); delete A.defaults.snap;
+  A.instant = sc.instant || [];
+  A.viewBox = '0 0 1600 880';
+  A.fns = PC.fns || {};
+  const outOf = s => sc.calc(s);
+  A.calc = s => sc.calc(s);
+  A.onSet = (s, keys) => { cur = s; sc.onSet && sc.onSet(s, keys); };
+  A.apply = (s, prev, initial) => { cur = s; if (initial && sc.reset) sc.reset(s); };
+  A.reset = () => {};
+  A.advance = (ms, s) => { cur = s; const dt = ms / 1000; T += dt; const o = sc.calc(s); sc.step && sc.step(dt, s, o, T); };
+  A.busy = () => !!(cur && sc.busy && sc.busy(cur, outOf(cur)));
+  A.controls = {};
+  for (const [k, c0] of Object.entries(sc.controls || {})) {
+    const c = Object.assign({}, c0, (C.ctl || {})[k] || {});
+    if (c.type === 'seg') A.controls[k] = { type: 'chips', label: c.label, options: c.options.map(([v, t]) => ({ v, t })) };
+    else if (c.type === 'range') A.controls[k] = { type: 'slider', label: c.label, min: c.min, max: c.max, step: c.step, fmt: v => c.fmt ? c.fmt(v, cur || A.defaults, outOf(cur || A.defaults)) : String(v) };
+    else if (c.type === 'hold') A.controls[k] = { type: 'hold', key: c.key || k, on: c.on, label: c.label, hotkey: c.hotkey };
+    else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
+  }
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.caption = () => null;
+  A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
+  function bboxOf(id) {
+    const el = svg && svg.querySelector('#' + CSS.escape(id)); if (!el || !el.getBBox) return null;
+    let b; try { b = el.getBBox(); } catch (e) { return null; }
+    if (!b || (!b.width && !b.height)) return null;
+    const m = svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => { const p = svg.createSVGPoint(); p.x = x; p.y = y; return p.matrixTransform(m); });
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }
+  A.spot = id => { const b = bboxOf(id); return b ? [b.x + b.w / 2, b.y + b.h / 2, Math.max(18, Math.hypot(b.w, b.h) / 2)] : null; };
+  A.callout = (id, text, o = {}) => { callouts.push({ id, text, pos: o.pos, ring: !!o.ring || o.pos === 'ring', at: T + (o.delay || 0) / 1000 }); return true; };
+  A.clear = () => { callouts = []; };
+  function overlay() {
+    let s = '';
+    for (const c of callouts) {
+      if (T < c.at) continue;
+      const b = bboxOf(c.id); if (!b) continue;
+      const pad = 8, bx = b.x - pad, by = b.y - pad, bw = b.w + 2 * pad, bh = b.h + 2 * pad;
+      s += `<rect x="${K.f(bx)}" y="${K.f(by)}" width="${K.f(bw)}" height="${K.f(bh)}" rx="10" fill="none" stroke="${K.C.acc}" stroke-width="4"/>`;
+      if (c.ring) continue;
+      const tw = Math.min(620, 24 + c.text.length * 14.2), th = 48, gap = 46;
+      let tx, ty, ax, ay;
+      const pos = c.pos || 'right';
+      if (pos === 'left') { tx = bx - gap - tw; ty = by + bh / 2 - th / 2; ax = bx; ay = by + bh / 2; }
+      else if (pos === 'top') { tx = bx + bw / 2 - tw / 2; ty = by - gap - th; ax = bx + bw / 2; ay = by; }
+      else if (pos === 'bottom') { tx = bx + bw / 2 - tw / 2; ty = by + bh + gap; ax = bx + bw / 2; ay = by + bh; }
+      else { tx = bx + bw + gap; ty = by + bh / 2 - th / 2; ax = bx + bw; ay = by + bh / 2; }
+      tx = Math.max(8, Math.min(K.W - tw - 8, tx)); ty = Math.max(8, Math.min(K.H - th - 8, ty));
+      const lx = Math.max(tx, Math.min(tx + tw, ax)), ly = Math.max(ty, Math.min(ty + th, ay));
+      s += `<line x1="${K.f(ax)}" y1="${K.f(ay)}" x2="${K.f(lx)}" y2="${K.f(ly)}" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<rect x="${K.f(tx)}" y="${K.f(ty)}" width="${K.f(tw)}" height="${th}" rx="10" fill="#1F1D1A" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<text x="${K.f(tx + tw / 2)}" y="${K.f(ty + 32)}" text-anchor="middle" style="font:800 25px ${K.FONT};fill:${K.C.text}">${K.esc(c.text)}</text>`;
+    }
+    return s;
+  }
+  A.draw = (s, o) => {
+    cur = s; K.T = T;
+    g.innerHTML = K.style(sc.phoneCss || '') + K.defs() + sc.draw(s, o, T) + '<g id="ovl"></g>';
+    if (callouts.length) g.querySelector('#ovl').innerHTML = overlay();
+    if (document.body.classList.contains('phone')) {
+      const m = svg.getScreenCTM(), k = m ? m.a : 1;
+      g.querySelectorAll('text').forEach(t => { if (parseFloat(getComputedStyle(t).fontSize) * k < 11) t.style.display = 'none'; });
+    }
+  };
+  function toSvg(e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+  A.mount = (el, shellApi) => {
+    svg = el; api = shellApi;
+    g = document.createElementNS(NS, 'g'); g.id = 'scene'; svg.appendChild(g);
+    if (sc.css) document.head.insertAdjacentHTML('beforeend', '<style>' + sc.css + '</style>');
+    svg.addEventListener('pointerdown', e => {
+      const t = e.target.closest && e.target.closest('[data-act]'); if (!t || !sc.pointer || !cur) return;
+      const st = api.step();
+      if (!st.free && st.step && st.step.drawActs && !st.step.drawActs.includes(t.dataset.act)) return;
+      e.preventDefault(); try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+      drag = { act: t.dataset.act, p0: toSvg(e) };
+      sc.pointer('down', drag.act, drag.p0, cur, drag); api.redraw();
+    });
+    svg.addEventListener('pointermove', e => { if (drag && cur) { sc.pointer('move', drag.act, toSvg(e), cur, drag); api.redraw(); } });
+    const up = () => { if (drag && cur) { sc.pointer('up', drag.act, null, cur, drag); drag = null; api.redraw(); } };
+    svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  };
+  A.challenge = (rng, n) => {
+    const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
+    if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
+    const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
+    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+  };
+  return A;
+};
+})();</script>
+<script>/* Lesson code (text, steps and questions: <id>.json): Chain hoists, lever hoists and come-alongs (episode 010). RSOS B-10.
+ * Numbers: Harrington CB catalogue p.8 (pull at rated, overhaul ratio, chain, falls), Harrington LB (lever pull, handle),
+ * Harrington CB manual Table 5-8 (5-pitch gauge), Unirope lever hoist manual (hook throat 5 %), WorkSafeBC 14.11(1).
+ * Every answer below is checked against the scene's calc() by simulators/hoisting/test/test_pages.py.
+ */
+(function () {
+const K = window.CFK;
+const lb = (v, S) => S && S.units === 'met' ? K.n0(v * K.LB2KG) + ' kg' : K.n0(v) + ' lb';
+const ft = (v, S) => S && S.units === 'met' ? K.n2(v * .3048) + ' m' : K.n1(v) + ' ft';
+const pct = v => K.n0(v * 100) + ' %';
+const statusCol = o => o.fail.on || o.util > 1 ? K.C.bad : o.util > .9 ? K.C.warn : K.C.ok;
+const pick = (rng, a) => a[Math.floor(rng() * a.length)];
+const CB = { 0.5: [48, 25], 1: [58, 43], 1.5: [70, 57], 2: [72, 70], 3: [72, 114], 5: [68, 198] };
+const tons = c => c === .5 ? '½' : c === 1.5 ? '1½' : String(c);
+/* shuffle-free choice helper: the correct answer and three common mistakes */
+const ch = (t, why) => ({ t, why });
+
+window.LESSON_CODE = window.LESSON_CODE || {};
+window.LESSON_CODE['chain-hoists'] = {
+  /* ---------------- page 1: Pull the hand chain */
+  1: {
+    readouts: (S, o) => [S.htype === 'lever' ? ['Handle pull', lb(o.pull, S)] : ['Hand chain pulled', ft(o.run, S)], ['Hook rise', S.units === 'met' ? K.n0(S.lift * 304.8) + ' mm' : K.n1(S.lift * 12) + ' in'], ['Your pull', lb(S.htype === 'lever' ? o.hand : o.pull, S), K.C.acc], ['Load ÷ rated', pct(o.util), statusCol(o)]],
+    challenge: (rng) => {
+      const cap = pick(rng, [.5, 1, 1.5, 2, 3]), [p, r] = CB[cap], lift = pick(rng, [1, 1.5, 2, 3]), ans = lift * r;
+      return { setup: { cap, load: cap * 1000, lift: 0, slip: 0 }, q: `This ${tons(cap)} ton hoist has an overhaul ratio of ${r}. How much hand chain lifts the load **${lift} ft**?`,
+        choices: [ch(K.n1(ans) + ' ft'), ch(K.n1(r) + ' ft', 'That is one foot.'), ch(K.n1(r / lift) + ' ft', 'You divided.'), ch(K.n1(lift * p) + ' ft', 'You used the pull in pounds.')], answer: 0,
+        explain: `${lift} × ${r} = ${K.n1(ans)} ft. Lift it in the simulator to check.` };
+    },
+    fns: {
+      p1s2_goal: S => S.lift >= .25,
+      p1s2_live: (S, o) => `Pulled **${ft(o.run, S)}** of hand chain · hook up **${K.n1(S.lift * 12)} in**`,
+      p1s2_ok: (S, o) => `About **${K.n1(o.run)} ft** of hand chain for **3 in** of lift. That is the overhaul ratio at work: **${o.ratio} ft of chain for every foot** the hook goes up.`
+    }
+  },
+  /* ---------------- page 2: Pull follows the load */
+  2: {
+    readouts: (S, o) => [['Load', lb(S.load, S)], ['Pull needed', lb(o.pull, S), o.stall ? K.C.bad : K.C.acc], ['Load ÷ rated', pct(o.util), statusCol(o)], ['Clutch', S.clutch ? 'Fitted' : 'None', S.clutch ? K.C.ok : K.C.warn]],
+    challenge: (rng) => {
+      const cap = pick(rng, [.5, 1, 1.5, 2]), p = CB[cap][0], rated = cap * 2000, load = Math.round(rated * pick(rng, [.4, .5, .6, .75, .8]) / 100) * 100, ans = load / rated * p;
+      return { setup: { cap, load, lift: 0, slip: 0, clutch: true }, q: `${tons(cap)} ton hoist, ${p} lb of pull at rated (${K.n0(rated)} lb). How hard do you pull for **${K.n0(load)} lb**?`,
+        choices: [ch(K.n0(ans) + ' lb'), ch(p + ' lb', 'That is at rated.'), ch(K.n0(p * rated / load) + ' lb', 'Upside down.'), ch(K.n0(load / p) + ' lb', 'Divide the load by rated, then multiply by the pull.')], answer: 0,
+        explain: `${K.n0(load)} ÷ ${K.n0(rated)} × ${p} = ${K.n1(ans)} lb.` };
+    },
+    fns: {
+      p2s1_goal: S => Math.abs(S.load - 1000) < 1,
+      p2s1_live: (S, o) => `${lb(S.load, S)} × 58 ÷ 2,000 = **${lb(o.pull, S)}**`,
+      p2s4_goal: (S, o) => o.fail.on && o.fail.landed
+    }
+  },
+  /* ---------------- page 3: Lever hoists and cheater bars */
+  3: {
+    readouts: (S, o) => [['Load', lb(S.load, S)], ['Handle pull', lb(o.pull, S)], ['At your hand', lb(o.hand, S), o.stall ? K.C.bad : K.C.acc], ['Load ÷ rated', pct(o.util), statusCol(o)]],
+    challenge: (rng) => {
+      const reach = pick(rng, [24, 36, 48]), hand = pick(rng, [40, 50, 60]), handle = 9.6, T = hand * reach / handle / 72 * 2000;
+      return { setup: { cap: 1, load: Math.round(T / 100) * 100, cheater: true, reach }, q: `1 ton lever hoist (72 lb at 2,000 lb, 9.6 in handle). A ${reach} in pipe, ${hand} lb at its end. About what load?`,
+        choices: [ch(K.n0(Math.round(T / 100) * 100) + ' lb'), ch('2,000 lb', 'That is the rating.'), ch(K.n0(hand / 72 * 2000) + ' lb', 'You forgot the pipe.'), ch(K.n0(hand * reach / handle) + ' lb', 'That is the handle force.')], answer: 0,
+        explain: `${hand} × ${reach} ÷ 9.6 = ${K.n0(hand * reach / handle)} lb on the handle; ÷ 72 × 2,000 ≈ ${K.n0(T)} lb.` };
+    },
+    fns: {
+      p3s1_goal: S => S.lift >= .25,
+      p3s1_live: (S, o) => `Handle pull **${lb(o.pull, S)}** (1,500 ÷ 2,000 × 72)`,
+      p3s2_goal: (S, o) => S.pulling && o.stall === 'person',
+      p3s3_goal: (S, o) => o.fail.on && o.fail.landed,
+      p3s3_live: (S, o) => `At the hand: ${lb(o.pull, S)} × 9.6 ÷ 48 = **${lb(o.hand, S)}** · ${K.n1(o.leverage)}× the leverage`
+    }
+  },
+  /* ---------------- page 4: Check it before you lift */
+  4: {
+    readouts: (S, o) => [['Hook throat', S.units === 'met' ? K.n1(o.throatNow) + ' mm' : K.n2(o.throatNow / 25.4) + ' in', o.throatBad ? K.C.bad : K.C.ok], ['5 pitches', S.units === 'met' ? K.n1(o.gaugeNow) + ' mm' : K.n2(o.gaugeNow / 25.4) + ' in', o.stretchBad ? K.C.bad : K.C.ok], ['Latch', S.latch === 'ok' ? 'OK' : 'Missing', S.latch === 'ok' ? K.C.ok : K.C.bad], ['Defects', String(o.defects), o.defects ? K.C.bad : K.C.ok]],
+    challenge: (rng) => {
+      const now = pick(rng, [34.5, 35.2, 35.9, 36.4]), ok = now <= 35.7;
+      return { setup: { throat: Math.round((now / 34 - 1) * 1000) / 10 }, q: `1 ton hook, **34 mm** new, maker\'s limit 5 %. It reads **${now} mm**. Keep or remove?`,
+        choices: [ch(ok ? 'Keep' : 'Remove'), ch(ok ? 'Remove' : 'Keep', ok ? 'It is within 35.7 mm.' : 'Over 35.7 mm.')], answer: 0, explain: `Limit 34 × 1.05 = 35.7 mm. ${now} mm is ${ok ? 'within' : 'over'}.` };
+    },
+    fns: {
+      p4s2_goal: S => S.throat >= 6 - 1e-9,
+      p4s3_goal: S => S.stretch >= 3.2 - 1e-9,
+      p4s4_goal: (S, o) => o.fail.on && o.fail.landed
+    }
+  },
+  /* ---------------- page 5: Putting it together */
+  5: {
+    readouts: (S, o) => [['Load', lb(S.load, S)], ['Hoist rated', lb(o.rated, S), o.util > 1 ? K.C.bad : K.C.ok], ['Your pull', lb(o.pull, S), o.stall ? K.C.bad : K.C.acc], ['Hand chain', ft(o.run, S)]],
+    challenge: (rng) => {
+      const load = pick(rng, [800, 1400, 1800, 2600, 3500, 5200]), caps = [.5, 1, 1.5, 2, 3, 5], cap = caps.find(c => c * 2000 >= load);
+      return { setup: { load, cap: 1 }, q: `A **${K.n0(load)} lb** load. Smallest hand chain hoist that is rated for it?`,
+        choices: caps.filter(c => c >= cap).slice(0, 2).concat(caps.filter(c => c < cap).slice(-2)).map(c => ch(tons(c) + ' ton', c > cap ? 'Rated, but not the smallest.' : 'Rated less than the load.')), answer: 0,
+        explain: `${tons(cap)} ton = ${K.n0(cap * 2000)} lb, the first size at or above ${K.n0(load)} lb.` };
+    },
+    fns: {
+      p5s1_goal: S => S.cap === 1.5,
+      p5s2_goal: S => S.lift >= 2 - 1e-6,
+      p5s2_ok: (S, o) => `**${K.n0(o.pull)} lb** of pull and **${K.n0(o.handChain)} ft** of hand chain.`
+    }
+  }
+};
+})();
+</script>
+<script>/* CrewForge simulator-lesson page shell (2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+   Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
+   top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
+   at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
+   (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
+   Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
+   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
+   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+
+   Scene interface (one per page):
+     defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
+     mount(svg, api), apply(state, prev, initial), advance(ms, state), calc(state) -> out,
+     readouts(state, out) -> [{label, short, value, cls:'ok'|'warn'|'bad', color, id}],
+     caption(state, out) -> null | {kind:'fail'|'warn', title, text}, spot(id) -> [x, y, r] (svg units),
+     drag (optional, wired by the scene; it calls api.input(partial)), challenge(rng, n) -> question, busy() -> bool,
+     phoneViewBox, viewBox, reset().
+     Optional generic hooks (added 2026-11-13 for the hoisting and block-and-tackle ports):
+       instant: [keys]            never tweened by sim.set(partial, ms) (e.g. a hoist size that rebuilds the rig)
+       onSet(state, keys)         after every sim.set / learner input (not on tween frames): rebuild what those keys need
+       normalize(state)           after any change, before calc()
+       callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
+       fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+     step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
+
+   Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
+     slider  {min, max, step, unit, fmt(v)}: - / + steppers (hold to repeat), range, tap the value to type it
+     chips   {options:[{v, t}]}: one choice
+     hold    {key, on = 1, label, hotkey}: PRESS-AND-HOLD TO RUN. state[key] = on while the button is held (pointer,
+             Space / Enter on the focused button, or the optional hotkey anywhere on the page), 0 on release, lost
+             pointer capture, blur or leaving the page. The scene moves on its own clock (advance), so in ?capture=1
+             a script does the same with sim.set({key: 1}) ... sim.set({key: 0}) on the virtual clock. 52 px tall.
+             Dragging the part itself in the drawing is the scene's job (drag + api.input).
+     custom  {html(state)}: scene-made markup (e.g. a crane pendant); any element in it with data-hk="key" is a
+             hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
+   Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
+     the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
+     every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
+     while it matches), points [..] (teach: a short list), hint2 on question variants.
+   Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
+     or "fn:name" for the whole goal.
+   Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
+     sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
+(function () {
+'use strict';
+const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
+const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
+const NS = 'http://www.w3.org/2000/svg';
+
+window.CFShell = { start };
+
+function start(C, S) {
+  const log = [], T0 = performance.now(), L = (type, d = {}) => log.push({ t: Math.round(performance.now() - T0), type, ...d });
+  let state = Object.assign({}, S.defaults), out = S.calc(state), tweens = [], listeners = [], dirty = true;
+  let idx = 0, phase = 'step', hintLvl = 0, done = new Set(), helped = new Set(), qv = {}, qState = null, goalSince = null;
+  let free = false, challenge = null, chalN = 0, finished = false;
+  const N = C.lesson.pages.length, PN = C.n, steps = C.steps;
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const KEY = 'cf-lp:' + C.lesson.id;
+  const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
+  let muted = !!prefs.muted, rate = prefs.rate || 1;
+
+  /* ---------------------------------------------------------------- layout */
+  document.body.innerHTML = '';
+  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  if (STAGE_ONLY) document.body.classList.add('capture');
+  const app = el('div', { class: 'app' });
+  const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
+  app.innerHTML = `<header class="bar">
+    <button class="btn" id="b-back" aria-label="Back">&#9664; Back</button>
+    <div class="title"><div class="kick">${C.lesson.title.toUpperCase()} · PAGE ${PN} OF ${N}</div><div class="h">${C.title}</div></div>
+    <div class="dots" aria-label="page ${PN} of ${N}">${dots}</div>
+    <div class="voice"><button class="btn" id="b-mute" aria-label="Voice on or off"></button><button class="btn" id="b-rate" aria-label="Voice speed"></button></div>
+    <button class="btn pri" id="b-next" aria-label="Next page">${PN === N ? 'Finish' : 'Next'} &#9654;</button></header>
+  <section class="what" id="what"><button class="wt" id="b-what" aria-expanded="false">WHAT YOU'RE LOOKING AT <span class="chev">&#9662;</span></button><div class="wx">${md(C.what)}</div></section>
+  <div class="main"><div class="stage" id="stage"><svg id="sv" xmlns="${NS}" viewBox="${S.viewBox || '0 0 1600 880'}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${C.title} simulator"></svg>
+    <div class="caption" id="caption" role="status"></div><div class="read" id="read"></div></div>
+    <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
+  document.body.appendChild(app);
+  const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  let spotG, calloutG;
+
+  /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
+  let lastVB = '';
+  function fit() {
+    const phone = innerWidth < 700 && innerHeight > innerWidth;
+    document.body.classList.toggle('phone', phone);
+    const asp = Math.max(0.6, Math.min(3, (svg.clientWidth || 1) / (svg.clientHeight || 1)));
+    const vb = phone && S.phoneViewBox ? (typeof S.phoneViewBox === 'function' ? S.phoneViewBox(state, asp) : S.phoneViewBox) : (S.viewBox || '0 0 1600 880');
+    if (vb !== lastVB) { svg.setAttribute('viewBox', vb); lastVB = vb; }
+  }
+  addEventListener('resize', fit); fit();
+  $('#b-what').onclick = () => { const w = $('#what'); w.classList.toggle('open'); $('#b-what').setAttribute('aria-expanded', w.classList.contains('open')); };
+
+  /* ---------------------------------------------------------------- host / progress (SCORM wrapper or localStorage) */
+  const host = (() => { try { return window.parent !== window && window.parent.CFHost ? window.parent.CFHost : null; } catch (e) { return null; } })();
+  function progress() {
+    if (host) host.page(PN, N, C.file);
+    else if (store) { try { const p = JSON.parse(store.getItem(KEY) || '{}'); p.seen = Array.from(new Set((p.seen || []).concat([PN]))); p.last = PN; if (PN === N) p.complete = true; store.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+  }
+  const firstVisit = !(store && store.getItem(KEY));
+  progress();
+  const go = d => {
+    stopVoice();
+    const target = PN + d;
+    if (target < 1) return;
+    if (target > N) { finish(); return; }
+    L('page', { to: target });
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+  };
+  $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
+  if (PN === 1) $('#b-back').disabled = true;
+
+  /* ---------------------------------------------------------------- voice (Kokoro af_heart clips beside the page) */
+  const audio = new Audio(); audio.preload = 'auto';
+  let voiceOK = false, queue = [];
+  function setVoiceUI() {
+    $('#b-mute').innerHTML = muted ? '&#128263;<span class="vt"> Off</span>' : '&#128266;<span class="vt"> On</span>'; $('#b-mute').classList.toggle('off', muted);
+    $('#b-rate').textContent = rate === 1 ? '1×' : '0.8×';
+    try { store && store.setItem('cf-voice', JSON.stringify({ muted, rate })); } catch (e) {}
+  }
+  setVoiceUI();
+  $('#b-mute').onclick = () => { muted = !muted; setVoiceUI(); if (muted) stopVoice(); else speak(curKey()); L('voice', { muted }); };
+  $('#b-rate').onclick = () => { rate = rate === 1 ? 0.8 : 1; audio.playbackRate = rate; setVoiceUI(); };
+  function stopVoice() { queue = []; try { audio.pause(); } catch (e) {} }
+  function speak(...keys) {
+    queue = keys.filter(k => k && C.audio && C.audio[k]);
+    try { audio.pause(); } catch (e) {}
+    playNext();
+  }
+  function playNext() {
+    if (muted || !voiceOK || CAPTURE || !queue.length) return;
+    const k = queue.shift();
+    audio.src = (C.audioBase || 'audio/') + C.audio[k]; audio.playbackRate = rate;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    audio.play().catch(() => { showStart(); });
+  }
+  audio.addEventListener('ended', () => setTimeout(playNext, 250));
+  function curKey() { if (free) return challenge ? null : 'free'; const st = steps[idx]; if (!st) return null; if (st.type === 'question') return `s${idx}v${(qv[idx] || 0) % st.variants.length}`; return 's' + idx; }
+  function showStart() {
+    if (CAPTURE || $('#start')) return;
+    const first = PN === 1 && firstVisit;
+    const o = el('div', { id: 'start' }, `<div class="box"><h2>${first ? C.lesson.title : C.title}</h2><p>${first ? 'The narrator reads each step aloud. You can mute it or slow it down at the top right.' : 'Tap to hear this page read aloud.'}</p>
+      <button class="btn pri" id="b-start">&#9654; ${first ? 'Start lesson' : 'Start page'}</button> <button class="btn" id="b-quiet">Read it myself</button></div>`);
+    document.body.appendChild(o);
+    $('#b-start').onclick = () => { o.remove(); voiceOK = true; muted = false; setVoiceUI(); speak('what', curKey()); L('start'); };
+    $('#b-quiet').onclick = () => { o.remove(); voiceOK = true; muted = true; setVoiceUI(); L('start', { quiet: true }); };
+  }
+
+  /* ---------------------------------------------------------------- sim state */
+  function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+  function full() { return Object.assign({}, state, { out }); }
+  function applyState(next, user) {
+    const prev = state; state = Object.assign({}, state, next); if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, prev); dirty = true;
+    if (user) { if (S.onSet) { S.onSet(state, Object.keys(next)); out = S.calc(state); } listeners.forEach(fn => fn(full())); }
+  }
+  function snapTo(partial) {      // sim.set({snap: true, ...}): page defaults first, no tweens, then the rest
+    tweens = []; S.reset && S.reset(); state = Object.assign({}, S.defaults, partial); delete state.snap;
+    if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, null, true); dirty = true;
+  }
+  function set(partial, dur = 0) {
+    if (!partial) return;
+    if (partial.snap) return snapTo(partial);
+    const inst = {}, tw = {}, keys = Object.keys(partial), noTween = S.instant || [];
+    for (const k in partial) { if (dur > 0 && typeof partial[k] === 'number' && typeof state[k] === 'number' && !noTween.includes(k)) tw[k] = [state[k], partial[k]]; else inst[k] = partial[k]; }
+    if (Object.keys(tw).length) tweens.forEach(T => { for (const k in tw) delete T.tw[k]; });   // a new tween on a key replaces the old one
+    if (Object.keys(inst).length) applyState(inst);
+    if (Object.keys(tw).length) tweens.push({ tw, t: 0, dur });
+    if (S.onSet) { S.onSet(state, keys); out = S.calc(state); dirty = true; }
+  }
+  function stepTweens(ms) {
+    if (!tweens.length) return;
+    const next = {};
+    tweens = tweens.filter(T => { T.t += ms; const u = Math.min(1, T.t / T.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; for (const k in T.tw) next[k] = T.tw[k][0] + (T.tw[k][1] - T.tw[k][0]) * e; return u < 1; });
+    applyState(next);
+  }
+  function advance(ms) {
+    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+  }
+  function checkGame(ms) {
+    const c = challenge; if (!c || !c.game || c.result || !free) return;
+    c.t = (c.t || 0) + ms / 1000;
+    const r = c.goal(state, out, c.t) || {}; c.live = r.live || '';
+    const g = card.querySelector('#glive'); if (g && g.innerHTML !== md(c.live)) g.innerHTML = md(c.live);
+    if (r.done) { c.result = { ok: !!r.ok, msg: r.msg || '' }; L('challenge', { right: c.result.ok }); renderFree(); }
+  }
+  const api = {
+    input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
+    get: full, redraw() { dirty = true; },
+    step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
+  };
+  S.mount(svg, api);
+  spotG = document.createElementNS(NS, 'g'); spotG.id = 'spotg'; svg.appendChild(spotG);
+  calloutG = document.createElementNS(NS, 'g'); calloutG.id = 'calloutg'; svg.appendChild(calloutG);
+  /* video contract */
+  window.sim = {
+    set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
+    get: full, advance, isIdle: () => !tweens.length && !(S.busy && S.busy()), ready: false,
+    onChange: fn => listeners.push(fn),
+    callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+    clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
+  };
+
+  /* ---------------------------------------------------------------- readouts + caption */
+  let lastRead = '', lastCap = '';
+  function render() {
+    if (!dirty) return; dirty = false;
+    if (document.body.classList.contains('phone')) fit();
+    S.draw && S.draw(state, out);
+    const r = S.readouts(state, out).map(o => `<div class="ro ${o.cls || ''}" id="ro-${o.id || ''}"><small><span class="lf">${o.label}</span><span class="ls">${o.short || o.label}</span></small><span${o.color ? ` style="color:${o.color}"` : ''}>${o.value}</span></div>`).join('');
+    if (r !== lastRead) { read.innerHTML = r; lastRead = r; }
+    const c = S.caption && S.caption(state, out), cs = c ? JSON.stringify(c) : '';
+    if (cs !== lastCap) { lastCap = cs; cap.className = 'caption' + (c ? ' on ' + (c.kind || '') : ''); cap.innerHTML = c ? `<b>${c.title}</b><span class="ct">${c.text}</span>` : ''; }
+    drawSpot(); syncTray(); liveLine();
+  }
+  /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
+  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function tpl(t) {
+    const f = fn(t); if (f) return String(f(state, out));
+    const st = full();
+    return String(t || '').replace(/\{([\w.]+)(?::(%|\d))?\}/g, (m, p, d) => { const v = getPath(st, p); if (typeof v !== 'number') return v == null ? m : String(v);
+      return d === '%' ? Math.round(v * 100).toLocaleString('en-CA') + ' %' : v.toLocaleString('en-CA', { minimumFractionDigits: +(d || 0), maximumFractionDigits: +(d || 0) }); });
+  }
+  let lastLive = '';
+  function liveLine() {
+    const st = !free && steps[idx], box = card.querySelector('#live'); if (!box || !st) return;
+    let h = st.live ? md(tpl(st.live)) : '';
+    const w = (st.wrong || []).find(x => goalMet(x.when)); if (w && !done.has(idx)) h += (h ? '<br>' : '') + `<span class="wrongsay">${md(w.say)}</span>`;
+    if (h !== lastLive) { lastLive = h; box.innerHTML = h; box.style.display = h ? '' : 'none'; }
+  }
+  function syncTray() {               // programmatic changes (Show me, setups, tweens) move the controls too
+    const ae = document.activeElement;
+    trayKeys.forEach(k => { const c = S.controls[k], v = state[k];
+      if (c.type === 'hold' || c.type === 'custom') return;
+      if (c.type === 'chips') tray.querySelectorAll(`.chip[data-k="${k}"]`).forEach(b => { const on = String(v) === b.dataset.v; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+      else { const r = tray.querySelector(`input[data-k="${k}"]`), t = tray.querySelector(`.val[data-k="${k}"]`), txt = (c.fmt || (x => x + (c.unit || '')))(v);
+        if (r && r !== ae && +r.value !== v) r.value = v; if (t && t.textContent !== txt) t.textContent = txt; } });
+    tray.querySelectorAll('[data-hk]').forEach(b => { const on = !!state[b.dataset.hk]; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+  }
+
+  /* ---------------------------------------------------------------- control tray */
+  function ctrlHTML(key) {
+    const c = S.controls[key], v = state[key], fmt = c.fmt || (x => x + (c.unit || ''));
+    if (c.type === 'hold') return `<div class="ctrl holdc" id="c-${key}"><button class="btn hold" data-hk="${c.key || key}" data-on="${c.on != null ? c.on : 1}" aria-pressed="false" title="Press and hold${c.hotkey ? ' (or hold the ' + c.hotkey + ' key)' : ''}">${c.label}</button></div>`;
+    if (c.type === 'custom') return `<div class="ctrl custom" id="c-${key}">${c.html(state)}</div>`;
+    if (c.type === 'chips') return `<div class="chipwrap" id="c-${key}"><span class="lab">${c.label}</span><div class="chips" role="group" aria-label="${c.label}">${c.options.map(o => `<button class="chip${o.v === v ? ' on' : ''}" data-k="${key}" data-v="${o.v}" aria-pressed="${o.v === v}">${o.t}</button>`).join('')}</div></div>`;
+    return `<div class="ctrl" id="c-${key}"><span class="lab">${c.label}</span><button class="btn" data-k="${key}" data-d="-1" aria-label="${c.label} down">&minus;</button>
+      <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-k="${key}" aria-label="${c.label}"><button class="btn" data-k="${key}" data-d="1" aria-label="${c.label} up">+</button>
+      <button class="val" data-k="${key}" title="Tap to type a value">${fmt(v)}</button></div>`;
+  }
+  let trayKeys = [];
+  function renderTray(keys) {
+    if (keys) trayKeys = keys;
+    const ae = document.activeElement, activeRange = ae && ae.type === 'range' && tray.contains(ae) ? ae.dataset.k : null;
+    if (activeRange) {           // never rebuild under a finger: update values only
+      trayKeys.forEach(k => { const c = S.controls[k]; const v = $(`#c-${k} .val`); if (v) v.textContent = (c.fmt || (x => x + (c.unit || '')))(state[k]); });
+      return;
+    }
+    tray.innerHTML = trayKeys.map(ctrlHTML).join('');
+    tray.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k, c = S.controls[k], o = c.options.find(o => String(o.v) === b.dataset.v); api.input({ [k]: o.v }); });
+    tray.querySelectorAll('.chip.on').forEach(c => { const p = c.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = c.offsetLeft - p.offsetLeft - 8; });   // phone: the picked chip in view
+    tray.querySelectorAll('input[type=range]').forEach(r => { r.oninput = () => api.input({ [r.dataset.k]: +r.value }); r.onchange = () => renderTray(); });
+    tray.querySelectorAll('.btn[data-d]').forEach(b => {
+      let h = null; const k = b.dataset.k, c = S.controls[k];
+      const bump = () => { const v = Math.max(c.min, Math.min(c.max, +(state[k] + (+b.dataset.d) * c.step).toFixed(6))); api.input({ [k]: v }); };
+      b.onpointerdown = e => { e.preventDefault(); bump(); h = setTimeout(function rep() { bump(); h = setTimeout(rep, 90); }, 420); };
+      const stop = () => { clearTimeout(h); h = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; addEventListener('pointerup', stop);
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } };
+    });
+    tray.querySelectorAll('[data-hk]').forEach(wireHold);
+    tray.querySelectorAll('.val').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, c = S.controls[k], inp = el('input', { class: 'tv', type: 'number', inputmode: 'decimal', min: c.min, max: c.max, step: c.step, value: state[k], 'aria-label': c.label });
+      b.replaceWith(inp); inp.focus(); inp.select();
+      const ok = () => { const v = +inp.value; if (isFinite(v)) api.input({ [k]: Math.max(c.min, Math.min(c.max, v)) }); renderTray(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') renderTray(); }; inp.onblur = ok;
+    });
+  }
+
+  /* hold-to-run: state[key] = on while held (pointer, Space / Enter on the button, or the control's hotkey) */
+  const held = new Set();
+  function hold(k, on, v) {
+    if (on ? held.has(k) : !held.has(k)) return;
+    if (on) held.add(k); else held.delete(k);
+    api.input({ [k]: on ? (v != null ? v : 1) : 0 });
+  }
+  function wireHold(b) {
+    const k = b.dataset.hk, v = b.dataset.on != null ? +b.dataset.on : 1;
+    b.style.touchAction = 'none';
+    b.onpointerdown = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} hold(k, true, v); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => hold(k, false);
+    b.oncontextmenu = e => e.preventDefault();
+    b.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(k, true, v); } };
+    b.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); hold(k, false); } };
+    b.onblur = () => hold(k, false);
+  }
+  const releaseAll = () => Array.from(held).forEach(k => hold(k, false));
+  addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT') return; trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) { e.preventDefault(); hold(c.key || k, true, c.on); } }); });
+  addEventListener('keyup', e => { trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) hold(c.key || k, false); }); });
+
+  /* ---------------------------------------------------------------- spotlight (hint level 2) */
+  let spotIds = [];
+  function drawSpot() {
+    if (STAGE_ONLY) return;                 // video: no lesson spotlight on the stage
+    spotG.innerHTML = spotIds.map(id => { const p = S.spot && S.spot(id, state); if (!p) return ''; const [x, y, r] = p;
+      return `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/><circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="10 7"/>`; }).join('');
+  }
+  function spot(ids, ctrls) {
+    spotIds = ids || []; drawSpot();
+    tray.querySelectorAll('.spotlit').forEach(e => e.classList.remove('spotlit'));
+    (ctrls || []).forEach(k => { const e = $('#c-' + k); if (e) e.classList.add('spotlit'); });
+  }
+
+  /* ---------------------------------------------------------------- steps */
+  let tries = 0;
+  function markTry() { tries++; }
+  function goalMet(g) {
+    if (!g) return false;
+    const f = fn(g); if (f) return !!f(state, out);
+    const st = full();
+    return Object.keys(g).every(k => { const v = getPath(st, k), m = g[k];
+      if (Array.isArray(m)) return v >= m[0] - 1e-9 && v <= m[1] + 1e-9;
+      if (m && typeof m === 'object') { if ('in' in m) return m.in.includes(v); if ('near' in m) return Math.abs(v - m.near) <= (m.tol != null ? m.tol : 1e-6);
+        if ('gte' in m) return v >= m.gte - 1e-9; if ('lte' in m) return v <= m.lte + 1e-9; if ('gt' in m) return v > m.gt; if ('lt' in m) return v < m.lt; if ('not' in m) return v !== m.not; }
+      return v === m; });
+  }
+  function checkGoal(ms) {
+    if (free || phase !== 'step') return;
+    const st = steps[idx]; if (!st || done.has(idx) || !(st.type === 'do' || st.type === 'fail' || (st.type === 'predict' && qState === 'answered' && st.goal))) return;
+    if (goalMet(st.goal)) { goalSince = (goalSince || 0) + ms; if (goalSince >= (st.hold != null ? st.hold : 450)) complete(); }
+    else goalSince = null;
+  }
+  function complete(how) {
+    if (done.has(idx)) return;
+    done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+  }
+  function enter(i, opts = {}) {
+    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    const st = steps[idx];
+    if (!opts.noSetup) {
+      if (st.setup) set(st.setup, 0);
+      if (st.set) set(st.set, st.dur || 1200);
+      if (st.type === 'question') { const v = st.variants[(qv[idx] || 0) % st.variants.length]; if (v.setup) set(v.setup, 0); }
+    }
+    releaseAll(); lastLive = '';
+    if (!opts.noSetup) { window.sim.clear(); if (st.callout) [].concat(st.callout).forEach(c => window.sim.callout(c.id, c.text, { pos: c.pos })); }
+    L('enter', { step: idx, type: st.type });
+    spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
+  }
+  function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
+  function stepHead(label) {
+    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  }
+  function wireHead() {
+    const p = $('#b-sprev'), n = $('#b-snext');
+    if (p) { p.onclick = () => { if (free) enter(steps.length - 1); else if (idx > 0) enter(idx - 1); }; p.disabled = !free && idx === 0; }
+    if (n) n.onclick = () => { if (free) go(1); else { L('skip', { step: idx }); if (!done.has(idx)) helped.add(idx); nextStep(); } };
+  }
+  function hintBlock(st) {
+    let h = '';
+    if (hintLvl >= 1) h += `<div class="hint">${md(st.hint || 'Look at the readouts under the drawing.')}</div>`;
+    if (hintLvl >= 2 && st.hint2) h += `<div class="hint">${md(st.hint2)}</div>`;
+    return h;
+  }
+  function hintButtons(st, showLabel = 'Show me') {
+    return `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; ${showLabel}</button>${hintLvl >= 2 || helped.has(idx) ? '<button class="skip" id="b-skip">Skip this step</button>' : ''}</div>`;
+  }
+  function renderStep() {
+    if (free) return renderFree();
+    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    const ctrls = st.controls || [];
+    if (st.type === 'teach') {
+      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+    } else if (st.type === 'do' || st.type === 'fail') {
+      if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
+      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      else h += hintBlock(st) + hintButtons(st);
+    } else if (st.type === 'predict') {
+      h += `<p>${md(st.text)}</p>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      else {
+        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
+        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      }
+    } else if (st.type === 'question') {
+      const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
+      h += `<h3>${md(v.q)}</h3>`;
+      if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
+        `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+      else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
+        `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
+      else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
+        `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
+    lastLive = ''; liveLine();
+  }
+  let predPick = null, qPick = null;
+  function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
+  function choose(i) {
+    const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'predict') {
+      if (qState) return; predPick = i; qState = 'answered';
+      if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+      if (!st.goal) done.add(idx);
+      renderStep(); return;
+    }
+    if (st.type !== 'question' || qState) return;
+    const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
+    if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
+    else qState = 'wrong';
+    renderStep();
+  }
+  function newQuestion() {
+    if (challenge) { return nextChallenge(); }
+    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
+    L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
+  }
+  function hint() {
+    if (challenge) { hintLvl++; renderFree(); return; }
+    const st = steps[idx]; hintLvl = Math.min(2, hintLvl + 1); L('hint', { step: idx, lvl: hintLvl });
+    renderStep();
+    if (hintLvl >= 2) spot(st.hintSpot ? [].concat(st.hintSpot) : (st.spot ? [].concat(st.spot) : []), st.controls || []);
+  }
+  function showMe() {
+    if (challenge) { challenge.shown = true; renderFree(); return; }
+    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
+  }
+
+  /* ---------------------------------------------------------------- free play */
+  const allKeys = (C.freeControls || Object.keys(S.controls)).filter(k => S.controls[k] && !(S.controls[k].lessonOnly));
+  function enterFree() { stopVoice(); free = true; challenge = null; spot([], []); releaseAll(); window.sim.clear(); L('free'); renderFree(); speak('free'); }
+  function renderFree() {
+    card.className = 'card step free';
+    let h = stepHead('FREE PLAY · EVERYTHING UNLOCKED');
+    if (!challenge) {
+      h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
+    } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
+      h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    } else {
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
+      if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
+      else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
+      else h += opts(c.choices, ord, () => '', true) + (hintLvl ? `<div class="hint">${md(c.hint)}</div>` : '');
+      h += `<div class="row">${c.state === 'wrong' || c.state === 'right' || c.shown ? '<button class="btn pri" id="b-newq">Try a new question &#9654;</button>' : '<button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button>'}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(challenge ? (challenge.game ? (challenge.controls || allKeys) : []) : allKeys);
+    const ch = $('#b-chal'); if (ch) ch.onclick = () => nextChallenge();
+    const rs = $('#b-reset'); if (rs) rs.onclick = () => reset();
+    const np = $('#b-np'); if (np) np.onclick = () => go(1);
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => nextChallenge();
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => { const c = challenge; c.pick = +b.dataset.i; c.state = c.pick === c.answer ? 'right' : 'wrong'; L('challenge', { right: c.state === 'right' }); renderFree(); });
+  }
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function nextChallenge() {
+    chalN++; hintLvl = 0;
+    const c = S.challenge(rng(PN * 1000 + chalN * 7919 + (Q.get('seed') | 0)), chalN);
+    if (c.setup) set(c.setup, 0);
+    challenge = Object.assign({ state: null, pick: null }, c); free = true; L('challenge', { n: chalN }); renderFree();
+  }
+  function reset() { tweens = []; held.clear(); S.reset && S.reset(); state = Object.assign({}, S.defaults); out = S.calc(state); S.apply(state, null, true); dirty = true; challenge = null; L('reset'); renderFree(); }
+
+  function finish() {
+    finished = true; stopVoice(); L('finish'); if (host && host.finish) host.finish();
+    card.className = 'card step free';
+    card.innerHTML = `<div class="sh"><b>LESSON COMPLETE</b></div><p>${md(C.lesson.done)}</p><div class="row">${C.lesson.sheet ? `<a class="btn pri" href="${C.lesson.sheet}" target="_blank" rel="noopener">&#128196; Summary sheet (PDF)</a>` : ''}<button class="btn" id="b-again">Back to free play</button></div>`;
+    tray.innerHTML = ''; $('#b-again').onclick = () => enterFree();
+    speak('done');
+  }
+
+  /* ---------------------------------------------------------------- loop */
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+    if (!CAPTURE) advance(dt);
+    requestAnimationFrame(frame);
+  }
+  S.apply(state, null, true); render();
+  enter(0, { quiet: true, noSetup: STAGE_ONLY });     // a video page starts from the page defaults: the script sets it up
+  if (!CAPTURE) {
+    requestAnimationFrame(frame);
+    if ((PN === 1 && firstVisit) || host && host.fresh) showStart();
+    else { voiceOK = true; speak('what', curKey()); }      // later pages: autoplay; if the browser refuses, play() shows the Start tap
+  }
+  if (CAPTURE) { voiceOK = false; }
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight' && e.altKey) go(1); if (e.key === 'ArrowLeft' && e.altKey) go(-1); });
+  window.sim.ready = true;
+
+  /* test / run-through API */
+  window.lessonPage = {
+    log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
+      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+  };
+}
+})();
+</script>
+<script>(function(){const C={"n":5,"file":"05-putting-it-together.html","title":"Putting it together","scene":"chain","capture":"stage","what":"A **2,400 lb motor** (weight from the nameplate) has to come up 2 ft. On the rack: ½, 1, 1½, 2, 3 and 5 ton hand chain hoists. The beam clamp is rated **4,000 lb**.","start":{"htype":"hand","cap":1,"load":2400,"lift":0,"slip":0,"clutch":true,"card":"ratio"},"steps":[{"type":"do","text":"Pick the **smallest hoist rated for the load**. The 1 ton is up now.","controls":["cap"],"goal":"fn:p5s1_goal","solve":{"cap":1.5},"hint":"2,400 lb is more than 1 ton (2,000 lb). The next size up is 1½ ton (3,000 lb).","ok":"**1½ ton** (3,000 lb): 80 % of rated. And the beam clamp (4,000 lb) is rated at least as much as the hoist, as WorkSafeBC 14.11(1) requires."},{"type":"do","text":"Lift it **2 ft**. Watch your pull and the hand chain.","controls":["pull","speed"],"drawActs":["handchain"],"goal":"fn:p5s2_goal","solve":{"lift":2},"hint":"Hold Pull with Time × 10.","ok":"fn:p5s2_ok"},{"type":"question","variants":[{"q":"A 1½ ton hoist needs **70 lb** at rated and has an overhaul ratio of **57**. It lifts a **2,400 lb** gearbox **2 ft**. How hard do you pull, and how much hand chain?","choices":[{"t":"56 lb and 114 ft"},{"t":"70 lb and 57 ft","why":"70 lb is the pull at rated and 57 ft is one foot. Use 2,400 lb and 2 ft."},{"t":"56 lb and 57 ft","why":"You forgot the second foot."},{"t":"88 lb and 114 ft","why":"Pull upside down: 3,000 ÷ 2,400."}],"answer":0,"explain":"Pull = 2,400 ÷ 3,000 × 70 = **56 lb**. Chain = 2 × 57 = **114 ft**."},{"q":"A 2 ton hoist (72 lb at rated, ratio 70) lifts **3,000 lb** by **1.5 ft**. Pull and hand chain?","choices":[{"t":"54 lb and 105 ft"},{"t":"72 lb and 70 ft","why":"72 lb is the pull at rated and 70 ft is one foot. Use 3,000 lb and 1.5 ft."},{"t":"96 lb and 105 ft","why":"Pull upside down: 4,000 ÷ 3,000 × 72. Use load ÷ rated × pull = 54 lb."},{"t":"54 lb and 47 ft","why":"You divided 70 by 1.5. Hand chain = lift × ratio = 1.5 × 70 = 105 ft."}],"answer":0,"explain":"3,000 ÷ 4,000 × 72 = **54 lb**; 1.5 × 70 = **105 ft**."},{"q":"What must the beam clamp's rating be for a 1½ ton hoist?","choices":[{"t":"At least 3,000 lb (the hoist's rating)"},{"t":"At least the load (2,400 lb)","why":"The rule is the hoist's rated capacity, not today's load."},{"t":"Any clamp that fits the flange","why":"Fit is not enough: the clamp must also be rated at least the hoist's capacity."},{"t":"Half the hoist rating","why":"Half is not allowed: the support must be rated at least the hoist's full capacity."}],"answer":0,"explain":"The supporting structure must be rated at least as much as the hoist's rated capacity (WorkSafeBC 14.11(1))."}]}],"free":"Set up any lift. Pick the hoist, lift it, check the numbers.","freeControls":["cap","load","pull","lower","speed","clutch","units"],"lesson":{"id":"chain-hoists","title":"Chain hoists","episode":"010-chain-hoists","done":"You finished **Chain hoists**. Print the summary sheet to keep the rules and key numbers. On the job, always check the tag, the maker's data and the lift plan.","sheet":"chain-hoists-summary.pdf","summary":{"title":"Chain hoists and lever hoists","pic":{"page":1,"state":{"lift":1,"detail":true}},"rules":["Pull × overhaul ratio × efficiency = lift. 1 ton Harrington CB: 58 lb × 43 = 2,494 lb with no friction; lifts 2,000 lb (80 %).","Pull follows the load: pull = load ÷ rated × pull at rated. More pull than rated = overloaded: stop.","Hand chain = lift × overhaul ratio (2 ft on a ratio of 43 = 86 ft).","The overload (slip) clutch slips at about 20 % over rated. It protects the hoist; it is not a scale.","Lever hoists: never a cheater bar or extension; one person, hand power only; never load it in neutral.","Hook: remove at more than 5 % throat opening (maker), any twist past the limit, latch missing.","Load chain: gauge over 5 pitches against the maker's discard length (6.3 mm: 95.5 → 98.3 mm).","Trial lift a few inches: the brake must hold. Support (clamp, lug, beam) rated ≥ the hoist's capacity (WorkSafeBC 14.11(1)).","No side pull: hook to hook in a straight line."]},"pages":[{"file":"01-hand-chain-hoist.html","title":"Pull the hand chain"},{"file":"02-pull-and-clutch.html","title":"Pull follows the load"},{"file":"03-lever-hoist.html","title":"Lever hoists and cheater bars"},{"file":"04-pre-use-checks.html","title":"Check it before you lift"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p5-what-f6bd9b72.mp3","s0":"p5-s0-c94648c1.mp3","s1":"p5-s1-e420874d.mp3","s2v0":"p5-s2v0-838140c0.mp3","s2v1":"p5-s2v1-5f180110.mp3","s2v2":"p5-s2v2-0b4f687a.mp3","free":"p5-free-959a1882.mp3"},"audioBase":"audio/"};CFShell.start(C, HoistAdapter(C, window.LESSON_CODE["chain-hoists"][C.n]));})();</script>
+</body></html>
