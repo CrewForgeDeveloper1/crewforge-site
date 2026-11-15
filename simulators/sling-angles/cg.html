@@ -361,7 +361,198 @@ const KIT = (() => {
     detailInset, pill, PH };
 })();
 </script>
-<script>/* CrewForge illustration kit, rigging parts (JS port of docs/concepts/hitches/src/rigging.py, lib.py, s03.py, s05.py,
+<script>/* CrewForge shared chain drawing (simulators/_lesson/chaindraw.js) - every simulator draws chain with this file.
+   Approved by the instructor 2026-11-14 (sling-inspection redraw, then "check for all chain images in simulators and
+   replace with better image"). Self-contained: no kit needed; defines CHD (= window.CFChain).
+   Alloy chain drawn link by link (first drawn for the sling-inspection family 2026-11-14).
+   Side view of interlocking links that alternate:
+     FACE  the link's plane faces the viewer: a full oval ring of round stock with its opening;
+     EDGE  the link's plane is square to the view: a narrow bar with rounded ends, passing THROUGH the openings of the
+           links on either side of it.
+   The view is turned TW = 12° about the chain axis, so an edge link shows its near rail a little lower than its far
+   rail. Its far half is drawn behind the face links and its near half in front of them: at every bearing point the face
+   link's end goes behind the near rail and in front of the far rail, the real over/under of interlocked links.
+   Proportions (Peerless / Crosby Grade 80 and 100, 3/8 in: stock d 0.39 in, inside length 1.19 in, outside width
+   1.33 in): inside length (pitch) 3.05 d, inside width 1.4 d, end radius on the stock centreline 1.2 d.
+   Links under tension sit end crotch to end crotch: centre spacing = a1 + a2 - (d1 + d2) / 2 along the axis
+   (a = half the centreline length), which is the pitch for two chain links.
+   Shading: round steel, one light top-left (STYLE.md): outline, body, core shadow low-right, light band and a
+   specular line high-left. Every number on the drawing still comes from calc(); this file only draws. */
+var CHD = (typeof window !== 'undefined' && window.CFChain) || (function () {
+  const TW = 12 * Math.PI / 180, CS = Math.cos(TW), SN = Math.sin(TW);
+  /* small helpers (same as the sling-inspection kit's f / pathd / plen / along) */
+  const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+  const pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+  function plen(P) { let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); return L; }
+  function along(P, s) {                 // point + unit tangent at arc length s
+    let acc = 0;
+    for (let i = 1; i < P.length; i++) {
+      const L = Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+      if (acc + L >= s || i === P.length - 1) {
+        const t = L ? Math.max(0, Math.min(1, (s - acc) / L)) : 0;
+        return { p: [P[i - 1][0] + (P[i][0] - P[i - 1][0]) * t, P[i - 1][1] + (P[i][1] - P[i - 1][1]) * t], u: [(P[i][0] - P[i - 1][0]) / (L || 1), (P[i][1] - P[i - 1][1]) / (L || 1)] };
+      }
+      acc += L;
+    }
+    return { p: P[0], u: [1, 0] };
+  }
+  const K = { f, pathd, plen, along };
+  const STEEL = ['#a6aeb4', '#3b4247', '#eef1f3'];
+  const PIN = 3.05, WIN = 1.4;                       // x stock: inside length, inside width
+
+  /* one round-steel stroke along P (closed ring or open piece) */
+  function stroke(P, d, col, closed, cap) {
+    const p = K.pathd(P, closed), lc = cap || 'round';
+    const L = (w, c, op, dx, dy) => `<path d="${p}"${dx || dy ? ` transform="translate(${f(dx * d)} ${f(dy * d)})"` : ''} fill="none" stroke="${c}" stroke-width="${f(w)}" stroke-linecap="${lc}" stroke-linejoin="round"${op < 1 ? ` opacity="${op}"` : ''}/>`;
+    const s = L(d + (d < 5 ? 1 : 2), col[1], 1) + L(d, col[0], 1);
+    if (d < 5) return s + L(Math.max(.6, d * .3), col[2], .8, -.12, -.16);
+    return s + L(d * .34, col[1], .42, .14, .17) + L(d * .4, col[2], .45, -.08, -.11) + L(d * .13, '#ffffff', .65, -.17, -.22);
+  }
+  /* closed stadium centreline in link coordinates [x along the axis, w across the link], from the +x apex through w > 0.
+     index 0 = +x apex, 26 = -x apex, 52 = +x apex again */
+  function stadium(a, b) {
+    const P = [], e = Math.max(0, a - b);
+    for (let i = 0; i <= 9; i++) { const t = i / 9 * Math.PI / 2; P.push([e + b * Math.cos(t), b * Math.sin(t)]); }
+    for (let i = 1; i < 8; i++) P.push([e - 2 * e * i / 8, b]);
+    for (let i = 0; i <= 18; i++) { const t = Math.PI / 2 + i / 18 * Math.PI; P.push([-e + b * Math.cos(t), b * Math.sin(t)]); }
+    for (let i = 1; i < 8; i++) P.push([-e + 2 * e * i / 8, -b]);
+    for (let i = 0; i <= 9; i++) { const t = 3 * Math.PI / 2 + i / 9 * Math.PI / 2; P.push([e + b * Math.cos(t), b * Math.sin(t)]); }
+    return P;
+  }
+  /* geometry of one link spec: centreline half-length a, half-width b */
+  const half = L => ({ a: (L.pin + L.d) / 2, b: (L.win + L.d) / 2 });
+  /* link -> screen mapping. FACE: w shows as w cos TW; EDGE: as -w sin TW (near rail, w > 0, sits lower) */
+  function mapper(L) {
+    const { a } = half(L), u = L.u, n = [u[1], -u[0]], F = L.kind === 'F', bend = L.bend || 0;
+    return ([x, w]) => { w += bend * (1 - (x / a) * (x / a)); const m = F ? w * CS : -w * SN; return [L.c[0] + u[0] * x + n[0] * m, L.c[1] + u[1] * x + n[1] * m]; };
+  }
+  /* draw one link -> {back, mid, front} layers */
+  function link(L) {
+    const d = L.d, { a, b } = half(L), S = mapper(L), col = L.col || STEEL, P = stadium(a, b);
+    const id = L.id ? ` id="${L.id}"` : '';
+    if (L.kind === 'F') {
+      let body = stroke(P.slice(0, -1).map(S), d, col, true);
+      if (L.boss) {                                      // coupling link: the centre boss with the load pin (Hammerlok style)
+        const bw = L.boss * d, q = [[-bw / 2, -b], [bw / 2, -b], [bw / 2, b], [-bw / 2, b]].map(S);
+        body += `<path d="${K.pathd(q, true)}" fill="${col[0]}" stroke="${col[1]}" stroke-width="2" stroke-linejoin="round"/>`;
+        const pc = S([0, 0]);
+        body += `<circle cx="${f(pc[0])}" cy="${f(pc[1])}" r="${f(Math.min(bw, 2 * b) * .3)}" fill="${col[2]}" stroke="${col[1]}" stroke-width="1.5"/>`;
+      }
+      if (L.wear > 0) {                                  // bearing wear: a groove the mating link has rubbed into the inside of the end
+        const sg = L.wearEnd || 1, r = .55 * d, gx = sg * (a - d / 2 + L.wear - r), g = S([gx, 0]);
+        const xs = P.map(S).map(p => p[0]), ys = P.map(S).map(p => p[1]);
+        const x0 = Math.min(...xs) - d, y0 = Math.min(...ys) - d, w = Math.max(...xs) - x0 + d, h = Math.max(...ys) - y0 + d;
+        const mid = `wm${Math.round(L.c[0])}_${Math.round(L.c[1])}`;
+        body = `<mask id="${mid}" maskUnits="userSpaceOnUse" x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(h)}"><rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(h)}" fill="#fff"/>` +
+          `<circle cx="${f(g[0])}" cy="${f(g[1])}" r="${f(r)}" fill="#000"/></mask><g mask="url(#${mid})">${body}</g>`;
+        const arc = [...Array(13)].map((_, i) => { const t = (-55 + i * 110 / 12) * Math.PI / 180; return S([gx + sg * r * Math.cos(t), r * Math.sin(t) / CS]); });
+        body += `<path d="${K.pathd(arc)}" fill="none" stroke="#f7f9fa" stroke-width="${f(Math.max(1.5, d * .07))}" stroke-linecap="round"/>`;
+      }
+      return { back: '', mid: `<g${id}>${body}</g>`, front: '' };
+    }
+    const ex = t => [a - b + b * Math.cos(t), b * Math.sin(t)];
+    const near = [ex(-.2)].concat(P.slice(0, 27), [[-(a - b) + b * Math.cos(Math.PI + .2), b * Math.sin(Math.PI + .2)]]).map(S);
+    const far = P.slice(26).map(S);
+    const shadow = d >= 5 ? `<path d="${K.pathd(near)}" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="${f(d * 1.22)}" stroke-linecap="butt" stroke-linejoin="round"/>` : '';
+    return { back: `<g>${stroke(far, d, col, false, 'round')}</g>`, mid: '', front: `<g${id}${L.ghost ? ` opacity="${L.ghost}"` : ''}>${L.ghost ? '' : shadow}${stroke(near, d, col, false, 'butt')}</g>` };   // ghost: phantom (see-through) so a part behind it can be shown
+  }
+  /* point and unit tangent at arc length s along a polyline (straight past either end) */
+  function at(P, s) {
+    if (s <= 0) { const u = K.along(P, 0).u; return { p: [P[0][0] + u[0] * s, P[0][1] + u[1] * s], u }; }
+    const tot = K.plen(P);
+    if (s >= tot) { const u = K.along(P, tot).u, e = P[P.length - 1]; return { p: [e[0] + u[0] * (s - tot), e[1] + u[1] * (s - tot)], u }; }
+    return K.along(P, s);
+  }
+  /* lay a sequence of link specs ({d, pin, win, kind, col, id, bend, wear, boss, gap}) along an axis polyline,
+     the first link's outer end at the polyline's start; spec.gap = extra slack before that link (px, + = apart,
+     - = pushed together). Returns {links, centres, svg, back, mid, front, end (outer end of the last link)} */
+  function lay(path, specs) {
+    const links = [];
+    let s = 0;
+    specs.forEach((L, i) => {
+      const h = half(L);
+      s = i === 0 ? h.a + L.d / 2 : s + half(specs[i - 1]).a + h.a - (specs[i - 1].d + L.d) / 2 + (L.gap || 0);
+      const A = at(path, s - h.a / 2), B = at(path, s + h.a / 2), c = at(path, s).p;
+      const ux = B.p[0] - A.p[0], uy = B.p[1] - A.p[1], ul = Math.hypot(ux, uy) || 1;
+      links.push(Object.assign({}, L, { c, u: [ux / ul, uy / ul], s }));
+    });
+    let back = '', mid = '', front = '';
+    links.forEach(L => { const g = link(L); back += g.back; mid += g.mid; front += g.front; });
+    const last = links[links.length - 1], endP = at(path, last.s + half(last).a + last.d / 2).p;
+    return { links, centres: links.map(L => L.c), back, mid, front, svg: back + mid + front, end: endP };
+  }
+  /* chain link spec for stock d (px): o.stretch lengthens, o.narrow narrows (a stretched link necks in) */
+  const chainLink = (d, kind, o = {}) => Object.assign({ d, pin: PIN * d * (o.stretch || 1), win: WIN * d * (o.narrow || 1), kind }, o.extra || {});
+  /* the outer surface of a face link's rail (side +1 = the n side, "top" on a chain running to the right), at x along the link */
+  function railOuter(L, side = 1, x = 0) {
+    const { b } = half(L), S = mapper(L);
+    return S([x, side * (b + L.d / 2)]);
+  }
+  function railCentre(L, side = 1, x = 0) { const { b } = half(L); return mapper(L)([x, side * b]); }
+  /* catenary between A and B (screen px, y down) for a hanging length len (>= the chord): a polyline that sags */
+  function catenary(A, B, len, N = 48) {
+    const h = Math.abs(B[0] - A[0]), v = B[1] - A[1], sg = B[0] >= A[0] ? 1 : -1;
+    if (h < 1 || len <= Math.hypot(h, v) * 1.0005) return [A, B];
+    const need = Math.sqrt(len * len - v * v) / h;
+    let lo = 1e-6, hi = 60; for (let i = 0; i < 90; i++) { const m = (lo + hi) / 2; if (Math.sinh(m) / m < need) lo = m; else hi = m; }
+    const z = (lo + hi) / 2, a = h / (2 * z), t0 = a * Math.asinh(v / (2 * a * Math.sinh(z)));
+    const C = A[1] + a * Math.cosh((-h / 2 - t0) / a);
+    return [...Array(N + 1)].map((_, i) => { const t = -h / 2 + h * i / N; return [A[0] + sg * (t + h / 2), C - a * Math.cosh((t - t0) / a)]; });
+  }
+
+  /* ------------------------------------------------------------------ chain runs (every family uses these)
+     run(P, o): a chain along any polyline P (px). Links are rigid: every link spans two bearing points that sit one
+     pitch apart along P, so on a curve (a sag, a pocket wheel) each link is a straight chord and alternate links seat
+     face-on / edge-on, the way chain lies in the pockets of a load sheave or hand wheel.
+       o.d      stock diameter (px); hand chain is thinner than load chain (stroke() simplifies the shading below 5 px)
+       o.pitch  inside length = link-to-link spacing (px), default PIN x d (3.05 d, Grade 80/100 proportions)
+       o.phase  run (px, + = links travel toward the end of P). Pitch-locked: link j sits at phase + j x pitch and keeps
+                its face/edge kind as it moves, so a running chain runs and never "swims". Drive it off the virtual clock.
+       o.anchor 'end': links locked to P's end instead of its start (see below)
+       o.fit    true: an exact whole number of links between P's ends (pitch stretched to fit) - slings, tie chains
+       o.col    base steel colour (one colour; the dark outline and light band are added), o.dark outline colour
+       o.firstFace  false: start with an edge link;  o.id / o.op  group id / opacity (a far strand dimmed behind)
+     Layers: every edge link's far half is drawn behind the face links and its near half in front (real over/under). */
+  function run(P, o = {}) {
+    if (!P || P.length < 2) return '';
+    const d = o.d || 4, tot = plen(P);
+    let pitch = o.pitch || PIN * d;
+    if (o.fit) pitch = tot / Math.max(2, Math.round(tot / pitch));
+    const col = o.col ? [o.col, o.dark || '#3b4247', '#eef1f3'] : (o.dark ? [STEEL[0], o.dark, STEEL[2]] : STEEL);
+    const win = o.win || WIN * d, ff = o.firstFace !== false;
+    // anchor 'end': the links are locked to P's end (a load chain to its hook, a slack end to its end stop), so as the
+    // path end moves (hook lifts, slack pays out) the links travel with it, link for link
+    const ph = o.fit ? 0 : (o.phase || 0) + (o.anchor === 'end' ? tot - 2000 * pitch : 0);
+    const j0 = Math.floor((-ph) / pitch) - 1, j1 = Math.ceil((tot - ph) / pitch) + 1;
+    let back = '', mid = '', front = '';
+    for (let j = j0; j <= j1; j++) {
+      const sc = ph + (j + .5) * pitch;                                // link centre along P
+      if (sc < (o.fit ? 0 : -pitch * .1) || sc > tot + (o.fit ? 0 : pitch * .1)) continue;
+      const A = at(P, sc - pitch / 2).p, B = at(P, sc + pitch / 2).p;  // bearing points (inner crotches) on P
+      const ux = B[0] - A[0], uy = B[1] - A[1], ul = Math.hypot(ux, uy) || 1;
+      const face = ((j % 2) + 2) % 2 === 0 ? ff : !ff;
+      const L = { d, pin: pitch, win, kind: face ? 'F' : 'E', col, c: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], u: [ux / ul, uy / ul] };
+      const g = link(L); back += g.back; mid += g.mid; front += g.front;
+    }
+    return `<g${o.id ? ` id="${o.id}"` : ''}${o.op && o.op < 1 ? ` opacity="${o.op}"` : ''}>${back + mid + front}</g>`;
+  }
+  /* straight chain p0 -> p1 with a whole number of links (old A.chain / KIT.chain call shape) */
+  const between = (p0, p1, o = {}) => run([p0, p1], Object.assign({ fit: true }, o));
+  /* hanging loop / sag: catenary from A to B for a chain length len (px) - an unsupported hand-chain bight */
+  const hang = (A, B, len, N) => catenary(A, B, len, N);
+  /* arc over a pocket wheel or sprocket: centre c, pitch radius r, from angle a0 to a1 (radians, screen y down) */
+  function wheelArc(c, r, a0, a1, n) {
+    n = n || Math.max(6, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 24)));
+    return [...Array(n + 1)].map((_, i) => { const a = a0 + (a1 - a0) * i / n; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; });
+  }
+  /* pitch radius of a pocket wheel with `pockets` pockets for links of this pitch (every link a chord: 2 links a pocket pair) */
+  const pocketR = (pitch, pockets) => pitch / (2 * Math.sin(Math.PI / (2 * pockets)));
+  return { TW, CS, SN, STEEL, PIN, WIN, stroke, stadium, link, lay, chainLink, half, mapper, railOuter, railCentre, catenary,
+    run, between, hang, wheelArc, pocketR };
+})();
+if (typeof window !== 'undefined') window.CFChain = CHD;
+
+/* CrewForge illustration kit, rigging parts (JS port of docs/concepts/hitches/src/rigging.py, lib.py, s03.py, s05.py,
    scenes.py). Extends KIT (simulators/_kit/kit.js). Inch-based parts take a scene transform S([x, h]) -> [px, py]
    (h up, inches) and k = px per inch, exactly like the Python. Rules: docs/concepts/hitches/STYLE.md.
    Shared by every rigging family; add generic parts here, scene-specific drawing stays in the scene file. */
@@ -1063,11 +1254,12 @@ const CG = (() => {
     s += `<rect x="${f(x - bw / 2)}" y="${f(by)}" width="${f(bw)}" height="${f(bh)}" rx="${f(2 * k)}" fill="url(#gHoist)" stroke="#5a3a12" stroke-width="1.6"/>`;
     s += `<circle cx="${f(x - bw * .12)}" cy="${f(by + bh * .45)}" r="${f(3.4 * k)}" fill="#c9861c" stroke="#5a3a12" stroke-width="1.4"/>`;
     s += `<circle cx="${f(x - bw * .12)}" cy="${f(by + bh * .45)}" r="${f(1 * k)}" fill="#7a4e12"/>`;
-    // hand chain loop hanging on the wheel side
-    const hx = x - bw / 2 - .6 * k, hl = Math.max(20 * k, 60);
-    s += `<path d="M${f(hx)} ${f(by + bh * .3)} L${f(hx - .8 * k + phase)} ${f(by + bh + hl)} M${f(hx + 2.2 * k)} ${f(by + bh * .3)} L${f(hx + 1.6 * k + phase)} ${f(by + bh + hl)}" stroke="#8e979e" stroke-width="${f(Math.max(1.4, .3 * k))}" stroke-dasharray="${f(.8 * k)} ${f(.35 * k)}"/>`;
+    // hand chain loop hanging off the wheel side (swings with the jolt), drawn link by link (shared chain drawing)
+    const hx = x - bw / 2 - .6 * k, hl = Math.max(20 * k, 60), hb = by + bh + hl, hr = 1.2 * k;
+    const loop = [[hx, by + bh * .3], [hx - .4 * k + phase, hb - hr]].concat(KIT.catmull([[hx - .4 * k + phase, hb - hr], [hx + .8 * k + phase, hb], [hx + 2 * k + phase, hb - hr]], 6).slice(1), [[hx + 2.4 * k, by + bh * .3]]);
+    s += CHD.run(loop, { d: .2 * k, pitch: .8 * k, col: '#a9b1b7', id: id + '-hand' });
     const y0 = by + bh, y1 = yHookShankTop;
-    if (y1 > y0 + 4) s += KIT.chain(q => [x + q[0] * k, y0 + q[1] * k], k, [0, 0], [0, (y1 - y0) / k], { d: .28, pitch: .86, iw: .4 });
+    if (y1 > y0 + 4) s += CHD.run([[x, y0], [x, y1]], { d: .28 * k, pitch: .86 * k, anchor: 'end' });   // load chain, locked to the hook
     return s + '</g>';
   }
 

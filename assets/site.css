@@ -202,6 +202,12 @@ ul.opts li.right{border-color:var(--ok);color:var(--text)}
 @media (max-width:960px){.starter-grid{grid-template-columns:1fr}}
 .early-ep .num{color:var(--accent);font-weight:800;font-size:14px;letter-spacing:.14em}
 .tries.two-up{grid-template-columns:1fr 1fr}@media (max-width:640px){.tries.two-up{grid-template-columns:1fr}}
+/* chart excerpt given with a practice question (reference data goes in the question) */
+.qref{margin:12px 0;padding:10px 14px;border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.qref figcaption{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin-bottom:6px}
+.qref table{border-collapse:collapse;font-variant-numeric:tabular-nums}
+.qref th,.qref td{padding:4px 12px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;color:var(--text)}
+.qref th:first-child{text-align:left;color:var(--muted)}
 /* try-a-lesson.html (2026-11-15) */
 .try-card .shot{display:block;box-shadow:0 14px 30px rgba(0,0,0,.4)}.try-card .shot img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
 .try-list{margin:16px 0 0;padding-left:22px}.try-list li{margin:0 0 12px}.try-list a{font-weight:700}.try-list span{display:block;color:var(--muted);font-size:14px}

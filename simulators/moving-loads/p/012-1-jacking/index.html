@@ -641,7 +641,7 @@ const BEAR=500, CRIB_RATIO=2, CRIB_RATIO_MAX=3;  // height ≤ 2 × width (ITI, 
 const MPA=145.0377;
 const FCP={spf:{mpa:5.3,n:'Spruce-pine-fir'},dfir:{mpa:7.0,n:'Douglas fir-larch'}};
 const FOLLOW_STROKE=1, FOLLOW_CLEAR=0.5;         // in: jack strokes of 1 in, packing follows; lift the layer + 0.5 in clearance (EXAMPLE)
-// Machine skates: rolling resistance 0.02 (ITI, synthetic wheels). Air casters (AeroGo urethane load modules, standard
+// Machine skates: rolling resistance 0.05 (makers' figure; ITI quoted 0.02 for synthetic wheels). Air casters (AeroGo urethane load modules, standard
 // systems rated at 25 psi): per-caster capacity = 4-module system ÷ 4; effective area = capacity ÷ 25 psi (derived).
 // Force to move on air: load × 0.001–0.005 (AeroGo FAQ); the simulator uses 0.005. Floor: ¼ in in any 10 ft circle is fine;
 // cracks, joints and porous floors break the air film (AeroGo load module manual 13055). Vertical CG ≤ 2 × caster spacing.
@@ -880,7 +880,7 @@ function caption(c){
   if(F.kind==='topple') return `Side push ${pct(S.side,0)} of the load on a crib ${nf(c.ratio,1)}× as tall as it is wide: it topples`;
   if(F.kind==='collapse') return `${wt(c.maxL)} on a skate rated ${wt(c.rated)} (${(c.maxL/c.rated).toFixed(1)}×): the skate collapses`;
   if(F.kind==='tip') return `${dg(S.incline)} slope, CG ${lL(c.h)} high and only ${lL(c.cg)} ahead of the back ${S.mm==='air'?'casters':'skates'}: the load tips over`;
-  if(F.kind==='drift') return `${dg(S.incline)} slope on ${S.mm==='air'?'air (μ 0.005)':'skates (μ 0.02)'} with no restraint: the load runs away downhill`;
+  if(F.kind==='drift') return `${dg(S.incline)} slope on ${S.mm==='air'?'air (μ 0.005)':'skates (μ 0.05)'} with no restraint: the load runs away downhill`;
   if(F.kind==='ground') return `Open floor joint, no overlay: the air film escapes, the caster grounds and the load stops dead`;
   if(F.kind==='flop') return `Past over centre (${dg(c.phiC)}) with the lug ${S.att==='mid'?'at mid-height':'at the bottom'} and no catch line: the load flops over`;
   return '';

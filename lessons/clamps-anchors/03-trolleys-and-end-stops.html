@@ -143,6 +143,19 @@ body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
 body.capture .read{padding:10px 12px}
 body.capture .ro{padding:7px 10px}
+
+/* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
+.card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
+.ref figcaption{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin:0 0 3px}
+.ref .rt{overflow-x:auto}
+.ref table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;min-width:100%}
+.ref th,.ref td{padding:2px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.ref tr:first-child th{color:var(--muted);font-size:13px}
+.ref th:first-child{text-align:left}
+.ref img{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:6px;background:#fff}
+.ref .rs{font-size:11px;color:var(--muted);margin-top:3px}
+body.phone .ref table{font-size:13px}
+body.phone .ref th,body.phone .ref td{padding:3px 6px}
 </style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
 <script>(function () {
@@ -273,6 +286,144 @@ function clampSide(x, yBF, tfPx, k, o = {}) {
 }
 window.CFSteel = { SHAPES, shapeFor, ibeamEnd, ibeamSide, clampEnd, clampSide };
 })();</script>
+<script>var CHD = (typeof window !== 'undefined' && window.CFChain) || (function () {
+  const TW = 12 * Math.PI / 180, CS = Math.cos(TW), SN = Math.sin(TW);
+  const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+  const pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+  function plen(P) { let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); return L; }
+  function along(P, s) {
+    let acc = 0;
+    for (let i = 1; i < P.length; i++) {
+      const L = Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+      if (acc + L >= s || i === P.length - 1) {
+        const t = L ? Math.max(0, Math.min(1, (s - acc) / L)) : 0;
+        return { p: [P[i - 1][0] + (P[i][0] - P[i - 1][0]) * t, P[i - 1][1] + (P[i][1] - P[i - 1][1]) * t], u: [(P[i][0] - P[i - 1][0]) / (L || 1), (P[i][1] - P[i - 1][1]) / (L || 1)] };
+      }
+      acc += L;
+    }
+    return { p: P[0], u: [1, 0] };
+  }
+  const K = { f, pathd, plen, along };
+  const STEEL = ['#a6aeb4', '#3b4247', '#eef1f3'];
+  const PIN = 3.05, WIN = 1.4;
+  function stroke(P, d, col, closed, cap) {
+    const p = K.pathd(P, closed), lc = cap || 'round';
+    const L = (w, c, op, dx, dy) => `<path d="${p}"${dx || dy ? ` transform="translate(${f(dx * d)} ${f(dy * d)})"` : ''} fill="none" stroke="${c}" stroke-width="${f(w)}" stroke-linecap="${lc}" stroke-linejoin="round"${op < 1 ? ` opacity="${op}"` : ''}/>`;
+    const s = L(d + (d < 5 ? 1 : 2), col[1], 1) + L(d, col[0], 1);
+    if (d < 5) return s + L(Math.max(.6, d * .3), col[2], .8, -.12, -.16);
+    return s + L(d * .34, col[1], .42, .14, .17) + L(d * .4, col[2], .45, -.08, -.11) + L(d * .13, '#ffffff', .65, -.17, -.22);
+  }
+  function stadium(a, b) {
+    const P = [], e = Math.max(0, a - b);
+    for (let i = 0; i <= 9; i++) { const t = i / 9 * Math.PI / 2; P.push([e + b * Math.cos(t), b * Math.sin(t)]); }
+    for (let i = 1; i < 8; i++) P.push([e - 2 * e * i / 8, b]);
+    for (let i = 0; i <= 18; i++) { const t = Math.PI / 2 + i / 18 * Math.PI; P.push([-e + b * Math.cos(t), b * Math.sin(t)]); }
+    for (let i = 1; i < 8; i++) P.push([-e + 2 * e * i / 8, -b]);
+    for (let i = 0; i <= 9; i++) { const t = 3 * Math.PI / 2 + i / 9 * Math.PI / 2; P.push([e + b * Math.cos(t), b * Math.sin(t)]); }
+    return P;
+  }
+  const half = L => ({ a: (L.pin + L.d) / 2, b: (L.win + L.d) / 2 });
+  function mapper(L) {
+    const { a } = half(L), u = L.u, n = [u[1], -u[0]], F = L.kind === 'F', bend = L.bend || 0;
+    return ([x, w]) => { w += bend * (1 - (x / a) * (x / a)); const m = F ? w * CS : -w * SN; return [L.c[0] + u[0] * x + n[0] * m, L.c[1] + u[1] * x + n[1] * m]; };
+  }
+  function link(L) {
+    const d = L.d, { a, b } = half(L), S = mapper(L), col = L.col || STEEL, P = stadium(a, b);
+    const id = L.id ? ` id="${L.id}"` : '';
+    if (L.kind === 'F') {
+      let body = stroke(P.slice(0, -1).map(S), d, col, true);
+      if (L.boss) {
+        const bw = L.boss * d, q = [[-bw / 2, -b], [bw / 2, -b], [bw / 2, b], [-bw / 2, b]].map(S);
+        body += `<path d="${K.pathd(q, true)}" fill="${col[0]}" stroke="${col[1]}" stroke-width="2" stroke-linejoin="round"/>`;
+        const pc = S([0, 0]);
+        body += `<circle cx="${f(pc[0])}" cy="${f(pc[1])}" r="${f(Math.min(bw, 2 * b) * .3)}" fill="${col[2]}" stroke="${col[1]}" stroke-width="1.5"/>`;
+      }
+      if (L.wear > 0) {
+        const sg = L.wearEnd || 1, r = .55 * d, gx = sg * (a - d / 2 + L.wear - r), g = S([gx, 0]);
+        const xs = P.map(S).map(p => p[0]), ys = P.map(S).map(p => p[1]);
+        const x0 = Math.min(...xs) - d, y0 = Math.min(...ys) - d, w = Math.max(...xs) - x0 + d, h = Math.max(...ys) - y0 + d;
+        const mid = `wm${Math.round(L.c[0])}_${Math.round(L.c[1])}`;
+        body = `<mask id="${mid}" maskUnits="userSpaceOnUse" x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(h)}"><rect x="${f(x0)}" y="${f(y0)}" width="${f(w)}" height="${f(h)}" fill="#fff"/>` +
+          `<circle cx="${f(g[0])}" cy="${f(g[1])}" r="${f(r)}" fill="#000"/></mask><g mask="url(#${mid})">${body}</g>`;
+        const arc = [...Array(13)].map((_, i) => { const t = (-55 + i * 110 / 12) * Math.PI / 180; return S([gx + sg * r * Math.cos(t), r * Math.sin(t) / CS]); });
+        body += `<path d="${K.pathd(arc)}" fill="none" stroke="#f7f9fa" stroke-width="${f(Math.max(1.5, d * .07))}" stroke-linecap="round"/>`;
+      }
+      return { back: '', mid: `<g${id}>${body}</g>`, front: '' };
+    }
+    const ex = t => [a - b + b * Math.cos(t), b * Math.sin(t)];
+    const near = [ex(-.2)].concat(P.slice(0, 27), [[-(a - b) + b * Math.cos(Math.PI + .2), b * Math.sin(Math.PI + .2)]]).map(S);
+    const far = P.slice(26).map(S);
+    const shadow = d >= 5 ? `<path d="${K.pathd(near)}" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="${f(d * 1.22)}" stroke-linecap="butt" stroke-linejoin="round"/>` : '';
+    return { back: `<g>${stroke(far, d, col, false, 'round')}</g>`, mid: '', front: `<g${id}${L.ghost ? ` opacity="${L.ghost}"` : ''}>${L.ghost ? '' : shadow}${stroke(near, d, col, false, 'butt')}</g>` };
+  }
+  function at(P, s) {
+    if (s <= 0) { const u = K.along(P, 0).u; return { p: [P[0][0] + u[0] * s, P[0][1] + u[1] * s], u }; }
+    const tot = K.plen(P);
+    if (s >= tot) { const u = K.along(P, tot).u, e = P[P.length - 1]; return { p: [e[0] + u[0] * (s - tot), e[1] + u[1] * (s - tot)], u }; }
+    return K.along(P, s);
+  }
+  function lay(path, specs) {
+    const links = [];
+    let s = 0;
+    specs.forEach((L, i) => {
+      const h = half(L);
+      s = i === 0 ? h.a + L.d / 2 : s + half(specs[i - 1]).a + h.a - (specs[i - 1].d + L.d) / 2 + (L.gap || 0);
+      const A = at(path, s - h.a / 2), B = at(path, s + h.a / 2), c = at(path, s).p;
+      const ux = B.p[0] - A.p[0], uy = B.p[1] - A.p[1], ul = Math.hypot(ux, uy) || 1;
+      links.push(Object.assign({}, L, { c, u: [ux / ul, uy / ul], s }));
+    });
+    let back = '', mid = '', front = '';
+    links.forEach(L => { const g = link(L); back += g.back; mid += g.mid; front += g.front; });
+    const last = links[links.length - 1], endP = at(path, last.s + half(last).a + last.d / 2).p;
+    return { links, centres: links.map(L => L.c), back, mid, front, svg: back + mid + front, end: endP };
+  }
+  const chainLink = (d, kind, o = {}) => Object.assign({ d, pin: PIN * d * (o.stretch || 1), win: WIN * d * (o.narrow || 1), kind }, o.extra || {});
+  function railOuter(L, side = 1, x = 0) {
+    const { b } = half(L), S = mapper(L);
+    return S([x, side * (b + L.d / 2)]);
+  }
+  function railCentre(L, side = 1, x = 0) { const { b } = half(L); return mapper(L)([x, side * b]); }
+  function catenary(A, B, len, N = 48) {
+    const h = Math.abs(B[0] - A[0]), v = B[1] - A[1], sg = B[0] >= A[0] ? 1 : -1;
+    if (h < 1 || len <= Math.hypot(h, v) * 1.0005) return [A, B];
+    const need = Math.sqrt(len * len - v * v) / h;
+    let lo = 1e-6, hi = 60; for (let i = 0; i < 90; i++) { const m = (lo + hi) / 2; if (Math.sinh(m) / m < need) lo = m; else hi = m; }
+    const z = (lo + hi) / 2, a = h / (2 * z), t0 = a * Math.asinh(v / (2 * a * Math.sinh(z)));
+    const C = A[1] + a * Math.cosh((-h / 2 - t0) / a);
+    return [...Array(N + 1)].map((_, i) => { const t = -h / 2 + h * i / N; return [A[0] + sg * (t + h / 2), C - a * Math.cosh((t - t0) / a)]; });
+  }
+  function run(P, o = {}) {
+    if (!P || P.length < 2) return '';
+    const d = o.d || 4, tot = plen(P);
+    let pitch = o.pitch || PIN * d;
+    if (o.fit) pitch = tot / Math.max(2, Math.round(tot / pitch));
+    const col = o.col ? [o.col, o.dark || '#3b4247', '#eef1f3'] : (o.dark ? [STEEL[0], o.dark, STEEL[2]] : STEEL);
+    const win = o.win || WIN * d, ff = o.firstFace !== false;
+    const ph = o.fit ? 0 : (o.phase || 0) + (o.anchor === 'end' ? tot - 2000 * pitch : 0);
+    const j0 = Math.floor((-ph) / pitch) - 1, j1 = Math.ceil((tot - ph) / pitch) + 1;
+    let back = '', mid = '', front = '';
+    for (let j = j0; j <= j1; j++) {
+      const sc = ph + (j + .5) * pitch;
+      if (sc < (o.fit ? 0 : -pitch * .1) || sc > tot + (o.fit ? 0 : pitch * .1)) continue;
+      const A = at(P, sc - pitch / 2).p, B = at(P, sc + pitch / 2).p;
+      const ux = B[0] - A[0], uy = B[1] - A[1], ul = Math.hypot(ux, uy) || 1;
+      const face = ((j % 2) + 2) % 2 === 0 ? ff : !ff;
+      const L = { d, pin: pitch, win, kind: face ? 'F' : 'E', col, c: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], u: [ux / ul, uy / ul] };
+      const g = link(L); back += g.back; mid += g.mid; front += g.front;
+    }
+    return `<g${o.id ? ` id="${o.id}"` : ''}${o.op && o.op < 1 ? ` opacity="${o.op}"` : ''}>${back + mid + front}</g>`;
+  }
+  const between = (p0, p1, o = {}) => run([p0, p1], Object.assign({ fit: true }, o));
+  const hang = (A, B, len, N) => catenary(A, B, len, N);
+  function wheelArc(c, r, a0, a1, n) {
+    n = n || Math.max(6, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 24)));
+    return [...Array(n + 1)].map((_, i) => { const a = a0 + (a1 - a0) * i / n; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; });
+  }
+  const pocketR = (pitch, pockets) => pitch / (2 * Math.sin(Math.PI / (2 * pockets)));
+  return { TW, CS, SN, STEEL, PIN, WIN, stroke, stadium, link, lay, chainLink, half, mapper, railOuter, railCentre, catenary,
+    run, between, hang, wheelArc, pocketR };
+})();
+if (typeof window !== 'undefined') window.CFChain = CHD;</script>
 <script>(function (root) {
 'use strict';
 const K = {};
@@ -391,25 +542,8 @@ K.wireRope = function (P, d, phase = 0) {
   }
   return s + `<path d="${v}" fill="none" stroke="${C.ropeV}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
 };
-K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b') {
-  const w = K.walker(P);
-  let s = '', idx = Math.floor(phase / pitch), s0 = -(((phase % pitch) + pitch) % pitch);
-  const L = pitch + d;
-  for (let sv = s0, n = 0; sv < w.len + pitch; sv += pitch, n++) {
-    const a = Math.max(0, sv), b = Math.min(w.len, sv + pitch);
-    if (b - a < pitch * .25) continue;
-    const [x, y, ux, uy] = w.at((a + b) / 2), ang = Math.atan2(uy, ux) * 180 / Math.PI;
-    const face = ((n + idx) & 1) === 0, len = (b - a) / pitch * L;
-    if (face) {
-      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.4)}"/>` +
-        `<rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${col}" stroke-width="${f(d)}"/>` +
-        `<path d="M${f(-len / 2 + d * 1.4)} ${f(-d * 1.95)} L${f(len / 2 - d * 1.4)} ${f(-d * 1.95)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.7, d * .3))}" opacity=".75"/></g>`;
-    } else {
-      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-d * .62)}" width="${f(len)}" height="${f(d * 1.24)}" rx="${f(d * .6)}" fill="${col}" stroke="${dark}" stroke-width="1.1"/>` +
-        `<path d="M${f(-len / 2 + d)} ${f(-d * .3)} L${f(len / 2 - d)} ${f(-d * .3)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.6, d * .25))}" opacity=".7"/></g>`;
-    }
-  }
-  return s;
+K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b', o = {}) {
+  return CHD.run(P, Object.assign({ pitch, d, phase, col, dark }, o));
 };
 K.timberEnd = function (x, y, w, h, id = '') {
   const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + Math.round(x) + '_' + Math.round(y);
@@ -565,14 +699,14 @@ K.skid = function (cx, yTop, w, h, label, o = {}) {
   for (const sg of (o.lugs || [-1, 1])) s += `<path d="M${f(cx + sg * lug - 12)} ${f(yTop)} L${f(cx + sg * lug - 7)} ${f(yTop - 18)} A7 7 0 0 1 ${f(cx + sg * lug + 7)} ${f(yTop - 18)} L${f(cx + sg * lug + 12)} ${f(yTop)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/><circle cx="${f(cx + sg * lug)}" cy="${f(yTop - 16)}" r="3" fill="#1b1a18"/>`;
   return s + '</g>';
 };
-K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa')}${K.chain([hk, b], pitch, d, 0, '#9aa3aa')}</g>`; };
+K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa', undefined, { fit: true })}${K.chain([hk, b], pitch, d, 0, '#9aa3aa', undefined, { fit: true })}</g>`; };
 K.miniHoist = function (x, yPin, kk, run = 0, label = '', dropIn = 22) {
   let s = `<g id="hoist"><rect x="${f(x - 3.2 * kk)}" y="${f(yPin + 2 * kk)}" width="${f(6.4 * kk)}" height="${f(6.6 * kk)}" rx="${f(1.5 * kk)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
   s += `<circle cx="${f(x)}" cy="${f(yPin + 5.3 * kk)}" r="${f(2.5 * kk)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.2"/>`;
   for (let i = 0; i < 6; i++) { const a = run + i * Math.PI / 3; s += `<line x1="${f(x)}" y1="${f(yPin + 5.3 * kk)}" x2="${f(x + 2.3 * kk * Math.cos(a))}" y2="${f(yPin + 5.3 * kk + 2.3 * kk * Math.sin(a))}" stroke="#76828c" stroke-width="2"/>`; }
   s += `<rect x="${f(x - .9 * kk)}" y="${f(yPin)}" width="${f(1.8 * kk)}" height="${f(2.2 * kk)}" fill="#4c6273" stroke="#1b232a"/>`;
   const hy = yPin + 5.3 * kk, drop = dropIn * kk, ang = K.sway(2.4, 1.6);
-  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, run * 30, '#a9b1b7')}</g>`;
+  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, -run * 2.5 * kk, '#a9b1b7')}</g>`;
   if (label) s += `<text class="mk" x="${f(x)}" y="${f(yPin + 8.2 * kk)}" text-anchor="middle" style="font:800 ${f(Math.max(9, 1.1 * kk))}px ${K.FONT};fill:#e6edf2">${label}</text>`;
   return { svg: s + '</g>', yBot: yPin + 8.6 * kk, xl: x - .9 * kk, hr: 2.5 * kk };
 };
@@ -679,7 +813,7 @@ window.CFScenes.clamps = function () {
     const hz = K.miniHoist(cx, pinY + .5 * k, kk, S.lift * 4, `${S.hcap} T`, 9); cl += hz.svg;
     const LH = 10 * k, restTop = FLOOR - LH, liftPx = Math.min(S.lift, .15) * 12 * k, loadX = cx + Math.tan(th) * (restTop - pinY);
     const dist = (restTop - 18 - pinY) / Math.cos(th) - 8.62 * k * .6 - (hz.yBot - pinY) - (S.side === 0 ? liftPx : 0);
-    cl += `<g id="load-chain">${K.chain([[hz.xl, hz.yBot - 2], [hz.xl, hz.yBot + Math.max(10, dist)]], .75 * kk, .25 * kk, -S.lift * 12 * k)}</g>`;
+    cl += `<g id="load-chain">${K.chain([[hz.xl, hz.yBot - 2], [hz.xl, hz.yBot + Math.max(10, dist)]], .75 * kk, .25 * kk, 0, undefined, undefined, { anchor: 'end' })}</g>`;
     cl += '</g></g>';
     let loadTop = restTop - (S.side === 0 ? liftPx : 0);
     if (fx) loadTop = restTop;
@@ -746,10 +880,10 @@ window.CFScenes.clamps = function () {
     tr += `<circle cx="${f(tx)}" cy="${f(yW + 3 * k)}" r="${f(.6 * k)}" fill="#8d969d" stroke="${C.steelD}"/></g>`;
     if (S.ttype === 'geared') { const hwx = tx + 9 * k, hwy = yW + 1 * k, rr2 = 3.5 * k, a2 = S.tpos * 3;
       tr += `<g id="handwheel"><circle cx="${f(hwx)}" cy="${f(hwy)}" r="${f(rr2)}" fill="none" stroke="#7f8b95" stroke-width="4"/>${[0, 1, 2].map(i => `<line x1="${f(hwx)}" y1="${f(hwy)}" x2="${f(hwx + rr2 * Math.cos(a2 + i * 2.09))}" y2="${f(hwy + rr2 * Math.sin(a2 + i * 2.09))}" stroke="#7f8b95" stroke-width="3"/>`).join('')}` +
-        `${K.chain([[hwx - rr2, hwy], [hwx - rr2, hwy + 260]], .8 * k, .2 * k, S.tpos * 40, '#a9b1b7')}${K.chain([[hwx + rr2, hwy], [hwx + rr2, hwy + 260]], .8 * k, .2 * k, -S.tpos * 40, '#a9b1b7')}</g>`; }
+        `${K.chain([[hwx - rr2, hwy], [hwx - rr2, hwy + 260]], .8 * k, .2 * k, -a2 * rr2, '#a9b1b7')}${K.chain([[hwx + rr2, hwy], [hwx + rr2, hwy + 260]], .8 * k, .2 * k, a2 * rr2, '#a9b1b7')}</g>`; }
     const hz = K.miniHoist(tx, yW + 3.5 * k, k, S.lift * 4, `${S.tcap} T`); tr += hz.svg;
     const loadTop = restTop - liftPx + fallL, hookSad = loadTop - 18;
-    tr += `<g id="load-chain">${K.chain([[hz.xl, hz.yBot - 2], [hz.xl, fx ? hz.yBot + 5 * k : hookSad - 8.62 * k * .6]], .75 * k, .25 * k, -S.lift * 12 * k)}</g>`;
+    tr += `<g id="load-chain">${K.chain([[hz.xl, hz.yBot - 2], [hz.xl, fx ? hz.yBot + 5 * k : hookSad - 8.62 * k * .6]], .75 * k, .25 * k, 0, undefined, undefined, { anchor: 'end' })}</g>`;
     tr += '</g>';
     s += K.shadow(fx ? tx : hz.xl, FLOOR + 2, LW + 30, 14, Math.max(.2, 1 - (liftPx - fallL) / 200));
     s += K.skid(fx ? tx : hz.xl, loadTop, LW, LH, S.units === 'met' ? K.n0(S.load * K.LB2KG) + ' kg' : K.n0(S.load) + ' lb', { lugs: [0] });
@@ -1117,6 +1251,14 @@ const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
+/* Reference data in the question (instructor 2026-11-15: "students wont be able to memorize the charts. things that are
+   referenced should be given in the question as a table or image"). A step, question variant or challenge may carry
+   ref: {title, columns: [...], rows: [[...]], note, img, alt} (or a list of them): shown with the question, never the answer. */
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const refHtml = r => !r ? '' : Array.isArray(r) ? r.map(refHtml).join('') :
+  `<figure class="ref">${r.title ? `<figcaption>${md(r.title)}</figcaption>` : ''}${r.img ? `<img src="${r.img}" alt="${esc(r.alt || r.title || '')}">` : ''}` +
+  (r.rows ? `<div class="rt"><table>${r.columns ? `<tr>${r.columns.map(c => `<th>${md(c)}</th>`).join('')}</tr>` : ''}${r.rows.map(row => `<tr>${row.map((c, i) => i === 0 ? `<th>${md(c)}</th>` : `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : '') +
+  (r.note ? `<div class="rs">${md(r.note)}</div>` : '') + `</figure>`;
 
 window.CFShell = { start };
 
@@ -1445,14 +1587,14 @@ function start(C, S) {
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
     if (st.type === 'teach') {
-      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
     } else if (st.type === 'do' || st.type === 'fail') {
       if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
-      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
       if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
-      h += `<p>${md(st.text)}</p>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
       if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
         h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
@@ -1462,7 +1604,7 @@ function start(C, S) {
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
-      h += `<h3>${md(v.q)}</h3>`;
+      h += `<h3>${md(v.q)}</h3>` + refHtml(v.ref || st.ref);
       if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
         `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
       else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
@@ -1528,12 +1670,12 @@ function start(C, S) {
       h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
     } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref) + `<div class="note" id="glive">${md(c.live || '')}</div>`;
       if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
       h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
     } else {
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref);
       const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
       if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
       else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;

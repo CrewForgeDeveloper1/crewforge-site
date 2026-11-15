@@ -143,6 +143,19 @@ body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
 body.capture .read{padding:10px 12px}
 body.capture .ro{padding:7px 10px}
+
+/* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
+.card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
+.ref figcaption{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin:0 0 3px}
+.ref .rt{overflow-x:auto}
+.ref table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;min-width:100%}
+.ref th,.ref td{padding:2px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.ref tr:first-child th{color:var(--muted);font-size:13px}
+.ref th:first-child{text-align:left}
+.ref img{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:6px;background:#fff}
+.ref .rs{font-size:11px;color:var(--muted);margin-top:3px}
+body.phone .ref table{font-size:13px}
+body.phone .ref th,body.phone .ref td{padding:3px 6px}
 </style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
 <script>(function (root) {
@@ -1136,6 +1149,16 @@ const RJ = (S, o) => [['Gp per charge', g(S, o), C.acc], ['Strokes', MD.n0(o.str
 const RC = (S, o) => [['ISO 4406 code', o.iso, o.clean ? C.ok : o.over >= 3 ? C.bad : C.warn], ['Target (EXAMPLE)', o.targetIso], ['≥ 14 µm per mL', MD.n0(o.cnt[2])],
   ['Water', MD.n0(S.ppm) + ' ppm', o.water === 'clear' ? C.ok : o.water === 'hazy' ? C.warn : C.bad], ['Breather', S.vent === 'open' ? 'Open vent cap' : 'Desiccant']];
 
+/* ---------------- reference tables shown with a challenge (instructor 2026-11-15: charts go in the question) */
+const VG_NOTE = 'Petro-Canada HYDREX AW / ENDURATEX EP typical data at 40 and 100 °C, Walther equation (ASTM D341).';
+const vgRef = (T, grades) => ({ title: `Typical viscosity at ${T} °C`, columns: ['Grade', `cSt at ${T} °C`], rows: grades.map(gg => ['VG ' + gg, MD.n1(L.visc(gg, T))]), note: VG_NOTE });
+const nlgiRef = i => ({ title: 'NLGI consistency grades (worked penetration at 25 °C, tenths of a mm)', columns: ['NLGI grade', 'Penetration'],
+  rows: L.NLGI.filter((x, j) => Math.abs(j - i) <= 2).map(x => [x[0], `${x[1]}–${x[2]}`]), note: 'ASTM D217 (cited by number); ranges as published by NLGI and Mobil.' });
+const isoRef = c => ({ title: 'ISO 4406 range numbers (particles per mL)', columns: ['Range number', 'More than', 'Up to'],
+  rows: L.ISO.filter(r => Math.abs(r[0] - c) <= 1).map(r => [String(r[0]), MD.n0(r[1]), MD.n0(r[2])]), note: 'ISO 4406 range table (Wix Filters ISO cleanliness code bulletin).' });
+const intRef = (b, B) => ({ title: 'Relubrication interval', rows: [['Bearing', `${b}, ${B.type === 'ball' ? 'ball' : B.type === 'sph' ? 'spherical roller' : 'cylindrical roller'}`], ['Bore d', `${B.d} mm`], ['K', String(L.KTYPE[B.type])]],
+  note: 't = K × (14,000,000 ÷ (n√d) − 4d) hours; over 70 °C, halve t for every 15 °C. GfT interval formula; SKF temperature rule.' });
+
 /* ---------------- challenges (computed with the same formulas the sim uses) */
 function kappaQ(rng) {
   const vg = pick(rng, [32, 46, 68, 100]), T = pick(rng, [50, 60, 70, 80]), nu1 = pick(rng, [10, 12, 13, 15, 20]);
@@ -1143,6 +1166,7 @@ function kappaQ(rng) {
   const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C, not at ${T} °C. Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
   const sh = shuffle(rng, [ch(MD.n2(k))].concat(wrong.map(([v, w]) => ch(MD.n2(v), w))), 0);
   return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
+    ref: vgRef(T, L.GRADES.filter(gg => Math.abs(L.GRADES.indexOf(gg) - L.GRADES.indexOf(vg)) <= 1)),
     choices: sh.choices, answer: sh.answer, explain: `At ${T} °C VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
 }
 function regimeQ(rng) {
@@ -1156,7 +1180,7 @@ function regimeQ(rng) {
 function nlgiQ(rng) {
   const i = pick(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8]), r = L.NLGI[i], others = L.NLGI.filter((x, j) => Math.abs(j - i) === 1 || Math.abs(j - i) === 2).slice(0, 3);
   const sh = shuffle(rng, [ch('NLGI ' + r[0])].concat(others.map(x => ch('NLGI ' + x[0], `NLGI ${x[0]} is ${x[1]}–${x[2]} tenths of a mm.`))), 0);
-  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C. Which NLGI grade?`, choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C. Which NLGI grade?`, ref: nlgiRef(i), choices: sh.choices, answer: sh.answer,
     explain: `${r[1]}–${r[2]} is **NLGI ${r[0]}** (${r[3]}). Set the grade on the card to check.` };
 }
 function gpQ(rng) {
@@ -1172,7 +1196,7 @@ function intQ(rng) {
   if (t <= 0) return gpQ(rng);
   const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C, halve it for every 15 °C.' : 'At 70 °C or less the temperature factor is 1.'),
     ch(r10(L.KTYPE[B.type] * L.base(n, B.d)) + ' h', 'You forgot to take away 4 × d.'), ch(r10(t * 10) + ' h', 'Check K and the decimal.')], 0);
-  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C**, be regreased?`, choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C**, be regreased?`, ref: intRef(b, B), choices: sh.choices, answer: sh.answer,
     explain: `t = ${L.KTYPE[B.type]} × (14,000,000 ÷ (${MD.n0(n)} × √${B.d}) − 4 × ${B.d}) × ${MD.n2(L.tempFactor(T))} = about **${r10(t)} hours**.` };
 }
 function fillQ(rng) {
@@ -1187,7 +1211,7 @@ function isoQ(rng) {
   const fmt = r => `${MD.n0(r[1])} to ${MD.n0(r[2])} per mL`;
   const near = [L.ISO.find(r => r[0] === code[i] + 1), L.ISO.find(r => r[0] === code[i] - 1)];
   const sh = shuffle(rng, [ch(fmt(row)), ch(fmt(near[0]), 'One range too high: each step doubles.'), ch(fmt(near[1]), 'One range too low.'), ch(`${code[i]} per mL`, 'It is a range number, not a count.')], 0);
-  return { setup: {}, q: `An oil sample reads **${code.join('/')}**. How many particles of **${sz} µm and up** is that?`, choices: sh.choices, answer: sh.answer, explain: `Range ${code[i]} = more than ${MD.n0(row[1])}, up to ${MD.n0(row[2])} particles per mL (ISO 4406 table).` };
+  return { setup: {}, q: `An oil sample reads **${code.join('/')}**. How many particles of **${sz} µm and up** is that?`, ref: isoRef(code[i]), choices: sh.choices, answer: sh.answer, explain: `Range ${code[i]} = more than ${MD.n0(row[1])}, up to ${MD.n0(row[2])} particles per mL (ISO 4406 table).` };
 }
 function gearQ(rng) {
   const T = pick(rng, [60, 70, 80, 90]), nu1 = pick(rng, [20, 25, 30]), gs = [68, 100, 150, 220, 320];
@@ -1195,7 +1219,7 @@ function gearQ(rng) {
   if (!ok) return kappaQ(rng);
   const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C.`));
   const sh = shuffle(rng, [ch('VG ' + ok)].concat(wrongs), 0);
-  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, ref: vgRef(T, gs), choices: sh.choices, answer: sh.answer,
     explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C: κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
 }
 
@@ -1276,6 +1300,14 @@ const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
+/* Reference data in the question (instructor 2026-11-15: "students wont be able to memorize the charts. things that are
+   referenced should be given in the question as a table or image"). A step, question variant or challenge may carry
+   ref: {title, columns: [...], rows: [[...]], note, img, alt} (or a list of them): shown with the question, never the answer. */
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const refHtml = r => !r ? '' : Array.isArray(r) ? r.map(refHtml).join('') :
+  `<figure class="ref">${r.title ? `<figcaption>${md(r.title)}</figcaption>` : ''}${r.img ? `<img src="${r.img}" alt="${esc(r.alt || r.title || '')}">` : ''}` +
+  (r.rows ? `<div class="rt"><table>${r.columns ? `<tr>${r.columns.map(c => `<th>${md(c)}</th>`).join('')}</tr>` : ''}${r.rows.map(row => `<tr>${row.map((c, i) => i === 0 ? `<th>${md(c)}</th>` : `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : '') +
+  (r.note ? `<div class="rs">${md(r.note)}</div>` : '') + `</figure>`;
 
 window.CFShell = { start };
 
@@ -1604,14 +1636,14 @@ function start(C, S) {
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
     if (st.type === 'teach') {
-      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
     } else if (st.type === 'do' || st.type === 'fail') {
       if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
-      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
       if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
-      h += `<p>${md(st.text)}</p>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
       if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
         h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
@@ -1621,7 +1653,7 @@ function start(C, S) {
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
-      h += `<h3>${md(v.q)}</h3>`;
+      h += `<h3>${md(v.q)}</h3>` + refHtml(v.ref || st.ref);
       if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
         `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
       else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
@@ -1687,12 +1719,12 @@ function start(C, S) {
       h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
     } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref) + `<div class="note" id="glive">${md(c.live || '')}</div>`;
       if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
       h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
     } else {
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref);
       const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
       if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
       else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;

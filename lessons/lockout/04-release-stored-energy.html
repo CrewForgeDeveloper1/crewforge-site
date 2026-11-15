@@ -143,6 +143,19 @@ body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
 body.capture .read{padding:10px 12px}
 body.capture .ro{padding:7px 10px}
+
+/* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
+.card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
+.ref figcaption{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin:0 0 3px}
+.ref .rt{overflow-x:auto}
+.ref table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;min-width:100%}
+.ref th,.ref td{padding:2px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.ref tr:first-child th{color:var(--muted);font-size:13px}
+.ref th:first-child{text-align:left}
+.ref img{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:6px;background:#fff}
+.ref .rs{font-size:11px;color:var(--muted);margin-top:3px}
+body.phone .ref table{font-size:13px}
+body.phone .ref th,body.phone .ref td{padding:3px 6px}
 </style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
 <script>/* CrewForge illustration kit (JS). A straight port of the approved concept code
@@ -1337,6 +1350,10 @@ window.LockScene = function (cfg) {
   let svg, api, st, CO, gBack, gMain, gCard, gTop;
   // internal motion (not state: so Reset and the page defaults stay put while the drawing moves)
   let phase = 0, cyc = 0, convPos = 0, oilDash = 0, airDash = 0, coupA = 0, dropV = 0, jetT = 0, refuse = null, refuseT = 0, flashT = 0, triedT = 0, lightT = 0;
+  // die spring: the preload nut drives springX toward the `spring` position (loaded 40 mm / released 0), unless a script
+  // or the exam bank sets springX itself (sim.set({springX: ...}, ms)): then springX is taken as given (tweened on the
+  // virtual clock by the shell) and the Die spring chip follows it, until the learner works the nut again.
+  let sprExt = false;
   const S = {
     viewBox: '0 0 1600 880',
     captionAt: cfg.captionAt || 'bottom',
@@ -1354,6 +1371,7 @@ window.LockScene = function (cfg) {
     },
     onSet(s, keys) {
       if (keys.includes('ramH')) cyc = 0;
+      if (keys.includes('springX') && !keys.includes('spring')) sprExt = true; else if (keys.includes('spring')) sprExt = keys.includes('springX');
       // lock refused: the hasp holes only line up with the handle OFF / the valve closed
       [['lkDisc', 'disc', 'on'], ['lkConv', 'conv', 'on'], ['lkAir', 'airV', 'open'], ['lkHyd', 'hydV', 'open']].forEach(([lk, dev, live]) => {
         if (keys.includes(lk) && s[lk] && s[dev] === live && !keys.includes(dev)) { s[lk] = 0; refuse = lk; refuseT = 2600; }
@@ -1390,7 +1408,11 @@ window.LockScene = function (cfg) {
     },
     apply(s, prev, snap) {
       st = s;
-      if (snap || !prev) { cyc = 0; phase = 0; dropV = 0; jetT = 0; refuse = null; refuseT = 0; flashT = 0; triedT = 0; }
+      if (snap || !prev) {
+        cyc = 0; phase = 0; dropV = 0; jetT = 0; refuse = null; refuseT = 0; flashT = 0; triedT = 0;
+        // a snap that sets springX away from the default preload keeps that compression (see sprExt above)
+        sprExt = s.springX !== SPR_X && s.springX !== (s.spring === 'loaded' ? SPR_X : 0);
+      }
       if (prev && prev.failed && !s.failed) { dropV = 0; jetT = 0; flashT = 0; }
     },
     advance(ms, s) {
@@ -1409,7 +1431,8 @@ window.LockScene = function (cfg) {
       if (s.airV === 'open') { s.airP += (AIR_P - s.airP) * (1 - Math.exp(-dt / 0.3)); if (AIR_P - s.airP < 0.2) s.airP = AIR_P; }
       else { s.airP *= Math.exp(-dt / 0.5); if (s.airP < 0.2) s.airP = 0; }
       // die-cushion spring: the preload nut backs off (or is wound back on)
-      const sx = s.spring === 'loaded' ? SPR_X : 0; if (s.springX !== sx) { const d = sx - s.springX, m = 25 * dt; s.springX = Math.abs(d) <= m ? sx : s.springX + Math.sign(d) * m; }
+      if (sprExt) { s.springX = K.clamp(s.springX, 0, SPR_X); s.spring = s.springX < 1 ? 'released' : 'loaded'; }
+      const sx = s.spring === 'loaded' ? SPR_X : 0; if (!sprExt && s.springX !== sx) { const d = sx - s.springX, m = 25 * dt; s.springX = Math.abs(d) <= m ? sx : s.springX + Math.sign(d) * m; }
       // platen: powered motion needs the motor turning (pump) or stored oil, an energized control, and no blocks
       const hydOK = s.rot > 300 || s.accP > 50, powered = en && hydOK && !s.block;
       const stopAt = s.hand ? 0.035 : 0;
@@ -2002,6 +2025,14 @@ const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
+/* Reference data in the question (instructor 2026-11-15: "students wont be able to memorize the charts. things that are
+   referenced should be given in the question as a table or image"). A step, question variant or challenge may carry
+   ref: {title, columns: [...], rows: [[...]], note, img, alt} (or a list of them): shown with the question, never the answer. */
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const refHtml = r => !r ? '' : Array.isArray(r) ? r.map(refHtml).join('') :
+  `<figure class="ref">${r.title ? `<figcaption>${md(r.title)}</figcaption>` : ''}${r.img ? `<img src="${r.img}" alt="${esc(r.alt || r.title || '')}">` : ''}` +
+  (r.rows ? `<div class="rt"><table>${r.columns ? `<tr>${r.columns.map(c => `<th>${md(c)}</th>`).join('')}</tr>` : ''}${r.rows.map(row => `<tr>${row.map((c, i) => i === 0 ? `<th>${md(c)}</th>` : `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : '') +
+  (r.note ? `<div class="rs">${md(r.note)}</div>` : '') + `</figure>`;
 
 window.CFShell = { start };
 
@@ -2330,14 +2361,14 @@ function start(C, S) {
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
     if (st.type === 'teach') {
-      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
     } else if (st.type === 'do' || st.type === 'fail') {
       if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
-      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
       if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
-      h += `<p>${md(st.text)}</p>`;
+      h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
       if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
         h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
@@ -2347,7 +2378,7 @@ function start(C, S) {
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
-      h += `<h3>${md(v.q)}</h3>`;
+      h += `<h3>${md(v.q)}</h3>` + refHtml(v.ref || st.ref);
       if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
         `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
       else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
@@ -2413,12 +2444,12 @@ function start(C, S) {
       h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
     } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref) + `<div class="note" id="glive">${md(c.live || '')}</div>`;
       if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
       h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
     } else {
       const c = challenge;
-      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>` + refHtml(c.ref);
       const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
       if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
       else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
