@@ -46,6 +46,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh b .tg{color:var(--accent)}
 .step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
 .step p{font-size:18px;margin:6px 0 10px;font-weight:600}
 .step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
@@ -1604,8 +1605,9 @@ window.PAGE_SCENE = SC;
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
    (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
    Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
-   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
-   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+   mistake, then "Try a new question" serves a different variant until one is right. In Moodle the SCORM host page
+   (tools/lesson_pages.py) scores the question steps: CFHost.answer(page, step, right) on the first pick or Show me
+   (the host keeps the first result; pass 80 %); free-play challenges never count.
 
    Scene interface (one per page):
      defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
@@ -1635,6 +1637,10 @@ window.PAGE_SCENE = SC;
              hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
    Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
      the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Mentor pattern (instructor 2026-11-15, docs/LESSON_DESIGN.md "Mentor pattern"): tag "On the job" / "Now you know" on a
+     step shows as a label before "STEP n OF m"; ok (do / fail / predict-with-goal) and after (predict) are voiced when
+     they appear (clips s<i>ok, s<i>after; a page without them stays silent there); a predict with a goal ("ask, then
+     find out") takes thinkHint (the hint before the pick), live / wrong while the learner works, ok when it is done.
    Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
      every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
      while it matches), points [..] (teach: a short list), hint2 on question variants.
@@ -1945,6 +1951,7 @@ function start(C, S) {
   function complete(how) {
     if (done.has(idx)) return;
     done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+    speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
     stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
@@ -1979,7 +1986,7 @@ function start(C, S) {
   }
   function renderStep() {
     if (free) return renderFree();
-    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
     card.className = 'card step' + (st.type === 'question' ? ' q' : '');
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
@@ -1992,12 +1999,13 @@ function start(C, S) {
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
-      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
-        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
+        h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
-        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
-        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '') + hintBlock(st) + hintButtons(st);
+        else h += (st.goal && st.ok ? `<div class="good"><b>Done.</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
@@ -2019,6 +2027,8 @@ function start(C, S) {
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
+    // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
+    if (card.querySelector('.good, .bad') && card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight;
   }
   let predPick = null, qPick = null;
   function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -2029,12 +2039,13 @@ function start(C, S) {
       if (qState) return; predPick = i; qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
-      renderStep(); return;
+      renderStep(); speak('s' + idx + 'after'); return;
     }
     if (st.type !== 'question' || qState) return;
     const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
+    if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
     renderStep();
   }
   function newQuestion() {
@@ -2052,7 +2063,7 @@ function start(C, S) {
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
     const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
     if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
@@ -2133,5 +2144,5 @@ function start(C, S) {
 }
 })();
 </script>
-<script>CFShell.start({"n":3,"file":"03-to-advantage.html","title":"Reeving to advantage","what":"Two single-sheave blocks lifting 900 lb. First the lead line leaves the fixed block. Then you reeve it the other way, off the moving block, up to a lead block and back down to your hands.","steps":[{"type":"teach","text":"Lead off the fixed block: 2 parts hold the moving block. Pull = 900 ÷ 2 = **450 lb**.","spot":["pull-tag","count-1","count-2"]},{"type":"do","text":"Set **Lead line leaves** to **Moving block**.","goal":{"lead":"moving"},"solve":{"lead":"moving"},"ok":"Now three parts hold the moving block: the dead end, the middle part **and the lead line**. Pull = 900 ÷ 3 = **300 lb**.","controls":["lead"]},{"type":"teach","text":"The lead block only turns the rope back down to your hands. It adds no advantage.","spot":["lead-block","lead-anchor-tag"]},{"type":"predict","text":"With the lead off the moving block, what does the main anchor carry?","choices":["W + P = 1,200 lb","W = 900 lb","W − P = 600 lb"],"answer":2,"reveal":{"set":{"rise":1.5},"dur":2500},"after":"**600 lb.** The lead line helps hold the moving block, so the main anchor carries W − P. The lead block's anchor takes 2 × P = 600 lb."},{"type":"question","variants":[{"q":"Two single-sheave blocks are reeved to advantage (lead off the moving block). No friction. What pull lifts 900 lb?","choices":[{"t":"225 lb","why":"That divides by 4: there are only 3 parts."},{"t":"300 lb","why":""},{"t":"450 lb","why":"That leaves out the lead line. It counts when it leaves the moving block."},{"t":"900 lb","why":"That is the load. With 3 parts the pull is a third of it."}],"answer":1,"explain":"3 parts: 900 ÷ 3 = **300 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":900,"friction":"ideal"},"key":"P","value":300}},{"q":"A double and a double block, lead off the moving block. Parts of line holding the moving block?","choices":[{"t":"3","why":"Too few. Count the lead too: it leaves the moving block."},{"t":"4","why":"The lead counts here."},{"t":"5","why":""},{"t":"6","why":"Too many. Two double blocks reeved to advantage give 5 parts."}],"answer":2,"explain":"4 sheaves give 4 parts between the blocks, plus the lead off the moving block: **5**.","calc":{"state":{"parts":5,"lead":"moving","load":5000,"friction":"ideal"},"key":"S","value":4}},{"q":"Reeved to advantage with 3 parts, 1,200 lb, no friction. Load on the main anchor?","choices":[{"t":"400 lb","why":"That is the pull, not the load on the anchor."},{"t":"800 lb","why":""},{"t":"1,200 lb","why":"The lead helps hold the block."},{"t":"1,600 lb","why":"That is W + P: lead off the fixed block."}],"answer":1,"explain":"P = 400 lb; anchor = W − P = **800 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":1200,"friction":"ideal"},"key":"anchor","value":800}},{"q":"Lead off the moving block, 4 parts, 2,000 kg, no friction. Pull?","choices":[{"t":"400 kg","why":"That divides by 5. Four parts hold the moving block, lead included."},{"t":"500 kg","why":""},{"t":"667 kg","why":"That leaves out the lead line. Off the moving block it counts."},{"t":"1,000 kg","why":"That divides by 2. Four parts hold the moving block."}],"answer":1,"explain":"2,000 ÷ 4 = **500 kg**.","calc":{"state":{"units":"met","parts":4,"lead":"moving","load":2000,"friction":"ideal"},"key":"P","value":500}}]},{"type":"teach","text":"Remember:","points":["Lead off the moving block: it counts as a part (one more part from the same blocks).","Main anchor: W − P. A lead block's anchor: 2P when the line comes straight back."],"say":"Remember. Lead off the moving block: it counts as a part (one more part from the same blocks). Main anchor: W − P. A lead block's anchor: 2P when the line comes straight back."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p3-what-1dbc3c57.mp3","s0":"p3-s0-6ffc7a47.mp3","s1":"p3-s1-ad5cddb8.mp3","s2":"p3-s2-b0c54cae.mp3","s3":"p3-s3-cc62610b.mp3","s4v0":"p3-s4v0-aaa70125.mp3","s4v1":"p3-s4v1-123c37b5.mp3","s4v2":"p3-s4v2-4f0d62b8.mp3","s4v3":"p3-s4v3-d34108ab.mp3","s5":"p3-s5-6ef8ab61.mp3","free":"p3-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+<script>CFShell.start({"n":3,"file":"03-to-advantage.html","title":"Reeving to advantage","what":"Two single-sheave blocks lifting 900 lb. First the lead line leaves the fixed block. Then you reeve it the other way, off the moving block, up to a lead block and back down to your hands.","steps":[{"type":"teach","tag":"On the job","spot":["upper-block","lower-block"],"text":"Say you've got two single-sheave blocks on the truck and a **900 lb** pump to raise. Reeved the usual way, that's 2 parts and **450 lb** of pull: too much to hold for long. You can't add sheaves. But you can turn the reeving round. Let's see what that does."},{"type":"teach","text":"Right now the lead leaves the **fixed** block. Two parts hold the moving block. Pull = 900 ÷ 2 = **450 lb**. Your lead line pulls down, away from the load, so it doesn't help hold the load up.","spot":["pull-tag","count-1","count-2"]},{"type":"predict","controls":["lead","parts"],"spot":["lead-line","pull-tag"],"text":"Now reeve it the other way: the lead comes off the **moving** block, up over a lead block and back down to your hands. Same two blocks. Make a call: what happens to the pull?","choices":["It stays at 450 lb: same blocks","It drops to 300 lb","It goes up: more rope"],"answer":1,"thinkHint":"Does the lead line now pull **up** on the moving block?","after":"Let's find out.","doText":"Set **Lead line leaves** to **Moving block**. Then press **+** on **Parts of line** to put the second sheave back: **3 parts**. Watch **Pull on the lead**.","goal":{"lead":"moving","parts":3},"solve":{"lead":"moving","parts":3},"live":"{parts:0} parts · pull {out.P:0} lb","hint":"Tap **Moving block** under Lead line leaves.","hint2":"Then press **+** on Parts of line until it reads **3 parts**.","ok":"**300 lb**. That's because three parts now hold the moving block: the dead end, the middle part **and the lead line**. The lead pulls up on the moving block, so it helps lift. One more part from the same blocks: 900 ÷ 3."},{"type":"teach","text":"Look at the **lead block** up top. It only turns the rope back down to your hands. It adds no advantage. On the exam, leave its friction out too.","spot":["lead-block","lead-anchor-tag"]},{"type":"predict","text":"Here's the part people miss. With the lead off the moving block, what does the **main anchor** carry?","choices":["W + P = 1,200 lb","W = 900 lb","W − P = 600 lb"],"answer":2,"reveal":{"set":{"rise":1.5},"dur":2500},"after":"**600 lb.** That's because the lead now pulls **up** on the moving block, not down on the top block. So the main anchor carries W − P = 900 − 300. But the lead block's anchor takes **2 × P = 600 lb**: rope on both sides of its sheave."},{"type":"teach","tag":"Now you know","spot":["lead-block","lead-anchor-tag"],"text":"Now you know reeving to advantage gives you **one more part** from the same blocks and takes load off the main anchor. So when the pull is too much and there's no bigger block, you can turn the reeving round. Just hang the lead block from its own anchor, rated for **2 × P**."},{"type":"question","variants":[{"q":"Two single-sheave blocks are reeved to advantage (lead off the moving block). No friction. What pull lifts 900 lb?","choices":[{"t":"225 lb","why":"That divides by 4: there are only 3 parts."},{"t":"300 lb","why":""},{"t":"450 lb","why":"That leaves out the lead line. It counts when it leaves the moving block."},{"t":"900 lb","why":"That is the load. With 3 parts the pull is a third of it."}],"answer":1,"explain":"3 parts: 900 ÷ 3 = **300 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":900,"friction":"ideal"},"key":"P","value":300}},{"q":"A double and a double block, lead off the moving block. Parts of line holding the moving block?","choices":[{"t":"3","why":"Too few. Count the lead too: it leaves the moving block."},{"t":"4","why":"The lead counts here."},{"t":"5","why":""},{"t":"6","why":"Too many. Two double blocks reeved to advantage give 5 parts."}],"answer":2,"explain":"4 sheaves give 4 parts between the blocks, plus the lead off the moving block: **5**.","calc":{"state":{"parts":5,"lead":"moving","load":5000,"friction":"ideal"},"key":"S","value":4}},{"q":"Reeved to advantage with 3 parts, 1,200 lb, no friction. Load on the main anchor?","choices":[{"t":"400 lb","why":"That is the pull, not the load on the anchor."},{"t":"800 lb","why":""},{"t":"1,200 lb","why":"The lead helps hold the block."},{"t":"1,600 lb","why":"That is W + P: lead off the fixed block."}],"answer":1,"explain":"P = 400 lb; anchor = W − P = **800 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":1200,"friction":"ideal"},"key":"anchor","value":800}},{"q":"Lead off the moving block, 4 parts, 2,000 kg, no friction. Pull?","choices":[{"t":"400 kg","why":"That divides by 5. Four parts hold the moving block, lead included."},{"t":"500 kg","why":""},{"t":"667 kg","why":"That leaves out the lead line. Off the moving block it counts."},{"t":"1,000 kg","why":"That divides by 2. Four parts hold the moving block."}],"answer":1,"explain":"2,000 ÷ 4 = **500 kg**.","calc":{"state":{"units":"met","parts":4,"lead":"moving","load":2000,"friction":"ideal"},"key":"P","value":500}}]},{"type":"teach","text":"Remember:","points":["Lead off the moving block: it counts as a part (one more part from the same blocks).","Main anchor: W − P. A lead block's anchor: 2P when the line comes straight back."],"say":"Remember. Lead off the moving block: it counts as a part (one more part from the same blocks). Main anchor: W − P. A lead block's anchor: 2P when the line comes straight back."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p3-what-1dbc3c57.mp3","s0":"p3-s0-d8669b27.mp3","s1":"p3-s1-91096cfc.mp3","s2":"p3-s2-593fa633.mp3","s2after":"p3-s2after-b509d7e4.mp3","s2ok":"p3-s2ok-8040c95d.mp3","s3":"p3-s3-835a0351.mp3","s4":"p3-s4-af4a8dee.mp3","s4after":"p3-s4after-174c9806.mp3","s5":"p3-s5-e06344c8.mp3","s6v0":"p3-s6v0-aaa70125.mp3","s6v1":"p3-s6v1-123c37b5.mp3","s6v2":"p3-s6v2-4f0d62b8.mp3","s6v3":"p3-s6v3-d34108ab.mp3","s7":"p3-s7-6ef8ab61.mp3","free":"p3-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
 </body></html>

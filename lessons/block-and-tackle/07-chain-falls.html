@@ -46,6 +46,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh b .tg{color:var(--accent)}
 .step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
 .step p{font-size:18px;margin:6px 0 10px;font-weight:600}
 .step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
@@ -1363,8 +1364,9 @@ window.PAGE_SCENE = SC;
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
    (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
    Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
-   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
-   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+   mistake, then "Try a new question" serves a different variant until one is right. In Moodle the SCORM host page
+   (tools/lesson_pages.py) scores the question steps: CFHost.answer(page, step, right) on the first pick or Show me
+   (the host keeps the first result; pass 80 %); free-play challenges never count.
 
    Scene interface (one per page):
      defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
@@ -1394,6 +1396,10 @@ window.PAGE_SCENE = SC;
              hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
    Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
      the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Mentor pattern (instructor 2026-11-15, docs/LESSON_DESIGN.md "Mentor pattern"): tag "On the job" / "Now you know" on a
+     step shows as a label before "STEP n OF m"; ok (do / fail / predict-with-goal) and after (predict) are voiced when
+     they appear (clips s<i>ok, s<i>after; a page without them stays silent there); a predict with a goal ("ask, then
+     find out") takes thinkHint (the hint before the pick), live / wrong while the learner works, ok when it is done.
    Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
      every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
      while it matches), points [..] (teach: a short list), hint2 on question variants.
@@ -1704,6 +1710,7 @@ function start(C, S) {
   function complete(how) {
     if (done.has(idx)) return;
     done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+    speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
     stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
@@ -1738,7 +1745,7 @@ function start(C, S) {
   }
   function renderStep() {
     if (free) return renderFree();
-    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
     card.className = 'card step' + (st.type === 'question' ? ' q' : '');
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
@@ -1751,12 +1758,13 @@ function start(C, S) {
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
-      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
-        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
+        h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
-        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
-        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '') + hintBlock(st) + hintButtons(st);
+        else h += (st.goal && st.ok ? `<div class="good"><b>Done.</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
@@ -1778,6 +1786,8 @@ function start(C, S) {
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
+    // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
+    if (card.querySelector('.good, .bad') && card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight;
   }
   let predPick = null, qPick = null;
   function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1788,12 +1798,13 @@ function start(C, S) {
       if (qState) return; predPick = i; qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
-      renderStep(); return;
+      renderStep(); speak('s' + idx + 'after'); return;
     }
     if (st.type !== 'question' || qState) return;
     const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
+    if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
     renderStep();
   }
   function newQuestion() {
@@ -1811,7 +1822,7 @@ function start(C, S) {
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
     const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
     if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
@@ -1892,5 +1903,5 @@ function start(C, S) {
 }
 })();
 </script>
-<script>CFShell.start({"n":7,"file":"07-chain-falls.html","title":"Chain falls","what":"A 2 t Harrington CB hand chain hoist on a beam clamp, lifting 4,000 lb. The maker lists the pull to lift the rated load (72 lb) and the overhaul ratio (70 ft of hand chain per foot of lift).","steps":[{"type":"do","text":"Raise the load **1 ft** and read the hand chain travel.","goal":{"rise":[0.97,1.03]},"solve":{"rise":1},"live":"Load {rise:2} ft · hand chain {out.travel:1} ft","ok":"**70 ft** of hand chain for 1 ft of lift. Built for force, not speed.","controls":["rise"]},{"type":"teach","text":"70 × 72 = 5,040 lb of 'input' against 4,000 lb: efficiency 4,000 ÷ 5,040 = **79 %**. At 3,000 lb the pull drops in proportion to 54 lb.","spot":["vm-force"]},{"type":"do","text":"Switch to the **Differential block** (10 in and 9 in pocket wheels).","goal":{"chain":"differential"},"solve":{"chain":"differential"},"ok":"VR = 2D ÷ (D − d) = 20 ÷ 1 = **20**. At 35 % efficiency, 1,000 lb takes 143 lb. Under 50 % efficient, it holds the load by itself.","controls":["chain"]},{"type":"question","variants":[{"q":"A chain fall has a hand chain overhaul ratio of 70 to 1. How much hand chain lifts the load 3 ft?","choices":[{"t":"23.3 ft","why":"That divides. Hand chain = 70 × 3 ft."},{"t":"70 ft","why":"That is one foot of lift."},{"t":"73 ft","why":"That adds 70 and 3. Multiply instead."},{"t":"210 ft","why":""}],"answer":3,"explain":"70 × 3 = **210 ft**.","calc":{"state":{"chain":"geared","cap":3,"load":3000,"rise":3},"key":"travel","value":210}},{"q":"Differential block, D = 10 in, d = 9 in. Velocity ratio?","choices":[{"t":"1.1","why":"That is D ÷ d. VR = 2D ÷ (D − d)."},{"t":"10","why":"That leaves out the 2. VR = 2D ÷ (D − d)."},{"t":"19","why":"That is D + d. VR = 2D ÷ (D − d)."},{"t":"20","why":""}],"answer":3,"explain":"2 × 10 ÷ (10 − 9) = **20**.","calc":{"state":{"chain":"differential","D":10,"d":9,"load":1000},"key":"VR","value":20}},{"q":"A 2 t hoist needs 72 lb to lift its rated 4,000 lb. About what pull for 3,000 lb?","choices":[{"t":"54 lb","why":""},{"t":"72 lb","why":"Pull scales with the load."},{"t":"96 lb","why":"That is upside down: 72 × 4,000 ÷ 3,000."},{"t":"43 lb","why":"That is too low. Pull = 72 × 3,000 ÷ 4,000."}],"answer":0,"explain":"72 × 3,000 ÷ 4,000 = **54 lb**.","calc":{"state":{"chain":"geared","cap":3,"load":3000},"key":"P","value":54}},{"q":"Differential block, D = 250 mm, d = 225 mm, efficiency 40 %, 500 kg. Pull?","choices":[{"t":"25 kg","why":"That leaves out the 40 % efficiency."},{"t":"62.5 kg","why":""},{"t":"125 kg","why":"That leaves out the 2 in VR = 2D ÷ (D − d)."},{"t":"200 kg","why":"Check the formula: P = W ÷ (VR × efficiency)."}],"answer":1,"explain":"VR = 500 ÷ 25 = 20; P = 500 ÷ (20 × 0.4) = **62.5 kg**.","calc":{"state":{"chain":"differential","units":"met","D":250,"d":225,"eta":0.4,"load":500},"key":"P","value":62.5}}]},{"type":"teach","text":"Remember:","points":["Geared hoist: VR = overhaul ratio; use the maker's pull and capacity.","Differential: VR = 2D ÷ (D − d); under 50 % efficient, it holds the load.","Much more pull than the maker lists? Stop and check."],"say":"Remember. Geared hoist: VR = overhaul ratio; use the maker's pull and capacity. Differential: VR = 2D ÷ (D − d); under 50 % efficient, it holds the load. Much more pull than the maker lists? Stop and check."}],"free":"Every control is free. Switch hoist types, sizes and wheels, lift the load, then ask for a challenge.","freeControls":["chain","cap","load","rise","D","d","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p7-what-48669188.mp3","s0":"p7-s0-8826878c.mp3","s1":"p7-s1-91c0a298.mp3","s2":"p7-s2-e293621b.mp3","s3v0":"p7-s3v0-5db62ee3.mp3","s3v1":"p7-s3v1-3e4f8a70.mp3","s3v2":"p7-s3v2-561b3c5b.mp3","s3v3":"p7-s3v3-ebcac019.mp3","s4":"p7-s4-6e06a74a.mp3","free":"p7-free-129dc221.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+<script>CFShell.start({"n":7,"file":"07-chain-falls.html","title":"Chain falls","what":"A 2 t Harrington CB hand chain hoist on a beam clamp, lifting 4,000 lb. The maker lists the pull to lift the rated load (72 lb) and the overhaul ratio (70 ft of hand chain per foot of lift).","steps":[{"type":"teach","tag":"On the job","spot":["hand-chain","gears"],"text":"Say you need to raise a **4,000 lb** gearbox with a **2 t** chain fall. One person on the hand chain lifts it. How? The maker says you pull only about **72 lb**. Something has to give for that, and it's distance. Let's see how much."},{"type":"predict","controls":["rise"],"spot":["hand-chain","vm-dist"],"text":"Make a call. To raise the load **1 ft**, how much hand chain will you pull through?","choices":["About 4 ft","About 20 ft","About 70 ft"],"answer":2,"thinkHint":"You pull 72 lb to lift 4,000 lb. That's more than 50 times less force.","after":"Let's find out.","doText":"Raise the load **1 ft**. Watch **Hand chain**.","goal":{"rise":[0.97,1.03]},"solve":{"rise":1},"live":"Load {rise:2} ft · hand chain {out.travel:1} ft","hint":"Drag the **Load rise** slider.","hint2":"Set Load rise to **1 ft**.","ok":"**70 ft** of hand chain for 1 ft of lift. That's because the gears inside multiply your pull, and you pay in distance: a velocity ratio of 70 to 1. Built for force, not speed. A long lift takes a lot of pulling."},{"type":"teach","text":"The maker lists **72 lb** of pull to lift the rated 4,000 lb. In: 70 × 72 = 5,040 lb. Out: 4,000 lb. Efficiency 4,000 ÷ 5,040 = **79 %**. The rest goes into gear and chain friction. At 3,000 lb the pull drops in proportion, to 54 lb.","spot":["vm-force"]},{"type":"teach","spot":["vm-force","hand-chain"],"text":"Here's the job sense in that number. If the hand chain takes **much more** than the maker's pull, something is wrong. The load may be heavier than you think, or the hoist is binding or worn. Don't put a second person or a bar on the chain to force it. Stop and check."},{"type":"predict","controls":["chain"],"spot":["pull-tag"],"text":"Older shops still have **differential blocks**: two pocket wheels, 10 in and 9 in, on one shaft, no gears. Make a call: if you let go of the hand chain with a load on, what happens?","choices":["The load runs back down","It holds the load by itself"],"answer":1,"thinkHint":"Think about how much of your pull a block like this loses to friction.","after":"Let's find out.","doText":"Switch to the **Differential block**. Watch **Velocity ratio** and **Holds by itself**.","goal":{"chain":"differential"},"solve":{"chain":"differential"},"hint":"Tap **Differential block** under Hoist.","ok":"It holds. VR = 2D ÷ (D − d) = 20 ÷ 1 = **20**. That's because it is under **50 %** efficient: about 35 % here. It loses more than half your pull to friction, so the load can't run it backward. 1,000 lb takes 143 lb of pull."},{"type":"teach","tag":"Now you know","spot":["hand-chain"],"text":"Now you know a chain fall trades hand chain for force. The maker's table tells you the pull and the chain to expect. So on the job you can decide. Keep it inside its rated load. Plan time for all that chain. And stop if the pull is far more than the maker lists."},{"type":"question","variants":[{"q":"A chain fall has a hand chain overhaul ratio of 70 to 1. How much hand chain lifts the load 3 ft?","choices":[{"t":"23.3 ft","why":"That divides. Hand chain = 70 × 3 ft."},{"t":"70 ft","why":"That is one foot of lift."},{"t":"73 ft","why":"That adds 70 and 3. Multiply instead."},{"t":"210 ft","why":""}],"answer":3,"explain":"70 × 3 = **210 ft**.","calc":{"state":{"chain":"geared","cap":3,"load":3000,"rise":3},"key":"travel","value":210}},{"q":"Differential block, D = 10 in, d = 9 in. Velocity ratio?","choices":[{"t":"1.1","why":"That is D ÷ d. VR = 2D ÷ (D − d)."},{"t":"10","why":"That leaves out the 2. VR = 2D ÷ (D − d)."},{"t":"19","why":"That is D + d. VR = 2D ÷ (D − d)."},{"t":"20","why":""}],"answer":3,"explain":"2 × 10 ÷ (10 − 9) = **20**.","calc":{"state":{"chain":"differential","D":10,"d":9,"load":1000},"key":"VR","value":20}},{"q":"A 2 t hoist needs 72 lb to lift its rated 4,000 lb. About what pull for 3,000 lb?","choices":[{"t":"54 lb","why":""},{"t":"72 lb","why":"Pull scales with the load."},{"t":"96 lb","why":"That is upside down: 72 × 4,000 ÷ 3,000."},{"t":"43 lb","why":"That is too low. Pull = 72 × 3,000 ÷ 4,000."}],"answer":0,"explain":"72 × 3,000 ÷ 4,000 = **54 lb**.","calc":{"state":{"chain":"geared","cap":3,"load":3000},"key":"P","value":54}},{"q":"Differential block, D = 250 mm, d = 225 mm, efficiency 40 %, 500 kg. Pull?","choices":[{"t":"25 kg","why":"That leaves out the 40 % efficiency."},{"t":"62.5 kg","why":""},{"t":"125 kg","why":"That leaves out the 2 in VR = 2D ÷ (D − d)."},{"t":"200 kg","why":"Check the formula: P = W ÷ (VR × efficiency)."}],"answer":1,"explain":"VR = 500 ÷ 25 = 20; P = 500 ÷ (20 × 0.4) = **62.5 kg**.","calc":{"state":{"chain":"differential","units":"met","D":250,"d":225,"eta":0.4,"load":500},"key":"P","value":62.5}}]},{"type":"teach","text":"Remember:","points":["Geared hoist: VR = overhaul ratio; use the maker's pull and capacity.","Differential: VR = 2D ÷ (D − d); under 50 % efficient, it holds the load.","Much more pull than the maker lists? Stop and check."],"say":"Remember. Geared hoist: VR = overhaul ratio; use the maker's pull and capacity. Differential: VR = 2D ÷ (D − d); under 50 % efficient, it holds the load. Much more pull than the maker lists? Stop and check."}],"free":"Every control is free. Switch hoist types, sizes and wheels, lift the load, then ask for a challenge.","freeControls":["chain","cap","load","rise","D","d","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p7-what-48669188.mp3","s0":"p7-s0-9c151e3a.mp3","s1":"p7-s1-78a1db36.mp3","s1after":"p7-s1after-fed32963.mp3","s1ok":"p7-s1ok-875688ac.mp3","s2":"p7-s2-d3bad0a3.mp3","s3":"p7-s3-49cc3461.mp3","s4":"p7-s4-4d7dd00d.mp3","s4after":"p7-s4after-328bc7a2.mp3","s4ok":"p7-s4ok-4203bb8e.mp3","s5":"p7-s5-73505f49.mp3","s6v0":"p7-s6v0-5db62ee3.mp3","s6v1":"p7-s6v1-3e4f8a70.mp3","s6v2":"p7-s6v2-561b3c5b.mp3","s6v3":"p7-s6v3-ebcac019.mp3","s7":"p7-s7-6e06a74a.mp3","free":"p7-free-129dc221.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
 </body></html>

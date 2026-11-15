@@ -46,6 +46,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh b .tg{color:var(--accent)}
 .step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
 .step p{font-size:18px;margin:6px 0 10px;font-weight:600}
 .step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
@@ -1604,8 +1605,9 @@ window.PAGE_SCENE = SC;
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
    (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
    Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
-   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
-   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+   mistake, then "Try a new question" serves a different variant until one is right. In Moodle the SCORM host page
+   (tools/lesson_pages.py) scores the question steps: CFHost.answer(page, step, right) on the first pick or Show me
+   (the host keeps the first result; pass 80 %); free-play challenges never count.
 
    Scene interface (one per page):
      defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
@@ -1635,6 +1637,10 @@ window.PAGE_SCENE = SC;
              hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
    Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
      the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Mentor pattern (instructor 2026-11-15, docs/LESSON_DESIGN.md "Mentor pattern"): tag "On the job" / "Now you know" on a
+     step shows as a label before "STEP n OF m"; ok (do / fail / predict-with-goal) and after (predict) are voiced when
+     they appear (clips s<i>ok, s<i>after; a page without them stays silent there); a predict with a goal ("ask, then
+     find out") takes thinkHint (the hint before the pick), live / wrong while the learner works, ok when it is done.
    Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
      every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
      while it matches), points [..] (teach: a short list), hint2 on question variants.
@@ -1945,6 +1951,7 @@ function start(C, S) {
   function complete(how) {
     if (done.has(idx)) return;
     done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+    speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
     stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
@@ -1979,7 +1986,7 @@ function start(C, S) {
   }
   function renderStep() {
     if (free) return renderFree();
-    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
     card.className = 'card step' + (st.type === 'question' ? ' q' : '');
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
@@ -1992,12 +1999,13 @@ function start(C, S) {
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
-      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
-        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
+        h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
-        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
-        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '') + hintBlock(st) + hintButtons(st);
+        else h += (st.goal && st.ok ? `<div class="good"><b>Done.</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
@@ -2019,6 +2027,8 @@ function start(C, S) {
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
+    // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
+    if (card.querySelector('.good, .bad') && card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight;
   }
   let predPick = null, qPick = null;
   function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -2029,12 +2039,13 @@ function start(C, S) {
       if (qState) return; predPick = i; qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
-      renderStep(); return;
+      renderStep(); speak('s' + idx + 'after'); return;
     }
     if (st.type !== 'question' || qState) return;
     const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
+    if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
     renderStep();
   }
   function newQuestion() {
@@ -2052,7 +2063,7 @@ function start(C, S) {
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
     const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
     if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
@@ -2133,5 +2144,5 @@ function start(C, S) {
 }
 })();
 </script>
-<script>CFShell.start({"n":5,"file":"05-friction.html","title":"Sheave friction","what":"The four-part tackle and 4,000 lb again. Every sheave the rope runs over takes some of your pull. The tags on the parts show how the load shares out.","steps":[{"type":"do","text":"Set **Friction** to **10 % per sheave**.","goal":{"friction":"rule10"},"solve":{"friction":"rule10"},"ok":"Four sheaves add 40 % of the load: 4,000 × 1.4 ÷ 4 = **1,400 lb**.","controls":["friction"]},{"type":"teach","text":"With friction the parts no longer share evenly. The part next to your hands pulls hardest; the dead end least. They still add up to the 4,000 lb load.","spot":["tag-0","tag-3"]},{"type":"do","text":"Now try **Anti-friction bearing** (Crosby ratio B).","goal":{"friction":"roller"},"solve":{"friction":"roller"},"ok":"4,000 ÷ 3.81 = **1,050 lb**. Real anti-friction bearing sheaves lose about 2 % each. Exam questions use the 10 % rule unless they say otherwise.","controls":["friction"]},{"type":"question","variants":[{"q":"An 8,000 lb load, 4 parts, lead off the fixed block (4 sheaves). Allow 10 % of the load per sheave. Pull?","choices":[{"t":"2,000 lb","why":"That ignores friction."},{"t":"2,200 lb","why":"That adds 10 % once, not once per sheave."},{"t":"2,800 lb","why":""},{"t":"11,200 lb","why":"You forgot to divide by the parts."}],"answer":2,"explain":"8,000 × 1.4 ÷ 4 = **2,800 lb**.","calc":{"state":{"parts":4,"load":8000,"friction":"rule10"},"key":"P","value":2800}},{"q":"3,000 kg, 3 parts, lead off the fixed block, 10 % per sheave. Pull?","choices":[{"t":"1,000 kg","why":"That leaves out friction: add 10 % for each sheave."},{"t":"1,100 kg","why":"That adds 10 % once. Add it for each of the 3 sheaves."},{"t":"1,300 kg","why":""},{"t":"3,900 kg","why":"That forgets to divide by the 3 parts."}],"answer":2,"explain":"3,000 × 1.3 ÷ 3 = **1,300 kg**.","calc":{"state":{"units":"met","parts":3,"load":3000,"friction":"rule10"},"key":"P","value":1300}},{"q":"A 4,000 lb load needs 1,400 lb of pull with a velocity ratio of 4. Efficiency?","choices":[{"t":"28.6 %","why":"That is the share lost."},{"t":"35.0 %","why":"That is P ÷ W, upside down."},{"t":"71.4 %","why":""},{"t":"140 %","why":"Efficiency is never over 100 %."}],"answer":2,"explain":"Actual MA = 4,000 ÷ 1,400 = 2.86; 2.86 ÷ 4 = **71.4 %**.","calc":{"state":{"parts":4,"load":4000,"friction":"rule10"},"key":"eff","value":0.7143}},{"q":"3 parts, lead off the MOVING block, 3,000 lb, 10 % per sheave. Pull?","choices":[{"t":"1,000 lb","why":"That leaves out friction: add 10 % for each sheave."},{"t":"1,200 lb","why":""},{"t":"1,300 lb","why":"That counts 3 sheaves: off the moving block there are only n − 1 = 2."},{"t":"1,500 lb","why":"That divides by 2. Three parts hold the moving block."}],"answer":1,"explain":"2 sheaves: 3,000 × 1.2 ÷ 3 = **1,200 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":3000,"friction":"rule10"},"key":"P","value":1200}}]},{"type":"teach","text":"Remember:","points":["10 % rule: P = W × (1 + 0.10 × S) ÷ n; S = n (lead off the fixed block) or n − 1 (off the moving block).","Efficiency = (W ÷ P) ÷ VR.","Friction adds force, never distance."],"say":"Remember. 10 % rule: P = W × (1 + 0.10 × S) ÷ n; S = n (lead off the fixed block) or n − 1 (off the moving block). Efficiency = (W ÷ P) ÷ VR. Friction adds force, never distance."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p5-what-9e05a4bf.mp3","s0":"p5-s0-05f9d1d5.mp3","s1":"p5-s1-65bcbda7.mp3","s2":"p5-s2-05039c3f.mp3","s3v0":"p5-s3v0-7a43564f.mp3","s3v1":"p5-s3v1-1f00da2d.mp3","s3v2":"p5-s3v2-2961dd73.mp3","s3v3":"p5-s3v3-85626edc.mp3","s4":"p5-s4-57f03238.mp3","free":"p5-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+<script>CFShell.start({"n":5,"file":"05-friction.html","title":"Sheave friction","what":"The four-part tackle and 4,000 lb again. Every sheave the rope runs over takes some of your pull. The tags on the parts show how the load shares out.","steps":[{"type":"teach","tag":"On the job","spot":["pull-tag"],"text":"Say you worked it out on paper: 4,000 lb on 4 parts is **1,000 lb** of pull, and you can pull about 1,100. Then on the job it won't come up. Why? Every sheave the rope bends over takes some of your pull. Let's see how much."},{"type":"predict","controls":["friction"],"spot":["pull-tag"],"text":"Before you switch friction on, make a call. This rope runs over **4 sheaves**. What happens to the pull?","choices":["It stays at 1,000 lb","It goes up a little, to about 1,100 lb","It goes up to about 1,400 lb"],"answer":2,"thinkHint":"The rule of thumb adds 10 % of the load for **every** sheave.","after":"Let's find out.","doText":"Set **Friction** to **10 % per sheave**. Watch **Pull on the lead**.","goal":{"friction":"rule10"},"solve":{"friction":"rule10"},"hint":"Tap **10 % per sheave** under Friction.","ok":"**1,400 lb**. That's because each of the 4 sheaves adds 10 % of the load: 40 % in all. 4,000 × 1.4 ÷ 4 = 1,400 lb. Friction adds force you have to pull. It never shortens the rope."},{"type":"teach","text":"Now look at the tags on the parts. With friction they don't share evenly. The part next to your hands pulls hardest; the dead end least. That's because each sheave the rope passes loses a bit. They still add up to the 4,000 lb load.","spot":["tag-0","tag-3"]},{"type":"predict","controls":["friction"],"spot":["pull-tag"],"text":"Real blocks with good **anti-friction bearings** lose less than the rule says. Make a call: will the pull be more or less than 1,400 lb?","choices":["More than 1,400 lb","Less than 1,400 lb","Exactly 1,400 lb"],"answer":1,"thinkHint":"The 10 % rule is a rough, safe allowance.","after":"Let's find out.","doText":"Set **Friction** to **Anti-friction bearing** (Crosby ratio B). Watch **Pull on the lead**.","goal":{"friction":"roller"},"solve":{"friction":"roller"},"hint":"Tap **Anti-friction bearing** under Friction.","ok":"**1,050 lb**: 4,000 ÷ 3.81. That's because good roller-bearing sheaves lose only about 2 % each. The 10 % rule is a safe allowance for worn or bushed blocks. Exam questions use the 10 % rule unless they say otherwise."},{"type":"teach","spot":["pull-tag","anchor-tag"],"setup":{"friction":"rule10"},"text":"Here's how friction catches people. You planned **1,000 lb** of pull. With the 10 % rule it's **1,400 lb**: 40 % more. You or your winch come up short. And the anchor carries more too: 4,000 + 1,400 = **5,400 lb**, not 5,000."},{"type":"teach","tag":"Now you know","spot":["pull-tag"],"text":"Now you know every sheave eats some of your pull, and more parts means more sheaves. So when you size a tackle, you can decide with friction in: work the pull with the 10 % rule or the maker's table. Then check your pull and the anchor against **that** number."},{"type":"question","variants":[{"q":"An 8,000 lb load, 4 parts, lead off the fixed block (4 sheaves). Allow 10 % of the load per sheave. Pull?","choices":[{"t":"2,000 lb","why":"That ignores friction."},{"t":"2,200 lb","why":"That adds 10 % once, not once per sheave."},{"t":"2,800 lb","why":""},{"t":"11,200 lb","why":"You forgot to divide by the parts."}],"answer":2,"explain":"8,000 × 1.4 ÷ 4 = **2,800 lb**.","calc":{"state":{"parts":4,"load":8000,"friction":"rule10"},"key":"P","value":2800}},{"q":"3,000 kg, 3 parts, lead off the fixed block, 10 % per sheave. Pull?","choices":[{"t":"1,000 kg","why":"That leaves out friction: add 10 % for each sheave."},{"t":"1,100 kg","why":"That adds 10 % once. Add it for each of the 3 sheaves."},{"t":"1,300 kg","why":""},{"t":"3,900 kg","why":"That forgets to divide by the 3 parts."}],"answer":2,"explain":"3,000 × 1.3 ÷ 3 = **1,300 kg**.","calc":{"state":{"units":"met","parts":3,"load":3000,"friction":"rule10"},"key":"P","value":1300}},{"q":"A 4,000 lb load needs 1,400 lb of pull with a velocity ratio of 4. Efficiency?","choices":[{"t":"28.6 %","why":"That is the share lost."},{"t":"35.0 %","why":"That is P ÷ W, upside down."},{"t":"71.4 %","why":""},{"t":"140 %","why":"Efficiency is never over 100 %."}],"answer":2,"explain":"Actual MA = 4,000 ÷ 1,400 = 2.86; 2.86 ÷ 4 = **71.4 %**.","calc":{"state":{"parts":4,"load":4000,"friction":"rule10"},"key":"eff","value":0.7143}},{"q":"3 parts, lead off the MOVING block, 3,000 lb, 10 % per sheave. Pull?","choices":[{"t":"1,000 lb","why":"That leaves out friction: add 10 % for each sheave."},{"t":"1,200 lb","why":""},{"t":"1,300 lb","why":"That counts 3 sheaves: off the moving block there are only n − 1 = 2."},{"t":"1,500 lb","why":"That divides by 2. Three parts hold the moving block."}],"answer":1,"explain":"2 sheaves: 3,000 × 1.2 ÷ 3 = **1,200 lb**.","calc":{"state":{"parts":3,"lead":"moving","load":3000,"friction":"rule10"},"key":"P","value":1200}}]},{"type":"teach","text":"Remember:","points":["10 % rule: P = W × (1 + 0.10 × S) ÷ n; S = n (lead off the fixed block) or n − 1 (off the moving block).","Efficiency = (W ÷ P) ÷ VR.","Friction adds force, never distance."],"say":"Remember. 10 % rule: P = W × (1 + 0.10 × S) ÷ n; S = n (lead off the fixed block) or n − 1 (off the moving block). Efficiency = (W ÷ P) ÷ VR. Friction adds force, never distance."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p5-what-9e05a4bf.mp3","s0":"p5-s0-82c7a789.mp3","s1":"p5-s1-b1508d48.mp3","s1after":"p5-s1after-470de25d.mp3","s1ok":"p5-s1ok-6b82ddc8.mp3","s2":"p5-s2-9c66c7a2.mp3","s3":"p5-s3-6bf6b345.mp3","s3after":"p5-s3after-6cdbdd41.mp3","s3ok":"p5-s3ok-51654e62.mp3","s4":"p5-s4-ef427638.mp3","s5":"p5-s5-28df616b.mp3","s6v0":"p5-s6v0-7a43564f.mp3","s6v1":"p5-s6v1-1f00da2d.mp3","s6v2":"p5-s6v2-2961dd73.mp3","s6v3":"p5-s6v3-85626edc.mp3","s7":"p5-s7-57f03238.mp3","free":"p5-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
 </body></html>

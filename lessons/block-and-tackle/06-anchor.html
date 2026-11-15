@@ -46,6 +46,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh b .tg{color:var(--accent)}
 .step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
 .step p{font-size:18px;margin:6px 0 10px;font-weight:600}
 .step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
@@ -1604,8 +1605,9 @@ window.PAGE_SCENE = SC;
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
    (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
    Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
-   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
-   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+   mistake, then "Try a new question" serves a different variant until one is right. In Moodle the SCORM host page
+   (tools/lesson_pages.py) scores the question steps: CFHost.answer(page, step, right) on the first pick or Show me
+   (the host keeps the first result; pass 80 %); free-play challenges never count.
 
    Scene interface (one per page):
      defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
@@ -1635,6 +1637,10 @@ window.PAGE_SCENE = SC;
              hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
    Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
      the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Mentor pattern (instructor 2026-11-15, docs/LESSON_DESIGN.md "Mentor pattern"): tag "On the job" / "Now you know" on a
+     step shows as a label before "STEP n OF m"; ok (do / fail / predict-with-goal) and after (predict) are voiced when
+     they appear (clips s<i>ok, s<i>after; a page without them stays silent there); a predict with a goal ("ask, then
+     find out") takes thinkHint (the hint before the pick), live / wrong while the learner works, ok when it is done.
    Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
      every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
      while it matches), points [..] (teach: a short list), hint2 on question variants.
@@ -1945,6 +1951,7 @@ function start(C, S) {
   function complete(how) {
     if (done.has(idx)) return;
     done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+    speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
     stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
@@ -1979,7 +1986,7 @@ function start(C, S) {
   }
   function renderStep() {
     if (free) return renderFree();
-    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
     card.className = 'card step' + (st.type === 'question' ? ' q' : '');
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
@@ -1992,12 +1999,13 @@ function start(C, S) {
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
-      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
-        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
+        h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
-        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
-        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '') + hintBlock(st) + hintButtons(st);
+        else h += (st.goal && st.ok ? `<div class="good"><b>Done.</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
@@ -2019,6 +2027,8 @@ function start(C, S) {
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
+    // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
+    if (card.querySelector('.good, .bad') && card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight;
   }
   let predPick = null, qPick = null;
   function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -2029,12 +2039,13 @@ function start(C, S) {
       if (qState) return; predPick = i; qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
-      renderStep(); return;
+      renderStep(); speak('s' + idx + 'after'); return;
     }
     if (st.type !== 'question' || qState) return;
     const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
+    if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
     renderStep();
   }
   function newQuestion() {
@@ -2052,7 +2063,7 @@ function start(C, S) {
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
     const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
     if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
@@ -2133,5 +2144,5 @@ function start(C, S) {
 }
 })();
 </script>
-<script>CFShell.start({"n":6,"file":"06-anchor.html","title":"The anchor","what":"A four-part tackle on a 2 t (4,000 lb) beam clamp. The clamp is built with a design factor of 5 (Harrington UBC). The inset shows the clamp on the beam flange.","steps":[{"type":"teach","text":"You pull down on the top block too. Anchor = 2,400 + 600 = **3,000 lb**: 75 % of the clamp rating.","spot":["anchor-tag","vm-anchor"]},{"type":"do","text":"Raise the **Load** until the anchor reaches **100 %** of its rating (4,000 lb on the anchor).","goal":{"out.anchor":{"near":4000,"tol":130}},"solve":{"load":3200},"live":"Anchor {out.anchor:0} lb · {out.util:%}","hint":"W + P = 1.25 W with 4 parts. 4,000 ÷ 1.25 = 3,200 lb.","ok":"A 3,200 lb load already puts **4,000 lb** on a 4,000 lb clamp. Rate the anchor for W + P, not W.","controls":["load"]},{"type":"teach","text":"Next you push far past the rating. In real life you never do this: there is no warning before a clamp lets go.","setup":{"load":3200}},{"type":"fail","text":"Raise the load until the anchor passes **5 × 4,000 = 20,000 lb**. Watch the clamp.","goal":{"out.failure.parted":true},"solve":{"load":17000},"hint":"Drag the Load slider all the way up.","controls":["load"],"ok":"The clamp let go far past its rating. The design factor hides how close you are: there is no warning. Rate the anchor for W + P and never go over it.","hold":0},{"type":"question","variants":[{"q":"A 4-part tackle (no friction) lifts 4,000 lb, lead pulled straight down. What should the top block and its anchor be rated for, at least?","choices":[{"t":"1,000 lb","why":"That is the pull, not the load on the anchor."},{"t":"4,000 lb","why":"That leaves out your pull on the top block."},{"t":"5,000 lb","why":""},{"t":"8,000 lb","why":"That doubles the load."}],"answer":2,"explain":"Anchor = W + P = 4,000 + 1,000 = **5,000 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"ideal"},"key":"anchor","value":5000}},{"q":"A 2-part tackle (no friction) lifts 3,000 lb, lead pulled down. Load on the top block?","choices":[{"t":"1,500 lb","why":"That is the pull only. Add the load."},{"t":"3,000 lb","why":"That is the load only. Add your pull."},{"t":"4,500 lb","why":""},{"t":"6,000 lb","why":"That doubles the load. Anchor = W + P."}],"answer":2,"explain":"3,000 + 1,500 = **4,500 lb**.","calc":{"state":{"parts":2,"load":3000,"friction":"ideal"},"key":"anchor","value":4500}},{"q":"4 parts, 4,000 lb, 10 % rule, lead pulled down. Load on the top block?","choices":[{"t":"5,000 lb","why":"Friction raises the pull."},{"t":"5,400 lb","why":""},{"t":"5,600 lb","why":"That is n × P. The anchor carries W + P."},{"t":"4,000 lb","why":"That is the load only. Add your pull."}],"answer":1,"explain":"P = 1,400; 4,000 + 1,400 = **5,400 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"rule10"},"key":"anchor","value":5400}},{"q":"A beam clamp is rated 2 t (4,000 lb) with a 5:1 design factor. At about what anchor load would it be expected to fail?","choices":[{"t":"4,000 lb","why":"That is the working load limit, not the breaking load."},{"t":"8,000 lb","why":"2:1 is not its design factor."},{"t":"20,000 lb","why":""},{"t":"800 lb","why":"That divides by 5. The breaking load is WLL × 5."}],"answer":2,"explain":"4,000 × 5 = **20,000 lb**. Never use the margin: it covers wear, shock and side loads.","calc":{"state":{"parts":4,"load":4000,"anchorWll":4000},"key":"breakAt","value":20000}}]},{"type":"teach","text":"Remember:","points":["Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W).","Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174).","The design factor is not extra capacity."],"say":"Remember. Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W). Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174). The design factor is not extra capacity."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p6-what-227a3f3e.mp3","s0":"p6-s0-e2748437.mp3","s1":"p6-s1-b284e951.mp3","s2":"p6-s2-bbbbf5df.mp3","s3":"p6-s3-73bea5fb.mp3","s4v0":"p6-s4v0-2b583a41.mp3","s4v1":"p6-s4v1-1429ab85.mp3","s4v2":"p6-s4v2-fbb64013.mp3","s4v3":"p6-s4v3-592b746e.mp3","s5":"p6-s5-ce226063.mp3","free":"p6-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+<script>CFShell.start({"n":6,"file":"06-anchor.html","title":"The anchor","what":"A four-part tackle on a 2 t (4,000 lb) beam clamp. The clamp is built with a design factor of 5 (Harrington UBC). The inset shows the clamp on the beam flange.","steps":[{"type":"teach","tag":"On the job","spot":["anchor","anchor-inset"],"text":"Say you hang a 4-part tackle from a **2 t** beam clamp: 4,000 lb. The load is **2,400 lb**. Easy, you think: lots of room. But the clamp doesn't just hold the load. Your pull on the lead line hangs on it too. Let's see how much."},{"type":"teach","text":"Look at the anchor tag. Load 2,400 lb. Pull 2,400 ÷ 4 = 600 lb. The clamp holds both: 2,400 + 600 = **3,000 lb**. That's **75 %** of its rating, not the 60 % you'd get from the load alone.","spot":["anchor-tag","vm-anchor"]},{"type":"predict","controls":["load"],"spot":["anchor-tag","vm-anchor"],"text":"Make a call. How heavy a load can hang on this 4-part tackle before the 4,000 lb clamp is at **100 %**?","choices":["4,000 lb","3,200 lb","2,000 lb"],"answer":1,"thinkHint":"The clamp carries the load **plus** a quarter of it.","after":"Let's find out.","doText":"Raise the **Load** until the anchor reaches **100 %** of its rating. Watch **Anchor load**.","goal":{"out.anchor":{"near":4000,"tol":130}},"solve":{"load":3200},"live":"Anchor {out.anchor:0} lb · {out.util:%}","hint":"W + P = 1.25 W with 4 parts. 4,000 ÷ 1.25 = 3,200 lb.","hint2":"Set the Load to **3,200 lb**.","ok":"A **3,200 lb** load already puts **4,000 lb** on the clamp. That's because your 800 lb of pull hangs on the top block too: W + P = 3,200 + 800. With 4 parts that's 1.25 × W. Rate the anchor for W + P, not W."},{"type":"teach","text":"Now the shortcut people take. The clamp has a **design factor of 5**, so some think there's lots of room past the tag. Let's see what that room looks like. On the job, never do this: a clamp gives no warning before it lets go.","setup":{"load":3200}},{"type":"fail","text":"Here's what happens. Raise the load until the anchor passes **5 × 4,000 = 20,000 lb**. Watch the clamp jaws in the inset.","goal":{"out.failure.parted":true},"solve":{"load":17000},"hint":"Drag the Load slider all the way up.","controls":["load"],"ok":"The jaws spread and the clamp let go. Everything came down. That's because 5 to 1 is the margin for wear, shock and small errors. It is not spare capacity. And there was no warning first. Rate the anchor for W + P and never go over it.","hold":0,"hint2":"Set the Load to about **17,000 lb**."},{"type":"teach","tag":"Now you know","spot":["anchor"],"text":"Now you know the anchor, the top block and its hook carry the load **plus** your pull. So when you pick a beam clamp, trolley or lifting eye to hang a tackle from, you can decide with the right number: **W + P**. Check the WLL marked on it against that, never the load alone.","say":"Now you know the anchor, the top block and its hook carry the load plus your pull. So when you pick a beam clamp, trolley or lifting eye to hang a tackle from, you can decide with the right number: W plus P. Check the W L L marked on it against that, never the load alone."},{"type":"question","variants":[{"q":"A 4-part tackle (no friction) lifts 4,000 lb, lead pulled straight down. What should the top block and its anchor be rated for, at least?","choices":[{"t":"1,000 lb","why":"That is the pull, not the load on the anchor."},{"t":"4,000 lb","why":"That leaves out your pull on the top block."},{"t":"5,000 lb","why":""},{"t":"8,000 lb","why":"That doubles the load."}],"answer":2,"explain":"Anchor = W + P = 4,000 + 1,000 = **5,000 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"ideal"},"key":"anchor","value":5000}},{"q":"A 2-part tackle (no friction) lifts 3,000 lb, lead pulled down. Load on the top block?","choices":[{"t":"1,500 lb","why":"That is the pull only. Add the load."},{"t":"3,000 lb","why":"That is the load only. Add your pull."},{"t":"4,500 lb","why":""},{"t":"6,000 lb","why":"That doubles the load. Anchor = W + P."}],"answer":2,"explain":"3,000 + 1,500 = **4,500 lb**.","calc":{"state":{"parts":2,"load":3000,"friction":"ideal"},"key":"anchor","value":4500}},{"q":"4 parts, 4,000 lb, 10 % rule, lead pulled down. Load on the top block?","choices":[{"t":"5,000 lb","why":"Friction raises the pull."},{"t":"5,400 lb","why":""},{"t":"5,600 lb","why":"That is n × P. The anchor carries W + P."},{"t":"4,000 lb","why":"That is the load only. Add your pull."}],"answer":1,"explain":"P = 1,400; 4,000 + 1,400 = **5,400 lb**.","calc":{"state":{"parts":4,"load":4000,"friction":"rule10"},"key":"anchor","value":5400}},{"q":"A beam clamp is rated 2 t (4,000 lb) with a 5:1 design factor. At about what anchor load would it be expected to fail?","choices":[{"t":"4,000 lb","why":"That is the working load limit, not the breaking load."},{"t":"8,000 lb","why":"2:1 is not its design factor."},{"t":"20,000 lb","why":""},{"t":"800 lb","why":"That divides by 5. The breaking load is WLL × 5."}],"answer":2,"explain":"4,000 × 5 = **20,000 lb**. Never use the margin: it covers wear, shock and side loads.","calc":{"state":{"parts":4,"load":4000,"anchorWll":4000},"key":"breakAt","value":20000}}]},{"type":"teach","text":"Remember:","points":["Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W).","Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174).","The design factor is not extra capacity."],"say":"Remember. Lead pulled down: top block and anchor carry W + P (one sheave: 2 × W). Load must not exceed the WLL (BC OHSR 15.4(2)); the WLL is marked on the gear (BC 15.5, Alberta OHS Code s. 293, Ontario O. Reg. 213/91 s. 174). The design factor is not extra capacity."}],"free":"Every control is free. Reeve more parts, change the friction and the load, pull the line, then ask for a challenge.","freeControls":["parts","lead","friction","load","travel","anchorWll","units"],"lesson":{"id":"block-and-tackle","title":"Block and tackle","done":"You finished **Block and tackle**: parts of line, reeving to advantage, distance and work, friction, the anchor and chain falls. Print the summary sheet to keep the rules and key numbers. On the job, check the tags, the maker's data and the lift plan.","sheet":"block-and-tackle-summary.pdf","pages":[{"file":"01-one-sheave.html","title":"One sheave"},{"file":"02-parts-of-line.html","title":"Parts of line"},{"file":"03-to-advantage.html","title":"Reeving to advantage"},{"file":"04-distance.html","title":"Distance and work"},{"file":"05-friction.html","title":"Sheave friction"},{"file":"06-anchor.html","title":"The anchor"},{"file":"07-chain-falls.html","title":"Chain falls"},{"file":"08-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p6-what-227a3f3e.mp3","s0":"p6-s0-011022ec.mp3","s1":"p6-s1-0d062ce3.mp3","s2":"p6-s2-02f585ad.mp3","s2after":"p6-s2after-4e5b6887.mp3","s2ok":"p6-s2ok-fc81a928.mp3","s3":"p6-s3-93ef8ffc.mp3","s4":"p6-s4-941e06e2.mp3","s4ok":"p6-s4ok-a5d6e354.mp3","s5":"p6-s5-ed119ebc.mp3","s6v0":"p6-s6v0-2b583a41.mp3","s6v1":"p6-s6v1-1429ab85.mp3","s6v2":"p6-s6v2-fbb64013.mp3","s6v3":"p6-s6v3-592b746e.mp3","s7":"p6-s7-ce226063.mp3","free":"p6-free-a10bb47a.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
 </body></html>

@@ -46,6 +46,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh b .tg{color:var(--accent)}
 .step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
 .step p{font-size:18px;margin:6px 0 10px;font-weight:600}
 .step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
@@ -1138,7 +1139,8 @@ window.LESSON_CODE['clamps-anchors'] = {
     fns: {
       p1s1_goal: S => Math.abs(S.bf - 8) < .01,
       p1s2_goal: (S, o) => o.fits && o.thickOK,
-      p1s3_goal: (S, o) => o.fits && o.supportOK
+      p1s3_goal: (S, o) => o.fits && o.supportOK,
+      p1_fail: (S, o) => o.fail.on && o.fail.landed       // mentor pattern: the clamp that doesn't fit lets go
     }
   },
   /* ---------------- page 2: No side pull */
@@ -1207,8 +1209,9 @@ window.LESSON_CODE['clamps-anchors'] = {
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
    (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
    Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
-   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
-   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+   mistake, then "Try a new question" serves a different variant until one is right. In Moodle the SCORM host page
+   (tools/lesson_pages.py) scores the question steps: CFHost.answer(page, step, right) on the first pick or Show me
+   (the host keeps the first result; pass 80 %); free-play challenges never count.
 
    Scene interface (one per page):
      defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
@@ -1238,6 +1241,10 @@ window.LESSON_CODE['clamps-anchors'] = {
              hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
    Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
      the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Mentor pattern (instructor 2026-11-15, docs/LESSON_DESIGN.md "Mentor pattern"): tag "On the job" / "Now you know" on a
+     step shows as a label before "STEP n OF m"; ok (do / fail / predict-with-goal) and after (predict) are voiced when
+     they appear (clips s<i>ok, s<i>after; a page without them stays silent there); a predict with a goal ("ask, then
+     find out") takes thinkHint (the hint before the pick), live / wrong while the learner works, ok when it is done.
    Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
      every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
      while it matches), points [..] (teach: a short list), hint2 on question variants.
@@ -1548,6 +1555,7 @@ function start(C, S) {
   function complete(how) {
     if (done.has(idx)) return;
     done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+    speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
     stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
@@ -1582,7 +1590,7 @@ function start(C, S) {
   }
   function renderStep() {
     if (free) return renderFree();
-    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
     card.className = 'card step' + (st.type === 'question' ? ' q' : '');
     let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
     const ctrls = st.controls || [];
@@ -1595,12 +1603,13 @@ function start(C, S) {
       else h += hintBlock(st) + hintButtons(st);
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
-      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
       else {
-        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
+        h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
-        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
-        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '') + hintBlock(st) + hintButtons(st);
+        else h += (st.goal && st.ok ? `<div class="good"><b>Done.</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
       }
     } else if (st.type === 'question') {
       const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
@@ -1622,6 +1631,8 @@ function start(C, S) {
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
+    // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
+    if (card.querySelector('.good, .bad') && card.scrollHeight > card.clientHeight) card.scrollTop = card.scrollHeight;
   }
   let predPick = null, qPick = null;
   function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1632,12 +1643,13 @@ function start(C, S) {
       if (qState) return; predPick = i; qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
-      renderStep(); return;
+      renderStep(); speak('s' + idx + 'after'); return;
     }
     if (st.type !== 'question' || qState) return;
     const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
+    if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
     renderStep();
   }
   function newQuestion() {
@@ -1655,7 +1667,7 @@ function start(C, S) {
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
     const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
     if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
@@ -1736,5 +1748,5 @@ function start(C, S) {
 }
 })();
 </script>
-<script>(function(){const C={"n":5,"file":"05-putting-it-together.html","title":"Putting it together","scene":"clamps","capture":"stage","what":"A **3/4 in shoulder eye bolt** (WLL 7,200 lb in line; Crosby: 65 % at 30°) holds a snatch block. The angle between the lines is **60°** and the line pull is **2,000 lb**.","start":{"av":"anchor","bf":6,"tf":0.5,"ccap":2,"hcap":2,"load":2000,"side":0,"lift":0,"tpos":4,"stops":true,"tcap":2,"selfw":false,"inc":60,"eye":0.75,"shoulder":true,"pull":2000},"steps":[{"type":"question","variants":[{"q":"Is the eye bolt within its rating?","choices":[{"t":"Yes: 3,464 lb on a 4,680 lb adjusted WLL"},{"t":"No: 3,464 lb on a 2,160 lb adjusted WLL","why":"That is the 45° value; R leans 30° here."},{"t":"Yes: 4,000 lb on 7,200 lb","why":"cos 30°, and the angle reduces the WLL."},{"t":"No: 3,464 lb on 1,800 lb","why":"1,800 lb is the 90° value. R leans 30° off the bolt's axis here: 65 %."}],"answer":0,"explain":"R = 2 × 2,000 × cos 30° = **3,464 lb**, 30° off the bolt's axis. 7,200 × 65 % = **4,680 lb** ≥ 3,464: OK.","ref":{"title":"Shoulder eye bolt: angle off the axis vs WLL","columns":["Angle off the axis","% of WLL"],"rows":[["5°","100 %"],["15°","80 %"],["30°","65 %"],["45°","30 %"],["90°","25 %"]],"note":"Crosby Lifting Points warnings, p. 417 (3/4 in shoulder eye bolt: 7,200 lb in line)"}},{"q":"A tugger line through a snatch block, **90°** between the lines, line pull **800 kg**. Load on the anchor?","choices":[{"t":"800 kg","why":"The line pull alone is only at 120° between the lines. At 90° the factor is 1.41."},{"t":"1,131 kg"},{"t":"1,600 kg","why":"Twice the line pull is only at 0° (lines parallel). At 90° the factor is 1.41."},{"t":"566 kg","why":"You divided. The anchor carries more than the line pull, never less."}],"answer":1,"explain":"2 × 800 × cos 45° = **1,131 kg** (factor 1.41)."},{"q":"A tugger line through a snatch block, **60°** between the lines, line pull **1,000 lb**. Load on the anchor?","choices":[{"t":"1,732 lb"},{"t":"1,000 lb","why":"The line pull alone is only at 120° between the lines. At 60° the factor is 1.73."},{"t":"2,000 lb","why":"Twice the line pull is only at 0° (lines parallel). At 60° the factor is 1.73."},{"t":"577 lb","why":"You divided. The anchor carries more than the line pull, never less."}],"answer":0,"explain":"2 × 1,000 × cos 30° = **1,732 lb** (factor 1.73)."}]},{"type":"do","text":"Make the lift: raise the load **1 ft** and check the readouts stay green.","controls":["lift"],"goal":"fn:p5s2_goal","solve":{"lift":1},"hint":"Drag Lift.","ok":"R under the adjusted WLL: a good anchor."}],"free":"Plan your own anchor.","freeControls":["inc","pull","eye","shoulder","lift","units"],"lesson":{"id":"clamps-anchors","title":"Beam clamps and anchors","episode":"026-beam-clamps-anchors","done":"You finished **Beam clamps and anchors**. Print the summary sheet to keep the rules and key numbers. On the job, always check the tag, the maker's data and the lift plan.","sheet":"clamps-anchors-summary.pdf","summary":{"title":"Beam clamps, trolleys and anchor points","pic":{"page":4,"state":{"inc":60,"lift":0.5}},"rules":["Clamp and trolley: the flange must be inside the maker's range (2 t UBC: 3.00–7.50 in, ≤ 0.83 in thick).","Support rated ≥ the hoist's capacity (WorkSafeBC 14.11(1)). Beam clamps: vertical lifts only, no side pull.","Four-wheel trolley: each wheel carries a quarter of the load. End stops at both ends (WorkSafeBC 14.20).","Snatch block anchor: R = 2 × T × cos(angle ÷ 2). 0° → 2.00, 60° → 1.73, 90° → 1.41, 120° → 1.00.","Shoulder eye bolt at an angle: WLL × the maker's factor (Crosby: 15° 80 %, 30° 65 %, 45° 30 %, 90° 25 %). Plain eye bolts: in line only.","Beams and concrete anchors: only the engineer's value, in the direction checked. Softeners on sharp edges."]},"pages":[{"file":"01-beam-clamp-fit.html","title":"Does the clamp fit?"},{"file":"02-side-pull.html","title":"No side pull"},{"file":"03-trolleys-and-end-stops.html","title":"Trolleys and end stops"},{"file":"04-snatch-block-anchor.html","title":"Snatch block anchors"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p5-what-0790916f.mp3","s0v0":"p5-s0v0-90fec422.mp3","s0v1":"p5-s0v1-1c28dbfc.mp3","s0v2":"p5-s0v2-366c186d.mp3","s1":"p5-s1-0b49be3c.mp3","free":"p5-free-81333e85.mp3"},"audioBase":"audio/"};CFShell.start(C, HoistAdapter(C, window.LESSON_CODE["clamps-anchors"][C.n]));})();</script>
+<script>(function(){const C={"n":5,"file":"05-putting-it-together.html","title":"Putting it together","scene":"clamps","capture":"stage","what":"A **3/4 in shoulder eye bolt** (WLL 7,200 lb in line; Crosby: 65 % at 30°) holds a snatch block. The angle between the lines is **60°** and the line pull is **2,000 lb**.","start":{"av":"anchor","bf":6,"tf":0.5,"ccap":2,"hcap":2,"load":2000,"side":0,"lift":0,"tpos":4,"stops":true,"tcap":2,"selfw":false,"inc":60,"eye":0.75,"shoulder":true,"pull":2000},"steps":[{"type":"teach","tag":"On the job","spot":["block"],"text":"Last job. A tugger pulls **2,000 lb** through a snatch block hung on a **3/4 in shoulder eye bolt**, rated 7,200 lb in line. There's **60°** between the lines, so R leans **30°** off the bolt. Work it out before anyone pulls."},{"type":"question","variants":[{"q":"Is the eye bolt within its rating?","choices":[{"t":"Yes: 3,464 lb on a 4,680 lb adjusted WLL"},{"t":"No: 3,464 lb on a 2,160 lb adjusted WLL","why":"That is the 45° value; R leans 30° here."},{"t":"Yes: 4,000 lb on 7,200 lb","why":"cos 30°, and the angle reduces the WLL."},{"t":"No: 3,464 lb on 1,800 lb","why":"1,800 lb is the 90° value. R leans 30° off the bolt's axis here: 65 %."}],"answer":0,"explain":"R = 2 × 2,000 × cos 30° = **3,464 lb**, 30° off the bolt's axis. 7,200 × 65 % = **4,680 lb** ≥ 3,464: OK.","ref":{"title":"Shoulder eye bolt: angle off the axis vs WLL","columns":["Angle off the axis","% of WLL"],"rows":[["5°","100 %"],["15°","80 %"],["30°","65 %"],["45°","30 %"],["90°","25 %"]],"note":"Crosby Lifting Points warnings, p. 417 (3/4 in shoulder eye bolt: 7,200 lb in line)"}},{"q":"A tugger line through a snatch block, **90°** between the lines, line pull **800 kg**. Load on the anchor?","choices":[{"t":"800 kg","why":"The line pull alone is only at 120° between the lines. At 90° the factor is 1.41."},{"t":"1,131 kg"},{"t":"1,600 kg","why":"Twice the line pull is only at 0° (lines parallel). At 90° the factor is 1.41."},{"t":"566 kg","why":"You divided. The anchor carries more than the line pull, never less."}],"answer":1,"explain":"2 × 800 × cos 45° = **1,131 kg** (factor 1.41)."},{"q":"A tugger line through a snatch block, **60°** between the lines, line pull **1,000 lb**. Load on the anchor?","choices":[{"t":"1,732 lb"},{"t":"1,000 lb","why":"The line pull alone is only at 120° between the lines. At 60° the factor is 1.73."},{"t":"2,000 lb","why":"Twice the line pull is only at 0° (lines parallel). At 60° the factor is 1.73."},{"t":"577 lb","why":"You divided. The anchor carries more than the line pull, never less."}],"answer":0,"explain":"2 × 1,000 × cos 30° = **1,732 lb** (factor 1.73)."}]},{"type":"do","text":"Make the lift: raise the load **1 ft**. Watch **On the anchor R** and **Anchor allows** stay green.","controls":["lift"],"goal":"fn:p5s2_goal","solve":{"lift":1},"hint":"Drag Lift.","ok":"R is **3,464 lb**, and the bolt allows **4,680 lb** at 30°: 7,200 × 0.65. A good anchor. That's because you worked it out first, so nobody had to find out the hard way."},{"type":"teach","tag":"Now you know","spot":["vec-r"],"text":"Now you know how to check the whole load path: the clamp fits and is rated for the hoist, the pull stays straight, the trolley has stops, and the anchor is rated for R at its angle. So on your next rigging job, you can make each of those calls yourself, before the load moves."}],"free":"Plan your own anchor.","freeControls":["inc","pull","eye","shoulder","lift","units"],"lesson":{"id":"clamps-anchors","title":"Beam clamps and anchors","episode":"026-beam-clamps-anchors","done":"You finished **Beam clamps and anchors**. Print the summary sheet to keep the rules and key numbers. On the job, always check the tag, the maker's data and the lift plan.","sheet":"clamps-anchors-summary.pdf","summary":{"title":"Beam clamps, trolleys and anchor points","pic":{"page":4,"state":{"inc":60,"lift":0.5}},"rules":["<style>img{width:64%;display:block;margin:0 auto}li{margin:1mm 0}body{font-size:10.5pt}<\/style>Clamp and trolley: the flange must be inside the maker's range (2 t UBC: 3.00–7.50 in, ≤ 0.83 in thick).<br><b>Why:<\/b> a clamp that doesn't fit grips only on the jaw tips and lets go. <b>Decide:<\/b> measure the flange; fit first, then rating.","Support rated ≥ the hoist's capacity (WorkSafeBC 14.11(1)). Beam clamps: vertical lifts only, no side pull.<br><b>Why:<\/b> a hoist invites its full rating, and a side pull rolls the clamp off. <b>Decide:<\/b> match the clamp to the hoist; move the hoist over the load.","Four-wheel trolley: each wheel carries a quarter of the load. End stops at both ends (WorkSafeBC 14.20).<br><b>Why:<\/b> a loaded trolley keeps rolling. <b>Decide:<\/b> no stops at both ends, no move.","Snatch block anchor: R = 2 × T × cos(angle ÷ 2). 0° → 2.00, 60° → 1.73, 90° → 1.41, 120° → 1.00.<br><b>Why:<\/b> the anchor feels both lines, not just the line pull. <b>Decide:<\/b> work out R from the angle before you pick the anchor.","Shoulder eye bolt at an angle: WLL × the maker's factor (Crosby: 15° 80 %, 30° 65 %, 45° 30 %, 90° 25 %). Plain eye bolts: in line only.<br><b>Why:<\/b> a side pull bends the shank. <b>Decide:<\/b> apply the angle factor and line the eye up with the pull, or use a stronger anchor.","Beams and concrete anchors: only the engineer's value, in the direction checked. Softeners on sharp edges."]},"pages":[{"file":"01-beam-clamp-fit.html","title":"Does the clamp fit?"},{"file":"02-side-pull.html","title":"No side pull"},{"file":"03-trolleys-and-end-stops.html","title":"Trolleys and end stops"},{"file":"04-snatch-block-anchor.html","title":"Snatch block anchors"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p5-what-0790916f.mp3","s0":"p5-s0-547eb113.mp3","s1v0":"p5-s1v0-90fec422.mp3","s1v1":"p5-s1v1-1c28dbfc.mp3","s1v2":"p5-s1v2-366c186d.mp3","s2":"p5-s2-6c3dee1c.mp3","s2ok":"p5-s2ok-0166d1bd.mp3","s3":"p5-s3-6ce0bf59.mp3","free":"p5-free-81333e85.mp3","done":"p5-done-e60179a7.mp3"},"audioBase":"audio/"};CFShell.start(C, HoistAdapter(C, window.LESSON_CODE["clamps-anchors"][C.n]));})();</script>
 </body></html>

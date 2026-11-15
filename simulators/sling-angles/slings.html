@@ -1261,7 +1261,7 @@ const SLINGS = (() => {
     else if (S.hitch === 'choker') out = drawChoker();
     else out = drawBasket();
     g += out.g;
-    return KIT.defs() + KIT.styleBlock('#cards,#lug-inset-g{display:none} .lm{font-size:31px}') + g + out.labels + cardsAll() + (F.on ? KIT.failCard(40, 30, 560, F.big, F.verdict, F.caption) : '');
+    return KIT.defs() + KIT.styleBlock('#cards,#lug-inset-g{display:none} .lb{font-size:49px} .lm{font-size:48px} .la{font-size:52px}') + g + out.labels + cardsAll() + (F.on ? KIT.failCard(40, 30, 560, F.big, F.verdict, F.caption) : '');
 
     /* ------------------------------------------------ bridle (2 or 4 legs) and vertical, on a steel billet */
     function drawBillet() {
@@ -1418,8 +1418,8 @@ const SLINGS = (() => {
         // tension pills on the legs, the load cell on the right leg, the billet label
         if (out.leg0) {
           const [q0, q1] = out.leg0, mx = q0[0] + (q1[0] - q0[0]) * .45, my = q0[1] + (q1[1] - q0[1]) * .45;
-          L += `<g id="gauge">${KIT.pill(mx + (vert ? 26 : 30), my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'start' })}</g>`;
-          if (!vert) L += `<g id="leg-label-1">${KIT.pill(2 * X0 - mx - 30, my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'end' })}</g>`;
+          L += `<g id="gauge">${KIT.pill(mx + (vert ? 26 : 30), my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'start', fs: KIT.PH.v > 1 ? 24 : 18 })}</g>`;
+          if (!vert) L += `<g id="leg-label-1">${KIT.pill(2 * X0 - mx - 30, my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'end', fs: KIT.PH.v > 1 ? 24 : 18 })}</g>`;
         }
         const bm = Sb([0, hb + a * .5]);
         const dims = U.imp() ? `${RT.nf(LB / 12, 0)} ft × ${RT.nf(a, 0)} × ${RT.nf(a, 0)} in steel billet` : `${RT.nf(LB * .0254, 2)} m × ${RT.nf(a * 25.4, 0)} × ${RT.nf(a * 25.4, 0)} mm steel billet`;
@@ -1429,7 +1429,7 @@ const SLINGS = (() => {
         // detail inset at the left lug (same view, magnified): the drawing itself via <use>
         const src = S2p([P[0].pin[0] + P[0].ul[0] * 3, P[0].pin[1] + P[0].ul[1] * 3]);
         if (!vert && !four) L += KIT.detailInset('rig', src, 3, 200, 200, 150, 'AT THE LUG ×3', null, 'lug-inset-g') + `<circle id="lug-inset" cx="200" cy="200" r="150" fill="none" stroke="none"/>`;
-        if (four) L += `<g id="carry-note"><text class="lm halo" x="${f(X0)}" y="${f(FLOOR + 26)}" text-anchor="middle">${S.twoLeg ? 'Two-leg rule: count 2 legs carrying' : 'If all 4 legs shared equally'}</text></g>`;
+        if (four) L += `<g id="carry-note"><text class="lm halo" x="${f(X0)}" y="${f(FLOOR + 26)}" text-anchor="middle"><tspan class="pcOnly">${S.twoLeg ? 'Two-leg rule: count 2 legs carrying' : 'If all 4 legs shared equally'}</tspan><tspan class="phOnly">${S.twoLeg ? 'Two-leg rule' : 'All 4 sharing'}</tspan></text></g>`;
       }
       return { g: '', labels: L };
     }
@@ -1489,7 +1489,7 @@ const SLINGS = (() => {
         const n = Math.round(U.lb(S.load) / (7 * PIPE_LBFT));    // pipe length that gives this weight (18.97 lb/ft each)
         L += KIT.label(X0 - 260, Sp([0, hc])[1] + 10, `W = ${U.w(S.load)}`, S2p([-3 * r, hc]), { anchor: 'end', sub: n <= 60 ? `7 × NPS 6 STD pipe, ${n} ft` : 'bundle of 7 × NPS 6 STD pipe' });
         L += `<g id="load-box"><circle cx="${f(Sp([0, hc])[0])}" cy="${f(Sp([0, hc])[1])}" r="${f(3 * r * K)}" fill="none" stroke="none"/></g>`;
-        L += `<g id="gauge">${KIT.pill(Sp([legX, 0])[0] - 30, (eT.end[1] + Ep[1]) / 2 - 20, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'end' })}</g>`;
+        L += `<g id="gauge">${KIT.pill(Sp([legX, 0])[0] - 30, (eT.end[1] + Ep[1]) / 2 - 20, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'end', fs: KIT.PH.v > 1 ? 24 : 18 })}</g>`;
         if (ch < 90) L += `<text class="lm halo" x="${f(Ep[0] + 30)}" y="${f(Ep[1] + 60)}" style="fill:${C.WARN}">choke forced down</text>`;
       }
       g += s;
@@ -1558,7 +1558,7 @@ const SLINGS = (() => {
         L += `<line x1="${f(t0[0])}" y1="${f(t0[1])}" x2="${f(t0[0] + 170)}" y2="${f(t0[1])}" stroke="${C.ACC}" stroke-width="2.5" stroke-dasharray="7 5"/>`;
         L += KIT.angleArc(t0[0], t0[1], 110, -th, 0, `${RT.nf(th, 0)}°`, t0[0] + 120, t0[1] - 12, { id: 'angle-arc', sub: 'from horizontal' });
         const mx = (eR.end[0] + S2p(tr2)[0]) / 2, my = (eR.end[1] + S2p(tr2)[1]) / 2;
-        L += `<g id="gauge">${KIT.pill(mx + 30, my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'start' })}</g>`;
+        L += `<g id="gauge">${KIT.pill(mx + 30, my, 'T = ' + U.w(c.gauge), COL.T, { anchor: 'start', fs: KIT.PH.v > 1 ? 24 : 18 })}</g>`;
         L += KIT.label(X0 - 300, Sp([0, hc])[1] + 10, `W = ${U.w(S.load)}`, S2p([-R * .7, hc]), { anchor: 'end', sub: pinLoad ? `round pin D = ${U.s(S.loadD, 2)}` : `round load D = ${U.s(S.loadD, 1)}` });
         if (type === 'wire') L += `<g id="hitch-dd"><text class="lb halo" x="${f(X0 + 140)}" y="${f(Sp([0, hc - R])[1] + 70)}">D/d = ${RT.nf(c.dd, 1)} : 1</text></g>`;
       }

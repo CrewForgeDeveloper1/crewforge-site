@@ -1094,6 +1094,11 @@ const RT = (() => {
      steel 490 / 7,850 (Iowa DOT IM 452.02; Engineering Toolbox 7,850) · aluminium 169 / 2,710 (Engineering Toolbox
      2,712 kg/m³) · cast iron 450 / 7,200 (Engineering Toolbox range 6,800-7,800; mid value, flagged) · concrete
      150 / 2,400 (normal-weight concrete 140-150 lb/ft³, Tilt-Up Concrete Association; 150 lb/ft³ handbook value).
+   Shapes from tables (added 2026-11-15 for the "Weights of steel shapes, pipe and plate" lesson): `wbeam` and `angle`
+   take their weight per foot from the shape tables (the number in a W-shape's name is its lb/ft; metric names give
+   kg/m), W = lb/ft × L; `pipe` with `nps` set takes lb/ft from the pipe schedule table (ASME B36.10 values) instead of
+   the ring area; `water` adds the water in the bore (π/4 × ID² × L × 62.4 lb/ft³ or 1,000 kg/m³). `cap` = the crane or
+   hoist rating (out.hoistUtil = W ÷ cap), shown on the hook block and (showCap) in a pill beside it.
    Failures (CLAUDE.md): `tip` the CG is outside the picks once the load is clear of the cribbing: the load turns on the
    pick nearer the CG until its end lands on the cribbing (or it hangs with the CG under the pick); `leg` the heavier leg
    passes WLL × design factor (wire rope 5, alloy chain 4, synthetic 5): the leg parts and the load turns on the other leg
@@ -1102,6 +1107,12 @@ const CG = (() => {
   const { f, pathd, C, wireRope, roundBar } = KIT;
   const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI, clamp = RT.clamp;
   const COL = { W: '#e9e3d6', V: '#7fd6c2', rho: '#b48af0', a: '#7fd6c2', b: '#b48af0', T: '#59b7ff', m: '#f2a65a' };
+  /* shape tables (sources in NOTES-remaster.md "Weights lesson"): lb/ft, depth d (in), flange or leg width (in), flange or leg thickness (in), names */
+  const BEAMS = { w8x31: [31, 8.0, 8.0, .435, 'W8×31', 'W200×46'], w10x49: [49, 9.98, 10.0, .56, 'W10×49', 'W250×73'],
+    w12x65: [65, 12.1, 12.0, .605, 'W12×65', 'W310×97'], w14x90: [90, 14.0, 14.5, .71, 'W14×90', 'W360×134'] };
+  const ANGLES = { l3: [7.2, 3, 3, .375, 'L3×3×3/8', 'L3×3×3/8'], l4: [12.8, 4, 4, .5, 'L4×4×1/2', 'L4×4×1/2'], l6: [19.6, 6, 6, .5, 'L6×6×1/2', 'L6×6×1/2'] };
+  const PIPES = { n4: [10.79, 4.5, .237, 'NPS 4 Sch 40'], n6: [18.97, 6.625, .280, 'NPS 6 Sch 40'], n8: [28.55, 8.625, .322, 'NPS 8 Sch 40'], n12: [49.56, 12.75, .375, 'NPS 12 STD'] };
+  const LBFT_KGM = 1.48816, WATER = [62.4, 1000];       // 1 lb/ft = 1.48816 kg/m; water lb/ft³, kg/m³
   const MAT = { steel: [490, 7850, 'Steel'], aluminium: [169, 2710, 'Aluminium'], castiron: [450, 7200, 'Cast iron'], concrete: [150, 2400, 'Concrete'] };
   const DF = { wire: 5, chain: 4, synthetic: 5 };
   const G_IN = 386.1;                                    // g, in/s²
@@ -1112,16 +1123,27 @@ const CG = (() => {
   function calc(S, U) {
     const imp = U.imp(), sh = imp ? 1 / 12 : 1 / 1000, mat = S.shape === 'skid' ? 'steel' : (MAT[S.mat] ? S.mat : 'steel');
     const rho = MAT[mat][imp ? 0 : 1];
-    const c = { shape: S.shape, mat, rho, Wm: 0, xm: 0, hm: 0, ID: 0 };
+    const c = { shape: S.shape, mat, rho, Wm: 0, xm: 0, hm: 0, ID: 0, Ww: 0, perL: 0 };
     if (S.shape === 'plate') { c.L = S.plateL; c.Wd = S.plateW; c.H = S.plateT * sh; c.V = c.L * c.Wd * c.H; }
     else if (S.shape === 'bar') { c.L = S.barL; c.H = S.barD * sh; c.Wd = c.H; c.V = Math.PI / 4 * c.H * c.H * c.L; }
-    else if (S.shape === 'pipe') { c.L = S.pipeL; c.H = S.pipeOD * sh; const t = Math.min(S.pipeWall * sh, c.H / 2); c.ID = c.H - 2 * t; c.Wd = c.H; c.V = Math.PI / 4 * (c.H * c.H - c.ID * c.ID) * c.L; }
+    else if (S.shape === 'pipe') {
+      c.L = S.pipeL; c.H = S.pipeOD * sh; const t = Math.min(S.pipeWall * sh, c.H / 2); c.ID = c.H - 2 * t; c.Wd = c.H; c.V = Math.PI / 4 * (c.H * c.H - c.ID * c.ID) * c.L;
+      const P = PIPES[S.nps];
+      if (P) { c.perL = imp ? P[0] : P[0] * LBFT_KGM; c.tname = P[3]; c.V = c.perL * c.L / rho; }   // schedule table weight
+      if (S.water) { c.waterRho = WATER[imp ? 0 : 1]; c.Ww = Math.PI / 4 * c.ID * c.ID * c.L * c.waterRho; c.wPerL = c.Ww / c.L; }
+    }
     else if (S.shape === 'block') { c.L = S.blockL; c.Wd = S.blockW; c.H = S.blockH; c.V = c.L * c.Wd * c.H; }
+    else if (S.shape === 'wbeam' || S.shape === 'angle') {
+      const t = S.shape === 'wbeam' ? (BEAMS[S.beam] || BEAMS.w8x31) : (ANGLES[S.angleSz] || ANGLES.l4), inU = imp ? 1 / 12 : .0254;
+      c.perL = imp ? t[0] : t[0] * LBFT_KGM; c.tname = t[imp ? 4 : 5]; c.L = S.memL; c.H = t[1] * inU; c.Wd = t[2] * inU; c.tf = t[3];
+      c.V = c.perL * c.L / rho;                          // the table weight, as a volume of steel
+    }
     else { c.L = S.skidL; c.Wd = S.skidW; c.H = S.skidT * sh; c.V = c.L * c.Wd * c.H; c.Wm = Math.max(0, S.motorW); c.xm = clamp(S.motorX, 0, c.L); c.hm = S.motorH; }
     c.Ws = c.V * rho;                                    // weight = volume × density
-    const W = c.W = c.Ws + c.Wm;
-    c.xg = W > 0 ? (c.Ws * c.L / 2 + c.Wm * c.xm) / W : c.L / 2;          // moments about the left end ÷ total
-    const zg = W > 0 ? (c.Ws * (-c.H / 2) + c.Wm * c.hm / 2) / W : -c.H / 2; c.dz = -zg;   // CG depth below the pick line
+    const W = c.W = c.Ws + c.Ww + c.Wm;                 // steel + water in the bore + nameplate weight
+    c.xg = W > 0 ? ((c.Ws + c.Ww) * c.L / 2 + c.Wm * c.xm) / W : c.L / 2;          // moments about the left end ÷ total
+    const zg = W > 0 ? ((c.Ws + c.Ww) * (-c.H / 2) + c.Wm * c.hm / 2) / W : -c.H / 2; c.dz = -zg;   // CG depth below the pick line
+    c.cap = S.cap; c.hoistUtil = S.cap > 0 ? W / S.cap : Infinity;     // the crane / hoist rating against the load
     c.x1 = clamp(S.pick1, 0, .45 * c.L); c.x2 = c.L - clamp(S.pick2, 0, .45 * c.L);
     const a = c.a = c.xg - c.x1, b = c.b = c.x2 - c.xg, s = c.s = c.x2 - c.x1;
     c.R1 = W * b / s; c.R2 = W * a / s;                  // vertical shares: moments about each pick
@@ -1274,12 +1296,36 @@ const CG = (() => {
     o += `<path d="M${f(x + s)} ${f(y + s - h)} l${f(d)} ${f(-d)} l0 ${f(h)} l${f(-d)} ${f(d)}Z" fill="#3a6f69" stroke="#24524c" stroke-width="1"/>`;
     return o;
   }
+  function tableCard(S, c, U) {                            // W = weight per foot × length, drawn as one-foot slices
+    const x = CX, y = 16, w = 430, imp = U.imp(), per = imp ? 'lb/ft' : 'kg/m', n = Math.max(1, Math.round(c.L)), shown = Math.min(n, 40);
+    const water = c.Ww > 0, h = water ? 300 : 236;
+    let s = card('cg-vol-card', x, y, w, h, imp ? 'WEIGHT = LB PER FOOT × LENGTH' : 'WEIGHT = KG PER METRE × LENGTH');
+    s += `<g id="cg-vol-eq">${T(x + 16, y + 58, `${c.tname}: <tspan fill="${COL.rho}">${RT.nf(c.perL, 2)} ${per}</tspan> from the table`, C.TEXT, 18, 800)}`;
+    const bw = w - 32, sw = bw / shown;
+    s += `<g id="cg-slices">`;
+    for (let i = 0; i < shown; i++) s += `<rect x="${f(x + 16 + i * sw)}" y="${y + 76}" width="${f(sw - 2)}" height="34" rx="2" fill="${i % 2 ? '#7d868d' : '#959ea5'}" stroke="#23282c" stroke-width="1"/>`;
+    s += `</g>`;
+    s += T(x + 16, y + 132, `${shown < n ? 'first 40 of ' : ''}${n} slices, each 1 ${imp ? 'ft' : 'm'} = ${RT.nf(c.perL, 2)} ${U.wu()}`, C.MUTED, 15, 700);
+    s += T(x + 16, y + 166, `<tspan fill="${COL.rho}">${RT.nf(c.perL, 2)} ${per}</tspan> × <tspan fill="${COL.V}">${U.L(c.L, 2)}</tspan> = <tspan fill="${COL.W}">${U.w(c.Ws)}</tspan>`, C.TEXT, 19, 800, ' id="formula"') + '</g>';
+    if (water) s += waterLines(x, y + 196, c, U);
+    else s += T(x + 16, y + 206, c.shape === 'wbeam' ? (imp ? 'The number is in the name: W8×31 = 31 lb/ft.' : 'The number is in the name: W200×46 = 46 kg/m.') : `Read the weight per ${imp ? 'foot' : 'metre'} from the table.`, C.MUTED, 15, 700);
+    return s + '</g>';
+  }
+  function waterLines(x, y, c, U) {                        // the bore drawn end-on: steel ring + water disc, each with its weight
+    const R = 34, ri = R * c.ID / c.H, cx = x + 16 + R, cy = y + R - 6;
+    let s = `<g id="cg-water-card"><circle cx="${f(cx)}" cy="${f(cy)}" r="${R}" fill="#8d969d" stroke="#1d2124" stroke-width="1.5"/><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(ri)}" fill="#2f6fb0" stroke="#bfe0ff" stroke-width="1.2"/>`;
+    s += T(x + 96, y + 10, `water: π/4 × ID² × L × ${RT.nf(c.waterRho, 1)} = <tspan fill="#7fb8f0">${U.w(c.Ww)}</tspan>`, C.TEXT, 16, 700);
+    s += T(x + 96, y + 38, `steel ${U.w(c.Ws)} + water ${U.w(c.Ww)}`, C.TEXT, 16, 700);
+    s += T(x + 96, y + 64, `= ${U.w(c.Ws + c.Ww)}`, COL.W, 19, 800);
+    return s + '</g>';
+  }
   function weightCard(S, c, U) {
+    if (c.perL > 0) return tableCard(S, c, U);
     const x = CX, y = 16, w = 430, imp = U.imp();
     let unit = imp ? 1 : .01, n = c.V / unit;
     while (n > 60) { unit *= 10; n = c.V / unit; }
     const cs = 22, per = 15, rows = Math.max(1, Math.ceil(Math.min(n, 60) / per)), ty = y + 108 + rows * (cs + 6) + 26;
-    const h = ty + (c.Wm > 0 ? 70 : 44) - y;
+    const h = ty + (c.Wm > 0 ? 70 : 44) - y + (c.Ww > 0 ? 84 : 0);
     let s = card('cg-vol-card', x, y, w, h, 'WEIGHT = VOLUME × DENSITY');
     const eq = { plate: 'V = L × W × t', block: 'V = L × W × H', bar: 'V = π/4 × d² × L', pipe: 'V = π/4 × (OD² − ID²) × L', skid: 'deck V = L × W × t' }[c.shape];
     s += `<g id="cg-vol-eq">${T(x + 16, y + 58, eq, COL.V, 20, 800)}`;
@@ -1294,6 +1340,7 @@ const CG = (() => {
     s += T(x + 16, ty, `1 cube = ${RT.nf(unit, unit < 1 ? 2 : 0)} ${c.unitV} = ${U.w(unit * c.rho)}`, C.MUTED, 16, 700);
     s += T(x + 16, ty + 30, `<tspan fill="${COL.V}">${RT.nf(c.V, 3)} ${c.unitV}</tspan> × <tspan fill="${COL.rho}">${RT.nf(c.rho)} ${U.wu()}/${c.unitV}</tspan> = <tspan fill="${COL.W}">${U.w(c.Ws)}</tspan>`, C.TEXT, 19, 800, ' id="formula"');
     if (c.Wm > 0) s += T(x + 16, ty + 56, `+ motor ${U.w(c.Wm)} (nameplate) = ${U.w(c.W)}`, COL.m, 17, 700);
+    if (c.Ww > 0) s += waterLines(x, ty + 50, c, U);
     return s + '</g>';
   }
   function cgCard(S, c, U) {
@@ -1328,12 +1375,14 @@ const CG = (() => {
     return s + '</g>';
   }
 
+  /* the hook block's capacity plate: tons (2,000 lb) or tonnes */
+  const capTag = (S, U) => U.imp() ? RT.nf(S.cap / 2000, S.cap % 2000 ? 1 : 0) + ' ton' : RT.nf(S.cap / 1000, S.cap % 1000 ? 1 : 0) + ' t';
   /* ------------------------------------------------------------------------------------------- DRAW */
   let LAST = null, CX = 16;
   function draw(S, c, A_, F, U) {
     const g = geom(S, c, U), k = g.k, Px = g.Px;
     LAST = g;
-    const vert = S.rig === 'vertical', round = c.shape === 'bar' || c.shape === 'pipe';
+    const vert = S.rig === 'vertical', round = c.shape === 'bar' || c.shape === 'pipe', choked = round || c.shape === 'wbeam' || c.shape === 'angle';
     const failOn = F.on, turn = failOn ? fallTurn(S, c, g, F) : null;
     const lifted = clamp((S.lift - .1) / .5, 0, 1);
     // rotation of the load: equal-leg tilt about the hook, the failure turn about the holding pick, a slight sway when lifted
@@ -1372,8 +1421,25 @@ const CG = (() => {
       if (c.shape === 'pipe') {                         // pipe end: wall ring and bore, lit lower-left inner wall
         const r = lh / 2, ri = g.toIn(c.ID) / 2 * k, ec = [lb[0] + lw, lb[1] + r];
         load += `<ellipse cx="${f(ec[0])}" cy="${f(ec[1])}" rx="${f(Math.max(2, r * .28))}" ry="${f(r)}" fill="#8d969d" stroke="#1d2124" stroke-width="1.4"/>`;
-        load += `<ellipse cx="${f(ec[0])}" cy="${f(ec[1])}" rx="${f(Math.max(1, ri * .28))}" ry="${f(ri)}" fill="#171513" stroke="#1d2124" stroke-width="1"/>`;
+        load += `<ellipse cx="${f(ec[0])}" cy="${f(ec[1])}" rx="${f(Math.max(1, ri * .28))}" ry="${f(ri)}" fill="${S.water ? '#2f6fb0' : '#171513'}" stroke="#1d2124" stroke-width="1"/>`;
+        if (S.water) {                                  // cut-away window: the water filling the bore, with a slow ripple
+          const wx0 = lb[0] + lw * .3, ww = lw * .4, wy = ec[1] - ri, ph = A.t / 900;
+          let rip = ''; for (let i = 0; i <= 24; i++) rip += (i ? ' L' : 'M') + f(wx0 + ww * i / 24) + ' ' + f(wy + 2 + 1.5 * Math.sin(ph + i * .7));
+          load += `<g id="cg-water"><rect x="${f(wx0)}" y="${f(wy)}" width="${f(ww)}" height="${f(2 * ri)}" fill="#2f6fb0" opacity=".9" stroke="#bfe0ff" stroke-width="1.5" stroke-dasharray="6 4"/>` +
+            `<path d="${rip}" fill="none" stroke="#bfe0ff" stroke-width="1.5" opacity=".8"/></g>`;
+        }
       } else load += `<ellipse cx="${f(lb[0] + lw)}" cy="${f(lb[1] + lh / 2)}" rx="${f(Math.max(2, lh * .14))}" ry="${f(lh / 2)}" fill="#a6aeb4" stroke="#1d2124" stroke-width="1.2"/>`;
+    } else if (c.shape === 'wbeam') {                  // W-shape in elevation: two flanges with the web between
+      const tfp = Math.max(4, c.tf * k);
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(lh)}" fill="url(#gPaintSide)" stroke="#23282c" stroke-width="1.6"/>`;
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(tfp)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="1.4"/>`;
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1] + lh - tfp)}" width="${f(lw)}" height="${f(tfp)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="1.4"/>`;
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(Math.max(1, tfp * .35))}" fill="#c3cad0" opacity=".5"/>`;
+    } else if (c.shape === 'angle') {                  // angle, one leg up: the upright leg's face, the flat leg on edge at the bottom
+      const tp = Math.max(4, c.tf * k);
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(lh)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="1.6"/>`;
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1] + lh - tp)}" width="${f(lw)}" height="${f(tp)}" fill="url(#gPaintSide)" stroke="#23282c" stroke-width="1.2"/>`;
+      load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(Math.max(1, tp * .4))}" fill="#c3cad0" opacity=".5"/>`;
     } else {
       load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(Math.max(2, lh))}" fill="${matFill}" stroke="#23282c" stroke-width="1.8"/>`;
       load += `<rect x="${f(lb[0])}" y="${f(lb[1])}" width="${f(lw)}" height="${f(Math.min(4, Math.max(1, lh * .2)))}" fill="#c3cad0" opacity=".45"/>`;
@@ -1394,12 +1460,12 @@ const CG = (() => {
     const slack = failOn && F.kind === 'tip' ? (F.side === 1 ? 2 : 1) : 0;
     picks.forEach((pk, i) => {
       const n = i + 1;
-      const pin = R([pk[0], pk[1] + (round ? 0 : 2.75)]);
+      const pin = R([pk[0], pk[1] + (choked ? 0 : 2.75)]);
       // leg direction (world, inch space, up): toward the hook / straight up to the hoist
       let target = vert ? [pin[0], g.zt + 40] : hookIn;
       if (turn && vert) target = [ (i === 0 ? g.x1 : g.x2), g.zt + 40];
       const [u] = KIT.unit(pin, target);
-      if (!round) {
+      if (!choked) {
         attach += `<g id="cg-pick-${n}">${lugPart(q => Pr(q), k, pk[0], pk[1]).svg}</g>`;
         const sh = KIT.shacklePinEnd(q => { const p = Px(q); return [p[0] + dx, p[1]]; }, k, pin, u, .625);
         attach += sh.body; front += sh.front;
@@ -1446,7 +1512,7 @@ const CG = (() => {
         leg += wireRope([crPx, [ (crPx[0] + topPx[0]) / 2 + sw[0], (crPx[1] + topPx[1]) / 2 + sw[1]], topPx], d);
       }
       // bottom eye on the shackle crown (face-on), top eye: on the master link bar or over the hoist hook saddle
-      if (!round && brokeLeg !== n) {
+      if (!choked && brokeLeg !== n) {
         const e = KIT.ropeEye(q => { const p = Px(q); return [p[0] + dx, p[1]]; }, k, cr, .6, [u[0], -u[1]], 6);
         leg = e.svg + leg;
       }
@@ -1456,7 +1522,7 @@ const CG = (() => {
     let top = '';
     if (!vert) {
       const sad = Px([hookIn[0], hookIn[1] + 5.4 + .375]);
-      top += KIT.craneBlock(sad[0], sad[1] - 8.62 * k, k, '10 t');
+      top += KIT.craneBlock(sad[0], sad[1] - 8.62 * k, k, capTag(S, U));
       top += KIT.hookProfile(sad[0], sad[1], k, { id: 'hook' });
       top += KIT.masterLinkEdge(Px, k, hookIn[0], hookIn[1] + 5.4 + .375).svg;
       if (!(brokeLeg && partT >= 1)) crowns.forEach((cr, i) => {
@@ -1497,7 +1563,7 @@ const CG = (() => {
     if (!failOn) {
       // a and b along the pick line, colour-matched to the moment card
       if (!c.tips) {
-        const above = c.shape === 'skid' && c.Wm > 0 ? g.hm * k + 64 : (round ? 18 : 2.75 * k + 34);
+        const above = c.shape === 'skid' && c.Wm > 0 ? g.hm * k + 64 : (choked ? 18 : 2.75 * k + 34);
         const yD = Px([0, g.zt])[1] - above;
         const pa = Px([g.x1, 0])[0] + dx, pg = cgP[0], pb = Px([g.x2, 0])[0] + dx;
         const yP = Px([0, g.zt])[1];
@@ -1529,17 +1595,23 @@ const CG = (() => {
         L += KIT.angleArc(e0[0], e0[1], ar, Math.min(0, a1), Math.max(0, a1), `${RT.nf(Math.abs(A.tw), 1)}°`, e0[0] + ar + 24, e0[1] + (a1 > 0 ? ar * Math.sin(a1 * Math.PI / 180) + 46 : -14), { sub: warn ? 'tilt: over 5°, re-rig' : 'tilt', id: 'cg-tilt', col: warn ? C.WARN : C.ACC });
       }
       // motor and load names
+      if (hookPx && S.showCap) {                       // the crane / hoist rating against the whole load
+        const hu = c.hoistUtil, col = hu > 1 ? C.BAD : hu > .8 ? C.WARN : C.OK;
+        L += KIT.pill(hookPx[0] + 70, hookPx[1] - 150, `Hoist ${U.w(S.cap)} · load ${RT.nf(hu * 100)} %`, col, { anchor: 'start', id: 'cg-hoist-check', fs: KIT.PH.v > 1 ? 30 : 18 });
+      }
       if (c.shape === 'skid' && c.Wm > 0) { const mp = Pr([g.xm, g.zt + g.hm]); L += `<text id="cg-motor-label" class="lm halo" x="${f(mp[0])}" y="${f(mp[1] - 12)}" text-anchor="middle">motor ${U.w(c.Wm)}</text>`; }
     }
     const nm = { plate: `${MAT[c.mat][2]} plate ${U.L(c.L, 2)} × ${U.L(c.Wd, 2)} × ${RT.nf(S.plateT, U.imp() ? 3 : 0)} ${U.su()}`, bar: `${MAT[c.mat][2]} round bar ${U.s(S.barD, 2)} × ${U.L(c.L, 2)}`,
       pipe: `${MAT[c.mat][2]} pipe ${U.s(S.pipeOD, 3)} OD × ${U.s(S.pipeWall, 3)} wall × ${U.L(c.L, 2)}`, block: `${MAT[c.mat][2]} block ${U.L(c.L, 2)} × ${U.L(c.Wd, 2)} × ${U.L(c.H, 2)}`,
-      skid: `Steel skid ${U.L(c.L, 2)} × ${U.L(c.Wd, 2)}, ${RT.nf(S.skidT, U.imp() ? 3 : 0)} ${U.su()} deck` }[c.shape];
+      skid: `Steel skid ${U.L(c.L, 2)} × ${U.L(c.Wd, 2)}, ${RT.nf(S.skidT, U.imp() ? 3 : 0)} ${U.su()} deck`,
+      wbeam: `${c.tname} beam × ${U.L(c.L, 2)}`, angle: `${c.tname} angle × ${U.L(c.L, 2)}` }[c.shape] +
+      (c.shape === 'pipe' && c.tname ? ` (${c.tname})` : '') + (c.Ww > 0 ? ', full of water' : '');
     const ld = Pr([g.Lin * .06, g.zb]);
     L += KIT.label(Math.max(30, ld[0] - 10), FLOOR + 44, nm, [ld[0], ld[1] - 2], { id: 'cg-name' });
     // cards and the detail inset at the right pick (the same drawing, magnified)
     CX = vert && tops.length === 2 && tops[1][0] - tops[0][0] > 520 ? Math.round((tops[0][0] + tops[1][0]) / 2 - 215) : 16;
     if (!failOn) L += S.cgView === 'weight' ? weightCard(S, c, U) : S.cgView === 'cg' ? cgCard(S, c, U) : legsCard(S, c, U);
-    if (!round && !failOn) {
+    if (!choked && !failOn) {
       const src = Pr([g.x2, g.zt + 4]);
       L += `<g id="cg-inset">${KIT.detailInset(`rig-${c.shape}-${S.rig}`, src, 3.2, 1430, vert ? 300 : 210, 140, 'AT THE PICK ×3.2', 'lug · shackle · eye', 'cg' + c.shape + S.rig)}</g>`;
     }
@@ -1560,16 +1632,20 @@ const CG = (() => {
   /* ------------------------------------------------------------------------------------------- RANGES + SCENE */
   const RG = { imp: { plateL: [1, 40, .5], plateW: [.5, 10, .25], plateT: [.125, 6, .125], barD: [.5, 24, .25], barL: [1, 40, .5], pipeOD: [1, 48, .125], pipeWall: [.065, 2, .005],
     pipeL: [1, 40, .5], blockL: [.5, 20, .25], blockW: [.5, 20, .25], blockH: [.25, 10, .25], skidL: [2, 40, .5], skidW: [1, 10, .25], skidT: [.25, 6, .125],
-    motorW: [0, 20000, 50], motorX: [0, 40, .25], motorH: [.5, 8, .25], pick1: [0, 20, .25], pick2: [0, 20, .25], hookH: [1, 30, .5], wll: [1000, 20000, 100] },
+    motorW: [0, 20000, 50], motorX: [0, 40, .25], motorH: [.5, 8, .25], pick1: [0, 20, .25], pick2: [0, 20, .25], hookH: [1, 30, .5], wll: [1000, 20000, 100],
+    memL: [2, 40, 1], cap: [1000, 40000, 500] },
   met: { plateL: [.3, 12, .05], plateW: [.15, 3, .05], plateT: [3, 150, 1], barD: [12, 600, 1], barL: [.3, 12, .05], pipeOD: [25, 1200, 1], pipeWall: [1.5, 50, .5],
     pipeL: [.3, 12, .05], blockL: [.15, 6, .05], blockW: [.15, 6, .05], blockH: [.1, 3, .05], skidL: [.6, 12, .05], skidW: [.3, 3, .05], skidT: [6, 150, 1],
-    motorW: [0, 9000, 25], motorX: [0, 12, .05], motorH: [.15, 2.4, .05], pick1: [0, 6, .05], pick2: [0, 6, .05], hookH: [.3, 9, .1], wll: [500, 10000, 50] } };
+    motorW: [0, 9000, 25], motorX: [0, 12, .05], motorH: [.15, 2.4, .05], pick1: [0, 6, .05], pick2: [0, 6, .05], hookH: [.3, 9, .1], wll: [500, 10000, 50],
+    memL: [.6, 12, .1], cap: [500, 18000, 250] } };
   const LBL = { plateL: 'Length (L)', plateW: 'Width (W)', plateT: 'Thickness (t)', barD: 'Diameter (d)', barL: 'Length (L)', pipeOD: 'Outside diameter (OD)',
     pipeWall: 'Wall thickness', pipeL: 'Length (L)', blockL: 'Length (L)', blockW: 'Width (W)', blockH: 'Height (H)', skidL: 'Skid length (L)', skidW: 'Skid width (W)',
     skidT: 'Deck plate thickness (t)', motorW: 'Motor weight (nameplate)', motorX: 'Motor CG from left end', motorH: 'Motor height', pick1: 'Left pick, in from the left end',
-    pick2: 'Right pick, in from the right end', hookH: 'Hook height above the picks (h)', wll: 'Sling WLL, each leg' };
-  const SHORT = ['plateT', 'barD', 'pipeOD', 'pipeWall', 'skidT'], WKEY = ['motorW', 'wll'];
-  const DIMS = { plate: ['plateL', 'plateW', 'plateT'], bar: ['barD', 'barL'], pipe: ['pipeOD', 'pipeWall', 'pipeL'], block: ['blockL', 'blockW', 'blockH'], skid: ['skidL', 'skidW', 'skidT', 'motorW', 'motorX', 'motorH'] };
+    pick2: 'Right pick, in from the right end', hookH: 'Hook height above the picks (h)', wll: 'Sling WLL, each leg',
+    memL: 'Length (L)', cap: 'Crane / hoist rating' };
+  const SHORT = ['plateT', 'barD', 'pipeOD', 'pipeWall', 'skidT'], WKEY = ['motorW', 'wll', 'cap'];
+  const DIMS = { plate: ['plateL', 'plateW', 'plateT'], bar: ['barD', 'barL'], pipe: ['pipeOD', 'pipeWall', 'pipeL'], block: ['blockL', 'blockW', 'blockH'], skid: ['skidL', 'skidW', 'skidT', 'motorW', 'motorX', 'motorH'],
+    wbeam: ['memL'], angle: ['memL'] };
   const rng = key => ({ type: 'range', key, label: LBL[key], min: (S, U) => RG[U.imp() ? 'imp' : 'met'][key][0], max: (S, U) => RG[U.imp() ? 'imp' : 'met'][key][1], step: (S, U) => RG[U.imp() ? 'imp' : 'met'][key][2],
     fmt: (v, S, U) => WKEY.includes(key) ? U.w(v) : SHORT.includes(key) ? U.s(v, U.imp() ? 3 : 1) : U.L(v, 2),
     show: S => Object.entries(DIMS).some(([sh, ks]) => ks.includes(key)) ? DIMS[S.shape].includes(key) : (key === 'hookH' ? S.rig !== 'vertical' : true) });
@@ -1577,11 +1653,21 @@ const CG = (() => {
   const SC = RT.make({
     id: 'cg',
     state: { shape: 'skid', mat: 'steel', plateL: 6, plateW: 4, plateT: 2, barD: 6, barL: 12, pipeOD: 8.625, pipeWall: .5, pipeL: 20, blockL: 6, blockW: 3, blockH: 2,
-      skidL: 12, skidW: 4, skidT: 2, motorW: 3000, motorX: 9, motorH: 2, pick1: 1, pick2: 1, rig: 'level', hookH: 6, cgView: 'legs', wll: 8000, slingType: 'wire', lift: 1 },
-    numeric: ['plateL', 'plateW', 'plateT', 'barD', 'barL', 'pipeOD', 'pipeWall', 'pipeL', 'blockL', 'blockW', 'blockH', 'skidL', 'skidW', 'skidT', 'motorW', 'motorX', 'motorH', 'pick1', 'pick2', 'hookH', 'wll', 'lift'],
-    units: { w: ['motorW', 'wll'], L: ['plateL', 'plateW', 'barL', 'pipeL', 'blockL', 'blockW', 'blockH', 'skidL', 'skidW', 'motorX', 'motorH', 'pick1', 'pick2', 'hookH'], s: ['plateT', 'barD', 'pipeOD', 'pipeWall', 'skidT'] },
-    failReset: ['shape', 'rig', 'pick1', 'pick2', 'mat'],
-    alias(p) { if (p.units === 'lb') p.units = 'imp'; if (p.units === 'kg') p.units = 'met'; delete p.mode; if ('cgwll' in p) { p.wll = p.cgwll; delete p.cgwll; } },
+      skidL: 12, skidW: 4, skidT: 2, motorW: 3000, motorX: 9, motorH: 2, pick1: 1, pick2: 1, rig: 'level', hookH: 6, cgView: 'legs', wll: 8000, slingType: 'wire', lift: 1,
+      beam: 'w8x31', angleSz: 'l4', memL: 20, nps: '', water: false, cap: 20000, showCap: false },
+    numeric: ['plateL', 'plateW', 'plateT', 'barD', 'barL', 'pipeOD', 'pipeWall', 'pipeL', 'blockL', 'blockW', 'blockH', 'skidL', 'skidW', 'skidT', 'motorW', 'motorX', 'motorH', 'pick1', 'pick2', 'hookH', 'wll', 'lift', 'memL', 'cap'],
+    units: { w: ['motorW', 'wll', 'cap'], L: ['memL', 'plateL', 'plateW', 'barL', 'pipeL', 'blockL', 'blockW', 'blockH', 'skidL', 'skidW', 'motorX', 'motorH', 'pick1', 'pick2', 'hookH'], s: ['plateT', 'barD', 'pipeOD', 'pipeWall', 'skidT'] },
+    failReset: ['shape', 'rig', 'pick1', 'pick2', 'mat', 'beam', 'angleSz', 'nps', 'water'],
+    alias(p, S) {
+      if (p.units === 'lb') p.units = 'imp'; if (p.units === 'kg') p.units = 'met'; delete p.mode; if ('cgwll' in p) { p.wll = p.cgwll; delete p.cgwll; }
+      // a pipe size from the schedule table sets OD and wall; moving OD or wall by hand leaves the table
+      const m = (p.units || S.units) === 'met' ? 25.4 : 1;
+      if (p.nps && PIPES[p.nps]) { p.pipeOD = PIPES[p.nps][1] * m; p.pipeWall = PIPES[p.nps][2] * m; }
+      else if (('pipeOD' in p || 'pipeWall' in p) && !('nps' in p) && S.nps) {
+        const P = PIPES[S.nps];
+        if (!P || Math.abs((p.pipeOD ?? S.pipeOD) - P[1] * m) > 1e-3 * m || Math.abs((p.pipeWall ?? S.pipeWall) - P[2] * m) > 1e-3 * m) p.nps = '';
+      }
+    },
     clampState(S) { S.lift = clamp(S.lift, 0, 1); },
     calc, step, snap, failCheck, draw,
     onReset() { A.tw = 0; A.tv = 0; },
@@ -1599,13 +1685,19 @@ const CG = (() => {
     ],
     controls: [
       { title: 'THE LOAD', items: [
-        { type: 'seg', key: 'shape', label: 'Shape', opts: [['plate', 'Plate'], ['bar', 'Round bar'], ['pipe', 'Pipe'], ['block', 'Block'], ['skid', 'Skid + motor']] },
-        { type: 'seg', key: 'mat', label: 'Material', show: S => S.shape !== 'skid', opts: [['steel', 'Steel'], ['aluminium', 'Aluminium'], ['castiron', 'Cast iron'], ['concrete', 'Concrete']] },
+        { type: 'seg', key: 'shape', label: 'Shape', opts: [['plate', 'Plate'], ['bar', 'Round bar'], ['pipe', 'Pipe'], ['block', 'Block'], ['skid', 'Skid + motor'], ['wbeam', 'W-beam'], ['angle', 'Angle']] },
+        { type: 'seg', key: 'beam', label: 'W-shape (table)', show: S => S.shape === 'wbeam', opts: (S, U) => Object.entries(BEAMS).map(([k, t]) => [k, t[U.imp() ? 4 : 5]]) },
+        { type: 'seg', key: 'angleSz', label: 'Angle size (table)', show: S => S.shape === 'angle', opts: Object.entries(ANGLES).map(([k, t]) => [k, t[4]]) },
+        { type: 'seg', key: 'nps', label: 'Pipe size (schedule table)', show: S => S.shape === 'pipe', opts: [['', 'By OD and wall'], ...Object.entries(PIPES).map(([k, t]) => [k, t[3]])] },
+        { type: 'toggle', key: 'water', label: 'Water in the pipe', show: S => S.shape === 'pipe', on: 'Full', off: 'Empty' },
+        rng('memL'),
+        { type: 'seg', key: 'mat', label: 'Material', show: S => S.shape !== 'skid' && S.shape !== 'wbeam' && S.shape !== 'angle', opts: [['steel', 'Steel'], ['aluminium', 'Aluminium'], ['castiron', 'Cast iron'], ['concrete', 'Concrete']] },
         ...['plateL', 'plateW', 'plateT', 'barD', 'barL', 'pipeOD', 'pipeWall', 'pipeL', 'blockL', 'blockW', 'blockH', 'skidL', 'skidW', 'skidT', 'motorW', 'motorX', 'motorH'].map(rng)
       ] },
       { title: 'THE RIG', items: [
         { type: 'seg', key: 'rig', label: 'Lift with', opts: [['vertical', 'Two hoists'], ['level', 'Hook over CG'], ['equal', 'Equal legs']] },
-        rng('pick1'), rng('pick2'), rng('hookH'), rng('wll'),
+        rng('pick1'), rng('pick2'), rng('hookH'), rng('wll'), { ...rng('cap'), show: S => S.rig !== 'vertical' },
+        { type: 'toggle', key: 'showCap', label: 'Hoist check', show: S => S.rig !== 'vertical', on: 'Show', off: 'Hide' },
         { type: 'seg', key: 'slingType', label: 'Sling', opts: [['wire', 'Wire rope'], ['chain', 'Alloy chain'], ['synthetic', 'Synthetic']] },
         { type: 'seg', key: 'lift', label: 'Load', num: true, opts: [[0, 'On the cribbing'], [1, 'Lifted']] },
         { type: 'seg', key: 'cgView', label: 'Show the maths for', opts: [['weight', 'Weight'], ['cg', 'CG'], ['legs', 'Leg loads']] }
