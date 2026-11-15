@@ -211,3 +211,26 @@ ul.opts li.right{border-color:var(--ok);color:var(--text)}
 /* try-a-lesson.html (2026-11-15) */
 .try-card .shot{display:block;box-shadow:0 14px 30px rgba(0,0,0,.4)}.try-card .shot img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
 .try-list{margin:16px 0 0;padding-left:22px}.try-list li{margin:0 0 12px}.try-list a{font-weight:700}.try-list span{display:block;color:var(--muted);font-size:14px}
+
+/* pricing, checkout and policy pages (launch 2026-11-15). List prices are greyed, never crossed out (Competition Act). */
+.offer{display:flex;flex-direction:column}
+.offer .buy{margin-top:auto;padding-top:22px}
+.offer .buy .btn{width:100%;text-align:center}
+.price{margin-top:8px;font-size:40px}
+.price span{color:var(--muted);font-size:18px;font-weight:600}
+.card .list-note{font-size:15px;color:#A39D94}
+.ticks.one{grid-template-columns:1fr;margin-top:18px}
+.ticks.one li{color:var(--muted);font-size:16px}
+.greyed{margin-top:52px}
+.greyed h2{font-size:24px;color:#A39D94}
+.greyed>p{color:#A39D94}
+.greyed .card{background:transparent;border-style:dashed}
+.greyed .card .num,.greyed .price,.greyed .price span{color:#A39D94}
+.greyed .two{margin-top:20px}
+.policy h2{font-size:24px;margin-top:36px}
+.policy table{border-collapse:collapse;width:100%;margin-top:14px;font-size:15px}
+.policy th,.policy td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top;color:var(--muted)}
+.policy th{color:var(--text);background:var(--panel)}
+.checkout .offer.picked{box-shadow:0 0 0 3px var(--accent)}
+.checkout .signup{display:block;max-width:720px;margin-top:36px}
+@media (max-width:560px){.price{font-size:34px}.policy table{font-size:14px}.policy th,.policy td{padding:8px}}
