@@ -1473,7 +1473,7 @@ resetFail();if(SC.snap)SC.snap(A,S);limits();view();render(0,false);
 if(!CAPTURE){let last=performance.now();const loop=ts=>{const ms=Math.min(100,ts-last);last=ts;
   const busy=tweens.length||(SC.busy&&SC.busy(A,S,F))||F.on&&F.t<6000;
   if(busy||!idle){render(ms);idle=!busy;}requestAnimationFrame(loop);};requestAnimationFrame(loop);}
-window.sim={set,callout,clear,advance:ms=>{render(ms);},isIdle:()=>!tweens.length&&!(SC.busy&&SC.busy(A,S,F)),get,
+window.sim={set,callout,clear,advance:ms=>{render(ms);},isIdle:()=>!CAPTURE&&!tweens.length&&!(SC.busy&&SC.busy(A,S,F)),get,
   calc:()=>JSON.parse(JSON.stringify(ML.calc(),(k,v)=>v===Infinity?1e99:v)),
   failure:()=>({on:F.on,kind:F.kind,t:F.t,caption:F.caption,landed:F.on&&F.t>(SC.landMs||1500),prog:F.prog}),
   onChange:fn=>{if(typeof fn==='function')listeners.push(fn);},lock:ids=>lockIds(ids,true),unlock:ids=>lockIds(ids,false),controls:ctlIds,

@@ -41,6 +41,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
 .caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
 .caption.on{display:block}
+.caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
@@ -1121,7 +1122,7 @@ root.HX = H;
    vertical per leg): both top eyes on one master link in the crane hook, each bottom eye on a 5/8 in G-209 shackle
    pinned through a lug on the beam. Side elevation, 5.6 px per inch. Lugs fixed at +-50.17 in; the sling angle is set
    by the leg length (a different bridle), shown in small print. Each leg pulls T = (W / 2) / sin(angle).
-   Readout (2026-11-13): each leg's pull against its own rating. Below 30 deg is outside the maker's tables. */
+   Readout (instructor 2026-11-13): each leg's pull against its own rating. Below 30 deg is outside the maker's tables. */
 (function () {
 'use strict';
 const A = CFArt, H = HX, Ph = CFPhysics;
@@ -1269,7 +1270,7 @@ function drawLabels(s, o) {
 window.PAGE_SCENE = S;
 })();
 </script>
-<script>/* CrewForge simulator-lesson page shell (2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+<script>/* CrewForge simulator-lesson page shell (instructor 2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
    Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
    top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
@@ -1351,6 +1352,7 @@ function start(C, S) {
     <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
   document.body.appendChild(app);
   const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  if (S.captionAt) cap.dataset.at = S.captionAt;   // optional: a scene with cards at the top puts the caption at the bottom
   let spotG, calloutG;
 
   /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
@@ -1468,7 +1470,7 @@ function start(C, S) {
   /* video contract */
   window.sim = {
     set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
-    get: full, advance, isIdle: () => !tweens.length && !(S.busy && S.busy()), ready: false,
+    get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
       calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },

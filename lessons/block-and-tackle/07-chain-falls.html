@@ -41,6 +41,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
 .caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
 .caption.on{display:block}
+.caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
@@ -147,6 +148,183 @@ body.capture .ro{padding:7px 10px}
 body.phone .fbar{display:none}
 body.phone #fail-card{display:none}</style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
+<script>/* CrewForge shared steel drawings: rolled I-beams (W and S shapes) and the screw-adjusted lifting beam clamp.
+ * One drawing for every family that hangs a hoist from a beam (hoisting, block-and-tackle), so the beam and clamp
+ * look the same everywhere (instructor 2026-11-14: "the i beam is too thin and the beam clamp looks nothing like a real
+ * one"). Style: docs/concepts/hitches/STYLE.md (painted / mill steel, outline darker than the fill, light from the
+ * top-left, one gradient + one highlight). Every function returns an SVG string; sizes in px, k = px per inch.
+ *
+ * Shapes (drawing proportions only; nothing on screen is computed from them): AISC Steel Construction Manual
+ * shape tables, nominal d, bf, tf, tw. W shapes have parallel flange faces; S shapes (American standard beams) have
+ * inner flange faces sloped 2 in 12 (16.67 %), tf the average thickness. Fillet radius drawn about 1.1 x tw.
+ *
+ * Beam clamp: the common screw-adjusted plate clamp (Harrington UBC style): two jaws, each a pair of side plates,
+ * hook over the bottom flange tips (lip on the top face of the flange, the lower jaw under it); one threaded
+ * spindle through both jaws (opposite threads) with a T-handle closes them on the flange; the lifting eye (clevis and pin)
+ * hangs from a centre block on the spindle, under the web. Capacity plate on a jaw, flange range stamped on the spindle.
+ */
+(function () {
+'use strict';
+const f = v => (Math.round(v * 10) / 10).toString();
+const P = pts => 'M' + pts.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + 'Z';
+const SHAPES = [   // name, d, bf, tf, tw (in), S = sloped flanges
+  ['S3x5.7', 3, 2.33, .26, .17, 1], ['S4x7.7', 4, 2.663, .293, .193, 1], ['S5x10', 5, 3.004, .326, .214, 1],
+  ['S6x12.5', 6, 3.332, .359, .232, 1], ['S8x18.4', 8, 4.001, .425, .271, 1], ['S10x25.4', 10, 4.661, .491, .311, 1],
+  ['S12x31.8', 12, 5, .544, .35, 1], ['W6x25', 6.38, 6.08, .455, .32, 0], ['W8x24', 7.93, 6.495, .4, .245, 0], ['W12x26', 12.2, 6.49, .38, .23, 0], ['W8x31', 8, 7.995, .435, .285, 0], ['W10x33', 9.73, 7.96, .435, .29, 0],
+  ['W12x40', 11.9, 8.005, .515, .295, 0], ['W10x49', 9.98, 10, .56, .34, 0], ['W12x65', 12.1, 12, .605, .39, 0],
+  ['W14x90', 14, 14.5, .71, .44, 0]];
+/* the deepest listed shape whose flange width is within 0.6 in of bf (else the nearest): runway / monorail beams */
+function shapeFor(bf, o = {}) {        // o.shallow: the shallowest close match (end views where height is tight)
+  let best = null;
+  for (const s of SHAPES) if (Math.abs(s[2] - bf) <= .6 && (!best || (o.shallow ? s[1] < best[1] : s[1] > best[1]))) best = s;
+  if (!best) best = SHAPES.reduce((a, s) => Math.abs(s[2] - bf) < Math.abs(a[2] - bf) ? s : a);
+  return { name: best[0], d: best[1], bf: best[2], tf: best[3], tw: best[4], S: !!best[5] };
+}
+const DEFS = `<defs><linearGradient id="stlWeb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a4adb4"/><stop offset=".5" stop-color="#939ca3"/><stop offset="1" stop-color="#7a838b"/></linearGradient>
+<linearGradient id="stlFl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a3acb3"/><stop offset="1" stop-color="#737c84"/></linearGradient>
+<linearGradient id="stlSideWeb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b535a"/><stop offset=".5" stop-color="#5f6870"/><stop offset="1" stop-color="#525a61"/></linearGradient>
+<linearGradient id="stlJaw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0b74a"/><stop offset=".55" stop-color="#c39228"/><stop offset="1" stop-color="#8f6a17"/></linearGradient>
+<linearGradient id="stlBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".3" stop-color="#e3e7ea"/><stop offset=".7" stop-color="#9aa3aa"/><stop offset="1" stop-color="#4b5359"/></linearGradient></defs>`;
+const OUT = '#1e2327', JAWD = '#5e4510';
+
+/* ------------------------------------------------------------------ I-beam, end view (true section) */
+/* cx: web centre; ytop: top of the top flange; sh: {d, bf, tf, tw, S} in inches; k px/in.
+ * o.bend: bottom-flange tip droop px (overload picture); o.id */
+function ibeamEnd(cx, ytop, sh, k, o = {}) {
+  const d = sh.d * k, bf = sh.bf * k, tw = Math.max(2, sh.tw * k), r = Math.max(2, 1.1 * sh.tw * k), bend = o.bend || 0;
+  const slope = sh.S ? 2 / 12 : 0, run = (bf - tw) / 2;                       // S: inner face falls 2 in 12 toward the tip
+  const tTip = Math.max(1.5, sh.tf * k - slope * run / 2), tRoot = sh.tf * k + slope * run / 2;
+  const xl = cx - bf / 2, xr = cx + bf / 2, wl = cx - tw / 2, wr = cx + tw / 2, yb = ytop + d;
+  // outline clockwise from the top-left corner; fillets as quarter arcs where the web meets each flange
+  const p = [];
+  p.push(`M${f(xl)} ${f(ytop)} L${f(xr)} ${f(ytop)} L${f(xr)} ${f(ytop + tTip)}`);
+  p.push(`L${f(wr + r)} ${f(ytop + tRoot)} Q${f(wr)} ${f(ytop + tRoot)} ${f(wr)} ${f(ytop + tRoot + r)}`);
+  p.push(`L${f(wr)} ${f(yb - tRoot - r)} Q${f(wr)} ${f(yb - tRoot)} ${f(wr + r)} ${f(yb - tRoot)}`);
+  p.push(`L${f(xr)} ${f(yb - tTip + bend)} L${f(xr)} ${f(yb + bend)} L${f(xl)} ${f(yb + bend)} L${f(xl)} ${f(yb - tTip + bend)}`);
+  p.push(`L${f(wl - r)} ${f(yb - tRoot)} Q${f(wl)} ${f(yb - tRoot)} ${f(wl)} ${f(yb - tRoot - r)}`);
+  p.push(`L${f(wl)} ${f(ytop + tRoot + r)} Q${f(wl)} ${f(ytop + tRoot)} ${f(wl - r)} ${f(ytop + tRoot)}`);
+  p.push(`L${f(xl)} ${f(ytop + tTip)}Z`);
+  let s = DEFS + `<g${o.id ? ` id="${o.id}"` : ''} class="ibeam-end"><path d="${p.join(' ')}" fill="url(#stlWeb)" stroke="${OUT}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  // flange faces lit from above (top faces), web lit on the left, mill-scale edge lines
+  s += `<path d="M${f(xl + 1)} ${f(ytop + 1.2)} L${f(xr - 1)} ${f(ytop + 1.2)}" stroke="#c9d0d5" stroke-width="${f(Math.max(1.4, sh.tf * k * .28))}" opacity=".7"/>`;
+  s += `<path d="M${f(xl + 1)} ${f(yb - tTip + bend + 1)} L${f(wl - r)} ${f(yb - tRoot + 1)} M${f(wr + r)} ${f(yb - tRoot + 1)} L${f(xr - 1)} ${f(yb - tTip + bend + 1)}" stroke="#b9c1c7" stroke-width="1.4" opacity=".6"/>`;
+  s += `<path d="M${f(wl + 1.2)} ${f(ytop + tRoot + r)} L${f(wl + 1.2)} ${f(yb - tRoot - r)}" stroke="#aeb7be" stroke-width="${f(Math.max(1, tw * .3))}" opacity=".55"/>`;
+  return s + '</g>';
+}
+
+/* ------------------------------------------------------------------ I-beam, side elevation (runs left-right) */
+/* Flange edges top and bottom (their thickness is tf), the web set back in shade, the web-to-flange fillets as a
+ * soft band under the top flange and over the bottom one, stiffener plates. stiff: x list. o.paint: flange colour */
+function ibeamSide(x0, x1, ytop, sh, k, o = {}) {
+  const d = sh.d * k, tf = Math.max(3, sh.tf * k), r = Math.max(2, 1.1 * sh.tw * k), yb = ytop + d, w = x1 - x0;
+  let s = DEFS + `<g${o.id ? ` id="${o.id}"` : ''} class="ibeam-side">`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(w)}" height="${f(d)}" fill="url(#stlSideWeb)" stroke="${OUT}" stroke-width="1.6"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(w)}" height="${f(Math.min(d * .3, 4 * r))}" fill="#000" opacity=".22"/>`;     // shadow under the top flange
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(w)}" height="${f(r)}" fill="#6a737b" opacity=".55"/>`;                         // top fillet catches light
+  s += `<rect x="${f(x0)}" y="${f(yb - tf - r)}" width="${f(w)}" height="${f(r)}" fill="#7c858d" opacity=".45"/>`;                       // bottom fillet
+  for (const xs of (o.stiff || [])) {
+    const sw = Math.max(5, .375 * k);
+    s += `<rect x="${f(xs - sw / 2)}" y="${f(ytop + tf)}" width="${f(sw)}" height="${f(d - 2 * tf)}" fill="#5f6870" stroke="${OUT}" stroke-width="1"/>`;
+    s += `<rect x="${f(xs - sw / 2)}" y="${f(ytop + tf)}" width="${f(sw * .35)}" height="${f(d - 2 * tf)}" fill="#a8b1b8" opacity=".35"/>`;
+  }
+  for (const [y, lit] of [[ytop, .75], [yb - tf, .6]]) {
+    s += `<rect x="${f(x0)}" y="${f(y)}" width="${f(w)}" height="${f(tf)}" fill="${o.paint || 'url(#stlFl)'}" stroke="${OUT}" stroke-width="1.3"/>`;
+    s += `<rect x="${f(x0)}" y="${f(y + .6)}" width="${f(w)}" height="${f(Math.max(1.2, tf * .28))}" fill="#d3d9de" opacity="${lit}"/>`;
+  }
+  return s + '</g>';
+}
+
+/* ------------------------------------------------------------------ beam clamp, end view (beam end-on) */
+/* cx: web centre; yBF: underside of the bottom flange; bf, tf: flange (in); k px/in.
+ * o: min, max (jaw range, in), tmax (thickest flange, in), pinY (shackle pin centre, px), cap (text), range (text),
+ *    spin (T-handle angle, rad), id ('clamp'). The jaws grip the flange when it is inside the range; outside it they
+ *    stop where the screw stops (o.seat explains which). Returns { svg, seat, bite } */
+function clampEnd(cx, yBF, bf, tf, k, o = {}) {
+  const min = o.min || 3, max = o.max || 7.5, tmax = o.tmax || .83, yTF = yBF - tf * k;
+  const LIP = .55, BITE = .9, JT = .8, CL = .06;                    // lip thickness, lip reach, jaw plate thickness, clearance (in)
+  let open = Math.max(min, Math.min(max, bf)), seat = 'ok';
+  if (bf > max + 1e-9) seat = 'wide'; else if (bf < min - 1e-9) seat = 'narrow'; else if (tf > tmax + 1e-9) seat = 'thick';
+  const bite = seat === 'wide' ? 0 : Math.max(0, bf / 2 - (open / 2 + CL - BITE));        // how much lip is on the flange (in)
+  const ys = yBF + 1.55 * k, pinY = o.pinY != null ? o.pinY : yBF + 4.5 * k;
+  const jaw = sg => {
+    const xt = cx + sg * (open / 2 + CL) * k;                        // jaw throat face (just outboard of the flange tip)
+    let lipU = yTF, tilt = 0;                                         // lip underside on the flange's top face
+    if (seat === 'wide') lipU = yBF + 1.5;                            // can't open wide enough: hangs under the flange, gripping nothing
+    if (seat === 'narrow' && bite <= .05) lipU = yTF + 2;             // lip misses the flange tip
+    if (seat === 'thick') tilt = sg * Math.min(18, Math.atan2((tf - tmax) * k + 3, 1.4 * k) * 57.3 + 4);   // too thick: rides on the tip, tipped out
+    const lipT = lipU - LIP * k, yLo = Math.max(lipU + tmax * k, yBF) + .08 * k;           // lower jaw top: under the flange
+    const ob = xt + sg * JT * k, inn = xt - sg * 1.45 * k;
+    const outline = [[xt - sg * BITE * k, lipU], [xt - sg * BITE * k, lipT + .18 * k], [xt - sg * (BITE - .2) * k, lipT], [ob - sg * .15 * k, lipT], [ob, lipT + .2 * k],
+      [ob, ys + .35 * k], [ob - sg * .5 * k, ys + 1.05 * k], [inn, ys + 1.05 * k], [inn, yLo], [xt, yLo], [xt, lipU]];
+    let j = `<g class="jaw" transform="rotate(${f(tilt)} ${f(xt - sg * BITE * k)} ${f(lipU)})">`;
+    j += `<path d="${P(outline)}" fill="url(#stlJaw)" stroke="${JAWD}" stroke-width="1.6" stroke-linejoin="round"/>`;
+    j += `<path d="M${f(xt - sg * (BITE - .25) * k)} ${f(lipT + 1.5)} L${f(ob - sg * .2 * k)} ${f(lipT + 1.5)} L${f(ob - 1.5 * sg)} ${f(ys)}" stroke="#f3d98c" stroke-width="1.6" fill="none" opacity=".75"/>`;
+    j += `<circle cx="${f(xt + sg * .35 * k)}" cy="${f(ys - .55 * k)}" r="${f(Math.max(1.6, .14 * k))}" fill="${JAWD}"/>`;    // side-plate rivet
+    j += `<circle cx="${f(inn + sg * .5 * k)}" cy="${f(ys + .55 * k)}" r="${f(Math.max(1.6, .14 * k))}" fill="${JAWD}"/>`;
+    return j + '</g>';
+  };
+  let s = DEFS + `<g id="${o.id || 'clamp'}" class="beam-clamp">`;
+  // spindle (threaded rod) through both jaws, T-handle on the right end
+  const xa = cx - (open / 2 + CL + JT + .35) * k, xb = cx + (open / 2 + CL + JT + 1.9) * k, sr = Math.max(2.5, .32 * k);
+  s += `<g id="screw"><rect x="${f(xa)}" y="${f(ys - sr)}" width="${f(xb - xa)}" height="${f(2 * sr)}" rx="${f(sr * .4)}" fill="url(#stlBar)" stroke="${OUT}" stroke-width="1.2"/>`;
+  for (let x = xa + sr; x < xb - sr; x += Math.max(3, .16 * k)) s += `<line x1="${f(x)}" y1="${f(ys - sr + 1)}" x2="${f(x + sr * .6)}" y2="${f(ys + sr - 1)}" stroke="#5d656c" stroke-width=".9" opacity=".55"/>`;
+  const hl = 2.1 * k * Math.cos(o.spin || 0);                        // T-handle bar across the spindle end (turns about it)
+  s += `<rect x="${f(xb - .25 * k)}" y="${f(ys - Math.abs(hl) - .2 * k)}" width="${f(.5 * k)}" height="${f(2 * Math.abs(hl) + .4 * k)}" rx="${f(.25 * k)}" fill="url(#stlBar)" stroke="${OUT}" stroke-width="1.2"/>`;
+  s += `<circle cx="${f(xb)}" cy="${f(ys)}" r="${f(.42 * k)}" fill="#8d969d" stroke="${OUT}" stroke-width="1.2"/>`;
+  if (o.range) s += `<text x="${f(cx + (open / 2 + CL + JT + 1.0) * k)}" y="${f(ys - sr - 3)}" text-anchor="middle" style="font:700 ${f(Math.max(9, .5 * k))}px Inter,Arial,sans-serif;fill:#e6e1d6">${o.range}</text>`;
+  s += '</g>';
+  s += jaw(-1) + jaw(1);
+  // centre block on the spindle, under the web; the lifting shackle hangs from it, pin at pinY
+  const bw = .75 * k, bt = ys - .75 * k, bb = ys + 1.05 * k;
+  s += `<path d="M${f(cx - bw)} ${f(bt)} L${f(cx + bw)} ${f(bt)} L${f(cx + bw)} ${f(bb - .3 * k)} Q${f(cx + bw)} ${f(bb)} ${f(cx + bw - .3 * k)} ${f(bb)} L${f(cx - bw + .3 * k)} ${f(bb)} Q${f(cx - bw)} ${f(bb)} ${f(cx - bw)} ${f(bb - .3 * k)}Z" fill="url(#stlJaw)" stroke="${JAWD}" stroke-width="1.5"/>`;
+  s += `<circle cx="${f(cx)}" cy="${f(bb - .38 * k)}" r="${f(.22 * k)}" fill="#d3d9de" stroke="${OUT}"/>`;
+  // lifting eye: a forged clevis strap from the centre block down to the load pin (pinY) that the hook hangs on
+  const ew = .62 * k, et = bb - .5 * k, eb = pinY + .85 * k;
+  s += `<g id="clamp-shackle"><path d="M${f(cx - ew * .7)} ${f(et)} L${f(cx + ew * .7)} ${f(et)} L${f(cx + ew)} ${f(pinY)} A${f(ew)} ${f(ew)} 0 0 1 ${f(cx - ew)} ${f(pinY)}Z" fill="url(#stlJaw)" stroke="${JAWD}" stroke-width="1.5" stroke-linejoin="round"/>`;
+  s += `<path d="M${f(cx - ew * .55)} ${f(et + 2)} L${f(cx - ew * .85)} ${f(pinY - .2 * k)}" stroke="#f3d98c" stroke-width="1.4" opacity=".7"/>`;
+  s += `<circle cx="${f(cx)}" cy="${f(pinY)}" r="${f(Math.max(2.5, .5 * k))}" fill="#d3d9de" stroke="${OUT}" stroke-width="1.2"/><circle cx="${f(cx - .15 * k)}" cy="${f(pinY - .15 * k)}" r="${f(.16 * k)}" fill="#fff" opacity=".6"/></g>`;
+  // capacity plate on the left jaw
+  if (o.cap) { const px = cx - (open / 2 + CL + .2) * k, py = ys + .2 * k, pw = Math.max(26, 1.3 * k);
+    s += `<g id="cap-plate"><rect x="${f(px - pw)}" y="${f(py)}" width="${f(pw)}" height="${f(Math.max(12, .6 * k))}" rx="2" fill="#e4e6e8" stroke="${OUT}" stroke-width="1"/><text x="${f(px - pw / 2)}" y="${f(py + Math.max(12, .6 * k) * .78)}" text-anchor="middle" style="font:800 ${f(Math.max(8, .42 * k))}px Inter,Arial,sans-serif;fill:#1d1d1d">${o.cap}</text></g>`; }
+  return { svg: s + '</g>', seat, bite, ys, pinY };
+}
+
+/* ------------------------------------------------------------------ beam clamp, side elevation (beam runs left-right) */
+/* The near jaw's side plates face-on: lip over the bottom flange, plate down past the spindle (seen end-on, the
+ * T-handle bar across it), the shackle seen edge-on below with its pin (load point) at pinY.
+ * x: clamp centre; yBF: underside of the bottom flange; tfPx: flange thickness (px); k px/in.
+ * o: pinY, spin (handle angle, rad), cap (plate text), id, spread (0..1 jaws opening in a failure) */
+function clampSide(x, yBF, tfPx, k, o = {}) {
+  const yTF = yBF - tfPx, W = (o.w || 5) * k, lipT = yTF - .55 * k, ys = yBF + 1.55 * k, pinY = o.pinY != null ? o.pinY : yBF + 4.5 * k;
+  const drop = (o.spread || 0) * 1.2 * k;
+  let s = DEFS + `<g id="${o.id || 'clamp'}" class="beam-clamp-side"><g transform="rotate(${f((o.spread || 0) * 16)} ${f(x)} ${f(pinY)})">`;   // spread: the jaws let go and the clamp tips off the flange
+  // shackle edge-on (bow plane across the beam): a bar from the centre block down round the pin
+  const top = ys + .9 * k, dk = Math.max(3, .32 * k);
+  s += `<g id="${o.id || 'clamp'}-shackle"><path d="M${f(x)} ${f(top + drop)} L${f(x)} ${f(pinY + .45 * k)}" stroke="${OUT}" stroke-width="${f(dk + 2)}" stroke-linecap="round"/><path d="M${f(x)} ${f(top + drop)} L${f(x)} ${f(pinY + .45 * k)}" stroke="#a6aeb4" stroke-width="${f(dk)}" stroke-linecap="round"/>`;
+  s += `<path d="M${f(x - dk * .25)} ${f(top + drop + 2)} L${f(x - dk * .25)} ${f(pinY)}" stroke="#eef1f3" stroke-width="${f(dk * .25)}" opacity=".8"/></g>`;
+  // jaw side plate (near jaw; the far jaw is directly behind it)
+  const pl = [[x - W / 2, lipT + .15 * k], [x - W / 2 + .15 * k, lipT], [x + W / 2 - .15 * k, lipT], [x + W / 2, lipT + .15 * k], [x + W / 2, ys + .3 * k],
+    [x + .9 * k, ys + 1.15 * k], [x - .9 * k, ys + 1.15 * k], [x - W / 2, ys + .3 * k]].map(p => [p[0], p[1] + drop]);
+  s += `<path d="${P(pl)}" fill="url(#stlJaw)" stroke="${JAWD}" stroke-width="1.6" stroke-linejoin="round"/>`;
+  s += `<path d="M${f(x - W / 2 + .2 * k)} ${f(lipT + 1.6 + drop)} L${f(x + W / 2 - .2 * k)} ${f(lipT + 1.6 + drop)}" stroke="#f3d98c" stroke-width="1.6" opacity=".75"/>`;
+  // the flange tip shows through the jaw throat: a dark slot where the lip wraps it
+  s += `<rect x="${f(x - W / 2 + .35 * k)}" y="${f(yTF + drop)}" width="${f(W - .7 * k)}" height="${f(tfPx)}" fill="#3a2c0b" opacity=".35"/>`;
+  for (const dx of [-1, 1]) s += `<circle cx="${f(x + dx * (W / 2 - .45 * k))}" cy="${f(yBF + .55 * k + drop)}" r="${f(Math.max(1.6, .14 * k))}" fill="${JAWD}"/>`;
+  // spindle end-on: boss + T-handle bar across it (turns as it is tightened)
+  const a = o.spin || 0, hl = 1.7 * k;                       // tommy bar across the spindle end (spin: its angle)
+  s += `<path d="M${f(x - hl * Math.cos(a))} ${f(ys + drop - hl * Math.sin(a))} L${f(x + hl * Math.cos(a))} ${f(ys + drop + hl * Math.sin(a))}" stroke="${OUT}" stroke-width="${f(.42 * k + 2)}" stroke-linecap="round"/>`;
+  s += `<path d="M${f(x - hl * Math.cos(a))} ${f(ys + drop - hl * Math.sin(a))} L${f(x + hl * Math.cos(a))} ${f(ys + drop + hl * Math.sin(a))}" stroke="#b3bbc1" stroke-width="${f(.42 * k)}" stroke-linecap="round"/>`;
+  s += `<circle cx="${f(x)}" cy="${f(ys + drop)}" r="${f(.5 * k)}" fill="#8d969d" stroke="${OUT}" stroke-width="1.2"/><circle cx="${f(x - .12 * k)}" cy="${f(ys + drop - .12 * k)}" r="${f(.18 * k)}" fill="#dfe4e7" opacity=".8"/>`;
+  if (o.cap && k >= 8) s += `<g id="${o.id || 'clamp'}-plate"><rect x="${f(x + .75 * k)}" y="${f(yBF + .2 * k + drop)}" width="${f(1.25 * k)}" height="${f(Math.max(9, .55 * k))}" rx="1.5" fill="#e4e6e8" stroke="${OUT}" stroke-width=".8"/><text x="${f(x + 1.375 * k)}" y="${f(yBF + .2 * k + drop + Math.max(9, .55 * k) * .8)}" text-anchor="middle" style="font:800 ${f(Math.max(7, .4 * k))}px Inter,Arial,sans-serif;fill:#1d1d1d">${o.cap}</text></g>`;
+  s += '</g>';
+  // the pin the hoist hook hangs on
+  s += `<circle cx="${f(x)}" cy="${f(pinY)}" r="${f(Math.max(2.5, .5 * k))}" fill="#d3d9de" stroke="${OUT}" stroke-width="1.2"/>`;
+  return s + '</g>';
+}
+
+window.CFSteel = { SHAPES, shapeFor, ibeamEnd, ibeamSide, clampEnd, clampSide };
+})();
+</script>
 <script>/* CrewForge illustration kit (JS port of docs/concepts/hitches/src/lib.py; rules in docs/concepts/hitches/STYLE.md).
    Plain functions that return SVG strings. Every scene: 1600 x 880 viewBox, one scale K (px per inch), light from
    the top-left, outlines darker than the fill, CrewForge orange only for "the thing to look at".
@@ -525,11 +703,9 @@ const CHAINFALL = (() => {
   }
 
   function beamAndClamp() {
-    let s = `<rect x="-10" y="${BEAM_TOP}" width="1620" height="${f(BEAM_D)}" fill="#3f474e"/><rect x="-10" y="${BEAM_TOP}" width="1620" height="3" fill="#6e7882"/><rect x="-10" y="${f(Y_BB - 3)}" width="1620" height="3" fill="#7a848e"/>`;
-    for (const x of [120, 380, 900, 1160, 1420]) s += `<rect x="${x}" y="${BEAM_TOP + 3}" width="5" height="${f(BEAM_D - 6)}" fill="#59626a"/>`;
-    const w = 9 * K;
-    s += `<g id="anchor"><path d="M${f(X - w / 2)} ${f(Y_BB - 4)} L${f(X + w / 2)} ${f(Y_BB - 4)} L${f(X + w / 2 - 4)} ${f(Y_PIN - 6)} L${f(X + 1.2 * K)} ${f(Y_PIN - 1.5 * K)} L${f(X - 1.2 * K)} ${f(Y_PIN - 1.5 * K)} L${f(X - w / 2 + 4)} ${f(Y_PIN - 6)}Z" fill="url(#gPaint)" stroke="#1b1f22" stroke-width="1.6"/>`;
-    s += `<circle cx="${X}" cy="${f(Y_PIN)}" r="${f(.5 * K)}" fill="#c9ced2" stroke="#1b1f22"/></g>`;
+    // W10x33 (AISC: d 9.73, tf 0.435, tw 0.29 in) and a screw-adjusted beam clamp: the shared steel drawings
+    let s = window.CFSteel.ibeamSide(-10, 1610, BEAM_TOP, { d: 9.73, tf: .435, tw: .29 }, K, { stiff: [120, 380, 900, 1160, 1420] });
+    s += window.CFSteel.clampSide(X, Y_BB, .435 * K, K, { pinY: Y_PIN, spin: 0, cap: CAPNAME[S.cap] + ' t', id: 'anchor' });
     s += `<g transform="rotate(180 ${X} ${f(Y_SAD)})">${KIT.hookProfile(X, Y_SAD, HK, { id: 'top-hook', flip: true })}</g>`;
     return s;
   }
@@ -748,7 +924,7 @@ const CHAINFALL = (() => {
     if (o.external) return;                       // lesson page shell: it runs the clock and owns window.sim
     if (!CAPTURE) { let last = performance.now(); const loop = ts => { frame(Math.min(100, ts - last)); last = ts; requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
     window.sim = {
-      set, advance: ms => frame(ms), isIdle: () => !tweens.length && Math.abs(A.sw) < .3 && Math.abs(A.swv) < .3 && callouts.every(co => co.age >= 300), get, calc: () => calc(), failure: () => ({ on: false }), ready: true,
+      set, advance: ms => frame(ms), isIdle: () => !CAPTURE && !tweens.length && Math.abs(A.sw) < .3 && Math.abs(A.swv) < .3 && callouts.every(co => co.age >= 300), get, calc: () => calc(), failure: () => ({ on: false }), ready: true,
       callout: (t, x, o2 = {}) => { callouts = callouts.filter(c => c.target !== t); callouts.push({ target: t, text: x, pos: o2 && o2.pos, age: 0 }); if (!CAPTURE) frame(0); },
       clear: () => { callouts = []; if (!CAPTURE) frame(0); },
       onChange: fn => { LISTEN.push(fn); return () => LISTEN.splice(LISTEN.indexOf(fn), 1); },
@@ -989,7 +1165,7 @@ SC.challenge = (rng, n) => { const q = gen(rng, n); delete q.setup; q.explain +=
 window.PAGE_SCENE = SC;
 })();
 </script>
-<script>/* CrewForge simulator-lesson page shell (2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+<script>/* CrewForge simulator-lesson page shell (instructor 2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
    Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
    top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
    at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
@@ -1071,6 +1247,7 @@ function start(C, S) {
     <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
   document.body.appendChild(app);
   const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  if (S.captionAt) cap.dataset.at = S.captionAt;   // optional: a scene with cards at the top puts the caption at the bottom
   let spotG, calloutG;
 
   /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
@@ -1188,7 +1365,7 @@ function start(C, S) {
   /* video contract */
   window.sim = {
     set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
-    get: full, advance, isIdle: () => !tweens.length && !(S.busy && S.busy()), ready: false,
+    get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
       calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },

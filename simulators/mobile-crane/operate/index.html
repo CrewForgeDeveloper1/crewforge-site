@@ -78,7 +78,7 @@ text.halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:5px;stroke-linejoin:rou
 .row input{width:22px;height:22px}
 .sigcard{display:none}body.mode-signals .sigcard{display:block}
 body.mode-signals .opcard{display:none}
-#sig-figure{width:100%;height:300px;display:block;background:#24211d;border-radius:8px}
+#sig-figure{width:100%;height:260px;display:block;background:#24211d;border-radius:8px}
 #sig-name{font-weight:800;font-size:18px;margin-top:6px}#sig-desc{font-size:13px;color:#d9d4cc}
 .sigs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}
 .sigbtn{min-height:44px;border-radius:8px;border:1px solid #4a453e;background:#34302b;color:var(--text);font-weight:700;font-size:12.5px;cursor:pointer;touch-action:none;user-select:none}
@@ -146,14 +146,15 @@ body.lesson-compact .brandbar{padding:3px 10px}.lesson-compact .brandbar .t1,.le
       <div id="lmi-cfg" class="lmicfg"></div>
     </div>
     <div class="seg tabs" id="c-mode" data-key="mode"><button data-v="operate">Operate</button><button data-v="signals">Hand signals</button></div>
-    <div class="card sigcard" id="sig-card"><h3>Signal person</h3><svg id="sig-figure" viewBox="0 0 300 420"></svg><div id="sig-name">-</div><div id="sig-desc"></div>
+    <div class="card sigcard" id="sig-card"><h3>Signal person</h3><svg id="sig-figure" viewBox="0 0 300 300" aria-label="Hand close-up of the signal person"></svg><div id="sig-name">-</div><div id="sig-desc"></div>
       <div class="sigs" id="sig-pal">
         <button class="sigbtn" id="c-sig-hoist" data-sig="hoist">Hoist</button><button class="sigbtn" id="c-sig-lower" data-sig="lower">Lower</button><button class="sigbtn" id="c-sig-hoistSlow" data-sig="hoistSlow">Hoist slowly</button>
         <button class="sigbtn" id="c-sig-boomUp" data-sig="boomUp">Raise boom</button><button class="sigbtn" id="c-sig-boomDown" data-sig="boomDown">Lower boom</button><button class="sigbtn" id="c-sig-main" data-sig="main">Use main hoist</button>
         <button class="sigbtn" id="c-sig-swingL" data-sig="swingL">Swing (point left)</button><button class="sigbtn" id="c-sig-swingR" data-sig="swingR">Swing (point right)</button><button class="sigbtn" id="c-sig-whip" data-sig="whip">Use whipline</button>
         <button class="sigbtn" id="c-sig-extend" data-sig="extend">Extend boom</button><button class="sigbtn" id="c-sig-retract" data-sig="retract">Retract boom</button><button class="sigbtn" id="c-sig-dog" data-sig="dog">Dog everything</button>
+        <button class="sigbtn" id="c-sig-extend1" data-sig="extend1">Extend boom (one hand)</button><button class="sigbtn" id="c-sig-retract1" data-sig="retract1">Retract boom (one hand)</button>
         <button class="sigbtn" id="c-sig-boomUpLower" data-sig="boomUpLower">Raise boom, lower load</button><button class="sigbtn" id="c-sig-boomDownRaise" data-sig="boomDownRaise">Lower boom, raise load</button>
-        <button class="sigbtn stopb" id="c-sig-stop" data-sig="stop">Stop</button><button class="sigbtn stopb" id="c-sig-estop" data-sig="estop">Emergency stop</button>
+        <button class="sigbtn stopb" id="c-sig-stop" data-sig="stop">Stop</button><button class="sigbtn stopb" id="c-sig-estop" data-sig="estop">Emergency stop</button><button class="sigbtn stopb" id="c-sig-stop2" data-sig="stop2">Stop (both arms)</button><button class="sigbtn stopb" id="c-sig-estop2" data-sig="estop2">Emergency stop (both arms)</button>
       </div>
       <p class="note">Hold a signal: the operator answers after a short reaction time. Signals as described by CCOHS (Government of Canada). Charts differ for STOP and EMERGENCY STOP: agree on the signals with the operator before the lift. One designated signaller at a time, but anyone may give STOP (Alberta OHS Code s.71, s.191; Ontario O. Reg. 213/91 s.104, s.106). CSA Z150 (mobile cranes) is the national standard.</p>
     </div>
@@ -840,188 +841,568 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CFPhysics;
 
 </script>
 <script>
-/* CrewForge signal person: a properly proportioned worker (7.5 heads tall) in hard hat, hi-vis vest (
- * see below), long sleeves, gloves, work pants and boots, seen from the
- * front (as the operator sees them). Vest: fluorescent orange with yellow retroreflective stripes (the Ontario signaller garment, O. Reg. 213/91 s.106). Arms are two-segment limbs posed per signal; motion runs off the time t (s) the
- * simulator passes in (virtual clock), never a wall clock.
+/* CrewForge signal person, v2 (remaster 2026-11-14, after instructor: "the hand in the video is really bad. the hand signals
+ * arent correct" and "the crane hand signals still need work").
  *
- * Signals as described by CCOHS OSH Answers "Materials Handling - Crane and Hoist Hand Signals"
- * (ccohs.ca/oshanswers/safety_haz/materials_handling/signals.html, opened 2026-11-13). CSA Z150 (mobile cranes) also
- * carries a signal chart; it is a licensed standard and is cited, not reproduced. Charts differ between sources for STOP
- * and EMERGENCY STOP: agree on the signals with the operator before the lift.
+ * A properly proportioned worker (7.5 heads tall) seen from the front, as the operator sees them: white cap-style hard
+ * hat, face (eyes, brows, nose, mouth, ears), clear safety glasses with a thin frame, long-sleeve work shirt,
+ * fluorescent orange vest with yellow retroreflective stripes, leather gauntlet gloves, work pants, safety boots.
+ * Arms are 3-D two-bone limbs (shoulder, elbow, wrist) solved by IK from a wrist target and an elbow pole, then
+ * projected to the front view; depth (z, toward the operator) foreshortens the arm and scales the hand slightly.
+ * Hands are drawn in detail from a library of shapes (open palm, back of hand, flat hand palm down, fist from the palm
+ * side / back / knuckles-on, thumb up / down / out / in, pointing forefinger front and profile, clasped hands).
+ * Combined boom + load signals (instructor 2026-11-14: "raise the boom hold the load is a thumb up fist that opens and closes
+ * with the thumb up ... all 4 fingers open and closing"): ONE arm out, thumb up (or down), and all four fingers open
+ * out straight together and close back into the fist, over and over; the thumb stays put (ASME B30.5 / OSHA / IHSA
+ * form). CCOHS and WorkSafeBC Fig. 15-1 draw a two-hand version; it is noted, not taught.
+ * Stop and emergency stop come in one-arm and two-arm forms (instructor 2026-11-14); both are drawn and both are correct.
+ * Every motion (horizontal circles, the emergency-stop sweep, taps, finger flexing) is a function of t, the
+ * simulator's virtual clock in seconds; nothing here reads a wall clock.
+ *
+ * Signal forms: CCOHS OSH Answers "Crane and Hoist Hand Signals" (Government of Canada,
+ * ccohs.ca/oshanswers/safety_haz/materials_handling/signals.html, opened 2026-11-14), the Canadian chart this
+ * simulator follows; checked against WorkSafeBC OHS Regulation Part 15, s.15.20, Figure 15-1 (crawler, locomotive and
+ * truck cranes) and the IHSA (Ontario) chart. One-hand extend / retract: the ASME B30.5 form as printed by Washington
+ * L&I FSP0-910-000 (09-2012); CCOHS shows only the two-hand form. Travel is not drawn (the rough-terrain crane here
+ * works on outriggers). CSA Z150 (mobile cranes) and ASME B30.5 carry signal charts; they are licensed
+ * standards and are cited by reference only. The full table, with the differences between charts, is in
+ * docs/concepts/hand-signals/NOTES.md.
+ *
+ * API (unchanged names, plus new ones):
+ *   CranePerson.SIGNALS[id]  {name, short, desc, src, focus: 'R'|'L'|'both', motion}
+ *   CranePerson.RESPONSE[id] what the crane does
+ *   CranePerson.draw(sig, t, cx, y0, H, opts) -> SVG string (cx = centre line, y0 = soles, H = standing height px)
+ *   CranePerson.closeup(sig, t, cx, y0, H, box, opts) -> SVG: a round detail inset (same front view, magnified) on the
+ *     signalling hand(s), with motion arrows; box = {x, y, r}. opts.ring = draw the dashed ring + leader on the figure.
+ *   CranePerson.ORDER: the signal ids in teaching order.
  */
 (function (G) {
   'use strict';
-  const D = Math.PI / 180;
-  // joint angles in degrees, front view, figure's own right arm drawn on the viewer's LEFT.
-  // sh: upper arm angle measured from straight down, swinging out to the side (0 down, 90 horizontal out, 180 up)
-  // el: forearm angle relative to the upper arm (+ = bends up / inward toward the head)
-  // hand: 'open' (palm down, fingers along the forearm), 'fist', 'thumbUp', 'thumbDown', 'thumbOut', 'thumbIn',
-  //       'pointUp', 'pointDown', 'pointOut', 'flatFront' (hand held still, palm toward the body, in front)
-  const REST = { sh: 8, el: 6, hand: 'relax' };
-  const wob = (t, f, a) => a * Math.sin(2 * Math.PI * f * t);
+  const D = Math.PI / 180, TAU = Math.PI * 2;
+  const sin = Math.sin, cos = Math.cos;
+  const f = n => (Math.round(n * 100) / 100).toString();
+
+  /* ---------------- signals: CCOHS wording, paraphrased ---------------- */
+  const CC = 'CCOHS', US1 = 'ASME B30.5 form (WA L&I chart)', WB = 'WorkSafeBC Fig. 15-1', US2 = 'ASME B30.5 / OSHA form', FL = 'ASME B30.5 / OSHA / IHSA form';
   const SIGNALS = {
-    none: { name: 'Standing by', desc: 'Arms at the sides: no signal.', R: () => REST, L: () => REST },
-    hoist: { name: 'Hoist', desc: 'Forearm vertical, forefinger pointing up, hand moved in a small horizontal circle.',
-      R: t => ({ sh: 82, el: 92 + wob(t, 1.4, 7), hand: 'pointUp', circle: [wob(t, 1.4, 5), wob(t + 0.18, 1.4, 2.5)] }), L: () => REST },
-    lower: { name: 'Lower', desc: 'Arm extended downward, forefinger pointing down, hand moved in small horizontal circles.',
-      R: t => ({ sh: 28 + wob(t, 1.4, 3), el: 0, hand: 'pointDown', circle: [wob(t, 1.4, 5), wob(t + 0.18, 1.4, 2.5)] }), L: () => REST },
-    main: { name: 'Use main hoist', desc: 'Tap fist on head, then give the regular signals.',
-      R: t => ({ sh: 0, el: 0, hand: 'fist', to: 'head', tap: Math.max(0, wob(t, 2, 1)) }), L: () => REST },
-    whip: { name: 'Use whipline (auxiliary hoist)', desc: 'Tap the elbow of one arm with the other hand, then give the regular signals.',
-      R: () => ({ sh: 84, el: 95, hand: 'fist' }), L: t => ({ sh: 0, el: 0, hand: 'open', to: 'Relbow', tap: Math.max(0, wob(t, 2, 1)) }) },
-    boomUp: { name: 'Raise boom', desc: 'Arm extended, fingers closed, thumb pointing upward.',
-      R: () => ({ sh: 90, el: 0, hand: 'thumbUp' }), L: () => REST },
-    boomDown: { name: 'Lower boom', desc: 'Arm extended, fingers closed, thumb pointing downward.',
-      R: () => ({ sh: 90, el: 0, hand: 'thumbDown' }), L: () => REST },
-    swingL: { name: 'Swing (boom to the signaller\'s left)', desc: 'Arm extended, point with the finger in the direction the boom should swing.',
-      R: () => REST, L: () => ({ sh: 90, el: 0, hand: 'pointOut' }) },
-    swingR: { name: 'Swing (boom to the signaller\'s right)', desc: 'Arm extended, point with the finger in the direction the boom should swing.',
-      R: () => ({ sh: 90, el: 0, hand: 'pointOut' }), L: () => REST },
-    stop: { name: 'Stop', desc: 'Arm extended, palm down, held rigidly.',
-      R: () => ({ sh: 90, el: 0, hand: 'open' }), L: () => REST },
-    estop: { name: 'Emergency stop', desc: 'Arm extended, palm down, hand moved rapidly right and left.',
-      R: t => ({ sh: 90 + wob(t, 3.2, 3), el: wob(t, 3.2, 16), hand: 'open' }), L: () => REST },
-    dog: { name: 'Dog everything (pause)', desc: 'Hands clasped in front of the body.',
-      R: () => ({ sh: 0, el: 0, hand: 'clasp' }), L: () => ({ sh: 0, el: 0, hand: 'clasp' }) },
-    extend: { name: 'Extend boom (telescope out)', desc: 'Both fists in front of the body, thumbs pointing outward.',
-      R: () => ({ sh: 0, el: 0, hand: 'thumbOut', to: 'front', dx: 0.55, dy: 1.75 }), L: () => ({ sh: 0, el: 0, hand: 'thumbOut', to: 'front', dx: 0.55, dy: 1.75 }) },
-    retract: { name: 'Retract boom (telescope in)', desc: 'Both fists in front of the body, thumbs pointing toward each other.',
-      R: () => ({ sh: 0, el: 0, hand: 'thumbIn', to: 'front', dx: 0.75, dy: 1.75 }), L: () => ({ sh: 0, el: 0, hand: 'thumbIn', to: 'front', dx: 0.75, dy: 1.75 }) },
-    hoistSlow: { name: 'Hoist slowly', desc: 'Give the hoist signal with one hand and hold the other hand still in front of it.',
-      R: t => ({ sh: 0, el: 0, hand: 'pointUp', to: 'front', dx: 0.6, dy: 0.35, circle: [wob(t, 1.4, 5), wob(t + 0.18, 1.4, 2.5)] }),
-      L: () => ({ sh: 0, el: 0, hand: 'flatFront', to: 'front', dx: 0.2, dy: 1.25 }) },
-    boomUpLower: { name: 'Raise the boom and lower the load', desc: 'One arm extended, thumb up, fingers closed; the other arm bent slightly, forefinger pointing down, moved in horizontal circles.',
-      R: () => ({ sh: 90, el: 0, hand: 'thumbUp' }), L: t => ({ sh: 30, el: -18, hand: 'pointDown', circle: [wob(t, 1.4, 5), wob(t + 0.18, 1.4, 2.5)] }) },
-    boomDownRaise: { name: 'Lower the boom and raise the load', desc: 'One arm extended, thumb down, fingers closed; the other forearm vertical, forefinger pointing up, moved in horizontal circles.',
-      R: () => ({ sh: 90, el: 0, hand: 'thumbDown' }), L: t => ({ sh: 82, el: 92 + wob(t, 1.4, 7), hand: 'pointUp', circle: [wob(t, 1.4, 5), wob(t + 0.18, 1.4, 2.5)] }) },
+    none: { name: 'Standing by', short: 'Standing by', desc: 'Arms at the sides: no signal.', src: CC, focus: 'R' },
+    hoist: { name: 'Hoist', short: 'Hoist', src: CC, focus: 'R', motion: 'circle',
+      desc: 'Forearm vertical, forefinger pointing up, hand moved in small horizontal circles.' },
+    lower: { name: 'Lower', short: 'Lower', src: CC, focus: 'R', motion: 'circle',
+      desc: 'Arm extended downward, forefinger pointing down, hand moved in small horizontal circles.' },
+    main: { name: 'Use main hoist', short: 'Main hoist', src: CC, focus: 'R', motion: 'tap',
+      desc: 'Tap a fist on top of the head, then give the regular signals.' },
+    whip: { name: 'Use whipline (auxiliary hoist)', short: 'Whipline', src: CC, focus: 'both', motion: 'tap',
+      desc: 'Tap the elbow of one arm with the other hand, then give the regular signals.' },
+    boomUp: { name: 'Raise boom', short: 'Raise boom', src: CC, focus: 'R',
+      desc: 'Arm extended, fingers closed, thumb pointing up.' },
+    boomDown: { name: 'Lower boom', short: 'Lower boom', src: CC, focus: 'R',
+      desc: 'Arm extended, fingers closed, thumb pointing down.' },
+    swingL: { name: 'Swing (to the signaller\'s left)', short: 'Swing left', src: CC, focus: 'L', motion: 'point',
+      desc: 'Arm extended, forefinger pointing the way the boom should swing.' },
+    swingR: { name: 'Swing (to the signaller\'s right)', short: 'Swing right', src: CC, focus: 'R', motion: 'point',
+      desc: 'Arm extended, forefinger pointing the way the boom should swing.' },
+    stop: { name: 'Stop', short: 'Stop', src: CC, focus: 'R',
+      desc: 'Arm extended, palm down, held rigidly. No motion.' },
+    stop2: { name: 'Stop (both arms)', short: 'Stop, both arms', src: WB, focus: 'R',      // inset: one hand (both are the same)
+      desc: 'Both arms extended to the sides, palms down, held still.' },
+    estop: { name: 'Emergency stop', short: 'Emergency stop', src: CC, focus: 'R', motion: 'sweep', mag: 1.7,
+      desc: 'Arm extended, palm down, hand moved rapidly right and left.' },
+    estop2: { name: 'Emergency stop (both arms)', short: 'E-stop, both arms', src: US2, focus: 'R', motion: 'sweep', mag: 1.7,
+      desc: 'Both arms extended, palms down, arms moved rapidly back and forth.' },
+    dog: { name: 'Dog everything (pause)', short: 'Dog everything', src: CC, focus: 'both',
+      desc: 'Hands clasped in front of the body.' },
+    extend: { name: 'Extend boom (telescope out)', short: 'Extend boom', src: CC, focus: 'both',
+      desc: 'Both fists in front of the body, thumbs pointing outward.' },
+    retract: { name: 'Retract boom (telescope in)', short: 'Retract boom', src: CC, focus: 'both',
+      desc: 'Both fists in front of the body, thumbs pointing toward each other.' },
+    extend1: { name: 'Extend boom, one hand', short: 'Extend (one hand)', src: US1, focus: 'R', motion: 'tapChest',
+      desc: 'One fist in front of the chest, thumb tapping the chest.' },
+    retract1: { name: 'Retract boom, one hand', short: 'Retract (one hand)', src: US1, focus: 'R', motion: 'tapChest',
+      desc: 'One fist in front of the chest, thumb pointing outward, heel of the fist tapping the chest.' },
+    hoistSlow: { name: 'Hoist slowly (move slowly)', short: 'Hoist slowly', src: CC, focus: 'both', motion: 'circle',
+      desc: 'Give the hoist signal with one hand and hold the other hand still in front of it.' },
+    boomUpLower: { name: 'Raise the boom and lower the load', short: 'Boom up, load down', src: FL, focus: 'R', motion: 'flex',
+      desc: 'One arm out, thumb up; all four fingers open and close, again and again. The thumb stays up.' },
+    boomDownRaise: { name: 'Lower the boom and raise the load', short: 'Boom down, load up', src: FL, focus: 'R', motion: 'flex',
+      desc: 'One arm out, thumb down; all four fingers open and close, again and again. The thumb stays down.' },
   };
-  // what the crane does for each signal (operator response)
+  const ORDER = ['hoist', 'lower', 'main', 'whip', 'boomUp', 'boomDown', 'boomUpLower', 'boomDownRaise', 'swingL', 'swingR',
+    'extend', 'retract', 'extend1', 'retract1', 'hoistSlow', 'stop', 'stop2', 'estop', 'estop2', 'dog'];
+  // what the crane does for each signal (operator response). Travel is left out: this rough-terrain crane works on
+  // outriggers and does not travel in these lessons.
+  // Swing: the boom goes the way the finger points. The signs here are for a signal person standing BEHIND the crane,
+  // facing the cab (the operate page: their right = the boom's clockwise way from above). A page that puts the signal
+  // person elsewhere sets state sigSwingSign (+1 / -1) from where they stand (src/ext-signals.js does).
   const RESPONSE = {
     hoist: { hoist: 1 }, lower: { hoist: -1 }, boomUp: { boom: 1 }, boomDown: { boom: -1 }, swingL: { swing: -1 },
-    swingR: { swing: 1 }, extend: { tele: 1 }, retract: { tele: -1 }, hoistSlow: { hoist: 0.3 },
-    boomUpLower: { boom: 1, hoist: -1, keepH: 1 }, boomDownRaise: { boom: -1, hoist: 1, keepH: 1 },
-    stop: { stop: 'normal' }, estop: { stop: 'emergency' }, dog: { stop: 'dog' }, none: {}, main: {}, whip: {},
+    swingR: { swing: 1 }, extend: { tele: 1 }, retract: { tele: -1 }, extend1: { tele: 1 }, retract1: { tele: -1 },
+    hoistSlow: { hoist: 0.3 }, boomUpLower: { boom: 0.5, hoist: -1, keepH: 1 }, boomDownRaise: { boom: -0.5, hoist: 1, keepH: 1 },   // combined: a slow boom (illustrative)
+    stop: { stop: 'normal' }, stop2: { stop: 'normal' }, estop: { stop: 'emergency' }, estop2: { stop: 'emergency' }, dog: { stop: 'dog' }, none: {}, main: {}, whip: {},
   };
 
+  /* ---------------- poses ----------------
+     Arm-local coordinates, units of h (head height), origin at the shoulder joint: x = out to the side (away from the
+     body's centre line), y = up, z = forward (toward the operator). w = wrist target, p = elbow pole (which way the elbow
+     bends), hand = {k: shape, a: hand axis angle in the arm-local front plane (0 = out, 90 = up, -90 = down, 180 = across
+     the body), face, th (thumb), m (mirror)}. Motion functions take t (s). */
+  const UA = 1.42, FA = 1.2;                               // upper arm, forearm (shoulder-elbow, elbow-wrist) in h
+  const REST = () => ({ w: [0.32, -2.5, 0.12], p: [0.2, 0, -1], hand: { k: 'relax', a: -95 } });
+  const circ = (t, r = 0.2, hz = 1.15) => [r * cos(TAU * hz * t), r * 0.35 * sin(TAU * hz * t), r * sin(TAU * hz * t)];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const HOIST = t => ({ w: add([1.25, 0.72, 0.25], circ(t)), p: [0.3, -1, 0], hand: { k: 'point', a: 90, face: 'palm' } });
+  const LOWER = (t, bent) => ({ w: add(bent ? [0.85, -2.05, 0.75] : [0.62, -2.45, 0.42], circ(t, 0.18)), p: bent ? [1, -0.2, 0.2] : [1, 0, 0], hand: { k: 'point', a: -90, face: 'palm' } });
+  const ARM_OUT = [2.5, 0.06, 0.22];
+  const THUMB = up => () => ({ w: ARM_OUT, p: [0, -1, 0], hand: { k: 'fist', a: 0, face: up ? 'palm' : 'back', th: 'side', m: up ? 1 : -1 } });
+  // fingers of the combined signal: 0 = open (straight out), 1 = closed (fist); eased so each end holds a moment
+  const FLEXHZ = 0.85;
+  const flexC = t => { const c = 0.5 - 0.5 * cos(TAU * FLEXHZ * t); return c * c * (3 - 2 * c); };
+  const FLEX = up => t => ({ w: ARM_OUT, p: [0, -1, 0], hand: { k: 'flex', a: 0, face: up ? 'palm' : 'back', th: 'side', m: up ? 1 : -1, c: flexC(t) } });
+  const ESWEEP = t => { const s = 22 * D + 26 * D * sin(TAU * 2.6 * t); return { w: [2.5 * cos(s), 0.06, 2.5 * sin(s)], p: [0, -1, 0], hand: { k: 'flat', a: 0, m: -1 } }; };
+  const STOPARM = () => ({ w: ARM_OUT, p: [0, -1, 0], hand: { k: 'flat', a: 0, m: -1 } });
+  const POSES = {
+    none: { R: REST, L: REST },
+    hoist: { R: HOIST, L: REST },
+    lower: { R: t => LOWER(t, false), L: REST },
+    main: { R: t => ({ w: [-0.86, 1.98 + 0.3 * Math.max(0, sin(TAU * 1.6 * t)), 0.12], p: [1, 0.8, -0.1], hand: { k: 'fist', a: 200, face: 'back', th: 'wrap' } }), L: REST, front: 'R' },
+    whip: { R: () => ({ w: [0.08, -0.2, 0.62], p: [0.25, -1, 0.1], hand: { k: 'fist', a: 92, face: 'palm', th: 'wrap' } }),
+      L: t => ({ to: 'otherElbow', off: [0.0, -0.42 - 0.25 * Math.max(0, sin(TAU * 1.6 * t)), 0.3], p: [0.4, -1, 0], hand: { k: 'cup', a: 75 } }), front: 'L' },
+    boomUp: { R: THUMB(true), L: REST },
+    boomDown: { R: THUMB(false), L: REST },
+    swingR: { R: () => ({ w: ARM_OUT, p: [0, -1, 0], hand: { k: 'pointSide', a: 0 } }), L: REST },
+    swingL: { R: REST, L: () => ({ w: ARM_OUT, p: [0, -1, 0], hand: { k: 'pointSide', a: 0 } }) },
+    stop: { R: STOPARM, L: REST },
+    stop2: { R: STOPARM, L: STOPARM },
+    estop: { R: ESWEEP, L: REST },
+    estop2: { R: ESWEEP, L: ESWEEP },
+    dog: { R: () => ({ w: [-0.86, -1.95, 0.66], p: [0.6, -1, -0.2], hand: { k: 'none' } }),
+      L: () => ({ w: [-0.86, -1.95, 0.7], p: [0.6, -1, -0.2], hand: { k: 'clasp', a: 90 } }), front: 'L' },
+    extend: { R: () => ({ w: [0.05, -1.85, 1.15], p: [0.25, -1, -0.4], hand: { k: 'fistEnd', a: 90, th: 'outUp' } }),
+      L: () => ({ w: [0.05, -1.85, 1.15], p: [0.25, -1, -0.4], hand: { k: 'fistEnd', a: 90, th: 'outUp' } }) },
+    retract: { R: () => ({ w: [-0.1, -1.85, 1.15], p: [0.25, -1, -0.4], hand: { k: 'fistEnd', a: 90, th: 'in' } }),
+      L: () => ({ w: [-0.1, -1.85, 1.15], p: [0.25, -1, -0.4], hand: { k: 'fistEnd', a: 90, th: 'in' } }) },
+    extend1: { R: t => ({ w: [-0.45, -0.95, 0.5 + 0.16 * Math.max(0, sin(TAU * 1.6 * t))], p: [0.35, -1, 0.2], hand: { k: 'fistEnd', a: 90, th: 'back' } }), L: REST, front: 'R' },
+    retract1: { R: t => ({ w: [-0.45, -0.95, 0.5 + 0.16 * Math.max(0, sin(TAU * 1.6 * t))], p: [0.35, -1, 0.2], hand: { k: 'fistEnd', a: 90, th: 'front' } }), L: REST, front: 'R' },
+    hoistSlow: { R: t => ({ w: add([-0.22, -0.95, 0.85], circ(t, 0.2)), p: [0.4, -1, 0], hand: { k: 'point', a: 90, face: 'palm' } }),
+      L: () => ({ w: [-1.3, 0.05, 1.15], p: [0.4, -1, 0], hand: { k: 'flat', a: 178, m: -1 } }), front: 'L' },
+    boomUpLower: { R: FLEX(true), L: REST },
+    boomDownRaise: { R: FLEX(false), L: REST },
+  };
+
+  /* ---------------- colours (STYLE.md: flat base + one highlight, outline darker than the fill) ---------------- */
   const C = {
-    skin: '#c99a7a', skinD: '#8d6650', vest: '#ff6a1a', vestD: '#9c3a06', vestH: '#ffb27a', refl: '#f2e24a', reflD: '#9a8a18',
-    shirt: '#2f4459', shirtD: '#1b2836', pants: '#4a4f57', pantsD: '#2b2f35', boot: '#5a3f27', bootD: '#2e2014',
-    glove: '#b98d55', gloveD: '#6e5130', hat: '#f2f2ee', hatD: '#a9a9a2',
+    skin: '#c9946c', skinD: '#7d5236', skinH: '#e0b18c', lip: '#9a5a44', brow: '#4a3324', eye: '#2a211b',
+    vest: '#ff6a1a', vestD: '#9c3a06', vestH: '#ffb27a', refl: '#f2e24a', reflD: '#9a8a18', silver: '#d9dcd8',
+    shirt: '#2f4459', shirtD: '#18222d', shirtH: '#4d6680', pants: '#3f4650', pantsD: '#22262c', pantsH: '#5a6370',
+    boot: '#5a3f27', bootD: '#2a1c10', bootH: '#7d5c3c', sole: '#1d1a17',
+    glove: '#cfa56b', gloveD: '#6b4a24', gloveH: '#ecd3a6', gloveS: '#a77c45',
+    hat: '#f3f3ef', hatD: '#8f918b', hatS: '#d3d4ce', lens: '#bfe0ee', frame: '#2b2f33',
   };
-  const f = n => n.toFixed(1);
-  const limb = (x1, y1, x2, y2, w1, w2, fill, dark) => {
-    const a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a);
-    const p = [[x1 + nx * w1, y1 + ny * w1], [x2 + nx * w2, y2 + ny * w2], [x2 - nx * w2, y2 - ny * w2], [x1 - nx * w1, y1 - ny * w1]];
-    return `<path d="M${p.map(q => f(q[0]) + ' ' + f(q[1])).join(' L')} Z" fill="${fill}" stroke="${dark}" stroke-width="1.3" stroke-linejoin="round"/>` +
-      `<circle cx="${f(x2)}" cy="${f(y2)}" r="${f(w2)}" fill="${fill}" stroke="${dark}" stroke-width="1.3"/>` +
-      `<line x1="${f(x1 + nx * w1 * 0.45)}" y1="${f(y1 + ny * w1 * 0.45)}" x2="${f(x2 + nx * w2 * 0.45)}" y2="${f(y2 + ny * w2 * 0.45)}" stroke="#ffffff" stroke-opacity=".16" stroke-width="${f(Math.max(1, w2 * 0.5))}" stroke-linecap="round"/>`;
-  };
-  // gloved hand at (x, y), forearm direction a (rad, screen), side s (+1 figure's right = viewer's left)
-  function hand(x, y, a, kind, s, u) {
-    const g = C.glove, d = C.gloveD, ca = Math.cos(a), sa = Math.sin(a);
-    const P = (along, across) => [x + ca * along - sa * across, y + sa * along + ca * across];
-    const poly = pts => `<path d="M${pts.map(q => f(q[0]) + ' ' + f(q[1])).join(' L')} Z" fill="${g}" stroke="${d}" stroke-width="1.2" stroke-linejoin="round"/>`;
-    const fist = `<circle cx="${f(P(u * 0.55, 0)[0])}" cy="${f(P(u * 0.55, 0)[1])}" r="${f(u * 0.62)}" fill="${g}" stroke="${d}" stroke-width="1.2"/>` +
-      `<path d="M${f(P(u * 0.95, -u * 0.4)[0])} ${f(P(u * 0.95, -u * 0.4)[1])} L${f(P(u * 0.95, u * 0.4)[0])} ${f(P(u * 0.95, u * 0.4)[1])}" stroke="${d}" stroke-width="1"/>`;
-    const digit = (x0, y0, x1, y1, w) => `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${d}" stroke-width="${f(w + 2.2)}" stroke-linecap="round"/><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${g}" stroke-width="${f(w)}" stroke-linecap="round"/>`;
-    const c = P(u * 0.55, 0);
-    switch (kind) {
-      case 'open': {                                     // flat hand, palm down, fingers along the forearm
-        return poly([P(0, -u * 0.38), P(u * 1.55, -u * 0.3), P(u * 1.75, -u * 0.05), P(u * 1.6, u * 0.28), P(0, u * 0.38)]) +
-          `<path d="M${f(P(u * 0.8, -u * 0.2)[0])} ${f(P(u * 0.8, -u * 0.2)[1])} L${f(P(u * 1.5, -u * 0.17)[0])} ${f(P(u * 1.5, -u * 0.17)[1])}" stroke="${d}" stroke-width=".9"/>`;
+
+  /* ---------------- hands ----------------
+     Local frame: wrist at (0, 0), fingers toward -y (up), units of hand length (wrist to middle fingertip). For the
+     figure's RIGHT hand with the palm toward the viewer the thumb is on -x. sw = outline width in local units. */
+  function cap(x1, y1, x2, y2, w, sw, fill = C.glove, dark = C.gloveD) {
+    return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${dark}" stroke-width="${f(w + 2 * sw)}" stroke-linecap="round"/>` +
+      `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${fill}" stroke-width="${f(w)}" stroke-linecap="round"/>`;
+  }
+  const hi = (x1, y1, x2, y2, w) => `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${C.gloveH}" stroke-opacity=".75" stroke-width="${f(w)}" stroke-linecap="round"/>`;
+  const crease = (x1, y1, x2, y2, sw) => `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${C.gloveD}" stroke-opacity=".7" stroke-width="${f(sw * 0.8)}" stroke-linecap="round"/>`;
+  const pathS = (d, sw, fill = C.glove) => `<path d="${d}" fill="${fill}" stroke="${C.gloveD}" stroke-width="${f(sw)}" stroke-linejoin="round"/>`;
+  function cuff(sw) {          // leather gauntlet cuff over the shirt sleeve
+    return pathS('M-0.27 0.02 L0.27 0.02 L0.33 0.46 L-0.33 0.46 Z', sw, C.gloveS) + crease(-0.3, 0.12, 0.3, 0.12, sw) +
+      `<line x1="-0.18" y1="0.2" x2="-0.2" y2="0.42" stroke="${C.gloveH}" stroke-opacity=".35" stroke-width="${f(sw * 2.5)}"/>`;
+  }
+  const PALM = 'M-0.25 0.02 L0.25 0.02 Q0.29 -0.26 0.26 -0.53 L-0.26 -0.53 Q-0.29 -0.24 -0.25 0.02 Z';
+  // four fingers of an open hand: [x at the knuckle, length], index first (next to the thumb, on -x)
+  const FING = [[-0.18, 0.43], [-0.06, 0.49], [0.065, 0.45], [0.185, 0.35]];
+  function openHand(sw, back) {
+    let s = '';
+    const thumb = cap(-0.22, -0.1, -0.43, -0.42, 0.135, sw) + crease(-0.33, -0.27, -0.27, -0.22, sw);
+    if (back) s += thumb;
+    s += pathS(PALM, sw);
+    for (const [x, L] of FING) {
+      const w = x === 0.185 ? 0.1 : 0.118;
+      s += cap(x, -0.5, x * 1.06, -0.5 - L, w, sw);
+      if (back) s += crease(x - w * 0.35, -0.52, x + w * 0.35, -0.52, sw);        // knuckle line
+      else { s += crease(x - w * 0.3, -0.5 - L * 0.42, x + w * 0.3, -0.5 - L * 0.42, sw) + crease(x - w * 0.3, -0.5 - L * 0.72, x + w * 0.3, -0.5 - L * 0.72, sw); }
+      s += hi(x - 0.03, -0.55, x * 1.06 - 0.03, -0.45 - L, 0.025);
+    }
+    if (back) s += crease(-0.12, -0.08, -0.12, -0.42, sw) + crease(0.0, -0.06, 0.0, -0.43, sw) + crease(0.12, -0.08, 0.12, -0.42, sw);
+    else s += thumb + `<path d="M-0.16 -0.12 Q0.0 -0.3 0.2 -0.36" fill="none" stroke="${C.gloveD}" stroke-opacity=".55" stroke-width="${f(sw * 0.8)}"/>`;
+    return s;
+  }
+  function fistPalm(sw, th) {       // fist seen from the palm side: four curled fingers stacked side by side, thumb
+    let s = pathS('M-0.27 0.02 L0.25 0.02 Q0.3 -0.3 0.27 -0.56 Q0 -0.62 -0.27 -0.56 Q-0.31 -0.27 -0.27 0.02 Z', sw);
+    if (th === 'side') s += cap(-0.24, -0.4, -0.62, -0.42, 0.15, sw) + crease(-0.45, -0.47, -0.45, -0.37, sw) + hi(-0.3, -0.45, -0.6, -0.46, 0.03);
+    for (const x of [-0.18, -0.06, 0.06, 0.18]) s += cap(x, -0.52, x, -0.27, 0.115, sw) + hi(x - 0.03, -0.5, x - 0.03, -0.3, 0.022);
+    if (th === 'wrap') s += cap(-0.24, -0.16, 0.04, -0.4, 0.14, sw);
+    return s;
+  }
+  function fistBack(sw, th) {       // fist seen from the back: knuckle ridge at the end, finger backs
+    let s = '';
+    if (th === 'side') s += cap(-0.22, -0.32, -0.62, -0.36, 0.15, sw) + crease(-0.45, -0.41, -0.45, -0.3, sw);
+    s += pathS('M-0.26 0.02 L0.26 0.02 Q0.31 -0.32 0.25 -0.6 Q0 -0.68 -0.25 -0.6 Q-0.31 -0.3 -0.26 0.02 Z', sw);
+    for (const x of [-0.17, -0.055, 0.06, 0.17]) s += `<ellipse cx="${f(x)}" cy="-0.56" rx="0.06" ry="0.045" fill="${C.gloveH}" opacity=".7"/>` + crease(x, -0.5, x, -0.18, sw);
+    s += crease(-0.22, -0.47, 0.22, -0.47, sw);
+    if (th === 'wrap') s += cap(-0.28, -0.12, -0.3, -0.42, 0.13, sw);
+    return s;
+  }
+  function fistEnd(sw, th) {        // fist with the knuckles toward the viewer (forearm pointing at the operator)
+    let s = '';
+    if (th === 'back') s += cap(0.16, -0.2, 0.24, -0.33, 0.15, sw, C.gloveS);   // thumb pointing back at the chest: only its root shows, behind the fist
+    if (th === 'out') s += cap(-0.2, -0.04, -0.6, -0.1, 0.15, sw) + crease(-0.42, -0.15, -0.42, -0.03, sw) + hi(-0.26, -0.11, -0.58, -0.15, 0.03);
+    if (th === 'outUp') {     // palm UP (forearm turned out): curled fingertips on top, knuckle ridge below, thumb off the outer side
+      s += cap(-0.22, 0.02, -0.62, -0.02, 0.15, sw) + crease(-0.44, -0.06, -0.44, 0.07, sw) + hi(-0.28, -0.03, -0.6, -0.07, 0.03);
+      s += pathS('M-0.28 -0.24 Q-0.3 0.22 -0.24 0.27 L0.24 0.27 Q0.3 0.22 0.28 -0.24 Q0 -0.3 -0.28 -0.24 Z', sw);
+      for (const x of [-0.17, -0.055, 0.06, 0.17]) s += cap(x, -0.2, x, -0.04, 0.105, sw) + `<ellipse cx="${f(x)}" cy="0.21" rx="0.065" ry="0.045" fill="${C.gloveH}" opacity=".75"/>`;
+      return s + crease(-0.24, 0.04, 0.24, 0.04, sw);
+    }
+    s += pathS('M-0.28 -0.26 Q-0.3 0.22 -0.24 0.26 L0.24 0.26 Q0.3 0.22 0.28 -0.26 Q0 -0.34 -0.28 -0.26 Z', sw);
+    for (const x of [-0.19, -0.065, 0.065, 0.19]) s += `<ellipse cx="${f(x)}" cy="-0.22" rx="0.068" ry="0.05" fill="${C.gloveH}" opacity=".8"/>` + cap(x, -0.1, x, 0.14, 0.11, sw);
+    if (th === 'in') s += cap(0.24, 0.02, 0.6, -0.04, 0.15, sw) + crease(0.42, -0.07, 0.42, 0.05, sw) + hi(0.3, -0.04, 0.58, -0.09, 0.03);
+    if (th === 'front') s += `<ellipse cx="0.22" cy="-0.2" rx="0.11" ry="0.12" fill="${C.glove}" stroke="${C.gloveD}" stroke-width="${f(sw)}"/><ellipse cx="0.22" cy="-0.2" rx="0.05" ry="0.055" fill="${C.gloveS}"/>`;   // thumb pointing at the operator, end-on
+    return s;
+  }
+  /* combined boom + load signal: fist with the thumb out to the side (up or down on screen), and ALL FOUR fingers
+     opening (straight out, together) and closing (curled back into the fist) together. c = 0 open .. 1 closed.
+     Each finger is two segments hinged at the knuckle and the middle joint; curling turns them toward the viewer
+     (palm side) or away (back of the hand), so the front view sees them shorten and fold back over the palm. */
+  function fistFlex(sw, c, back) {
+    const fingers = () => {
+      let o = '';
+      for (const [x, L0] of FING) {
+        // open: straight and a little fanned (each finger clearly separate); closed: folded back over the palm
+        const L = L0 * 1.12, w = x === 0.185 ? 0.112 : 0.13, a1 = c * 92 * D, a2 = c * 185 * D;
+        const fan = (x / 0.185) * 9 * D * (1 - c), sx = sin(fan), cx2 = cos(fan);
+        const l1 = L * 0.52 * cos(a1), l2 = L * 0.48 * cos(a2);
+        const y0 = -0.5, x1 = x + sx * l1, y1 = y0 - cx2 * l1, x2 = x1 + sx * l2, y2 = y1 - cx2 * l2;
+        if (back && c > 0.55) continue;                                   // curled away behind the back of the hand
+        o += cap(x, y0, x1, y1, w, sw);
+        o += cap(x1, y1, x2, y2, w * 0.96, sw);
+        if (!back && c < 0.6) o += crease(x1 - w * 0.32, y1, x1 + w * 0.32, y1, sw);   // middle joint crease
+        o += hi(x - 0.035, y0 - 0.02, x1 - 0.035, Math.min(y1, y0 - 0.03), 0.026);
       }
-      case 'flatFront': return poly([P(0, -u * 0.42), P(u * 1.45, -u * 0.5), P(u * 1.6, 0), P(u * 1.45, u * 0.5), P(0, u * 0.42)]);
-      case 'relax': return poly([P(0, -u * 0.36), P(u * 1.25, -u * 0.32), P(u * 1.4, 0), P(u * 1.2, u * 0.34), P(0, u * 0.36)]);
-      case 'clasp': return fist;
-      case 'fist': return fist;
-      case 'thumbUp': case 'thumbDown': {
-        const dy = kind === 'thumbUp' ? -1 : 1;
-        return fist + digit(c[0], c[1] + dy * u * 0.3, c[0], c[1] + dy * u * 1.25, u * 0.38);
-      }
-      case 'thumbOut': case 'thumbIn': {                 // thumbs point out (away from the body) or toward each other
-        const dx = (kind === 'thumbOut' ? 1 : -1) * (s > 0 ? -1 : 1);
-        return fist + digit(c[0] + dx * u * 0.3, c[1] - u * 0.2, c[0] + dx * u * 1.2, c[1] - u * 0.35, u * 0.38);
-      }
-      case 'pointUp': return fist + digit(c[0], c[1] - u * 0.3, c[0], c[1] - u * 1.55, u * 0.32);
-      case 'pointDown': return fist + digit(c[0], c[1] + u * 0.3, c[0], c[1] + u * 1.55, u * 0.32);
-      case 'pointOut': { const q = P(u * 1.9, 0); return fist + digit(c[0], c[1], q[0], q[1], u * 0.32); }
-      default: return fist;
+      return o;
+    };
+    const thumb = cap(-0.24, -0.4, -0.64, -0.42, 0.155, sw) + crease(-0.46, -0.48, -0.46, -0.36, sw) + hi(-0.3, -0.45, -0.62, -0.46, 0.03);
+    const palm = pathS('M-0.27 0.02 L0.26 0.02 Q0.3 -0.28 0.27 -0.55 Q0 -0.6 -0.27 -0.55 Q-0.31 -0.27 -0.27 0.02 Z', sw);
+    let o = '';
+    if (back) {          // back of the hand toward the viewer: fingers go behind as they close; knuckles show
+      o += fingers() + thumb + palm;
+      for (const x of [-0.18, -0.06, 0.065, 0.185]) o += `<ellipse cx="${f(x)}" cy="-0.53" rx="0.062" ry="${f(0.03 + 0.02 * c)}" fill="${C.gloveH}" opacity=".7"/>`;
+      o += crease(-0.12, -0.08, -0.12, -0.42, sw) + crease(0.0, -0.06, 0.0, -0.43, sw) + crease(0.12, -0.08, 0.12, -0.42, sw);
+    } else {             // palm toward the viewer: the fingers fold toward the viewer, over the palm
+      o += palm + thumb + `<path d="M-0.16 -0.12 Q0.0 -0.3 0.2 -0.36" fill="none" stroke="${C.gloveD}" stroke-opacity=".55" stroke-width="${f(sw * 0.8)}"/>` + fingers();
+    }
+    return o;
+  }
+  function pointPalm(sw) {          // forefinger up, palm toward the viewer, other fingers curled, thumb across them
+    let s = pathS(PALM, sw) + cap(-0.18, -0.48, -0.19, -0.98, 0.118, sw) + crease(-0.23, -0.68, -0.14, -0.68, sw) + crease(-0.23, -0.84, -0.14, -0.84, sw) + hi(-0.21, -0.55, -0.22, -0.94, 0.028);
+    for (const x of [-0.055, 0.065, 0.185]) s += cap(x, -0.57, x, -0.36, 0.115, sw);
+    s += cap(-0.24, -0.12, 0.06, -0.42, 0.14, sw) + hi(-0.2, -0.17, 0.03, -0.41, 0.03);
+    return s;
+  }
+  function pointSide(sw) {          // pointing hand in profile, thumb side toward the viewer (the classic pointing hand)
+    let s = `<ellipse cx="0.1" cy="-0.47" rx="0.15" ry="0.13" fill="${C.glove}" stroke="${C.gloveD}" stroke-width="${f(sw)}"/>` +
+      crease(0.07, -0.58, 0.16, -0.36, sw);
+    s += pathS('M-0.13 0.02 L0.15 0.02 Q0.2 -0.24 0.15 -0.52 L-0.12 -0.52 Q-0.16 -0.25 -0.13 0.02 Z', sw);
+    s += cap(-0.05, -0.47, -0.06, -0.99, 0.115, sw) + crease(-0.1, -0.7, -0.01, -0.7, sw) + crease(-0.1, -0.86, -0.01, -0.86, sw) + hi(-0.085, -0.52, -0.095, -0.95, 0.028);
+    s += cap(-0.12, -0.1, 0.02, -0.45, 0.135, sw) + hi(-0.1, -0.15, 0.0, -0.42, 0.03);
+    return s;
+  }
+  function relaxHand(sw) {          // hanging hand, profile, fingers gently curled
+    return pathS('M-0.13 0.02 L0.15 0.02 Q0.2 -0.25 0.16 -0.52 L-0.12 -0.52 Q-0.16 -0.25 -0.13 0.02 Z', sw) +
+      `<path d="M-0.1 -0.5 Q-0.12 -0.82 0.02 -0.9 Q0.16 -0.86 0.17 -0.5 Z" fill="${C.glove}" stroke="${C.gloveD}" stroke-width="${f(sw)}"/>` +
+      crease(-0.04, -0.58, -0.02, -0.82, sw) + crease(0.06, -0.56, 0.08, -0.84, sw) + cap(-0.12, -0.12, -0.04, -0.42, 0.13, sw);
+  }
+  function claspHands(sw) {         // two gloved hands clasped: one fist, the other hand's fingers wrapped over it
+    let s = fistEnd(sw, 'none');
+    s += pathS('M0.3 -0.3 Q0.46 0 0.3 0.3 L0.12 0.3 L0.12 -0.3 Z', sw, C.gloveS);       // back of the covering hand
+    for (const [y, x0] of [[-0.21, -0.36], [-0.07, -0.4], [0.07, -0.39], [0.2, -0.33]]) s += cap(0.18, y, x0, y + 0.02, 0.12, sw) + hi(0.14, y - 0.03, x0 + 0.04, y - 0.01, 0.025);
+    s += cap(0.22, -0.34, -0.16, -0.36, 0.14, sw);                                      // thumb over the top
+    return s;
+  }
+  function handSVG(k, o, sw) {
+    switch (k) {
+      case 'palm': return cuff(sw) + openHand(sw, false);
+      case 'back': case 'cup': return cuff(sw) + openHand(sw, true);
+      case 'flat': return cuff(sw) + `<g transform="scale(0.58 1)">${openHand(sw / 0.58 * 0.75, true)}</g>`;   // palm down, seen from the front and a little above
+      case 'fist': return cuff(sw) + (o.face === 'back' ? fistBack(sw, o.th) : fistPalm(sw, o.th));
+      case 'fistEnd': return fistEnd(sw, o.th);
+      case 'flex': return cuff(sw) + fistFlex(sw, o.c || 0, o.face === 'back');
+      case 'point': return cuff(sw) + pointPalm(sw);
+      case 'pointSide': return cuff(sw) + pointSide(sw);
+      case 'clasp': return claspHands(sw);
+      case 'none': return '';
+      default: return cuff(sw) + relaxHand(sw);
     }
   }
 
-  /* SVG for the figure. cx = centre line, y0 = soles of the boots, H = height in px. sig = signal id, t = seconds. */
-  function draw(sig, t, cx, y0, H, opts = {}) {
-    const S = SIGNALS[sig] || SIGNALS.none, h = H / 7.5;                 // head height
-    const yTop = y0 - H, neckY = yTop + h * 1.08, shY = yTop + h * 1.55, hipY = yTop + h * 3.9, kneeY = yTop + h * 5.65;
-    const shW = h * 0.98, hipW = h * 0.68, ua = h * 1.45, fa = h * 1.2, u = h * 0.42;
-    let out = `<g class="person"${opts.id ? ` id="${opts.id}"` : ''}>`;
-    if (!opts.noShadow) out += `<ellipse cx="${f(cx)}" cy="${f(y0 + 1)}" rx="${f(h * 1.3)}" ry="${f(h * 0.16)}" fill="#000" opacity=".35"/>`;
-    // legs + boots
-    for (const s of [1, -1]) {
-      const hx = cx - s * hipW * 0.5, kx = cx - s * hipW * 0.55, ax = cx - s * hipW * 0.6, ay = y0 - h * 0.45;
-      out += limb(hx, hipY, kx, kneeY, h * 0.36, h * 0.3, C.pants, C.pantsD) + limb(kx, kneeY, ax, ay, h * 0.3, h * 0.24, C.pants, C.pantsD);
-      out += `<path d="M${f(ax - h * 0.3)} ${f(ay - h * 0.05)} L${f(ax + h * 0.3)} ${f(ay - h * 0.05)} L${f(ax + h * 0.36 - s * h * 0.06)} ${f(y0)} L${f(ax - h * 0.36 - s * h * 0.06)} ${f(y0)} Z" fill="${C.boot}" stroke="${C.bootD}" stroke-width="1.2"/>`;
-      out += `<rect x="${f(ax - h * 0.37 - s * h * 0.06)}" y="${f(y0 - h * 0.09)}" width="${f(h * 0.74)}" height="${f(h * 0.09)}" fill="${C.bootD}"/>`;
-    }
-    // torso: shirt then vest
-    const torso = `M${f(cx - shW)} ${f(shY)} Q${f(cx)} ${f(shY - h * 0.25)} ${f(cx + shW)} ${f(shY)} L${f(cx + hipW * 1.02)} ${f(hipY + h * 0.1)} L${f(cx - hipW * 1.02)} ${f(hipY + h * 0.1)} Z`;
-    out += `<path d="${torso}" fill="${C.shirt}" stroke="${C.shirtD}" stroke-width="1.3"/>`;
-    out += `<rect x="${f(cx - hipW * 1.0)}" y="${f(hipY - h * 0.05)}" width="${f(hipW * 2)}" height="${f(h * 0.2)}" fill="#26221d"/>`;   // belt
-    const vest = `M${f(cx - shW * 0.92)} ${f(shY + h * 0.05)} L${f(cx - h * 0.28)} ${f(shY - h * 0.08)} L${f(cx)} ${f(shY + h * 0.75)} L${f(cx + h * 0.28)} ${f(shY - h * 0.08)} L${f(cx + shW * 0.92)} ${f(shY + h * 0.05)} L${f(cx + hipW * 1.06)} ${f(hipY - h * 0.02)} L${f(cx - hipW * 1.06)} ${f(hipY - h * 0.02)} Z`;
-    out += `<path d="${vest}" fill="${C.vest}" stroke="${C.vestD}" stroke-width="1.4" stroke-linejoin="round"/>`;
-    out += `<path d="M${f(cx - shW * 0.55)} ${f(shY + h * 0.2)} L${f(cx - shW * 0.42)} ${f(hipY - h * 0.6)} M${f(cx + shW * 0.55)} ${f(shY + h * 0.2)} L${f(cx + shW * 0.42)} ${f(hipY - h * 0.6)}" stroke="${C.vestH}" stroke-opacity=".35" stroke-width="${f(h * 0.12)}"/>`;
-    // retroreflective bands: two verticals over the shoulders and a waist band (silver with darker edges)
-    for (const s of [1, -1]) {
-      const x1 = cx - s * shW * 0.5, x2 = cx - s * hipW * 0.62;
-      out += `<path d="M${f(x1)} ${f(shY + h * 0.02)} L${f(x2)} ${f(hipY - h * 0.55)}" stroke="${C.reflD}" stroke-width="${f(h * 0.26)}"/><path d="M${f(x1)} ${f(shY + h * 0.02)} L${f(x2)} ${f(hipY - h * 0.55)}" stroke="${C.refl}" stroke-width="${f(h * 0.2)}"/>`;
-    }
-    out += `<rect x="${f(cx - hipW * 1.04)}" y="${f(hipY - h * 0.62)}" width="${f(hipW * 2.08)}" height="${f(h * 0.26)}" fill="${C.reflD}"/><rect x="${f(cx - hipW * 1.04)}" y="${f(hipY - h * 0.59)}" width="${f(hipW * 2.08)}" height="${f(h * 0.2)}" fill="${C.refl}"/>`;
-    out += `<path d="M${f(cx)} ${f(shY + h * 0.75)} L${f(cx)} ${f(hipY - h * 0.62)}" stroke="${C.vestD}" stroke-width="1.2"/>`;    // zip
-    // neck + head (no cartoon face: plain shaded head, ear, safety glasses)
-    out += `<rect x="${f(cx - h * 0.2)}" y="${f(neckY - h * 0.1)}" width="${f(h * 0.4)}" height="${f(shY - neckY + h * 0.05)}" fill="${C.skinD}"/>`;
-    out += `<ellipse cx="${f(cx)}" cy="${f(yTop + h * 0.55)}" rx="${f(h * 0.4)}" ry="${f(h * 0.52)}" fill="${C.skin}" stroke="${C.skinD}" stroke-width="1.2"/>`;
-    out += `<ellipse cx="${f(cx - h * 0.12)}" cy="${f(yTop + h * 0.45)}" rx="${f(h * 0.16)}" ry="${f(h * 0.26)}" fill="#fff" opacity=".12"/>`;
-    out += `<rect x="${f(cx - h * 0.36)}" y="${f(yTop + h * 0.46)}" width="${f(h * 0.72)}" height="${f(h * 0.15)}" rx="${f(h * 0.06)}" fill="#3b4a55" opacity=".85"/>`;   // safety glasses
-    // hard hat: shell + brim + ridge (cap style, white)
-    out += `<path d="M${f(cx - h * 0.47)} ${f(yTop + h * 0.32)} Q${f(cx - h * 0.46)} ${f(yTop - h * 0.18)} ${f(cx)} ${f(yTop - h * 0.2)} Q${f(cx + h * 0.46)} ${f(yTop - h * 0.18)} ${f(cx + h * 0.47)} ${f(yTop + h * 0.32)} Z" fill="${C.hat}" stroke="${C.hatD}" stroke-width="1.3"/>`;
-    out += `<path d="M${f(cx - h * 0.58)} ${f(yTop + h * 0.33)} Q${f(cx)} ${f(yTop + h * 0.22)} ${f(cx + h * 0.58)} ${f(yTop + h * 0.33)} L${f(cx + h * 0.58)} ${f(yTop + h * 0.4)} Q${f(cx)} ${f(yTop + h * 0.3)} ${f(cx - h * 0.58)} ${f(yTop + h * 0.4)} Z" fill="${C.hat}" stroke="${C.hatD}" stroke-width="1.1"/>`;
-    out += `<path d="M${f(cx)} ${f(yTop - h * 0.2)} L${f(cx)} ${f(yTop + h * 0.25)}" stroke="${C.hatD}" stroke-width="${f(h * 0.08)}"/>`;
-    // arms (figure's right arm = viewer's left = s +1)
-    const joints = {};
-    // forward kinematics from joint angles, or two-bone IK to a hand target (elbow kept out to the side)
-    const arm = (s, pose, other) => {
-      const sx = cx - s * shW * 0.92, sy = shY + h * 0.12;
-      let ex = sx - s * Math.sin(pose.sh * D) * ua, ey = sy + Math.cos(pose.sh * D) * ua;
-      const a2 = pose.sh + pose.el;                           // forearm angle from straight down, + = outward / up
-      let hx = ex - s * Math.sin(a2 * D) * fa, hy = ey + Math.cos(a2 * D) * fa;
-      let tgt = null;
-      if (pose.hand === 'clasp') tgt = [cx - s * h * 0.1, hipY - h * 0.75];
-      if (pose.to === 'head') tgt = [cx + s * h * 0.05, yTop - h * 0.18 - pose.tap * h * 0.25];
-      if (pose.to === 'front' && pose.hand !== 'clasp') tgt = [cx - s * (pose.dx || 0.35) * h, shY + (pose.dy || 1.9) * h];
-      if (pose.to === 'Relbow' && other) tgt = [other.ex + s * h * 0.2, other.ey + h * 0.05 - pose.tap * h * 0.2];
-      if (pose.to === 'Rhand' && other) tgt = [other.hx + s * h * 0.05, other.hy + h * 0.95];
-      if (tgt) {                                              // two-bone IK
-        const dx = tgt[0] - sx, dy = tgt[1] - sy, d = Math.hypot(dx, dy);
-        const dm = Math.min(d, ua + fa - 0.01), base = Math.atan2(dy, dx);
-        const k = Math.acos(Math.max(-1, Math.min(1, (ua * ua + dm * dm - fa * fa) / (2 * ua * dm))));
-        const c1 = [sx + Math.cos(base + k) * ua, sy + Math.sin(base + k) * ua], c2 = [sx + Math.cos(base - k) * ua, sy + Math.sin(base - k) * ua];
-        const outward = q => -s * (q[0] - cx);                // elbow solution that sits out to the side
-        [ex, ey] = outward(c1) >= outward(c2) ? c1 : c2;
-        hx = sx + dx / d * dm; hy = sy + dy / d * dm;
+  /* ---------------- 3-D arm: two-bone IK, then front projection ---------------- */
+  const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], len: a => Math.hypot(a[0], a[1], a[2]),
+    sc: (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] };
+  function ik(w, p) {
+    let d = v3.len(w); const dm = Math.min(Math.max(d, 0.2), UA + FA - 0.02);
+    const dir = v3.sc(w, 1 / d), W = v3.sc(dir, dm);
+    const a = (UA * UA - FA * FA + dm * dm) / (2 * dm), r = Math.sqrt(Math.max(0, UA * UA - a * a));
+    let q = v3.sub(p, v3.sc(dir, v3.dot(p, dir))); const ql = v3.len(q) || 1; q = v3.sc(q, 1 / ql);
+    return { E: [dir[0] * a + q[0] * r, dir[1] * a + q[1] * r, dir[2] * a + q[2] * r], W };
+  }
+
+  function build(sig, t, cx, y0, H) {
+    const P = POSES[sig] || POSES.none, h = H / 7.5;
+    const yTop = y0 - H, shY = yTop + h * 1.5, shX = h * 0.88;
+    const toS = (s, q) => [cx + s * (shX + q[0] * h), shY - q[1] * h, q[2]];   // s = -1 figure's right (viewer's left), +1 left
+    const arms = {};
+    const solve = (key, s) => {
+      const pose = (key === 'R' ? P.R : P.L)(t);
+      let w = pose.w;
+      if (pose.to === 'otherElbow' && arms.R) {                // target the other arm's elbow (screen -> this arm's local)
+        const e = arms.R.E3, off = pose.off || [0, 0, 0];
+        w = [(e[0] - cx) / (s * h) - shX / h + off[0], (shY - e[1]) / h + off[1], e[2] + off[2]];
       }
-      if (pose.circle) { hx += pose.circle[0] * h * 0.06; hy += pose.circle[1] * h * 0.06; }
-      return { s, pose, sx, sy, ex, ey, hx, hy, fdir: Math.atan2(hy - ey, hx - ex) };
+      const { E, W } = ik(w, pose.p || [0, -1, 0]);
+      const Sx = toS(s, [0, 0, 0]), Es = toS(s, E), Ws = toS(s, W);
+      arms[key] = { s, pose, S: Sx, E: Es, W: Ws, E3: [Es[0], Es[1], E[2]], z: W[2] };
     };
-    const R = arm(1, S.R(t)), Lp = S.L(t);
-    const L = arm(-1, Lp, R);
-    const drawArm = A => limb(A.sx, A.sy, A.ex, A.ey, h * 0.27, h * 0.22, C.shirt, C.shirtD) +
-      limb(A.ex, A.ey, A.hx, A.hy, h * 0.22, h * 0.17, C.shirt, C.shirtD) + hand(A.hx, A.hy, A.fdir, A.pose.hand, A.s, u);
-    out += drawArm(L) + drawArm(R);
+    solve('R', -1); solve('L', 1);
+    // hands: screen angle from the pose's arm-local angle (or the forearm's projected direction)
+    for (const k of ['R', 'L']) {
+      const A = arms[k], hd = A.pose.hand || {}, s = A.s;
+      let phi;
+      if (hd.a !== undefined) phi = Math.atan2(-sin(hd.a * D), s * cos(hd.a * D));
+      else phi = Math.atan2(A.W[1] - A.E[1], A.W[0] - A.E[0]);
+      // mirror: shapes are drawn for the right hand palm-out; the left hand mirrors; back views mirror again
+      // (right hand, palm toward the operator, fingers up: the thumb is on the body's centre side, i.e. the viewer's right)
+      let m = s === -1 ? -1 : 1;
+      if (hd.k === 'fistEnd' || hd.k === 'clasp') m = s === -1 ? 1 : -1;      // fistEnd thumb 'out' is drawn on -x (right hand's outside)
+      if (hd.m) m *= hd.m;
+      A.hand = Object.assign({}, hd, { phi, m, scale: h * 0.95 * (1 + 0.08 * A.z) });
+      // hand centre (for close-ups): half a hand length along the hand axis
+      const L = A.hand.scale, ax = cos(phi), ay = sin(phi);
+      A.hc = hd.k === 'fistEnd' || hd.k === 'clasp' ? [A.W[0], A.W[1]] : [A.W[0] + ax * L * 0.5, A.W[1] + ay * L * 0.5];
+      A.tip = [A.W[0] + ax * L, A.W[1] + ay * L];
+    }
+    return { P, h, yTop, shY, arms, cx, y0, H };
+  }
+
+  function limb(x1, y1, x2, y2, w1, w2, fill, dark, hiC) {
+    const a = Math.atan2(y2 - y1, x2 - x1), nx = -sin(a), ny = cos(a), L = Math.hypot(x2 - x1, y2 - y1);
+    const p = [[x1 + nx * w1, y1 + ny * w1], [x2 + nx * w2, y2 + ny * w2], [x2 - nx * w2, y2 - ny * w2], [x1 - nx * w1, y1 - ny * w1]];
+    // light from the top-left: highlight on the side whose normal points up-left
+    const sgn = (nx * -0.7 + ny * -0.7) > 0 ? 1 : -1;
+    return `<path d="M${p.map(q => f(q[0]) + ' ' + f(q[1])).join(' L')} Z" fill="${fill}" stroke="${dark}" stroke-width="1.3" stroke-linejoin="round"/>` +
+      `<circle cx="${f(x2)}" cy="${f(y2)}" r="${f(w2 * 0.96)}" fill="${fill}"/>` +
+      (L > w1 ? `<line x1="${f(x1 + sgn * nx * w1 * 0.5)}" y1="${f(y1 + sgn * ny * w1 * 0.5)}" x2="${f(x2 + sgn * nx * w2 * 0.5)}" y2="${f(y2 + sgn * ny * w2 * 0.5)}" stroke="${hiC}" stroke-opacity=".5" stroke-width="${f(Math.max(1, w2 * 0.35))}" stroke-linecap="round"/>` : '');
+  }
+
+  function drawArm(A, h) {
+    const [sx, sy] = A.S, [ex, ey] = A.E, [wx, wy] = A.W;
+    let o = '';
+    // upper arm (sleeve), elbow, forearm (sleeve); the vest's armhole sits over the shoulder
+    o += limb(sx, sy, ex, ey, h * 0.27, h * 0.22, C.shirt, C.shirtD, C.shirtH);
+    o += `<circle cx="${f(ex)}" cy="${f(ey)}" r="${f(h * 0.22)}" fill="${C.shirt}" stroke="${C.shirtD}" stroke-width="1.2"/>`;
+    o += limb(ex, ey, wx, wy, h * 0.22, h * 0.18, C.shirt, C.shirtD, C.shirtH);
+    if (Math.hypot(wx - ex, wy - ey) < h * 0.5) o += `<ellipse cx="${f(wx)}" cy="${f(wy)}" rx="${f(h * 0.2)}" ry="${f(h * 0.19)}" fill="${C.shirtD}"/>`;   // forearm toward the viewer: the cuff end
+    const H2 = A.hand, rot = H2.phi / D + 90, k = H2.scale;
+    const sw = 1.25 / k;
+    o += `<g transform="translate(${f(wx)} ${f(wy)}) rotate(${f(rot)}) scale(${f(H2.m * k)} ${f(k)})">${handSVG(H2.k, H2, sw)}</g>`;
+    return o;
+  }
+
+  function body(B) {
+    const { h, yTop, shY, cx, y0 } = B;
+    const hipY = yTop + h * 3.95, kneeY = yTop + h * 5.7, waistY = yTop + h * 3.25;
+    const shW = h * 1.02, hipW = h * 0.74;
+    let o = '';
+    // legs + boots
+    for (const s of [-1, 1]) {
+      const hx = cx + s * hipW * 0.5, kx = cx + s * hipW * 0.56, ax = cx + s * hipW * 0.62, ay = y0 - h * 0.5;
+      o += limb(hx, hipY - h * 0.1, kx, kneeY, h * 0.4, h * 0.31, C.pants, C.pantsD, C.pantsH) + limb(kx, kneeY, ax, ay, h * 0.31, h * 0.25, C.pants, C.pantsD, C.pantsH);
+      o += `<path d="M${f(ax - h * 0.3)} ${f(ay - h * 0.12)} L${f(ax + h * 0.3)} ${f(ay - h * 0.12)} Q${f(ax + h * 0.36 + s * h * 0.06)} ${f(y0 - h * 0.25)} ${f(ax + h * 0.38 + s * h * 0.08)} ${f(y0 - h * 0.08)} L${f(ax - h * 0.38 + s * h * 0.08)} ${f(y0 - h * 0.08)} Q${f(ax - h * 0.36 + s * h * 0.06)} ${f(y0 - h * 0.25)} ${f(ax - h * 0.3)} ${f(ay - h * 0.12)} Z" fill="${C.boot}" stroke="${C.bootD}" stroke-width="1.2"/>`;
+      o += `<path d="M${f(ax - h * 0.22)} ${f(y0 - h * 0.3)} Q${f(ax + s * h * 0.06)} ${f(y0 - h * 0.4)} ${f(ax + h * 0.24)} ${f(y0 - h * 0.3)}" fill="none" stroke="${C.bootH}" stroke-opacity=".6" stroke-width="${f(h * 0.05)}"/>`;
+      o += `<rect x="${f(ax - h * 0.4 + s * h * 0.08)}" y="${f(y0 - h * 0.1)}" width="${f(h * 0.8)}" height="${f(h * 0.1)}" rx="${f(h * 0.03)}" fill="${C.sole}"/>`;
+      o += `<path d="M${f(ax - h * 0.3)} ${f(ay - h * 0.12)} L${f(ax + h * 0.3)} ${f(ay - h * 0.12)}" stroke="${C.pantsD}" stroke-width="${f(h * 0.06)}"/>`;   // pant hem
+    }
+    // torso: shirt
+    const torso = `M${f(cx - shW)} ${f(shY + h * 0.05)} Q${f(cx - shW * 1.02)} ${f(shY - h * 0.22)} ${f(cx - h * 0.35)} ${f(shY - h * 0.28)} L${f(cx + h * 0.35)} ${f(shY - h * 0.28)} Q${f(cx + shW * 1.02)} ${f(shY - h * 0.22)} ${f(cx + shW)} ${f(shY + h * 0.05)} L${f(cx + h * 0.82)} ${f(waistY)} L${f(cx + hipW * 1.05)} ${f(hipY)} L${f(cx - hipW * 1.05)} ${f(hipY)} L${f(cx - h * 0.82)} ${f(waistY)} Z`;
+    o += `<path d="${torso}" fill="${C.shirt}" stroke="${C.shirtD}" stroke-width="1.3" stroke-linejoin="round"/>`;
+    o += `<rect x="${f(cx - hipW * 1.05)}" y="${f(hipY - h * 0.2)}" width="${f(hipW * 2.1)}" height="${f(h * 0.2)}" fill="#26221d"/>` +
+      `<rect x="${f(cx - h * 0.13)}" y="${f(hipY - h * 0.2)}" width="${f(h * 0.26)}" height="${f(h * 0.2)}" fill="none" stroke="#9aa0a5" stroke-width="${f(Math.max(1, h * 0.04))}"/>`;   // belt + buckle
+    // vest
+    const vest = `M${f(cx - shW * 0.9)} ${f(shY - h * 0.02)} Q${f(cx - shW * 0.7)} ${f(shY - h * 0.26)} ${f(cx - h * 0.3)} ${f(shY - h * 0.27)} L${f(cx)} ${f(shY + h * 0.65)} L${f(cx + h * 0.3)} ${f(shY - h * 0.27)} Q${f(cx + shW * 0.7)} ${f(shY - h * 0.26)} ${f(cx + shW * 0.9)} ${f(shY - h * 0.02)} Q${f(cx + h * 0.66)} ${f(shY + h * 0.65)} ${f(cx + h * 0.8)} ${f(waistY)} L${f(cx + hipW * 1.04)} ${f(hipY - h * 0.22)} L${f(cx - hipW * 1.04)} ${f(hipY - h * 0.22)} L${f(cx - h * 0.8)} ${f(waistY)} Q${f(cx - h * 0.66)} ${f(shY + h * 0.65)} ${f(cx - shW * 0.9)} ${f(shY - h * 0.02)} Z`;
+    o += `<path d="${vest}" fill="${C.vest}" stroke="${C.vestD}" stroke-width="1.4" stroke-linejoin="round"/>`;
+    o += `<path d="M${f(cx - h * 0.62)} ${f(shY + h * 0.1)} Q${f(cx - h * 0.56)} ${f(shY + h * 0.9)} ${f(cx - h * 0.66)} ${f(hipY - h * 0.6)}" fill="none" stroke="${C.vestH}" stroke-opacity=".35" stroke-width="${f(h * 0.12)}"/>`;
+    // retroreflective stripes: two verticals over the shoulders + a waist band (yellow with silver centre)
+    const band = (d, w) => `<path d="${d}" fill="none" stroke="${C.reflD}" stroke-width="${f(w * 1.3)}"/><path d="${d}" fill="none" stroke="${C.refl}" stroke-width="${f(w)}"/><path d="${d}" fill="none" stroke="${C.silver}" stroke-width="${f(w * 0.35)}"/>`;
+    for (const s of [-1, 1]) o += band(`M${f(cx + s * h * 0.55)} ${f(shY - h * 0.22)} L${f(cx + s * h * 0.5)} ${f(hipY - h * 0.75)}`, h * 0.17);
+    o += band(`M${f(cx - h * 0.84)} ${f(hipY - h * 0.6)} L${f(cx + h * 0.84)} ${f(hipY - h * 0.6)}`, h * 0.17);
+    o += `<path d="M${f(cx)} ${f(shY + h * 0.65)} L${f(cx)} ${f(hipY - h * 0.22)}" stroke="${C.vestD}" stroke-width="1.2"/>`;     // front closure
+    // collar + neck
+    o += `<path d="M${f(cx - h * 0.24)} ${f(shY - h * 0.3)} L${f(cx)} ${f(shY + h * 0.12)} L${f(cx + h * 0.24)} ${f(shY - h * 0.3)}" fill="${C.skinD}"/>`;
+    o += `<rect x="${f(cx - h * 0.19)}" y="${f(yTop + h * 0.88)}" width="${f(h * 0.38)}" height="${f(shY - yTop - h * 1.08)}" fill="${C.skin}" stroke="${C.skinD}" stroke-width="1"/>`;
+    o += `<path d="M${f(cx - h * 0.28)} ${f(shY - h * 0.32)} L${f(cx - h * 0.04)} ${f(shY + h * 0.1)} L${f(cx - h * 0.2)} ${f(shY + h * 0.0)} Z M${f(cx + h * 0.28)} ${f(shY - h * 0.32)} L${f(cx + h * 0.04)} ${f(shY + h * 0.1)} L${f(cx + h * 0.2)} ${f(shY + h * 0.0)} Z" fill="${C.shirtH}" stroke="${C.shirtD}" stroke-width="1"/>`;
+    o += head(B);
+    return o;
+  }
+
+  function head(B) {
+    const { h, yTop, cx } = B;
+    const hy = yTop + h * 0.52, rx = h * 0.37, ry = h * 0.5;
+    let o = '';
+    // ears, face, jaw shading
+    for (const s of [-1, 1]) o += `<ellipse cx="${f(cx + s * rx * 0.98)}" cy="${f(hy + h * 0.04)}" rx="${f(h * 0.08)}" ry="${f(h * 0.14)}" fill="${C.skin}" stroke="${C.skinD}" stroke-width="1"/>`;
+    o += `<path d="M${f(cx - rx)} ${f(hy - h * 0.15)} Q${f(cx - rx)} ${f(hy + h * 0.32)} ${f(cx - h * 0.18)} ${f(hy + ry * 0.88)} Q${f(cx)} ${f(hy + ry * 1.0)} ${f(cx + h * 0.18)} ${f(hy + ry * 0.88)} Q${f(cx + rx)} ${f(hy + h * 0.32)} ${f(cx + rx)} ${f(hy - h * 0.15)} Q${f(cx + rx)} ${f(hy - ry)} ${f(cx)} ${f(hy - ry)} Q${f(cx - rx)} ${f(hy - ry)} ${f(cx - rx)} ${f(hy - h * 0.15)} Z" fill="${C.skin}" stroke="${C.skinD}" stroke-width="1.2"/>`;
+    o += `<path d="M${f(cx + rx * 0.55)} ${f(hy - h * 0.1)} Q${f(cx + rx * 0.9)} ${f(hy + h * 0.25)} ${f(cx + h * 0.12)} ${f(hy + ry * 0.86)}" fill="none" stroke="${C.skinD}" stroke-opacity=".35" stroke-width="${f(h * 0.08)}"/>`;
+    o += `<ellipse cx="${f(cx - h * 0.14)}" cy="${f(hy - h * 0.12)}" rx="${f(h * 0.1)}" ry="${f(h * 0.16)}" fill="${C.skinH}" opacity=".35"/>`;
+    // brows, eyes, nose, mouth
+    const ey = hy - h * 0.02, ex = h * 0.15;
+    for (const s of [-1, 1]) {
+      o += `<path d="M${f(cx + s * ex - h * 0.09)} ${f(ey - h * 0.1)} Q${f(cx + s * ex)} ${f(ey - h * 0.14)} ${f(cx + s * ex + h * 0.09)} ${f(ey - h * 0.1)}" fill="none" stroke="${C.brow}" stroke-width="${f(h * 0.045)}" stroke-linecap="round"/>`;
+      o += `<ellipse cx="${f(cx + s * ex)}" cy="${f(ey)}" rx="${f(h * 0.06)}" ry="${f(h * 0.035)}" fill="#f4efe6"/><circle cx="${f(cx + s * ex)}" cy="${f(ey)}" r="${f(h * 0.028)}" fill="${C.eye}"/>`;
+    }
+    o += `<path d="M${f(cx + h * 0.01)} ${f(ey + h * 0.02)} L${f(cx - h * 0.05)} ${f(ey + h * 0.2)} Q${f(cx)} ${f(ey + h * 0.23)} ${f(cx + h * 0.05)} ${f(ey + h * 0.2)}" fill="none" stroke="${C.skinD}" stroke-width="${f(Math.max(1, h * 0.03))}" stroke-linecap="round"/>`;
+    o += `<path d="M${f(cx - h * 0.11)} ${f(ey + h * 0.33)} Q${f(cx)} ${f(ey + h * 0.37)} ${f(cx + h * 0.11)} ${f(ey + h * 0.33)}" fill="none" stroke="${C.lip}" stroke-width="${f(Math.max(1, h * 0.035))}" stroke-linecap="round"/>`;
+    // safety glasses: clear lenses, thin frame, bridge, side arms to the ears, glint
+    const gy = ey - h * 0.005, lw = h * 0.15, lh = h * 0.1;
+    for (const s of [-1, 1]) {
+      const lx = cx + s * ex;
+      o += `<path d="M${f(lx - lw)} ${f(gy - lh)} L${f(lx + lw)} ${f(gy - lh)} Q${f(lx + lw * 1.05)} ${f(gy + lh * 1.1)} ${f(lx)} ${f(gy + lh * 1.05)} Q${f(lx - lw * 1.05)} ${f(gy + lh * 1.1)} ${f(lx - lw)} ${f(gy - lh)} Z" fill="${C.lens}" fill-opacity=".22" stroke="${C.frame}" stroke-width="${f(Math.max(1, h * 0.03))}"/>`;
+      o += `<line x1="${f(lx - lw * 0.55)}" y1="${f(gy - lh * 0.6)}" x2="${f(lx - lw * 0.1)}" y2="${f(gy + lh * 0.4)}" stroke="#fff" stroke-opacity=".55" stroke-width="${f(Math.max(0.8, h * 0.022))}"/>`;
+      o += `<line x1="${f(lx + s * lw)}" y1="${f(gy - lh * 0.8)}" x2="${f(cx + s * rx * 0.98)}" y2="${f(gy - lh * 0.5)}" stroke="${C.frame}" stroke-width="${f(Math.max(1, h * 0.03))}"/>`;
+    }
+    o += `<path d="M${f(cx - ex + lw)} ${f(gy - lh * 0.7)} Q${f(cx)} ${f(gy - lh * 1.2)} ${f(cx + ex - lw)} ${f(gy - lh * 0.7)}" fill="none" stroke="${C.frame}" stroke-width="${f(Math.max(1, h * 0.03))}"/>`;
+    // hard hat (cap style): shell, ridge, front brim, suspension band shadow
+    const by = yTop + h * 0.2;
+    o += `<path d="M${f(cx - rx * 1.06)} ${f(hy - ry * 0.48)} L${f(cx + rx * 1.06)} ${f(hy - ry * 0.48)}" stroke="#3a3631" stroke-opacity=".5" stroke-width="${f(h * 0.06)}"/>`;
+    o += `<path d="M${f(cx - h * 0.48)} ${f(by + h * 0.04)} Q${f(cx - h * 0.5)} ${f(yTop - h * 0.42)} ${f(cx)} ${f(yTop - h * 0.44)} Q${f(cx + h * 0.5)} ${f(yTop - h * 0.42)} ${f(cx + h * 0.48)} ${f(by + h * 0.04)} Z" fill="${C.hat}" stroke="${C.hatD}" stroke-width="1.3"/>`;
+    o += `<path d="M${f(cx - h * 0.1)} ${f(yTop - h * 0.42)} L${f(cx - h * 0.07)} ${f(by)} M${f(cx + h * 0.1)} ${f(yTop - h * 0.42)} L${f(cx + h * 0.07)} ${f(by)}" stroke="${C.hatS}" stroke-width="${f(h * 0.05)}"/>`;
+    o += `<path d="M${f(cx - h * 0.3)} ${f(yTop - h * 0.25)} Q${f(cx - h * 0.36)} ${f(yTop - h * 0.05)} ${f(cx - h * 0.32)} ${f(by - h * 0.05)}" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="${f(h * 0.05)}" stroke-linecap="round"/>`;
+    o += `<path d="M${f(cx - h * 0.6)} ${f(by + h * 0.02)} Q${f(cx)} ${f(by - h * 0.1)} ${f(cx + h * 0.6)} ${f(by + h * 0.02)} Q${f(cx + h * 0.62)} ${f(by + h * 0.12)} ${f(cx + h * 0.5)} ${f(by + h * 0.12)} Q${f(cx)} ${f(by + h * 0.04)} ${f(cx - h * 0.5)} ${f(by + h * 0.12)} Q${f(cx - h * 0.62)} ${f(by + h * 0.12)} ${f(cx - h * 0.6)} ${f(by + h * 0.02)} Z" fill="${C.hat}" stroke="${C.hatD}" stroke-width="1.2"/>`;
+    return o;
+  }
+
+  /* SVG for the figure. cx = centre line, y0 = soles of the boots, H = standing height in px. sig = signal id, t = s. */
+  function draw(sig, t, cx, y0, H, opts = {}) {
+    const B = build(sig, t, cx, y0, H), h = B.h;
+    let out = `<g class="person"${opts.id ? ` id="${opts.id}"` : ''}>`;
+    if (!opts.noShadow) out += `<ellipse cx="${f(cx)}" cy="${f(y0 - h * 0.02)}" rx="${f(h * 1.25)}" ry="${f(h * 0.15)}" fill="#000" opacity=".4"/>`;
+    out += body(B);
+    // arms: the one further forward (z) is drawn last; a pose may force which arm is in front
+    const order = ['R', 'L'].sort((a, b) => B.arms[a].z - B.arms[b].z);
+    if (B.P.front) { order.splice(order.indexOf(B.P.front), 1); order.push(B.P.front); }
+    for (const k of order) out += `<g class="arm" id="${opts.id ? opts.id + '-' : ''}arm-${k}">${drawArm(B.arms[k], h)}</g>`;
     out += '</g>';
     return out;
   }
-  G.CranePerson = { SIGNALS, RESPONSE, draw,
+
+  /* motion arrows for the close-up, in figure coordinates (stroke widths in figure px / mag) */
+  function arrows(sig, B, mag, tk = 1) {     // tk: the page's type scale (phones > 1)
+    const S = SIGNALS[sig] || {}, A = B.arms, h = B.h, w = 3.2 / mag, col = '#F08A2B';
+    const head = (x, y, ang, s) => `<path d="M${f(x + cos(ang) * s)} ${f(y + sin(ang) * s)} L${f(x + cos(ang + 2.5) * s)} ${f(y + sin(ang + 2.5) * s)} L${f(x + cos(ang - 2.5) * s)} ${f(y + sin(ang - 2.5) * s)} Z" fill="${col}"/>`;
+    const ell = (x, y, rx, ry) => `<path d="M${f(x - rx)} ${f(y)} A${f(rx)} ${f(ry)} 0 1 0 ${f(x + rx * 0.7)} ${f(y - ry * 0.71)}" fill="none" stroke="${col}" stroke-width="${f(w)}" stroke-linecap="round"/>` + head(x + rx * 0.7, y - ry * 0.71, Math.atan2(-ry * 0.7, -rx * 0.7) + Math.PI, 9 / mag);
+    const dbl = (x1, y1, x2, y2) => { const a = Math.atan2(y2 - y1, x2 - x1); return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${col}" stroke-width="${f(w)}"/>` + head(x2, y2, a, 9 / mag) + head(x1, y1, a + Math.PI, 9 / mag); };
+    const one = (x1, y1, x2, y2) => { const a = Math.atan2(y2 - y1, x2 - x1); return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${col}" stroke-width="${f(w)}"/>` + head(x2, y2, a, 9 / mag); };
+    let o = '';
+    const circleOn = A2 => { const tp = A2.tip; return ell(tp[0], tp[1] + (A2.pose.hand.k === 'pointSide' ? h * 0.1 : -h * 0.08), h * 0.42, h * 0.13); };
+    if (sig === 'hoist' || sig === 'lower') o += circleOn(A.R);
+    if (sig === 'hoistSlow') { const tp = A.R.tip; o += ell(tp[0], tp[1] + h * 0.12, h * 0.5, h * 0.15); }
+    if (S.motion === 'flex') {        // open / close arrow: an arc beside the fingers, from the open fingertips back to the fist
+      const A2 = A.R, Lh = h * 0.95, W = A2.W, ux = A2.tip[0] > W[0] ? 1 : -1;   // hand axis: straight out along the arm
+      const side = sig === 'boomUpLower' ? 1 : -1;                     // away from the thumb (thumb up: arrow below the hand)
+      const yb = W[1] + side * Lh * 0.3;
+      const p1 = [W[0] + ux * Lh * 1.0, yb], p2 = [W[0] + ux * Lh * 0.5, yb], ww = 4.2 / mag;
+      const cy = yb + side * Lh * 0.36;
+      o += `<path d="M${f(p1[0])} ${f(p1[1])} Q${f((p1[0] + p2[0]) / 2)} ${f(cy)} ${f(p2[0])} ${f(p2[1])}" fill="none" stroke="${col}" stroke-width="${f(ww)}" stroke-linecap="round"/>` +
+        head(p1[0], p1[1], Math.atan2(p1[1] - cy, p1[0] - (p1[0] + p2[0]) / 2), 11 / mag) + head(p2[0], p2[1], Math.atan2(p2[1] - cy, p2[0] - (p1[0] + p2[0]) / 2), 11 / mag);
+      const fs = 13 / mag, ty = yb + side * Lh * 0.2 + fs * 0.35, ff = 'font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif"';
+      if (tk <= 1.05) o += `<text x="${f(p1[0])}" y="${f(ty)}" fill="${col}" font-size="${f(fs)}" font-weight="800" text-anchor="middle" ${ff}>OPEN</text>` +
+        `<text x="${f(p2[0])}" y="${f(ty)}" fill="${col}" font-size="${f(fs)}" font-weight="800" text-anchor="middle" ${ff}>CLOSE</text>`;
+    }
+    if (sig === 'estop' || sig === 'estop2') for (const A2 of sig === 'estop2' ? [A.R, A.L] : [A.R]) { const W = A2.W, k = -A2.s; o += dbl(W[0] - k * h * 0.75, W[1] + h * 0.5, W[0] + k * h * 0.15, W[1] - h * 0.55); }   // oblique = toward and away from the operator (as the CCOHS figure draws it)
+    if (sig === 'main') { const c = A.R.hc; o += one(c[0], c[1] - h * 1.15, c[0], c[1] - h * 0.62); }
+    if (sig === 'whip') { const c = A.L.hc; o += one(c[0] + h * 0.55, c[1] + h * 0.35, c[0] + h * 0.55, c[1] - h * 0.2); }
+    if (sig === 'extend1' || sig === 'retract1') { }   // depth motion: shown in the side-view inset (sideInset)
+    if (sig === 'swingL' || sig === 'swingR') { const A2 = sig === 'swingL' ? A.L : A.R, tp = A2.tip, s = A2.s; o += one(tp[0] + s * h * 0.15, tp[1], tp[0] + s * h * 0.75, tp[1]); }
+    return o;
+  }
+
+  /* round detail inset on the signalling hand(s): the same front view, magnified (STYLE.md detail inset). */
+  /* The two one-hand telescope signals are depth motions (thumb or heel of the fist tapping the chest): a front view
+     cannot show them, so their inset is a SIDE view (labelled), the operator to the right. */
+  function sideInset(sig, t, box) {
+    const { x, y, r } = box, k = r / 100, sw = 1.4;
+    const tap = 6 * Math.max(0, sin(TAU * 1.6 * t));          // fist moves toward the chest and back
+    const P = (px, py) => `${f(x + px * k)} ${f(y + py * k)}`;
+    const id = 'cs' + Math.round(x) + '_' + Math.round(y), ext = sig === 'extend1';
+    let o = `<clipPath id="${id}"><circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}"/></clipPath><circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="#2b2824"/><g clip-path="url(#${id})">`;
+    // chest: shirt + vest edge with a reflective stripe, the signaller faces right
+    o += `<path d="M${P(-110, -110)} L${P(-38, -110)} Q${P(-30, 0)} ${P(-40, 110)} L${P(-110, 110)} Z" fill="${C.vest}" stroke="${C.vestD}" stroke-width="${sw}"/>`;
+    o += `<path d="M${P(-62, -110)} L${P(-58, 110)}" stroke="${C.refl}" stroke-width="${f(9 * k)}"/>`;
+    // upper arm down the side, forearm across the chest (seen end-on as the sleeve), fist in profile
+    const fx0 = -28 + (ext ? 4 - tap : 2 - tap), fy0 = -6;
+    o += `<path d="M${P(-80, 110)} L${P(-58, 20)} L${P(fx0 - 4, fy0 + 26)} L${P(fx0 - 14, fy0 + 40)} L${P(-82, 40)} L${P(-100, 110)} Z" fill="${C.shirt}" stroke="${C.shirtD}" stroke-width="${sw}"/>`;
+    o += `<rect x="${f(x + (fx0 - 6) * k)}" y="${f(y + (fy0 + 8) * k)}" width="${f(16 * k)}" height="${f(30 * k)}" rx="${f(4 * k)}" fill="${C.gloveS}" stroke="${C.gloveD}" stroke-width="${sw}"/>`;
+    o += `<path d="M${P(fx0 + 8, fy0 - 10)} Q${P(fx0 + 44, fy0 - 14)} ${P(fx0 + 46, fy0 + 14)} Q${P(fx0 + 44, fy0 + 40)} ${P(fx0 + 10, fy0 + 40)} Z" fill="${C.glove}" stroke="${C.gloveD}" stroke-width="${sw}"/>`;
+    for (const yy of [-2, 9, 20, 31]) o += `<path d="M${P(fx0 + 30, fy0 + yy)} Q${P(fx0 + 44, fy0 + yy + 3)} ${P(fx0 + 34, fy0 + yy + 9)}" fill="none" stroke="${C.gloveD}" stroke-width="${sw}"/>`;
+    // thumb: extend = on top, bent back so its tip touches the chest; retract = up and away from the chest
+    o += ext ? `<path d="M${P(fx0 + 22, fy0 - 10)} Q${P(fx0 + 4, fy0 - 26)} ${P(-34 - tap * 0.1, fy0 - 18)}" fill="none" stroke="${C.gloveD}" stroke-width="${f(12 * k + 2.4)}" stroke-linecap="round"/><path d="M${P(fx0 + 22, fy0 - 10)} Q${P(fx0 + 4, fy0 - 26)} ${P(-34 - tap * 0.1, fy0 - 18)}" fill="none" stroke="${C.glove}" stroke-width="${f(12 * k)}" stroke-linecap="round"/>`
+      : `<path d="M${P(fx0 + 18, fy0 - 8)} L${P(fx0 + 42, fy0 - 40)}" stroke="${C.gloveD}" stroke-width="${f(12 * k + 2.4)}" stroke-linecap="round"/><path d="M${P(fx0 + 18, fy0 - 8)} L${P(fx0 + 42, fy0 - 40)}" stroke="${C.glove}" stroke-width="${f(12 * k)}" stroke-linecap="round"/>`;
+    // tap arrow at the contact point
+    const ay = ext ? fy0 - 34 : fy0 + 52, col = '#F08A2B';
+    o += `<line x1="${f(x - 30 * k)}" y1="${f(y + ay * k)}" x2="${f(x + 2 * k)}" y2="${f(y + ay * k)}" stroke="${col}" stroke-width="3.2"/>` +
+      `<path d="M${P(-36, ay)} L${P(-26, ay - 6)} L${P(-26, ay + 6)} Z M${P(8, ay)} L${P(-2, ay - 6)} L${P(-2, ay + 6)} Z" fill="${col}"/>`;
+    o += `<text x="${f(x)}" y="${f(y - r * 0.72)}" fill="#F5F5F4" font-size="${f(Math.max(13, 15 * k))}" font-weight="800" text-anchor="middle">SIDE VIEW</text>` +
+      `<text x="${f(x + 62 * k)}" y="${f(y + 70 * k)}" fill="#b9b4ab" font-size="${f(Math.max(11, 12 * k))}" text-anchor="middle">operator →</text>`;
+    o += `</g><circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="none" stroke="#b9b4ab" stroke-width="2.4"/>`;
+    return o;
+  }
+
+  function closeup(sig, t, cx, y0, H, box, opts = {}) {
+    if ((SIGNALS[sig] || {}).motion === 'tapChest') return `<g class="closeup"${opts.id ? ` id="${opts.id}"` : ''}>${sideInset(sig, t, box)}</g>`;
+    const B = build(sig, t, cx, y0, H), S = SIGNALS[sig] || SIGNALS.none;
+    // the inset is framed on the hands' AVERAGE position over one motion cycle, so the motion shows inside it
+    const N = 8, M = { h: B.h, arms: {} };
+    for (const k of ['R', 'L']) M.arms[k] = { s: B.arms[k].s, pose: B.arms[k].pose, hc: [0, 0], tip: [0, 0], W: [0, 0] };
+    for (let i = 0; i < N; i++) {
+      const Bi = build(sig, i * 0.11, cx, y0, H);
+      for (const k of ['R', 'L']) for (const q of ['hc', 'tip', 'W']) { M.arms[k][q][0] += Bi.arms[k][q][0] / N; M.arms[k][q][1] += Bi.arms[k][q][1] / N; }
+    }
+    B.mean = M;
+    let pts = S.focus === 'both' ? [M.arms.R.hc, M.arms.L.hc] : S.focus === 'L' ? [M.arms.L.hc] : [M.arms.R.hc];
+    if (S.motion === 'flex') pts = [[M.arms.R.hc[0], M.arms.R.hc[1] + (sig === 'boomUpLower' ? -1 : 1) * B.h * 0.05]];   // centre between the thumb and the open/close arrow
+    // two hands far apart (the combined signals): one inset per hand, side by side (or stacked: opts.stack)
+    if (pts.length === 2 && Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]) > B.h * 2.6) {
+      const r2 = box.r * 0.56, d = box.r * 0.5, srt = pts.slice().sort((a, b) => a[0] - b[0]);
+      const b1 = opts.stack ? { x: box.x, y: box.y - d * 1.05, r: r2 } : { x: box.x - d * 1.05, y: box.y - d * 0.35, r: r2 };
+      const b2 = opts.stack ? { x: box.x, y: box.y + d * 1.05, r: r2 } : { x: box.x + d * 1.05, y: box.y + d * 0.35, r: r2 };
+      return `<g class="closeup"${opts.id ? ` id="${opts.id}"` : ''}>` + inset(sig, t, B, [srt[0]], b1, opts) + inset(sig, t, B, [srt[1]], b2, opts) + '</g>';
+    }
+    return `<g class="closeup"${opts.id ? ` id="${opts.id}"` : ''}>` + inset(sig, t, B, pts, box, opts) + '</g>';
+  }
+  function inset(sig, t, B, pts, box, opts) {
+    const { cx, y0, H } = B;
+    // the focus: centre of the hands; the inset shows the hands plus a margin of about one hand length
+    const fx = pts.reduce((a, p) => a + p[0], 0) / pts.length, fy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+    const spread = Math.max(...pts.map(p => Math.hypot(p[0] - fx, p[1] - fy)));
+    const need = (SIGNALS[sig] || {}).motion === 'flex' ? B.h * 0.84 : spread + B.h * 1.25, mag = Math.max(1.4, Math.min((SIGNALS[sig] || {}).mag || opts.maxMag || 2.7, box.r / need));
+    const id = 'cu' + Math.round(box.x) + '_' + Math.round(box.y);
+    let o = '';
+    if (opts.ring) {
+      const rr = need * 0.92;
+      o += `<circle cx="${f(fx)}" cy="${f(fy)}" r="${f(rr)}" fill="none" stroke="#b9b4ab" stroke-width="1.6" stroke-dasharray="6 5"/>`;
+      const a = Math.atan2(box.y - fy, box.x - fx);
+      o += `<line x1="${f(fx + cos(a) * rr)}" y1="${f(fy + sin(a) * rr)}" x2="${f(box.x - cos(a) * box.r)}" y2="${f(box.y - sin(a) * box.r)}" stroke="#b9b4ab" stroke-width="1.6" stroke-dasharray="6 5"/>`;
+    }
+    o += `<clipPath id="${id}"><circle cx="${f(box.x)}" cy="${f(box.y)}" r="${f(box.r)}"/></clipPath>` +
+      `<circle cx="${f(box.x)}" cy="${f(box.y)}" r="${f(box.r)}" fill="#2b2824"/>` +
+      `<g clip-path="url(#${id})"><g transform="translate(${f(box.x)} ${f(box.y)}) scale(${f(mag)}) translate(${f(-fx)} ${f(-fy)})">` + draw(sig, t, cx, y0, H, { noShadow: true }) + arrows(sig, B.mean || B, mag, opts.txtK || 1) + '</g></g>' +
+      `<circle cx="${f(box.x)}" cy="${f(box.y)}" r="${f(box.r)}" fill="none" stroke="#b9b4ab" stroke-width="2.4"/>`;
+    return o;
+  }
+
+  G.CranePerson = { SIGNALS, RESPONSE, ORDER, POSES, draw, closeup, build,
     source: 'CCOHS OSH Answers: Crane and Hoist Hand Signals (ccohs.ca/oshanswers/safety_haz/materials_handling/signals.html)' };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1618,7 +1999,7 @@ root.CFArt = A;
     const mk = (xTip, getX) => {
       const W = new PH.World({ iterations: 2, sleepAfter: 0.5 });
       const K = W.add({ type: 'kinematic', w: 0.3, h: 0.3, x: xTip * FT, y: tip.y * FT, collide: false, drive: () => ({ x: getX() * FT, y: boomTip().y * FT }) });
-      const P = W.particle({ x: xTip * FT, y: (tip.y - pendLen()) * FT, mass: 500, linDamp: 0.06, collide: false });
+      const P = W.particle({ x: xTip * FT, y: (tip.y - pendLen()) * FT, mass: 500, linDamp: 0.06, collide: false });   // air drag (small)
       const l = W.link([K, 0, 0], P, { length: pendLen() * FT, rope: true });
       return { W, K, P, l };
     };
@@ -1810,10 +2191,10 @@ root.CFArt = A;
     if (S.mode === 'signals' && S.sigFollow) {
       sigT += dt; const r = PP.RESPONSE[S.signal] || {};
       sigResp = r;
-      if (sigT > 0.35) {               // operator reaction time
+      if (sigT > (S.sigReact || 0.35)) {   // operator reaction time (sigReact s; default 0.35)
         if (r.stop) { for (const k in ctl) ctl[k] = 0; if (r.stop === 'emergency' || r.stop === 'dog') for (const k in vel) vel[k] = 0; }
-        else for (const k of ['swing', 'boom', 'tele', 'hoist']) ctl[k] = r[k] || 0;
-        if (r.keepH) ctl.hoist = r.hoist * 0.6;
+        else for (const k of ['swing', 'boom', 'tele', 'hoist']) ctl[k] = (r[k] || 0) * (k === 'swing' ? (S.sigSwingSign || 1) : 1);   // sigSwingSign: where the signal person stands (opt-in)
+        if (r.keepH) ctl.hoist = r.hoist * 0.6 * Math.abs(r.boom || 1);   // combined: hoist matched to the boom so the load keeps about its height
       }
     }
     const out0 = lastOut || calc();
@@ -1825,12 +2206,19 @@ root.CFArt = A;
       if (L && L.state !== 'air' && S.hooked) { const c = L.Y + L.h / 2; placeParticles(L.X, L.Z, c); }
       if (!S.hooked || !L) { /* free block */ }
       // light breeze on the hanging load/block (real loads never hang dead still); breeze 0 = calm
-      const tB = clockMs / 1000, br = (S.breeze || 0) * P1.m * 9.80665 * 0.0035;
+      // 0.012 g: with the sway damping below, a slow drift of a few inches that never stops (no frozen frames), not a swing
+      const tB = clockMs / 1000, br = (S.breeze || 0) * P1.m * 9.80665 * 0.012;
       P1.fx = br * (Math.sin(2 * Math.PI * tB / 7.3) + 0.6 * Math.sin(2 * Math.PI * tB / 11.9 + 1.1));
       P2.fx = br * (Math.sin(2 * Math.PI * tB / 9.1 + 0.4) + 0.5 * Math.sin(2 * Math.PI * tB / 13.7));
       for (const e of EXT) if (e.force) e.force(X);
       if (steadyMs > 0) { steadyMs -= dt * 1000; W1.extraDamp = W2.extraDamp = 1.5; } else W1.extraDamp = W2.extraDamp = 0;
       W1.step(dt * 1000); W2.step(dt * 1000);
+      // sway damping RELATIVE to the boom tip (instructor 2026-11-14: "the physics on the crane hook makes it bounce around in
+      // the video. swinging a bit is ok but its a bit much"). Air drag alone (0.06 /s) let the load swing for a dozen
+      // cycles; damping the hook's motion relative to the sheave (rope and operator feathering) leaves a small swing that
+      // dies out in about one cycle, without dragging the load behind a moving boom. State hookDamp (1/s) overrides.
+      const kr = Math.exp(-(S.hookDamp != null ? S.hookDamp : 0.9) * dt);
+      for (const [P, K] of [[P1, K1], [P2, K2]]) { P.vx = K.vx + (P.vx - K.vx) * kr; P.vy = K.vy + (P.vy - K.vy) * kr; }
     }
     loadLogic(dt);
     for (const e of EXT) if (e.tick) e.tick(dt, X);
@@ -1843,16 +2231,17 @@ root.CFArt = A;
     if (!ctl.swing && !ctl.boom && !ctl.tele && !ctl.hoist) ev._cutLatch = false;
     // camera
     // camera: frame the crane, hook, load and anything near the boom plane; centred, ground fixed near the bottom
-    const tip = boomTip(), hp = hookPos(), xs = [S.mode === 'signals' ? -28 : -15, tip.x + 8, hp.x + 6], ys = [tip.y + 6, 26];
+    const tip = boomTip(), hp = hookPos(), xs = [S.mode === 'signals' ? (S.sview === 'stage' ? -24 : -40) : -15, tip.x + 8, hp.x + 6], ys = [tip.y + 6, 26];
     if (L) { const lq = loadPos(), lb = toBoom(lq.X, lq.Z); if (Math.abs(lb.t) < 25) xs.push(lb.r + L.w / 2 + 4, lb.r - L.w / 2 - 4); }
     for (const b of boxesAll()) { const q = toBoom(b.X, b.Z); if (Math.abs(q.t) < 18) xs.push(q.r + b.w / 2 + 3, q.r - b.w / 2 - 3); }
     const xmin = Math.min(...xs), xmax = Math.max(...xs), xr = xmax - xmin, yr = Math.max(...ys);
-    let kT = clamp(Math.min(1600 * 0.9 / xr, 760 / yr), 4, 40), x0T = xmin - (1600 / kT - xr) / 2;
-    if (S.plan) for (let n = 0; n < 30; n++) {   // keep the boom tip out from under the plan-view inset (top right)
+    const camL = S.camL || 0, VW = 1600 - camL;   // camL: px kept free on the left (signals stage view: the signal person panel)
+    let kT = clamp(Math.min(VW * 0.9 / xr, 760 / yr), 4, 40), x0T = xmin - (VW / kT - xr) / 2 - camL / kT;
+    if (S.plan || S.camAvoid) for (let n = 0; n < 30; n++) {   // keep the boom tip out from under the plan-view inset (top right; camAvoid: an extension's inset there, e.g. the swing top view)
       const tx = (tip.x + 2 - x0T) * kT, ty = 820 - (tip.y + 2) * kT;
       if (tx < 1150 || ty > 350) break;
       x0T += 1.5; if (n > 8) { kT *= 0.97; }
-      if (xmin < x0T + 1) { kT *= 0.97; x0T = xmin - 1; }
+      if (camL ? (xmin - x0T) * kT < camL + 12 : xmin < x0T + 1) { kT *= 0.97; x0T = camL ? xmin - (camL + 12) / kT : xmin - 1; }   // never push the crane under the left panel
     }
     if (camK == null || camSnap) { camK = kT; camX0 = x0T; camSnap = false; }
     const a = 1 - Math.exp(-dt / 0.8); camK += (kT - camK) * a; camX0 += (x0T - camX0) * a;
@@ -2227,21 +2616,13 @@ root.CFArt = A;
     return o;
   }
   function drawSignalPerson() {
-    if (S.mode !== 'signals' || !L) return '';
-    // a true-scale signal person standing beside the load, facing the operator
-    const x = -24, H = 5.8 * camK;   // behind the crane, clear of the load and the boom, in the operator's view
+    if (S.mode !== 'signals' || !L || S.sview === 'stage') return '';   // stage view: src/ext-signals.js draws the one large figure
+    // ONE true-scale signal person (remaster 2026-11-14): behind the crane, well clear of the outrigger floats (rear
+    // floats are 11.7 ft behind the centre of rotation) and out of the load path, facing the operator. The side card
+    // (#sig-figure) shows the hand close-up; there is no second figure in the drawing.
+    const x = -36, H = 5.8 * camK;
     const t = clockMs / 1000, px = sx(x), py = sy(0);
-    let o = `<g id="sig-person">${PP.draw(S.signal, t, px, py, H, { noShadow: false })}</g>`;
-    // close-up inset: the same person magnified, linked to them by a dashed leader (STYLE.md detail inset).
-    // On a phone the signal card under the drawing already shows the close-up, so the inset is left out.
-    if (svgV && viewW() && viewW() < 700) return o;
-    const bx = 24, by = 24, bw = 300, bh = 380;
-    o += `<ellipse cx="${fx(px)}" cy="${fx(py - H / 2)}" rx="${fx(H * 0.45 + 6)}" ry="${fx(H * 0.62 + 6)}" fill="none" stroke="${COL.mute}" stroke-width="1.6" stroke-dasharray="5 4"/>` +
-      `<line x1="${bx + bw / 2}" y1="${by + bh}" x2="${fx(px)}" y2="${fx(py - H * 1.1 - 6)}" stroke="${COL.mute}" stroke-width="1.4" stroke-dasharray="5 4"/>` +
-      `<g id="sig-inset"><rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="12" fill="#24211d" stroke="${COL.mute}" stroke-width="1.6"/>` +
-      `<clipPath id="sig-clip"><rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="12"/></clipPath><g clip-path="url(#sig-clip)">` + PP.draw(S.signal, t, bx + bw / 2, by + bh - 44, 250, { noShadow: false }) + '</g>' +
-      `<text x="${bx + bw / 2}" y="${by + bh - 10}" fill="${COL.text}" font-size="${fs(20)}" font-weight="800" text-anchor="middle">${S.quiz ? 'What is this signal?' : ({ boomUpLower: 'Boom up, load down', boomDownRaise: 'Boom down, load up', whip: 'Use whipline', swingL: 'Swing', swingR: 'Swing', extend: 'Extend boom', retract: 'Retract boom', dog: 'Dog everything', none: 'Standing by' }[S.signal] || (PP.SIGNALS[S.signal] || PP.SIGNALS.none).name)}</text></g>`;
-    return o;
+    return `<g id="sig-person">${PP.draw(S.signal, t, px, py, H, { noShadow: false })}</g>`;
   }
   function render() {
     if (!svgV) return;
@@ -2319,6 +2700,7 @@ root.CFArt = A;
     if (L) o += `<rect id="plan-load" x="${fx(lp.X - L.w / 2)}" y="${fx(-(lp.Z + L.d / 2))}" width="${fx(L.w)}" height="${fx(L.d)}" fill="${job().box.col}" stroke="#F5F5F4" stroke-width=".5"/>`;
     const hp = hookPos(), hw = toWorld(hp.x, hp.t);
     o += `<circle id="plan-hook" cx="${fx(hw.X)}" cy="${fx(-hw.Z)}" r="1.1" fill="${COL.orange}" stroke="#1F1D1A" stroke-width=".4"/>`;
+    for (const e of EXT) if (e.plan) o += e.plan(api_X(), planTxt) || '';     // extension marks in plan (e.g. where the signal person stands); X is the plan scale here
     if (planTxt) o += `<text x="${-Rmax + 2}" y="${-Rmax + 5}" fill="${COL.text}" font-size="4.6" font-weight="700">PLAN VIEW</text>`;
     svgP.innerHTML = o;
   }
@@ -2361,7 +2743,8 @@ root.CFArt = A;
     // signal card
     const sp = $('sig-figure');
     if (sp && S.mode === 'signals') {
-      sp.innerHTML = PP.draw(S.signal, clockMs / 1000, 150, 400, 360);
+      // the hand close-up of the signal person in the drawing (same front view, magnified), with the motion arrows
+      sp.innerHTML = PP.closeup(S.signal, clockMs / 1000, 150, 400, 360, { x: 150, y: 150, r: 142 }, { maxMag: 2.2 });
       const d = PP.SIGNALS[S.signal] || PP.SIGNALS.none;
       $('sig-name').textContent = S.quiz ? 'What is this signal?' : d.name; $('sig-desc').textContent = S.quiz ? '' : d.desc;
     }
@@ -2428,7 +2811,7 @@ root.CFArt = A;
     // signal palette: hold to signal
     document.querySelectorAll('.sigbtn').forEach(b => {
       const on = e => { e.preventDefault(); if (b.classList.contains('lz-locked')) return; S.signal = b.dataset.sig; sigT = 0; b.classList.add('down'); userInput(); };
-      const off = () => { b.classList.remove('down'); if (!['stop', 'estop', 'dog'].includes(S.signal)) { S.signal = 'stop'; sigT = 0; } userInput(); };
+      const off = () => { b.classList.remove('down'); if (!['stop', 'stop2', 'estop', 'estop2', 'dog'].includes(S.signal)) { S.signal = 'stop'; sigT = 0; } userInput(); };
       b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', e => { if (b.classList.contains('down')) off(e); });
     });
     syncSegs();
@@ -2548,6 +2931,7 @@ root.CFArt = A;
     camK: () => camK, txtK: () => txtK, clock: () => clockMs, boomTip, boomTipRaw, hookPos, loadPos, toBoom, toWorld, job, load: () => L,
     tipS: () => tipS, setTip: v => { tipS = v; }, startTip, flash, ev, ctl, vel, P1: () => P1, P2: () => P2, lastOut: () => lastOut, calc, buildWorlds,
     settle: () => { if (W1) { W1.settle(2); W2.settle(2); } }, tweensClear: () => { tweens = []; }, rigH, surfaceUnder, boxesAll, fs, pend, api: API, tipXform };
+  function api_X() { return X; }     // the context object, for code where X is shadowed (renderPlan)
   function viewW() { return EMBED ? EMBED.width() : svgV ? svgV.clientWidth : 0; }
   if (EMBED) {          // lesson page: the shell owns the page; it calls boot() with its own drawing surfaces
     window.CraneEngine = { api: API, X, boot(view, plan, jobId) { svgV = view; svgP = plan; startJob(jobId || 'skid'); lastOut = calc(); tick(0); render(); API.ready = true; },
@@ -2690,7 +3074,7 @@ body.lesson-dock-bottom .lz-meta{display:none}
 body.lesson-dock-bottom .lz-kick span{letter-spacing:.06em}
 </style>
 <script type="application/json" id="lesson-007-crane-load-charts">{"id":"007-crane-load-charts","version":1,"sim":"mobile-crane/operate","episode":"episodes/007-crane-load-charts","kicker":"Rigging","title":"Crane Load Charts","minutes":30,"pass":80,"outcomes":["Find the boom length and radius on a load chart and read the rated load.","Add up the gross load: load, hook block, rigging, balls and attachments.","Use the next longer radius when the radius is not on the chart.","Pick the chart that matches the outrigger set-up.","Explain what the load moment indicator (LMI) does at 90 % and 100 %, and why it must be set up right."],"sources":["Grove RT540E product guide (Manitowoc): load charts A6-829-104278 (100 %, 23 ft 4 in spread), #4001 (50 %), #8001 (0 %), weight reductions for load handling devices; as published by Bigge Crane and Rigging (storage.bigge.com/webstorage/crane-charts/RT540E.pdf) and Maxim Crane Works. The guide says it is only a guide and must not be used to operate the crane.","CSA Z150 Safety code on mobile cranes (cited by clause in the provincial rules; not reproduced)","Alberta OHS Code Part 6: s.63 load charts on every mobile crane, s.88 mobile cranes meet CSA Z150","WorkSafeBC OHS Regulation Part 14 (cranes and hoists)","Red Seal Occupational Standard, Industrial Mechanic (Millwright): B-9 and B-10 (rigging, hoisting and lifting; load charts)"],"hide":["c-mode"],"stage":"svgwrap","start":{"mode":"operate","job":"skid","boomLen":50,"boomAng":60,"swing":-76,"line":24,"units":"imp","tab":"chart","chartTab":"auto","chartHelp":true,"ball":false,"fail":true,"bypass":false},"sections":[{"title":"The crane and its chart","steps":[{"type":"teach","title":"What you're looking at","text":"A 40 ton rough terrain crane, set up on its outriggers. The boom telescopes from **32 to 102 ft**.\n\nThe chart on the right is the maker's chart for this class of crane, a **Grove RT540E**. The maker says it is a guide only. On a job, you read the chart in the crane's own cab.","spot":"svgwrap"},{"type":"teach","title":"Columns and rows","text":"Across the top: **boom length** in feet. Down the side: **radius** in feet. Where they meet is the **rated load** in pounds.\n\nThe small number under it is the boom angle the maker measured with that load on.","spot":"chart-card"},{"type":"do","title":"Use the controls","text":"The crane runs like a game. **Hold** a button to move. Let go to stop. On a PC the keys work too.\n\nHold **Boom up** for a second and let go.","unlock":["c-boom-p"],"goal":{"boomAng":{"gte":61.5}},"solve":{"boomAng":63},"live":"Boom angle {boomAng:1}°","hint":"Press and hold the Boom Up button under the drawing, then let go.","ok":"Good. Every function ramps up and down like real hydraulics. Short taps move it a little."}]},{"title":"Radius","steps":[{"type":"teach","title":"Radius is level distance","text":"**Radius** is the level distance from the **centre of rotation** to the centre of the hook, with the load hanging.\n\nIt is not the boom length. Watch the orange line under the crane.","spot":"radius-dim"},{"type":"predict","title":"Lower the boom","text":"You are about to lower the boom. The boom length stays the same. What happens to the radius and the chart rating?","choices":["Radius up, rating down","Radius up, rating up","Radius down, rating up","Nothing changes"],"answer":0,"unlock":["c-boom-m","c-boom-p"],"goal":{"out.R":[33.5,35.0]},"solve":{"boomAng":38.74},"doText":"Hold **Boom down** until the radius reads about **35 ft** (no more). Watch the rating in the LMI.","after":"The radius grows and the rating drops: **27,200 lb** at 25 ft, **17,650 lb** at 35 ft row. Same boom, longer radius, less capacity."},{"type":"check","title":"Check 1","text":"Outriggers 100 %. Boom **60 ft**. Radius **35 ft**. What is the rated load?","choices":[{"text":"17,900 lb","why":""},{"text":"35,300 lb","why":"That is the 20 ft row. Go down the side to 35 ft."},{"text":"18,050 lb","why":"That is the 70 ft column. Read the 60 ft column."},{"text":"14,450 lb","why":"That is the 40 ft row. The radius is 35 ft."}],"answer":0,"explain":"Go across to the **60** column, down to the **35** row: **17,900 lb**.","hint":"Find 60 across the top, then 35 down the side.","hint2":"Column 60, row 35.","variants":[{"text":"Outriggers 100 %. Boom **80 ft**. Radius **50 ft**. What is the rated load?","choices":[{"text":"9,770 lb","why":""},{"text":"9,780 lb","why":"That is the 90 ft column."},{"text":"11,900 lb","why":"That is the 45 ft row."},{"text":"20,800 lb","why":"That is the 30 ft row."}],"answer":0,"explain":"Column **80**, row **50**: **9,770 lb**."},{"text":"Outriggers 100 %. Boom **102 ft**. Radius **70 ft**. What is the rated load?","choices":[{"text":"4,800 lb","why":""},{"text":"4,740 lb","why":"That is the 90 ft column."},{"text":"5,710 lb","why":"That is the 65 ft row."},{"text":"70 lb","why":"Radius is a row, not a load."}],"answer":0,"explain":"Column **102**, row **70**: **4,800 lb**."},{"text":"Outriggers 100 %. Boom **40 ft**. Radius **25 ft**. What is the rated load?","choices":[{"text":"26,800 lb","why":""},{"text":"26,300 lb","why":"That is the 32 ft column."},{"text":"35,000 lb","why":"That is the 20 ft row."},{"text":"21,250 lb","why":"That is the 30 ft row."}],"answer":0,"explain":"Column **40**, row **25**: **26,800 lb**."}]}]},{"title":"Gross load","steps":[{"type":"teach","title":"Everything under the boom tip","text":"The chart rating must cover the **gross load**: the load, the hook block, the slings and shackles, and anything else hanging off the boom.\n\nThe chart notes list the weights. The hook block here is **623 lb**.","setup":{"tab":"gross"},"spot":"gross-card"},{"type":"do","title":"Fit the whipline ball","text":"Open **Set-up**. Tick the **whipline ball**. Watch the gross load.","unlock":["c-tab","c-ball"],"goal":{"ball":true},"solve":{"ball":true},"live":"Gross load {out.gross:0} lb","hint":"Tap the Set-up tab, then the whipline ball box.","ok":"The ball (**369 lb**) and the auxiliary nose (**105 lb**) are now part of the load, even though they are not on the hook. Gross: **{out.gross:0} lb**."},{"type":"check","title":"Check 2","setup":{"ball":false,"tab":"gross"},"text":"A **9,000 lb** transformer. Hook block **623 lb**. Wire rope bridle and shackles **150 lb**. No ball. What is the gross load?","numeric":{"answer":9773,"tol":{"abs":1},"unit":"lb"},"explain":"9,000 + 623 + 150 = **9,773 lb**. That is the number you check against the chart.","hint":"Add the load, the block and the rigging.","hint2":"9,000 + 623 + 150","variants":[{"text":"A **6,000 lb** pump skid. Hook block **623 lb**. Chain bridle **120 lb**. What is the gross load?","numeric":{"answer":6743,"tol":{"abs":1},"unit":"lb"},"explain":"6,000 + 623 + 120 = **6,743 lb**."},{"text":"A **4,500 lb** unit. Hook block **623 lb**. Rigging **150 lb**. The whipline ball (**369 lb**) and auxiliary nose (**105 lb**) are fitted. Gross load?","numeric":{"answer":5747,"tol":{"abs":1},"unit":"lb"},"explain":"4,500 + 623 + 150 + 369 + 105 = **5,747 lb**."},{"text":"A **12,000 lb** machine base. Hook block **623 lb**. Four-leg bridle **200 lb**. Gross load?","numeric":{"answer":12823,"tol":{"abs":1},"unit":"lb"},"explain":"12,000 + 623 + 200 = **12,823 lb**."}]}]},{"title":"Between the lines","steps":[{"type":"teach","title":"Not on the chart? Go to the safe side","text":"If your radius is between two rows, use the **next longer radius**. If your boom length is between two columns, use the **lower** of the two ratings on that row.\n\nNever average two numbers. Read your crane's chart notes too: makers word this rule in slightly different ways.","spot":"chart-card","setup":{"tab":"chart","ball":false}},{"type":"check","title":"Check 3","text":"Outriggers 100 %. Boom **65 ft**. Radius **42 ft**. What rating do you use?","choices":[{"text":"11,650 lb","why":""},{"text":"14,450 lb","why":"That is the 40 ft row. 42 ft is past it: go to the 45 ft row."},{"text":"11,725 lb","why":"Never average. Use the lower of the 60 and 70 ft columns."},{"text":"11,800 lb","why":"That is the higher of the two columns. Use the lower one."}],"answer":0,"explain":"42 ft is not a row: go to **45 ft**. 65 ft is between the 60 and 70 columns: 11,650 and 11,800. Use the lower: **11,650 lb**.","hint":"Next longer radius row, then the lower of the two columns.","hint2":"Row 45. Columns 60 and 70.","variants":[{"text":"Outriggers 100 %. Boom **55 ft**. Radius **33 ft**. What rating do you use?","choices":[{"text":"17,650 lb","why":""},{"text":"21,650 lb","why":"That is the 30 ft row. Go to the next longer radius, 35 ft."},{"text":"17,775 lb","why":"Never average two columns."},{"text":"17,900 lb","why":"That is the higher column. Use the lower."}],"answer":0,"explain":"Row **35**, columns 50 and 60: 17,650 and 17,900. Use **17,650 lb**."},{"text":"Outriggers 100 %. Boom **85 ft**. Radius **58 ft**. What rating do you use?","choices":[{"text":"6,720 lb","why":""},{"text":"8,080 lb","why":"That is the 55 ft row. 58 ft is past it."},{"text":"6,770 lb","why":"That is the higher column."},{"text":"7,400 lb","why":"Never estimate between rows."}],"answer":0,"explain":"Row **60**, columns 80 and 90: 6,720 and 6,770. Use **6,720 lb**."},{"text":"Outriggers 100 %. Boom **102 ft**. Radius **81 ft**. What rating do you use?","choices":[{"text":"2,770 lb","why":""},{"text":"3,360 lb","why":"That is the 80 ft row. 81 ft is past it."},{"text":"3,065 lb","why":"Never average two rows."},{"text":"2,250 lb","why":"That is the 90 ft row. Use the next row, 85 ft."}],"answer":0,"explain":"Row **85**, column 102: **2,770 lb**."}]}]},{"title":"Outrigger spread","steps":[{"type":"teach","title":"One chart per set-up","text":"This crane has three outrigger settings: **100 %** (23 ft 4 in spread), **50 %** (14 ft) and **0 %** (7.8 ft). Each has its own chart.\n\nIn the plan view, the beams set the footprint. A narrow footprint means a closer tipping line.","spot":"plan"},{"type":"do","title":"Compare the charts","text":"Tap the **50 %** chart. Compare the 60 ft column at 40 ft radius with the 100 % chart.","unlock":["c-chartTab"],"goal":{"chartTab":"half"},"solve":{"chartTab":"half"},"hint":"The 50 % button is above the chart table.","ok":"60 ft boom at 40 ft: **14,450 lb** at 100 %, but only **7,520 lb** at 50 %. Same crane, about half the capacity."},{"type":"check","title":"Check 4","text":"The beams only go out to **50 %**. Boom **60 ft**, radius **40 ft**. What is the rated load?","choices":[{"text":"7,520 lb","why":""},{"text":"14,450 lb","why":"That is the 100 % chart. The beams are at 50 %."},{"text":"2,710 lb","why":"That is the 0 % chart."},{"text":"7,225 lb","why":"Do not halve the 100 % number. Read the 50 % chart."}],"answer":0,"explain":"Use the chart for the set-up you actually have: 50 % chart, column 60, row 40: **7,520 lb**.","hint":"Which chart matches the beams?","hint2":"50 % chart, 60 ft column, 40 ft row.","variants":[{"text":"Beams at **0 %**. Boom **60 ft**, radius **30 ft**. Rated load?","choices":[{"text":"6,000 lb","why":""},{"text":"21,850 lb","why":"That is the 100 % chart."},{"text":"13,300 lb","why":"That is the 50 % chart."},{"text":"8,760 lb","why":"That is the 25 ft row."}],"answer":0,"explain":"0 % chart, column 60, row 30: **6,000 lb**."},{"text":"Beams at **50 %**. Boom **80 ft**, radius **45 ft**. Rated load?","choices":[{"text":"6,150 lb","why":""},{"text":"11,900 lb","why":"That is the 100 % chart."},{"text":"1,960 lb","why":"That is the 0 % chart."},{"text":"6,180 lb","why":"That is the 90 ft column."}],"answer":0,"explain":"50 % chart, column 80, row 45: **6,150 lb**."},{"text":"Beams at **0 %**. Boom **102 ft**, radius **40 ft**. Rated load?","choices":[{"text":"2,850 lb","why":""},{"text":"13,200 lb","why":"That is the 100 % chart."},{"text":"7,820 lb","why":"That is the 50 % chart."},{"text":"2,940 lb","why":"That is the 90 ft column."}],"answer":0,"explain":"0 % chart, column 102, row 40: **2,850 lb**."}]}]},{"title":"The load moment indicator","steps":[{"type":"teach","title":"The LMI watches the chart","text":"The **LMI** (load moment indicator) reads the boom length, angle and the load on the line. It shows **% of chart**.\n\nAt **90 %** it warns (yellow). At **100 %** it cuts out the functions that make things worse: **hoist up, boom down, telescope out**. You can still hoist down, boom up and telescope in.","setup":{"chartTab":"auto","tab":"chart"},"spot":"lmi"},{"type":"do","title":"Lift the skid","text":"The hook is on the pump skid. Hold **Hoist up** until the load leaves the cribbing. Watch the hook load climb.","setup":{"job":"skid","boomLen":50,"hookOn":true},"unlock":["c-hoist-p","c-hoist-m"],"goal":{"out.lifted":true},"solve":{"lift":3},"live":"Hook load {out.hookLoad:0} lb · {out.pct:0} % of chart","hint":"Hold the Hoist Up button (or the up arrow key) until the load lifts.","ok":"The LMI now sees the whole gross load: **{out.hookLoad:0} lb**, {out.pct:0} % of the chart at this radius."},{"type":"check","title":"Check 5","text":"The LMI reaches **100 %**. Which functions does it lock out?","choices":[{"text":"Hoist up, boom down, telescope out","why":""},{"text":"Hoist down, boom up, telescope in","why":"Those reduce the load moment. They stay working so you can get out of trouble."},{"text":"Everything, including swing","why":"The LMI locks the functions that increase the load moment. Swing does not change the radius."},{"text":"Nothing: it only sounds an alarm","why":"At 90 % it warns. At 100 % it cuts out functions."}],"answer":0,"explain":"Hoisting up adds load. Booming down and telescoping out add radius. Those are locked. Hoist down, boom up and telescope in stay working.","hint":"Which moves make the load moment bigger?","hint2":"More load or more radius.","variants":[{"text":"The LMI is at **100 %** with the load in the air. Which move is still allowed?","choices":[{"text":"Boom up","why":""},{"text":"Boom down","why":"That adds radius. It is locked."},{"text":"Telescope out","why":"That adds radius. It is locked."},{"text":"Hoist up","why":"That adds load. It is locked."}],"answer":0,"explain":"Booming up shortens the radius and lowers the load moment, so it stays working."},{"text":"At what LMI reading does the warning (yellow) come on?","choices":[{"text":"90 % of chart","why":""},{"text":"50 % of chart","why":"Too early. The warning is near the limit."},{"text":"100 % of chart","why":"At 100 % the cut-out works, not just the warning."},{"text":"110 % of chart","why":"Past 100 % you are already over the chart."}],"answer":0,"explain":"The pre-warning is at **90 %**. The cut-out is at **100 %**."},{"text":"The LMI cut out. Which is the right way to get back in the chart?","choices":[{"text":"Boom up or telescope in to shorten the radius","why":""},{"text":"Use the override key","why":"Overriding the LMI is how cranes tip. Never do it on the job."},{"text":"Hoist up faster","why":"Hoist up is locked, and it would add load."},{"text":"Boom down","why":"That makes the radius longer. It is locked."}],"answer":0,"explain":"Get back inside the chart by **reducing the radius** (boom up, telescope in) or by **setting the load down**."}]},{"type":"teach","title":"The LMI is only as good as its set-up","text":"The operator tells the LMI how the crane is set up: outriggers, counterweight, which line. If that is wrong, the % it shows is wrong.\n\nNext: the beams are at **50 %**, but the LMI was set for **100 %**.","setup":{"job":"wrongLmi","boomLen":60,"hookOn":true,"lift":30,"fail":true},"spot":"lmi"},{"type":"fail-demo","title":"Watch the radius grow","text":"Hold **Boom down**. The LMI still looks green. Watch the far outriggers.","unlock":["c-boom-m"],"solve":{"boomAng":34},"hint":"Hold the Boom Down button until something happens.","ok":"The crane tipped while the LMI showed about two thirds of the chart. The 50 % chart was the real limit."},{"type":"check","title":"Check 6","setup":{"job":"skid","fail":true},"text":"Why did the crane tip while the LMI was still green?","choices":[{"text":"The LMI was set for 100 % outriggers, but the beams were at 50 %","why":""},{"text":"The load was too light","why":"A light load does not tip a crane."},{"text":"The boom was too short","why":"Boom length was not the problem: the set-up was."},{"text":"LMIs do not work on rough terrain cranes","why":"They do, when they are set up for the real configuration."}],"answer":0,"explain":"The LMI used the 100 % chart. The crane was really on the 50 % chart, with about half the capacity. Check the LMI set-up matches the crane before every lift.","hint":"Compare the LMI set-up line with the real outriggers.","hint2":"Look at the red text under the LMI.","variants":[{"text":"Before the lift, what must match the crane's real set-up?","choices":[{"text":"The LMI configuration and the chart you read","why":""},{"text":"Only the boom length","why":"Outriggers, counterweight and line also change the chart."},{"text":"Only the load weight","why":"The weight matters, but so does the set-up."},{"text":"Nothing, the LMI checks itself","why":"The LMI trusts what it is told."}],"answer":0,"explain":"The LMI and the chart must both match the real outriggers, counterweight, and reeving."},{"text":"The LMI override key is turned on during a lift. What is true?","choices":[{"text":"Nothing stops the crane going past the chart","why":""},{"text":"The crane gets more capacity","why":"The override gives no capacity. It only removes the protection."},{"text":"It is fine if the signal person agrees","why":"No one can approve lifting past the chart."},{"text":"The LMI still cuts out at 100 %","why":"With the override on, it does not."}],"answer":0,"explain":"Overriding the LMI removes the cut-out. The chart limits stay the same. Never do this on the job."}]}]},{"title":"Putting it together","steps":[{"type":"teach","title":"Which pad?","text":"Job 3: a **12,000 lb** machine base. Gross with block and bridle: **12,823 lb**. Pad A is about **47 ft** out. Pad B is about **33 ft** out.\n\nCheck the chart for each pad **before** you lift.","setup":{"job":"heavy","boomLen":60,"tab":"chart","chartHelp":true},"spot":"plan"},{"type":"check","title":"Check 7","text":"60 ft boom, 100 % outriggers, gross **12,823 lb**. Pad A is at **47 ft**, pad B at **33 ft**. Which pad is in the chart?","choices":[{"text":"Pad B only","why":""},{"text":"Pad A only","why":"47 ft: use the 50 ft row, 9,480 lb. That is less than 12,823 lb."},{"text":"Both pads","why":"Pad A: 9,480 lb at the 50 ft row. Too little."},{"text":"Neither pad","why":"Pad B: 17,900 lb at the 35 ft row. That covers 12,823 lb."}],"answer":0,"explain":"Pad A: next longer radius is 50 ft, **9,480 lb**: 135 % of chart. Pad B: 35 ft row, **17,900 lb**: 72 %. Only pad B.","hint":"Find the 60 ft column at the 35 ft and 50 ft rows.","hint2":"17,900 lb and 9,480 lb","variants":[{"text":"Gross **9,773 lb**, 60 ft boom, 100 % outriggers, radius **43 ft**. In the chart?","choices":[{"text":"Yes, 84 % of 11,650 lb","why":""},{"text":"No, 103 % of 9,480 lb","why":"43 ft goes to the 45 ft row, not 50 ft."},{"text":"Yes, 68 % of 14,450 lb","why":"14,450 is the 40 ft row. 43 ft is past it."},{"text":"No, it is off the chart","why":"The 60 ft column has a 45 ft row."}],"answer":0,"explain":"Row 45, column 60: 11,650 lb. 9,773 ÷ 11,650 = **84 %**. In the chart."},{"text":"Gross **7,773 lb**, beams at **50 %**, 60 ft boom, radius **45 ft**. In the chart?","choices":[{"text":"No, 135 % of 5,760 lb","why":""},{"text":"Yes, 67 % of 11,650 lb","why":"That is the 100 % chart. The beams are at 50 %."},{"text":"Yes, 78 % of 9,910 lb","why":"That is the 35 ft row."},{"text":"Yes, it is under 10,000 lb","why":"The chart decides, not a round number."}],"answer":0,"explain":"50 % chart, row 45, column 60: **5,760 lb**. 7,773 ÷ 5,760 = **135 %**. Not in the chart."}]},{"type":"do","title":"Set it on pad B","text":"Now do the lift. Hook on, hoist, swing and boom to **pad B**, and set the base down gently. Feather the levers to stop the swing.","setup":{"job":"heavy","boomLen":60},"unlock":["c-swing-m","c-swing-p","c-boom-p","c-boom-m","c-tele-m","c-tele-p","c-hoist-p","c-hoist-m","c-fine","c-tab","c-chartTab"],"goal":{"out.placed":true},"solve":{"setDown":"near"},"live":"LMI {out.pct:0} % · radius {out.R:1} ft · {out.loadState}","hint":"Put the hook over the base and lower to it. When it hooks on, hoist a few feet, swing right to pad B, then lower slowly.","ok":"Set on pad B. Score **{out.score} / 100** (practice only)."},{"type":"summary","title":"What to remember","points":["Rated load = column (boom length) × row (radius), on the chart for your set-up.","Gross load = load + hook block + rigging + balls and attachments.","Radius not on the chart: next longer radius. Between columns: the lower rating.","Each outrigger setting has its own chart.","The LMI warns at 90 % and cuts out at 100 %. It is only right if it is set up right.","This chart is a training copy. On the job: the chart in the crane, the maker's notes, and the lift plan."]}]}],"practice":{"intro":"Free play: pick any job and run it. Give me a challenge reads the chart for a random lift.","challenges":[{"id":"p1","text":"Boom {L} ft, radius {R} ft, outriggers 100 %. What does the chart allow?","vars":{"L":{"choices":[50,60,70,80,90,102]},"R":{"choices":[25,30,35,40]}},"derive":{"ang":"acos((R + 4) / L) * 180 / PI"},"setup":{"outr":"full","lmiOutr":"full","boomLen":"=L","boomAng":"=ang"},"answer":"out.rated","unit":"lb","tol":{"abs":1},"solution":"Column {L}, row {R}: {answer:0} lb."}]}}</script>
-<script type="application/json" id="lesson-008-hand-signals">{"id":"008-hand-signals","version":2,"sim":"mobile-crane/operate","episode":"episodes/008-hand-signals","kicker":"Rigging","title":"Crane Hand Signals","minutes":25,"pass":80,"outcomes":["Give and read the standard mobile crane hand signals: hoist, lower, boom up and down, swing, telescope, slowly, and the combined boom-and-load signals.","Tell STOP, EMERGENCY STOP and DOG EVERYTHING apart, and know that anyone may give a stop.","Explain why one designated signaller directs the operator, and why signals are agreed before the lift."],"sources":["CCOHS OSH Answers: Materials Handling, Crane and Hoist Hand Signals (ccohs.ca/oshanswers/safety_haz/materials_handling/signals.html)","CSA Z150 Safety code on mobile cranes (signals annex; licensed standard, cited not reproduced)","Alberta OHS Code Part 6 s.71 (hand signals given by a designated signaller per s.191) and s.88 (mobile cranes meet CSA Z150)","Ontario O. Reg. 213/91 (Construction Projects) s.104 and s.106: signaller duties; IHSA hoisting and rigging signals","Red Seal Occupational Standard, Industrial Mechanic (Millwright): B-10 (line of sight, hand signals, alternate communication)"],"hide":["c-mode"],"stage":"svgwrap","start":{"mode":"signals","job":"skid","boomLen":50,"boomAng":60,"swing":-76,"signal":"none","sigFollow":true,"quiz":false,"units":"imp","fail":true,"bypass":false},"sections":[{"title":"Who gives the signals","steps":[{"type":"teach","title":"What you're looking at","text":"The same crane. On the right is the **signal person**: hard hat, hi-vis vest, gloves. They stand where the operator can see them and they can see the load.\n\nYou give the signals. The operator in the cab answers them.","spot":"sig-card"},{"type":"teach","title":"One signaller, anyone can stop","text":"Only **one** designated signaller directs the operator at a time. But the operator obeys a **stop** from anyone.\n\nAgree on the signals with the operator before the lift. Charts from different sources differ on a few signals.","points":["Designated, competent signaller (Alberta OHS Code s.71 and s.191; Ontario O. Reg. 213/91 s.106)","Clear view of the load and the operator, or use radios","CSA Z150 is the mobile crane standard"]}]},{"title":"Hoist and lower","steps":[{"type":"teach","title":"Hoist","text":"**Hoist**: forearm straight up, forefinger pointing up, small horizontal circles. The hook goes up.","setup":{"signal":"hoist","sigFollow":false},"spot":"sig-figure"},{"type":"do","title":"Signal the lift","text":"The hook is on the skid. **Hold** the **Hoist** signal until the load leaves the cribbing, then let go.","setup":{"job":"skid","boomLen":50,"hookOn":true,"signal":"none","sigFollow":true},"unlock":["c-sig-hoist","c-sig-stop"],"goal":{"out.lifted":true},"solve":{"lift":3},"live":"Hook load {out.hookLoad:0} lb","hint":"Press and hold the Hoist button under the signal person.","ok":"The operator hoisted while you held the signal. When you let go, the sim gives **STOP** for you."},{"type":"teach","title":"Lower","text":"**Lower**: arm down and out, forefinger pointing down, small horizontal circles. The hook goes down.","setup":{"signal":"lower","sigFollow":false},"spot":"sig-figure"},{"type":"check","title":"Check 1","setup":{"signal":"lower","sigFollow":false,"quiz":true},"text":"Look at the signal person. What is this signal?","choices":[{"text":"Lower (the load line)","why":""},{"text":"Lower the boom","why":"Boom signals use the thumb. This is a finger pointing down."},{"text":"Stop","why":"Stop is a flat hand, palm down, arm out level."},{"text":"Hoist","why":"Hoist points the finger up."}],"answer":0,"explain":"Arm down, forefinger pointing down, small circles: **lower**. The hook goes down.","hint":"Finger or thumb? Up or down?","hint2":"Forefinger pointing down, circling.","variants":[{"text":"A finger points up and circles above the shoulder. What moves?","choices":[{"text":"The hook goes up (hoist)","why":""},{"text":"The boom goes up","why":"That is a thumb up."},{"text":"The boom extends","why":"That is two fists, thumbs out."},{"text":"Nothing: it is a stop","why":"Stop is a flat hand."}],"answer":0,"explain":"Finger up, circling: **hoist**."},{"text":"The signaller taps a fist on top of the head. What does it mean?","choices":[{"text":"Use the main hoist","why":""},{"text":"Use the whipline","why":"Whipline is a tap on the elbow."},{"text":"Stop","why":"Stop is a flat hand."},{"text":"Dog everything","why":"That is hands clasped."}],"answer":0,"explain":"Fist on the head: **use the main hoist**, then the regular signals."},{"text":"A signaller holds one hand still in front of the other, which gives the hoist signal. What does the operator do?","choices":[{"text":"Hoist slowly","why":""},{"text":"Stop","why":"The moving hand still says hoist."},{"text":"Hoist at full speed","why":"The still hand means slowly."},{"text":"Use the whipline","why":"That is a tap on the elbow."}],"answer":0,"explain":"A still hand in front of a moving signal means **do it slowly**."}]}]},{"title":"Boom, swing and telescope","steps":[{"type":"teach","title":"Boom up, boom down","text":"Arm straight out, fingers closed. **Thumb up**: raise the boom. **Thumb down**: lower the boom.","setup":{"signal":"boomUp","sigFollow":false},"spot":"sig-figure"},{"type":"do","title":"Swing toward the pad","text":"**Swing**: arm out, point with the finger the way the boom should go. Hold **Swing (point right)** until the boom swings about **20°**.","setup":{"signal":"none","sigFollow":true},"unlock":["c-sig-swingR","c-sig-stop"],"goal":{"swing":{"gte":-56}},"solve":{"swing":-50},"live":"Swing {swing:0}°","hint":"Press and hold Swing (point right).","ok":"Watch the load: it lags behind and swings when the boom starts and stops. Good operators feather the swing."},{"type":"teach","title":"Telescope","text":"Both fists in front of the body. **Thumbs pointing out**: extend (telescope out). **Thumbs pointing at each other**: retract.","setup":{"signal":"extend","sigFollow":false},"spot":"sig-figure"},{"type":"teach","title":"Slowly, and two moves at once","text":"**Move slowly**: give the signal with one hand and hold the other hand still in front of it.\n\n**Raise the boom and lower the load**: one arm out thumb up, the other hand pointing down in circles. The load stays at about the same height while the radius gets shorter.","setup":{"signal":"boomUpLower","sigFollow":false},"spot":"sig-figure"},{"type":"check","title":"Check 2","setup":{"signal":"boomUp","sigFollow":false,"quiz":true},"text":"What does this signal tell the operator?","choices":[{"text":"Raise the boom","why":""},{"text":"Hoist","why":"Hoist is a finger pointing up, circling."},{"text":"Swing","why":"Swing points with a finger, not a thumb."},{"text":"Extend the boom","why":"Extend uses both fists, thumbs out."}],"answer":0,"explain":"Arm out, fingers closed, **thumb up**: raise the boom. The radius gets shorter.","hint":"Look at the thumb.","hint2":"Thumb up on a straight arm.","variants":[{"text":"The boom is raised with the load on. What happens to the radius?","choices":[{"text":"It gets shorter","why":""},{"text":"It gets longer","why":"That is lowering the boom."},{"text":"It stays the same","why":"The hook moves in as the boom comes up."},{"text":"The load goes down","why":"The load also rises a little; the radius gets shorter."}],"answer":0,"explain":"Boom up: the tip moves in, so the **radius gets shorter**."},{"text":"Arm out, thumb down, and the other hand pointing up in circles. What is it?","choices":[{"text":"Lower the boom and raise the load","why":""},{"text":"Lower the boom","why":"Read both hands: the other hand says hoist."},{"text":"Hoist","why":"Read both hands: the thumb says boom down."},{"text":"Emergency stop","why":"Emergency stop is a flat hand moving fast."}],"answer":0,"explain":"Thumb down plus hoist: **lower the boom and raise the load**."},{"text":"Two signallers wave at the operator at the same time. What should the operator do?","choices":[{"text":"Stop and sort out who is signalling","why":""},{"text":"Follow the closer one","why":"Only one designated signaller directs the lift."},{"text":"Follow the one with the radio","why":"Agree on one signaller first."},{"text":"Carry on slowly","why":"Never move on mixed signals."}],"answer":0,"explain":"One designated signaller at a time. If signals are mixed or unclear, **stop**."}]}]},{"title":"Stop, emergency stop, dog everything","steps":[{"type":"teach","title":"Three ways to stop","text":"**Stop**: arm straight out, palm down, held still.\n\n**Emergency stop**: arm straight out, palm down, hand moved quickly side to side. The operator stops everything at once.\n\n**Dog everything**: hands clasped in front. Pause, brakes and locks set.","setup":{"signal":"estop","sigFollow":false},"spot":"sig-figure"},{"type":"predict","title":"Stop or emergency stop?","text":"The load is swinging toward a worker who stepped in. Which signal do you give?","choices":["Emergency stop","Stop","Dog everything","Lower"],"answer":0,"reveal":{"set":{"signal":"estop"},"dur":300},"after":"Emergency stop: the operator stops every function at once. Then deal with the person. Note: some charts (for example US OSHA) show emergency stop with **both** arms. Agree on your chart before the lift."},{"type":"check","title":"Check 3","setup":{"signal":"boomDown","sigFollow":false,"quiz":true},"text":"Look at the signal person. What is this signal?","choices":[{"text":"Lower the boom","why":""},{"text":"Lower the load","why":"Lower the load is a finger pointing down with circles, not a thumb."},{"text":"Stop","why":"Stop is a flat hand, palm down."},{"text":"Raise the boom","why":"Raise the boom is thumb up."}],"answer":0,"explain":"Arm out, fingers closed, **thumb down**: lower the boom.","hint":"Look at the thumb.","hint2":"Thumb pointing down, arm straight out.","variants":[{"text":"A signaller holds one forearm straight up, forefinger up, moving the hand in small circles. What is it?","choices":[{"text":"Hoist","why":""},{"text":"Raise the boom","why":"Raise the boom is a thumb up on a straight arm."},{"text":"Use main hoist","why":"That is a fist tapped on the head."},{"text":"Extend the boom","why":"That is two fists, thumbs out."}],"answer":0,"explain":"Forearm vertical, forefinger up, small circles: **hoist**."},{"text":"A signaller holds both fists in front of the body, thumbs pointing toward each other. What is it?","choices":[{"text":"Retract the boom","why":""},{"text":"Extend the boom","why":"Extend is thumbs pointing out."},{"text":"Dog everything","why":"Dog everything is hands clasped together."},{"text":"Stop","why":"Stop is one flat hand, palm down."}],"answer":0,"explain":"Thumbs pointing at each other: **retract** (telescope in)."},{"text":"A signaller taps one elbow with the other hand. What comes next?","choices":[{"text":"The next signals are for the whipline (auxiliary hoist)","why":""},{"text":"Stop","why":"Stop is a flat hand, palm down."},{"text":"Use the main hoist","why":"Main hoist is a fist tapped on the head."},{"text":"Swing","why":"Swing is pointing with a finger."}],"answer":0,"explain":"Tapping the elbow means **use the whipline**. Then the regular signals follow."}]},{"type":"check","title":"Check 4","setup":{"signal":"dog","sigFollow":false,"quiz":true},"text":"What does this signal tell the operator?","choices":[{"text":"Dog everything: pause, set brakes and locks","why":""},{"text":"Emergency stop","why":"Emergency stop is an arm out, palm down, moving fast side to side."},{"text":"Lower slowly","why":"Move slowly uses one still hand in front of the signalling hand."},{"text":"Retract the boom","why":"Retract is fists with thumbs pointing at each other."}],"answer":0,"explain":"Hands clasped in front: **dog everything**. Use it to pause, for example when someone walks into the area or the load will not fit.","hint":"Look at the hands.","hint2":"Hands clasped together.","variants":[{"text":"Who can give a STOP signal that the operator must obey?","choices":[{"text":"Anyone","why":""},{"text":"Only the designated signaller","why":"The signaller directs the lift, but the operator obeys a stop from anyone."},{"text":"Only the supervisor","why":"A stop from anyone is obeyed."},{"text":"Only the rigger who hooked up","why":"A stop from anyone is obeyed."}],"answer":0,"explain":"One designated signaller directs the lift. A **stop** from **anyone** is obeyed."},{"text":"A signaller holds one arm straight out, palm down, perfectly still. What is it?","choices":[{"text":"Stop","why":""},{"text":"Emergency stop","why":"Emergency stop moves the hand quickly side to side."},{"text":"Lower the boom","why":"Lower the boom is a thumb down."},{"text":"Swing","why":"Swing is pointing with a finger."}],"answer":0,"explain":"Arm out, palm down, held still: **stop** (CCOHS chart). Agree on your site's chart: some show STOP with the hand moving."},{"text":"Before the lift, the operator and signaller should:","choices":[{"text":"Agree on the signals and who the signaller is","why":""},{"text":"Use whatever signals they each learned","why":"Charts differ. Agree first."},{"text":"Only use radios","why":"Radios are fine, but you still agree on the words and signals."},{"text":"Let the rigger signal too, at the same time","why":"One designated signaller at a time."}],"answer":0,"explain":"Agree on the chart, the signaller, and the radio channel if used, **before** the lift."}]}]},{"title":"Putting it together","steps":[{"type":"do","title":"Signal the skid onto the pad","text":"Now direct the whole lift. Use **Hoist** to clear the cribbing, **Swing (point right)** toward the pad, **Raise boom**, **Lower boom** or **Extend** to line up, then **Lower** to set it down. Give **Stop** whenever the load swings.","setup":{"job":"skid","boomLen":50,"hookOn":true,"signal":"none","sigFollow":true,"quiz":false},"unlock":["c-sig-hoist","c-sig-lower","c-sig-hoistSlow","c-sig-boomUp","c-sig-boomDown","c-sig-swingL","c-sig-swingR","c-sig-extend","c-sig-retract","c-sig-stop","c-sig-estop","c-sig-dog"],"goal":{"out.placed":true},"solve":{"setDown":"pad"},"live":"Radius {out.R:1} ft · {out.loadState}","hint":"Hoist first. Then swing right until the boom points at the pad in the plan view.","ok":"Set on the pad. Score **{out.score} / 100** (practice only)."},{"type":"check","title":"Check 5","text":"The load goes behind a wall. The operator can't see the load or the signaller. What do you do?","choices":[{"text":"Use radios, as agreed in the lift plan, or a second signaller in view","why":""},{"text":"Shout the signals over the wall","why":"Shouting is not a clear, agreed signal."},{"text":"The operator lifts slowly and watches the line","why":"Without line of sight the operator needs a signaller or radio."},{"text":"Two signallers both signal the operator","why":"Only one signaller directs at a time; a relay signaller passes signals on."}],"answer":0,"explain":"No line of sight: **radio** on an agreed channel, or a relay signaller the operator can see. One voice gives the signals.","hint":"How does the operator get the signal without seeing it?","hint2":"Radios, agreed before the lift.","variants":[{"text":"Before a radio lift, what do you set up?","choices":[{"text":"A channel for the lift, a radio check, and who gives the signals","why":""},{"text":"Nothing: radios replace the signaller","why":"A designated signaller still talks the load in."},{"text":"Hand signals only","why":"With no line of sight, hand signals cannot be seen."},{"text":"Everyone talks on the channel","why":"One voice gives the signals; anyone may call stop."}],"answer":0,"explain":"Agree the **channel**, do a **radio check**, and name **one** signaller."},{"text":"The radio goes silent while the load is moving. What does the operator do?","choices":[{"text":"Stop","why":""},{"text":"Carry on to the landing","why":"No signal means stop."},{"text":"Speed up to finish","why":"No signal means stop."},{"text":"Lower the load where it is","why":"Stop first, then sort out communication."}],"answer":0,"explain":"No signal: **stop**, then restore communication."}]},{"type":"summary","title":"What to remember","points":["One designated signaller directs the lift. Anyone can give STOP.","Hoist: finger up, circles. Lower: finger down, circles.","Boom: arm out, thumb up or down. Swing: point the way to go. Telescope: two fists, thumbs out or in.","Stop: palm down, still. Emergency stop: palm down, moving fast. Dog everything: hands clasped.","Agree on the chart before the lift: sources differ on STOP and EMERGENCY STOP.","No line of sight? Use radios or a second signaller, and agree on the words."]}]}],"practice":{"intro":"Free play: hold any signal and watch the crane answer.","challenges":[{"id":"p1","text":"The radius is {out.R:1} ft on a {L} ft boom. What does the 100 % chart allow?","vars":{"L":{"choices":[50,60,70]}},"derive":{"ang":"50"},"setup":{"outr":"full","lmiOutr":"full","boomLen":"=L","boomAng":"=ang"},"answer":"out.rated","unit":"lb","tol":{"abs":1},"solution":"Column {L}, next longer radius row: {answer:0} lb."}]}}</script>
+<script type="application/json" id="lesson-008-hand-signals">{"id":"008-hand-signals","version":2,"sim":"mobile-crane/operate","episode":"episodes/008-hand-signals","kicker":"Rigging","title":"Crane Hand Signals","minutes":25,"pass":80,"outcomes":["Give and read the standard mobile crane hand signals: hoist, lower, boom up and down, swing, telescope, slowly, and the combined boom-and-load signals.","Tell STOP, EMERGENCY STOP and DOG EVERYTHING apart, and know that anyone may give a stop.","Explain why one designated signaller directs the operator, and why signals are agreed before the lift."],"sources":["CCOHS OSH Answers: Materials Handling, Crane and Hoist Hand Signals (ccohs.ca/oshanswers/safety_haz/materials_handling/signals.html)","CSA Z150 Safety code on mobile cranes (signals annex; licensed standard, cited not reproduced)","Alberta OHS Code Part 6 s.71 (hand signals given by a designated signaller per s.191) and s.88 (mobile cranes meet CSA Z150)","Ontario O. Reg. 213/91 (Construction Projects) s.104 and s.106: signaller duties; IHSA hoisting and rigging signals","Red Seal Occupational Standard, Industrial Mechanic (Millwright): B-10 (line of sight, hand signals, alternate communication)"],"hide":["c-mode"],"stage":"svgwrap","start":{"mode":"signals","job":"skid","boomLen":50,"boomAng":60,"swing":-76,"signal":"none","sigFollow":true,"quiz":false,"units":"imp","fail":true,"bypass":false},"sections":[{"title":"Who gives the signals","steps":[{"type":"teach","title":"What you're looking at","text":"The same crane. On the right is the **signal person**: hard hat, hi-vis vest, gloves. They stand where the operator can see them and they can see the load.\n\nYou give the signals. The operator in the cab answers them.","spot":"sig-card"},{"type":"teach","title":"One signaller, anyone can stop","text":"Only **one** designated signaller directs the operator at a time. But the operator obeys a **stop** from anyone.\n\nAgree on the signals with the operator before the lift. Charts from different sources differ on a few signals.","points":["Designated, competent signaller (Alberta OHS Code s.71 and s.191; Ontario O. Reg. 213/91 s.106)","Clear view of the load and the operator, or use radios","CSA Z150 is the mobile crane standard"]}]},{"title":"Hoist and lower","steps":[{"type":"teach","title":"Hoist","text":"**Hoist**: forearm straight up, forefinger pointing up, small horizontal circles. The hook goes up.","setup":{"signal":"hoist","sigFollow":false},"spot":"sig-figure"},{"type":"do","title":"Signal the lift","text":"The hook is on the skid. **Hold** the **Hoist** signal until the load leaves the cribbing, then let go.","setup":{"job":"skid","boomLen":50,"hookOn":true,"signal":"none","sigFollow":true},"unlock":["c-sig-hoist","c-sig-stop"],"goal":{"out.lifted":true},"solve":{"lift":3},"live":"Hook load {out.hookLoad:0} lb","hint":"Press and hold the Hoist button under the signal person.","ok":"The operator hoisted while you held the signal. When you let go, the sim gives **STOP** for you."},{"type":"teach","title":"Lower","text":"**Lower**: arm down and out, forefinger pointing down, small horizontal circles. The hook goes down.","setup":{"signal":"lower","sigFollow":false},"spot":"sig-figure"},{"type":"check","title":"Check 1","setup":{"signal":"lower","sigFollow":false,"quiz":true},"text":"Look at the signal person. What is this signal?","choices":[{"text":"Lower (the load line)","why":""},{"text":"Lower the boom","why":"Boom signals use the thumb. This is a finger pointing down."},{"text":"Stop","why":"Stop is a flat hand, palm down, arm out level."},{"text":"Hoist","why":"Hoist points the finger up."}],"answer":0,"explain":"Arm down, forefinger pointing down, small circles: **lower**. The hook goes down.","hint":"Finger or thumb? Up or down?","hint2":"Forefinger pointing down, circling.","variants":[{"text":"A finger points up and circles above the shoulder. What moves?","choices":[{"text":"The hook goes up (hoist)","why":""},{"text":"The boom goes up","why":"That is a thumb up."},{"text":"The boom extends","why":"That is two fists, thumbs out."},{"text":"Nothing: it is a stop","why":"Stop is a flat hand."}],"answer":0,"explain":"Finger up, circling: **hoist**."},{"text":"The signaller taps a fist on top of the head. What does it mean?","choices":[{"text":"Use the main hoist","why":""},{"text":"Use the whipline","why":"Whipline is a tap on the elbow."},{"text":"Stop","why":"Stop is a flat hand."},{"text":"Dog everything","why":"That is hands clasped."}],"answer":0,"explain":"Fist on the head: **use the main hoist**, then the regular signals."},{"text":"A signaller holds one hand still in front of the other, which gives the hoist signal. What does the operator do?","choices":[{"text":"Hoist slowly","why":""},{"text":"Stop","why":"The moving hand still says hoist."},{"text":"Hoist at full speed","why":"The still hand means slowly."},{"text":"Use the whipline","why":"That is a tap on the elbow."}],"answer":0,"explain":"A still hand in front of a moving signal means **do it slowly**."}]}]},{"title":"Boom, swing and telescope","steps":[{"type":"teach","title":"Boom up, boom down","text":"Arm straight out, fingers closed. **Thumb up**: raise the boom. **Thumb down**: lower the boom.","setup":{"signal":"boomUp","sigFollow":false},"spot":"sig-figure"},{"type":"do","title":"Swing toward the pad","text":"**Swing**: arm out, point with the finger the way the boom should go. Hold **Swing (point right)** until the boom swings about **20°**.","setup":{"signal":"none","sigFollow":true},"unlock":["c-sig-swingR","c-sig-stop"],"goal":{"swing":{"gte":-56}},"solve":{"swing":-50},"live":"Swing {swing:0}°","hint":"Press and hold Swing (point right).","ok":"Watch the load: it lags behind and swings when the boom starts and stops. Good operators feather the swing."},{"type":"teach","title":"Telescope","text":"Both fists in front of the body. **Thumbs pointing out**: extend (telescope out). **Thumbs pointing at each other**: retract.","setup":{"signal":"extend","sigFollow":false},"spot":"sig-figure"},{"type":"teach","title":"Slowly, and two moves at once","text":"**Move slowly**: give the signal with one hand and hold the other hand still in front of it.\n\n**Raise the boom and lower the load**: one arm out, thumb up, and all four fingers opening and closing, again and again (thumb down: lower the boom and raise the load). The load stays at about the same height while the radius gets shorter.","setup":{"signal":"boomUpLower","sigFollow":false},"spot":"sig-figure"},{"type":"check","title":"Check 2","setup":{"signal":"boomUp","sigFollow":false,"quiz":true},"text":"What does this signal tell the operator?","choices":[{"text":"Raise the boom","why":""},{"text":"Hoist","why":"Hoist is a finger pointing up, circling."},{"text":"Swing","why":"Swing points with a finger, not a thumb."},{"text":"Extend the boom","why":"Extend uses both fists, thumbs out."}],"answer":0,"explain":"Arm out, fingers closed, **thumb up**: raise the boom. The radius gets shorter.","hint":"Look at the thumb.","hint2":"Thumb up on a straight arm.","variants":[{"text":"The boom is raised with the load on. What happens to the radius?","choices":[{"text":"It gets shorter","why":""},{"text":"It gets longer","why":"That is lowering the boom."},{"text":"It stays the same","why":"The hook moves in as the boom comes up."},{"text":"The load goes down","why":"The load also rises a little; the radius gets shorter."}],"answer":0,"explain":"Boom up: the tip moves in, so the **radius gets shorter**."},{"text":"Arm out, thumb down, and the other hand pointing up in circles. What is it?","choices":[{"text":"Lower the boom and raise the load","why":""},{"text":"Lower the boom","why":"Read both hands: the other hand says hoist."},{"text":"Hoist","why":"Read both hands: the thumb says boom down."},{"text":"Emergency stop","why":"Emergency stop is a flat hand moving fast."}],"answer":0,"explain":"Thumb down plus hoist: **lower the boom and raise the load**."},{"text":"Two signallers wave at the operator at the same time. What should the operator do?","choices":[{"text":"Stop and sort out who is signalling","why":""},{"text":"Follow the closer one","why":"Only one designated signaller directs the lift."},{"text":"Follow the one with the radio","why":"Agree on one signaller first."},{"text":"Carry on slowly","why":"Never move on mixed signals."}],"answer":0,"explain":"One designated signaller at a time. If signals are mixed or unclear, **stop**."}]}]},{"title":"Stop, emergency stop, dog everything","steps":[{"type":"teach","title":"Three ways to stop","text":"**Stop**: arm straight out, palm down, held still. Some charts (WorkSafeBC) use **both** arms out, palms down: also stop.\n\n**Emergency stop**: arm straight out, palm down, hand moved quickly side to side. Or **both** arms out, palms down, moved quickly back and forth (ASME / OSHA). The operator stops everything at once.\n\n**Dog everything**: hands clasped in front. Pause, brakes and locks set.","setup":{"signal":"estop","sigFollow":false},"spot":"sig-figure"},{"type":"predict","title":"Stop or emergency stop?","text":"The load is swinging toward a worker who stepped in. Which signal do you give?","choices":["Emergency stop","Stop","Dog everything","Lower"],"answer":0,"reveal":{"set":{"signal":"estop"},"dur":300},"after":"Emergency stop: the operator stops every function at once. Then deal with the person. Note: some charts (for example US OSHA) show emergency stop with **both** arms, and WorkSafeBC shows stop with both arms. Both forms are correct. Agree on your chart before the lift."},{"type":"check","title":"Check 3","setup":{"signal":"boomDown","sigFollow":false,"quiz":true},"text":"Look at the signal person. What is this signal?","choices":[{"text":"Lower the boom","why":""},{"text":"Lower the load","why":"Lower the load is a finger pointing down with circles, not a thumb."},{"text":"Stop","why":"Stop is a flat hand, palm down."},{"text":"Raise the boom","why":"Raise the boom is thumb up."}],"answer":0,"explain":"Arm out, fingers closed, **thumb down**: lower the boom.","hint":"Look at the thumb.","hint2":"Thumb pointing down, arm straight out.","variants":[{"text":"A signaller holds one forearm straight up, forefinger up, moving the hand in small circles. What is it?","choices":[{"text":"Hoist","why":""},{"text":"Raise the boom","why":"Raise the boom is a thumb up on a straight arm."},{"text":"Use main hoist","why":"That is a fist tapped on the head."},{"text":"Extend the boom","why":"That is two fists, thumbs out."}],"answer":0,"explain":"Forearm vertical, forefinger up, small circles: **hoist**."},{"text":"A signaller holds both fists in front of the body, thumbs pointing toward each other. What is it?","choices":[{"text":"Retract the boom","why":""},{"text":"Extend the boom","why":"Extend is thumbs pointing out."},{"text":"Dog everything","why":"Dog everything is hands clasped together."},{"text":"Stop","why":"Stop is one flat hand, palm down."}],"answer":0,"explain":"Thumbs pointing at each other: **retract** (telescope in)."},{"text":"A signaller taps one elbow with the other hand. What comes next?","choices":[{"text":"The next signals are for the whipline (auxiliary hoist)","why":""},{"text":"Stop","why":"Stop is a flat hand, palm down."},{"text":"Use the main hoist","why":"Main hoist is a fist tapped on the head."},{"text":"Swing","why":"Swing is pointing with a finger."}],"answer":0,"explain":"Tapping the elbow means **use the whipline**. Then the regular signals follow."}]},{"type":"check","title":"Check 4","setup":{"signal":"dog","sigFollow":false,"quiz":true},"text":"What does this signal tell the operator?","choices":[{"text":"Dog everything: pause, set brakes and locks","why":""},{"text":"Emergency stop","why":"Emergency stop is an arm out, palm down, moving fast side to side."},{"text":"Lower slowly","why":"Move slowly uses one still hand in front of the signalling hand."},{"text":"Retract the boom","why":"Retract is fists with thumbs pointing at each other."}],"answer":0,"explain":"Hands clasped in front: **dog everything**. Use it to pause, for example when someone walks into the area or the load will not fit.","hint":"Look at the hands.","hint2":"Hands clasped together.","variants":[{"text":"Who can give a STOP signal that the operator must obey?","choices":[{"text":"Anyone","why":""},{"text":"Only the designated signaller","why":"The signaller directs the lift, but the operator obeys a stop from anyone."},{"text":"Only the supervisor","why":"A stop from anyone is obeyed."},{"text":"Only the rigger who hooked up","why":"A stop from anyone is obeyed."}],"answer":0,"explain":"One designated signaller directs the lift. A **stop** from **anyone** is obeyed."},{"text":"A signaller holds one arm straight out, palm down, perfectly still. What is it?","choices":[{"text":"Stop","why":""},{"text":"Emergency stop","why":"Emergency stop moves the hand quickly side to side."},{"text":"Lower the boom","why":"Lower the boom is a thumb down."},{"text":"Swing","why":"Swing is pointing with a finger."}],"answer":0,"explain":"Arm out, palm down, held still: **stop** (CCOHS chart). Agree on your site's chart: some show STOP with the hand moving."},{"text":"Before the lift, the operator and signaller should:","choices":[{"text":"Agree on the signals and who the signaller is","why":""},{"text":"Use whatever signals they each learned","why":"Charts differ. Agree first."},{"text":"Only use radios","why":"Radios are fine, but you still agree on the words and signals."},{"text":"Let the rigger signal too, at the same time","why":"One designated signaller at a time."}],"answer":0,"explain":"Agree on the chart, the signaller, and the radio channel if used, **before** the lift."}]}]},{"title":"Putting it together","steps":[{"type":"do","title":"Signal the skid onto the pad","text":"Now direct the whole lift. Use **Hoist** to clear the cribbing, **Swing (point right)** toward the pad, **Raise boom**, **Lower boom** or **Extend** to line up, then **Lower** to set it down. Give **Stop** whenever the load swings.","setup":{"job":"skid","boomLen":50,"hookOn":true,"signal":"none","sigFollow":true,"quiz":false},"unlock":["c-sig-hoist","c-sig-lower","c-sig-hoistSlow","c-sig-boomUp","c-sig-boomDown","c-sig-swingL","c-sig-swingR","c-sig-extend","c-sig-retract","c-sig-stop","c-sig-estop","c-sig-dog"],"goal":{"out.placed":true},"solve":{"setDown":"pad"},"live":"Radius {out.R:1} ft · {out.loadState}","hint":"Hoist first. Then swing right until the boom points at the pad in the plan view.","ok":"Set on the pad. Score **{out.score} / 100** (practice only)."},{"type":"check","title":"Check 5","text":"The load goes behind a wall. The operator can't see the load or the signaller. What do you do?","choices":[{"text":"Use radios, as agreed in the lift plan, or a second signaller in view","why":""},{"text":"Shout the signals over the wall","why":"Shouting is not a clear, agreed signal."},{"text":"The operator lifts slowly and watches the line","why":"Without line of sight the operator needs a signaller or radio."},{"text":"Two signallers both signal the operator","why":"Only one signaller directs at a time; a relay signaller passes signals on."}],"answer":0,"explain":"No line of sight: **radio** on an agreed channel, or a relay signaller the operator can see. One voice gives the signals.","hint":"How does the operator get the signal without seeing it?","hint2":"Radios, agreed before the lift.","variants":[{"text":"Before a radio lift, what do you set up?","choices":[{"text":"A channel for the lift, a radio check, and who gives the signals","why":""},{"text":"Nothing: radios replace the signaller","why":"A designated signaller still talks the load in."},{"text":"Hand signals only","why":"With no line of sight, hand signals cannot be seen."},{"text":"Everyone talks on the channel","why":"One voice gives the signals; anyone may call stop."}],"answer":0,"explain":"Agree the **channel**, do a **radio check**, and name **one** signaller."},{"text":"The radio goes silent while the load is moving. What does the operator do?","choices":[{"text":"Stop","why":""},{"text":"Carry on to the landing","why":"No signal means stop."},{"text":"Speed up to finish","why":"No signal means stop."},{"text":"Lower the load where it is","why":"Stop first, then sort out communication."}],"answer":0,"explain":"No signal: **stop**, then restore communication."}]},{"type":"summary","title":"What to remember","points":["One designated signaller directs the lift. Anyone can give STOP.","Hoist: finger up, circles. Lower: finger down, circles.","Boom: arm out, thumb up or down. Swing: point the way to go. Telescope: two fists, thumbs out or in.","Stop: palm down, still (one arm or both). Emergency stop: palm down, moving fast (one arm or both). Dog everything: hands clasped.","Agree on the chart before the lift: sources differ on STOP and EMERGENCY STOP.","No line of sight? Use radios or a second signaller, and agree on the words."]}]}],"practice":{"intro":"Free play: hold any signal and watch the crane answer.","challenges":[{"id":"p1","text":"The radius is {out.R:1} ft on a {L} ft boom. What does the 100 % chart allow?","vars":{"L":{"choices":[50,60,70]}},"derive":{"ang":"50"},"setup":{"outr":"full","lmiOutr":"full","boomLen":"=L","boomAng":"=ang"},"answer":"out.rated","unit":"lb","tol":{"abs":1},"solution":"Column {L}, next longer radius row: {answer:0} lb."}]}}</script>
 <script id="lesson-js">
 /* CrewForge lesson engine (simulators/_lesson/lesson.js). README.md beside this file has the lesson JSON schema.
    Off unless the URL has ?lesson=<id> or ?practice=1 (or the page has <meta name="cf-lesson" content="<id>">).

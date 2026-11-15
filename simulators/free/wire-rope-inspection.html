@@ -1606,7 +1606,7 @@ function renderCallouts() {
         lb.style.left = Math.max(8, Math.min(innerWidth - lw - 8, x)) + 'px'; lb.style.top = Math.max(8, Math.min(innerHeight - lh - 8, y)) + 'px'; }
     }
   });
-  { const fc = stage.querySelector('#fail-card'); const b = fc && F.on && bbV(fc); if (b) { const w = .5 + .5 * Math.sin(T / 320);
+  { const fc = stage.querySelector('#fail-card'); const b = fc && F.on && F.t < 5000 && bbV(fc); /* a few seconds only, right after the failure */ if (b) { const w = .5 + .5 * Math.sin(T / 320);
     svg += `<rect x="${K.f(b.x - 8)}" y="${K.f(b.y - 8)}" width="${K.f(b.w + 16)}" height="${K.f(b.h + 16)}" rx="16" fill="none" stroke="${K.C.BAD}" stroke-width="${K.f(3 + 5 * w)}" opacity="${K.f(.35 + .65 * w)}"/>`; } }
   layer.innerHTML = scanSvg + svg;
 }
@@ -1672,7 +1672,9 @@ if (!CAPTURE) {
     requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 }
-window.sim = { set, get, callout, clear, advance, isIdle: () => !busy(), onChange: fn => { listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; },
+/* In capture mode never report idle: the renderer reuses the last frame while a page is idle, which froze the
+   marching rings, reading pointer and swings in the video (render_qa FROZEN). Lessons still get the real value. */
+window.sim = { set, get, callout, clear, advance, isIdle: () => (CAPTURE ? false : !busy()), onChange: fn => { listeners.push(fn); return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); }; },
   lock, unlock, controls, failure: failInfo, calc: () => JSON.parse(JSON.stringify(calc(), (k, v) => v === Infinity ? 1e99 : (typeof v === 'function' ? undefined : v))),
   view: o => { VIEW = o || { spot: [] }; render(); }, page: () => ({ id: PAGE.id, title: PAGE.title }), ready: true };
 

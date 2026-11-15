@@ -202,3 +202,6 @@ ul.opts li.right{border-color:var(--ok);color:var(--text)}
 @media (max-width:960px){.starter-grid{grid-template-columns:1fr}}
 .early-ep .num{color:var(--accent);font-weight:800;font-size:14px;letter-spacing:.14em}
 .tries.two-up{grid-template-columns:1fr 1fr}@media (max-width:640px){.tries.two-up{grid-template-columns:1fr}}
+/* try-a-lesson.html (2026-11-15) */
+.try-card .shot{display:block;box-shadow:0 14px 30px rgba(0,0,0,.4)}.try-card .shot img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.try-list{margin:16px 0 0;padding-left:22px}.try-list li{margin:0 0 12px}.try-list a{font-weight:700}.try-list span{display:block;color:var(--muted);font-size:14px}

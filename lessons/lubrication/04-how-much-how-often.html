@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="cf-lesson-page" content="lubrication:4">
+<title>How much, how often · Lubrication · CrewForge</title>
+<!-- CrewForge simulator-lesson page (built by simulators/metals-lube/build.py from src/; do not edit by hand) -->
+<style>/* CrewForge simulator-lesson page shell (approved layout, docs/mockups/lesson-page.html; docs/LESSON_DESIGN.md s.2) */
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --fill:#C05A00;--ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  font-weight:700;font-size:15px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#6a645b}.btn:focus-visible,.opt:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+.btn.ghost{background:transparent}.btn[disabled]{opacity:.45;cursor:default}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:6px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{background:var(--accent)}.dots i.done{background:#7a5a3a}
+.voice{display:flex;align-items:center;gap:6px}
+.voice .btn{padding:6px 10px;font-size:13px}
+.voice .btn.off{color:var(--muted)}
+.what{margin:10px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15.5px}
+.what .wt{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800;background:none;border:0;padding:0;min-height:0;display:flex;gap:8px;align-items:center}
+.what .wt .chev{display:none}
+.what b.hl{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+.read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
+.caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
+  background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
+.caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
+.caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
+.caption.on{display:block}
+.caption[data-at=bottom]{top:auto;bottom:96px}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step .sh{display:flex;align-items:center;gap:8px}
+.step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
+.step p{font-size:18px;margin:6px 0 10px;font-weight:600}
+.step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
+.step .hint{font-size:15px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,138,43,.10);border:1px solid rgba(240,138,43,.5)}
+.step .good{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(61,220,132,.10);border:1px solid var(--ok)}
+.step .good b{color:var(--ok)}
+.step .bad{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(242,194,48,.10);border:1px solid var(--warn)}
+.step .bad b{color:var(--warn)}
+.step .never{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--bad);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.skip{background:none;border:0;color:var(--muted);text-decoration:underline;min-height:44px;padding:0 6px;font-size:14px}
+.q h3{margin:4px 0 8px;font-size:17px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:10px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:15.5px;font-weight:600;min-height:44px}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,79,.12)}
+.opt.right{border-color:var(--ok);background:rgba(61,220,132,.12)}
+.opt.ans{border-color:var(--ok)}
+.free{border:2px dashed var(--accent)}
+.free .fk{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800}
+.ctrlcard{display:flex;flex-direction:column;gap:12px}
+.ctrlcard:empty{display:none}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl .lab{font-weight:700;width:96px;flex:none;font-size:15px;line-height:1.15}
+.ctrl .val{font-weight:800;color:var(--accent);min-width:72px;text-align:right;background:none;border:0;padding:0;min-height:44px;font-size:16px}
+.ctrl input[type=range]{flex:1;min-width:60px;accent-color:var(--accent);height:44px}
+.ctrl .tv{width:80px;font:inherit;font-weight:800;padding:6px;border-radius:8px;border:2px solid var(--accent);background:#171512;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipwrap .lab{font-weight:700;font-size:15px;margin-bottom:6px;display:block}
+.chip{padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);font-weight:700;min-height:44px;font-size:14.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.spotlit{box-shadow:0 0 0 3px var(--accent),0 0 18px rgba(240,138,43,.6);border-radius:12px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px var(--accent),0 0 28px rgba(240,138,43,.75)}}
+#start{position:fixed;inset:0;background:rgba(15,14,12,.82);display:flex;align-items:center;justify-content:center;z-index:20}
+#start .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center}
+#start h2{margin:0 0 6px;font-size:24px}#start p{color:var(--muted);margin:0 0 18px}
+#start .btn{font-size:18px;padding:12px 22px}
+/* phone portrait: top bar -> what (collapsible) -> step -> simulator -> control tray (no page scroll) */
+body.phone .app{grid-template-rows:auto auto minmax(0,1fr)}
+body.phone .bar{flex-wrap:wrap;padding:6px 8px;gap:6px}
+body.phone .title{order:-1;flex-basis:100%;display:flex;gap:8px;align-items:baseline}
+body.phone .kick{font-size:11px}body.phone .h{font-size:16px}
+body.phone .dots{flex:1;justify-content:center}body.phone .dots i{width:14px}
+body.phone .what{margin:6px 8px 0;padding:6px 10px;font-size:14px}
+body.phone .what .wt{min-height:44px;width:100%}
+body.phone .what .wt .chev{display:inline}
+body.phone .what:not(.open) .wx{display:none}
+body.phone .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 8px 8px;gap:6px}
+body.phone .side{display:contents}
+body.phone .step{order:1;padding:8px 12px}body.phone .stage{order:2}body.phone .ctrlcard{order:3;padding:8px 10px;gap:6px}
+body.phone .step p{font-size:15.5px;margin:2px 0 6px}
+body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
+body.phone .q h3{font-size:15px;margin:2px 0 4px}
+body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
+body.phone .read{padding:4px 6px;gap:4px}
+body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .ctrl .lab{width:70px;font-size:13px}
+body.phone .chip{padding:6px 9px;font-size:13px}
+body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
+body.phone .caption{font-size:13px;padding:6px 10px;top:6px}
+body.phone .btn{padding:6px 10px;font-size:14px}
+body.phone .step .sh{min-height:28px}
+body.phone .main{grid-template-columns:minmax(0,1fr)}
+body.phone .card,body.phone .stage{min-width:0}
+body.phone .bar .btn{padding:4px 10px;font-size:14px}
+body.phone .voice .vt{display:none}
+body.phone .ro .lf{display:none}
+.ro .ls{display:none}body.phone .ro .ls{display:inline}
+body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
+.what .wt{pointer-events:none}body.phone .what .wt{pointer-events:auto}
+.main{grid-template-rows:minmax(0,1fr)}
+
+/* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
+body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
+body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
+body.phone .chip{flex:none}
+body.phone .chipwrap{display:flex;align-items:center;gap:8px}
+body.phone .chipwrap .lab{margin:0;width:70px;flex:none}
+body.phone .bar{row-gap:2px}
+body.phone .what{padding:0 10px}
+.chip{min-width:44px}
+body.phone .caption .ct{display:none}body.phone .caption b{font-size:12px}body.phone .caption{padding:4px 10px;bottom:56px}
+
+/* hold-to-run controls (shell.js: type 'hold' and data-hk buttons inside 'custom' controls) */
+.ctrl.holdc{display:block}
+.btn.hold{width:100%;min-height:52px;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn.hold.on{background:var(--fill);border-color:var(--accent);color:var(--text)}
+.ctrl.custom{display:block}
+.step ul.points{margin:4px 0 10px;padding-left:20px;font-size:16px}.step ul.points li{margin:3px 0}
+.step .wrongsay{color:var(--warn);font-weight:700}
+body.phone .btn.hold{min-height:48px}
+/* video layout (content capture:'stage' + ?capture=1): the stage and its readouts fill the window */
+body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
+body.capture .app{grid-template-rows:minmax(0,1fr)}
+body.capture .main{grid-template-columns:1fr;padding:10px 12px}
+body.capture .read{padding:10px 12px}
+body.capture .ro{padding:7px 10px}
+</style></head>
+<body><noscript>This lesson needs JavaScript.</noscript>
+<script>(function (root) {
+'use strict';
+const K = {};
+K.W = 1600; K.H = 880; K.FLOOR = 800;
+K.FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+K.C = { bg: '#24211d', panel: '#2a2723', text: '#F5F5F4', muted: '#b9b4ab', acc: '#F08A2B', ok: '#3ddc84', warn: '#F2C230',
+  bad: '#ff5a4f', steelD: '#3b4247', steelM: '#8d969d', steelL: '#b9c1c7', steelHi: '#eef1f3', ropeD: '#454c51',
+  ropeM: '#aab3b9', ropeV: '#6a737a', timberD: '#5e4426', paint: '#5d6670', paintD: '#23282c' };
+const C = K.C;
+const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+K.f = f;
+K.pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+K.esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+K.catmull = function (P, n = 8, closed = false) {
+  const out = [], m = P.length, last = closed ? m : m - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = P[(closed || i > 0) ? (i - 1 + m) % m : i], p1 = P[i], p2 = P[(i + 1) % m];
+    const p3 = P[(closed || i + 2 < m) ? (i + 2) % m : (i + 1) % m];
+    for (let j = 0; j < n; j++) {
+      const t = j / n, t2 = t * t, t3 = t2 * t;
+      out.push([0, 1].map(c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 +
+        (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+    }
+  }
+  if (!closed) out.push(P[m - 1]);
+  return out;
+};
+K.arcPts = (cx, cy, r, a0, a1, n = 24) => { const o = []; for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return o; };
+K.resample = function (P, step) {
+  const out = [P[0]]; let acc = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+    if (!seg) continue;
+    let t = step - acc;
+    while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+    acc = seg - (t - step);
+  }
+  return out;
+};
+K.normals = P => P.map((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; });
+K.litOffset = function (P, amt) {
+  const N = K.normals(P), Lx = -0.7071, Ly = -0.7071;
+  return P.map((p, i) => { const s = N[i][0] * Lx + N[i][1] * Ly; return [p[0] + N[i][0] * s * amt, p[1] + N[i][1] * s * amt]; });
+};
+K.walker = function (P) {
+  const L = [0];
+  for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const at = s => {
+    s = Math.max(0, Math.min(L[L.length - 1], s));
+    let i = 0; while (i < L.length - 2 && L[i + 1] < s) i++;
+    const seg = (L[i + 1] - L[i]) || 1, t = (s - L[i]) / seg, a = P[i], b = P[i + 1] || a;
+    const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1;
+    return [a[0] + dx * t, a[1] + dy * t, dx / d, dy / d];
+  };
+  return { len: L[L.length - 1], at };
+};
+K.defs = () => `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gGB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a8396"/><stop offset=".5" stop-color="#4c6273"/><stop offset="1" stop-color="#34444f"/></linearGradient>
+<radialGradient id="gWheel" cx=".38" cy=".34" r=".8"><stop offset="0" stop-color="#7d97aa"/><stop offset=".6" stop-color="#4c6273"/><stop offset="1" stop-color="#2c3a44"/></radialGradient>
+<linearGradient id="gCrane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b04a"/><stop offset=".5" stop-color="#b98f2c"/><stop offset="1" stop-color="#7d5f19"/></linearGradient>
+<linearGradient id="gMotor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7a8f"/><stop offset=".35" stop-color="#8aa6b8"/><stop offset=".7" stop-color="#4a6577"/><stop offset="1" stop-color="#2e4250"/></linearGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c8780"/><stop offset="1" stop-color="#5f5a53"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDust"><stop offset="0" stop-color="#b9ad98" stop-opacity=".55"/><stop offset="1" stop-color="#b9ad98" stop-opacity="0"/></radialGradient>
+<marker id="mAcc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.acc}"/></marker>
+<marker id="mTxt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.text}"/></marker>
+<marker id="mMut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.muted}"/></marker>
+</defs>`;
+K.style = (extraPhone = '') => `<style>
+.lb{font:700 26px ${K.FONT};fill:${C.text}} .lm{font:600 21px ${K.FONT};fill:${C.muted}} .la{font:800 30px ${K.FONT};fill:${C.acc}}
+.ld{stroke:${C.muted};stroke-width:2;fill:none} .tag{font:700 12px ${K.FONT};fill:#1d1d1d} .tagb{font:800 15px ${K.FONT};fill:#1d1d1d}
+.halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round} .phOnly{display:none}
+.drag{cursor:grab} .drag:active{cursor:grabbing}
+@media (max-width:700px){ .lb{font-size:33px} .lm{font-size:29px} .la{font-size:36px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+K.backdrop = function (floor = K.FLOOR, wainscot = true) {
+  let s = `<rect width="${K.W}" height="${floor}" fill="url(#gWall)"/>`;
+  if (wainscot) s += `<rect x="0" y="${floor - 150}" width="${K.W}" height="150" fill="#fff" opacity=".018"/><line x1="0" y1="${floor - 150}" x2="${K.W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+  s += `<rect x="0" y="${floor}" width="${K.W}" height="${K.H - floor}" fill="url(#gFloor)"/><line x1="0" y1="${floor}" x2="${K.W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+  return s;
+};
+K.column = (x, floor = K.FLOOR, top = 0, w = 34, op = .55) =>
+  `<g opacity="${op}"><rect x="${f(x)}" y="${f(top)}" width="${w}" height="${f(floor - top)}" fill="#2f2c28"/><rect x="${f(x)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#3a3632"/>` +
+  `<rect x="${f(x + w - 5)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#262320"/><rect x="${f(x - 14)}" y="${f(floor - 8)}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+K.shadow = (cx, y, w, h = 14, op = 1) => `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+K.roundBar = function (P, d, body = '#8d969d', dark = C.steelD, hi = '#e8ecef', cap = 'round', hiOp = .85) {
+  const p = K.pathd(P);
+  return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${K.pathd(K.litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+};
+K.wireRope = function (P, d, phase = 0) {
+  const dense = K.resample(P, Math.max(.8, d / 4));
+  if (dense.length < 2) dense.push(P[P.length - 1]);
+  let s = K.roundBar(dense, d, C.ropeM, C.ropeD, '#e9edf0', 'butt', .7);
+  if (d < 2.2) return s;
+  const pitch = 1.08 * d, adv = 2.0 * d, w = K.walker(dense);
+  let v = '', sv = -adv - (((phase % pitch) + pitch) % pitch);
+  while (sv < w.len) {
+    const seg = [];
+    for (let j = 0; j < 5; j++) {
+      const q = sv + adv * j / 4;
+      if (q >= 0 && q <= w.len) { const [x, y, ux, uy] = w.at(q), o = (-0.5 + j / 4) * d * .86; seg.push([x - uy * o, y + ux * o]); }
+    }
+    if (seg.length > 1) v += K.pathd(seg) + ' ';
+    sv += pitch;
+  }
+  return s + `<path d="${v}" fill="none" stroke="${C.ropeV}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+};
+K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b') {
+  const w = K.walker(P);
+  let s = '', idx = Math.floor(phase / pitch), s0 = -(((phase % pitch) + pitch) % pitch);
+  const L = pitch + d;
+  for (let sv = s0, n = 0; sv < w.len + pitch; sv += pitch, n++) {
+    const a = Math.max(0, sv), b = Math.min(w.len, sv + pitch);
+    if (b - a < pitch * .25) continue;
+    const [x, y, ux, uy] = w.at((a + b) / 2), ang = Math.atan2(uy, ux) * 180 / Math.PI;
+    const face = ((n + idx) & 1) === 0, len = (b - a) / pitch * L;
+    if (face) {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.4)}"/>` +
+        `<rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${col}" stroke-width="${f(d)}"/>` +
+        `<path d="M${f(-len / 2 + d * 1.4)} ${f(-d * 1.95)} L${f(len / 2 - d * 1.4)} ${f(-d * 1.95)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.7, d * .3))}" opacity=".75"/></g>`;
+    } else {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-d * .62)}" width="${f(len)}" height="${f(d * 1.24)}" rx="${f(d * .6)}" fill="${col}" stroke="${dark}" stroke-width="1.1"/>` +
+        `<path d="M${f(-len / 2 + d)} ${f(-d * .3)} L${f(len / 2 - d)} ${f(-d * .3)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.6, d * .25))}" opacity=".7"/></g>`;
+    }
+  }
+  return s;
+};
+K.timberEnd = function (x, y, w, h, id = '') {
+  const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + Math.round(x) + '_' + Math.round(y);
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+  for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+  s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#fff" opacity=".08"/></g>`;
+  return s;
+};
+K.timberSide = function (x, y, w, h, seed = 1) {
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  const n = Math.max(2, Math.floor(h / 7));
+  for (let i = 1; i < n; i++) {
+    const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+    s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+  }
+  return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+};
+const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+  [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81, HOOK_L = 10.43;
+K.HOOK = { saddle: HOOK_SADDLE, L: HOOK_L, ri: HOOK_RI, cy: HOOK_CY };
+function hookContour(open = 0) {
+  const tip = HOOK_OUT.map(p => p[1] < -2.4 && p[0] > 0 ? [p[0] + open * 1.2 * ((-p[1] - 2.4) / 2.4), p[1] + open * .5 * ((-p[1] - 2.4) / 2.4)] : p);
+  let out = K.catmull(tip, 6);
+  const tp = [HOOK_TIP[0] + open * 1.3, HOOK_TIP[1] + open * .55];
+  out = out.concat([tp, [1.8 + open * 1.25, -4.5 + open * .5], [1.64 + open * .6, -4.0 + open * .2]]);
+  for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+  out = out.concat(K.catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+  return [[-0.705, -HOOK_L]].concat(out, [[0.705, -HOOK_L]]);
+}
+K.hookProfile = function (x, ysad, k, o = {}) {
+  const m = o.mirror ? -1 : 1, open = o.open || 0;
+  const T = p => [x + m * p[0] * k, ysad + (p[1] - HOOK_SADDLE) * k];
+  const c = hookContour(open).map(T);
+  let s = `<g id="${o.id || 'hook'}"${o.rot ? ` transform="rotate(${f(o.rot)} ${f(x)} ${f(ysad)})"` : ''}><path d="${K.pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, Math.min(1.8, k * .2)))}" stroke-linejoin="round"/>`;
+  const back = K.catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+  s += `<path d="${K.pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+  s += `<path d="${K.pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+  if (k > 4) for (const p of [[0.95, -5.55], [1.95 + open * 1.1, -4.15 + open * .3]]) { const q = T(p); s += `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(k * .09)}" fill="#20252a"/>`; }
+  if (o.latch === 'missing') {
+    const pv = T([0.92, -5.95]);
+    s += `<circle cx="${f(pv[0])}" cy="${f(pv[1])}" r="${f(k * .3)}" fill="none" stroke="${C.bad}" stroke-width="2"/>`;
+  } else if (o.latch !== false) {
+    const piv = T([0.92, -5.95]), end = T([1.9 + open * 0.2, -4.62 + open * .1]), mid = T([1.5, -5.35]);
+    const d = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+    s += `<path d="${d}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+  }
+  return s + '</g>';
+};
+K.hookEdge = function (x, ysad, k, id = 'hook') {
+  const T = (px, py) => [x + px * k, ysad + (py - HOOK_SADDLE) * k];
+  const body = [T(-0.705, -10.43), T(-0.705, -6.59), T(-0.78, -6.1), T(-0.8, -3.0), T(-0.72, -0.9), T(-0.45, -0.12), T(0, 0),
+    T(0.45, -0.12), T(0.72, -0.9), T(0.8, -3.0), T(0.78, -6.1), T(0.705, -6.59), T(0.705, -10.43)];
+  return `<g id="${id}"><path d="${K.pathd(K.catmull(body, 4), true)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1.6"/></g>`;
+};
+K.hookNeck = function (x, ytop, ysad, k) {
+  const yShank = ysad - (HOOK_L + HOOK_SADDLE) * k;
+  let s = '';
+  if (ytop < yShank) s += `<rect x="${f(x - .55 * k)}" y="${f(ytop)}" width="${f(1.1 * k)}" height="${f(yShank - ytop + 1)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1"/>`;
+  return s;
+};
+K.wbeamSide = function (x0, x1, ytop, d, tf, stiff = [], paint = '#5b6168') {
+  let s = `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(d)}" fill="#3f454b" stroke="#202427" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(x1 - x0)}" height="${f(d * .28)}" fill="#000" opacity=".25"/>`;
+  for (const xs of stiff) s += `<rect x="${f(xs - 3)}" y="${f(ytop + tf)}" width="6" height="${f(d - 2 * tf)}" fill="#646b72" stroke="#2a3035" stroke-width="1"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#7b838a" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf * .35)}" fill="#c3cad0" opacity=".55"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#656d74" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(Math.max(1, tf * .3))}" fill="#aab2b8" opacity=".5"/>`;
+  return s;
+};
+K.wbeamEnd = function (cx, ytop, d, bf, tf, tw, bend = 0, col = '#6e767d') {
+  const yb = ytop + d;
+  const fl = (y, down) => {
+    const tip = down ? bend : 0;
+    return `<path d="M${f(cx - bf / 2)} ${f(y + tip)} L${f(cx - tw / 2)} ${f(y)} L${f(cx + tw / 2)} ${f(y)} L${f(cx + bf / 2)} ${f(y + tip)} L${f(cx + bf / 2)} ${f(y + tf + tip)} L${f(cx + tw / 2)} ${f(y + tf)} L${f(cx - tw / 2)} ${f(y + tf)} L${f(cx - bf / 2)} ${f(y + tf + tip)}Z" fill="${col}" stroke="#202427" stroke-width="1.6" stroke-linejoin="round"/>`;
+  };
+  let s = `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(tw)}" height="${f(d - 2 * tf)}" fill="${col}" stroke="#202427" stroke-width="1.6"/>`;
+  s += fl(ytop, false) + fl(yb - tf, true);
+  s += `<rect x="${f(cx - bf / 2)}" y="${f(ytop)}" width="${f(bf)}" height="${f(Math.max(1.5, tf * .3))}" fill="#c3cad0" opacity=".5"/>`;
+  s += `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(Math.max(1, tw * .35))}" height="${f(d - 2 * tf)}" fill="#c3cad0" opacity=".35"/>`;
+  return s;
+};
+K.label = function (tx, ty, text, target, o = {}) {
+  const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}${o.cl ? ` class="${o.cl}"` : ''}>`;
+  if (target) {
+    const [x2, y2] = target, sx = anchor === 'start' ? tx - 6 : anchor === 'end' ? tx + 6 : tx, sy = anchor === 'middle' ? ty + 8 : ty - 8;
+    if (o.elbow) s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`;
+    else s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+    s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.text}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+  }
+  s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}"${o.subFill ? ` style="fill:${o.subFill}"` : ''}>${o.sub}</text>`;
+  return s + '</g>';
+};
+K.angleArc = function (cx, cy, r, a0, a1, text, tx, ty, o = {}) {
+  const col = o.col || C.acc, P = K.arcPts(cx, cy, r, a0, a1, 40);
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><path d="${K.pathd(P)}" fill="none" stroke="#1F1D1A" stroke-width="7" stroke-linecap="round" opacity=".6"/><path d="${K.pathd(P)}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
+  for (const a of [a0, a1]) { const r1 = a * Math.PI / 180; s += `<line x1="${f(cx + (r - 9) * Math.cos(r1))}" y1="${f(cy + (r - 9) * Math.sin(r1))}" x2="${f(cx + (r + 9) * Math.cos(r1))}" y2="${f(cy + (r + 9) * Math.sin(r1))}" stroke="${col}" stroke-width="3"/>`; }
+  s += `<text class="la halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 24)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.arrow = function (x0, y0, x1, y1, o = {}) {
+  const col = o.col || C.text, w = o.w || 4, d = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / d, uy = (y1 - y0) / d, hl = o.head || 18, hw = hl * .55;
+  const bx = x1 - ux * hl, by = y1 - uy * hl;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (d > hl) s += `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" opacity=".5"/><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}"/>`;
+  s += `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1"/>`;
+  if (o.text) s += `<text class="${o.cls || 'lb'} halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f(o.ty != null ? o.ty : y1)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${o.text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f((o.ty != null ? o.ty : y1) + 25)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.dim = function (x0, y0, x1, y1, text, o = {}) {
+  const col = o.col || C.muted, d = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / d * 9, ny = (x1 - x0) / d * 9;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${col}" stroke-width="2" marker-start="url(#mMut)" marker-end="url(#mMut)"/>`;
+  for (const [x, y] of [[x0, y0], [x1, y1]]) s += `<line x1="${f(x - nx)}" y1="${f(y - ny)}" x2="${f(x + nx)}" y2="${f(y + ny)}" stroke="${col}" stroke-width="2"/>`;
+  const tx = o.tx != null ? o.tx : (x0 + x1) / 2, ty = o.ty != null ? o.ty : (y0 + y1) / 2 - 10;
+  s += `<text class="${o.cls || 'lb'} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'middle'}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  return s + '</g>';
+};
+K.inset = function (refId, sx, sy, mag, cx, cy, r, title, sub, id) {
+  const rs = r / mag, d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d, cid = 'ci' + Math.round(cx) + '_' + Math.round(cy);
+  let s = `<g${id ? ` id="${id}"` : ''}><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+  s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
+  if (title) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+  if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+  return s + '</g>';
+};
+K.plate = function (x, y, w, rows, o = {}) {
+  const lh = o.lh || 22, h = 12 + rows.length * lh;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" fill="#d9dcdf" stroke="#23282c" stroke-width="1.5"/>`;
+  rows.forEach((r, i) => {
+    const yy = y + 6 + lh * (i + 1) - 6;
+    if (r.hi) s += `<rect x="${f(x + 4)}" y="${f(yy - lh + 6)}" width="${f(w - 8)}" height="${f(lh)}" rx="4" fill="none" stroke="${C.acc}" stroke-width="2.5"/>`;
+    s += `<text class="mk" x="${f(x + 10)}" y="${f(yy)}" style="font:${r.b ? 800 : 700} ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.l}</text>`;
+    if (r.r != null) s += `<text class="mk" x="${f(x + w - 10)}" y="${f(yy)}" text-anchor="end" style="font:800 ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.r}</text>`;
+  });
+  return s + '</g>';
+};
+K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
+  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
+  const x = (K.W - w) / 2;
+  return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
+    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+};
+K.dust = (cx, y, t, w = 160) => {
+  if (t < 0 || t > 1.6) return '';
+  const a = 1 - t / 1.6, r = 30 + t * 70;
+  return `<g opacity="${f(a)}"><ellipse cx="${f(cx - w * .35 - t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/>` +
+    `<ellipse cx="${f(cx + w * .35 + t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/></g>`;
+};
+K.skid = function (cx, yTop, w, h, label, o = {}) {
+  const x0 = cx - w / 2, rot = o.rot || 0;
+  let s = `<g id="${o.id || 'load'}"${rot ? ` transform="rotate(${f(rot)} ${f(cx)} ${f(yTop + h / 2)})"` : ''}>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h * .16)}" fill="#7b858e"/><rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="3" fill="#c3cad0" opacity=".5"/>`;
+  for (let i = 1; i < 5; i++) s += `<rect x="${f(x0 + w * i / 5 - 3)}" y="${f(yTop + h * .16)}" width="6" height="${f(h * .84)}" fill="#4a525a"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop + h * .8)}" width="${f(w)}" height="${f(h * .2)}" fill="#3f474e"/>`;
+  if (label) s += `<rect x="${f(cx - 50)}" y="${f(yTop + h * .38)}" width="100" height="26" rx="3" fill="#d9dcdf" stroke="#23282c"/><text x="${f(cx)}" y="${f(yTop + h * .38 + 18)}" text-anchor="middle" class="mk" style="font:800 15px ${K.FONT};fill:#1d1d1d">${label}</text>`;
+  const lug = o.lug != null ? o.lug : w * .4;
+  for (const sg of (o.lugs || [-1, 1])) s += `<path d="M${f(cx + sg * lug - 12)} ${f(yTop)} L${f(cx + sg * lug - 7)} ${f(yTop - 18)} A7 7 0 0 1 ${f(cx + sg * lug + 7)} ${f(yTop - 18)} L${f(cx + sg * lug + 12)} ${f(yTop)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/><circle cx="${f(cx + sg * lug)}" cy="${f(yTop - 16)}" r="3" fill="#1b1a18"/>`;
+  return s + '</g>';
+};
+K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa')}${K.chain([hk, b], pitch, d, 0, '#9aa3aa')}</g>`; };
+K.miniHoist = function (x, yPin, kk, run = 0, label = '', dropIn = 22) {
+  let s = `<g id="hoist"><rect x="${f(x - 3.2 * kk)}" y="${f(yPin + 2 * kk)}" width="${f(6.4 * kk)}" height="${f(6.6 * kk)}" rx="${f(1.5 * kk)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+  s += `<circle cx="${f(x)}" cy="${f(yPin + 5.3 * kk)}" r="${f(2.5 * kk)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.2"/>`;
+  for (let i = 0; i < 6; i++) { const a = run + i * Math.PI / 3; s += `<line x1="${f(x)}" y1="${f(yPin + 5.3 * kk)}" x2="${f(x + 2.3 * kk * Math.cos(a))}" y2="${f(yPin + 5.3 * kk + 2.3 * kk * Math.sin(a))}" stroke="#76828c" stroke-width="2"/>`; }
+  s += `<rect x="${f(x - .9 * kk)}" y="${f(yPin)}" width="${f(1.8 * kk)}" height="${f(2.2 * kk)}" fill="#4c6273" stroke="#1b232a"/>`;
+  const hy = yPin + 5.3 * kk, drop = dropIn * kk, ang = K.sway(2.4, 1.6);
+  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, run * 30, '#a9b1b7')}</g>`;
+  if (label) s += `<text class="mk" x="${f(x)}" y="${f(yPin + 8.2 * kk)}" text-anchor="middle" style="font:800 ${f(Math.max(9, 1.1 * kk))}px ${K.FONT};fill:#e6edf2">${label}</text>`;
+  return { svg: s + '</g>', yBot: yPin + 8.6 * kk, xl: x - .9 * kk, hr: 2.5 * kk };
+};
+K.n0 = v => Math.round(v).toLocaleString('en-CA');
+K.n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+K.n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+K.LB2KG = 0.45359237;
+K.T = 0;
+K.sway = (period, amp, phase = 0) => amp * Math.sin(2 * Math.PI * K.T / period + phase);
+root.CFK = K;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function (root) {
+'use strict';
+const MD = {};
+MD.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+MD.lerp = (a, b, t) => a + (b - a) * t;
+MD.hash = (i, j, s = 0) => { const x = Math.sin(i * 127.1 + j * 311.7 + s * 74.7) * 43758.5453; return x - Math.floor(x); };
+MD.rng = seed => { let a = seed >>> 0 || 1; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; };
+MD.interp = function (tab, x, ix = 0, iy = 1) {
+  if (x <= tab[0][ix]) return tab[0][iy];
+  if (x >= tab[tab.length - 1][ix]) return tab[tab.length - 1][iy];
+  for (let i = 1; i < tab.length; i++) if (x <= tab[i][ix]) { const a = tab[i - 1], b = tab[i]; return a[iy] + (b[iy] - a[iy]) * (x - a[ix]) / (b[ix] - a[ix]); }
+  return tab[tab.length - 1][iy];
+};
+MD.toF = c => c * 9 / 5 + 32;
+MD.toC = fh => (fh - 32) * 5 / 9;
+const n0 = v => Math.round(v).toLocaleString('en-CA');
+const n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+MD.n0 = n0; MD.n1 = n1; MD.n2 = n2;
+MD.fT = (c, units, both) => units === 'imp' ? n0(Math.round(MD.toF(c) / 5) * 5) + ' °F' : n0(c) + ' °C' + (both ? ` (${n0(Math.round(MD.toF(c) / 5) * 5)} °F)` : '');
+MD.fTexact = (c, units) => units === 'imp' ? n0(MD.toF(c)) + ' °F' : n0(c) + ' °C';
+MD.fLen = (mm, units, dec = 1) => units === 'imp' ? (mm / 25.4).toFixed(dec + 2) + ' in' : (dec ? (Math.round(mm * 10 ** dec) / 10 ** dec).toFixed(dec) : n0(mm)) + ' mm';
+MD.fMass = (g, units) => units === 'imp' ? n2(g / 28.3495) + ' oz' : n1(g) + ' g';
+root.MD = MD;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function (root) {
+'use strict';
+const MD = root.MD;
+const H = {};
+H.MINOR = 10;
+H.DIV = 0.002;
+H.SCALE = { C: { N: 100, total: 150, ind: 'Diamond cone (Brale), 120°', short: 'diamond cone' },
+            B: { N: 130, total: 100, ind: '1/16 in ball (1.588 mm)', short: '1/16 in ball' } };
+H.ELASTIC = 6;
+H.CONV = [[20, 222, 109, 752], [21, 228, 112, 772], [22, 234, 115, 793], [23, 240, 118, 814], [24, 247, 121, 834], [25, 253, 124, 855], [26, 258, 126, 869], [27, 264, 129, 889],
+  [28, 271, 133, 917], [29, 279, 137, 945], [30, 286, 140, 965], [31, 294, 144, 993], [32, 301, 147, 1014], [33, 311, 152, 1048], [34, 319, 156, 1076], [35, 327, 160, 1103],
+  [36, 336, 165, 1138], [37, 344, 169, 1165], [38, 353, 173, 1193], [39, 362, 177, 1220], [40, 371, 182, 1255], [41, 381, 187, 1289], [42, 390, 191, 1317], [43, 400, 196, 1351],
+  [44, 409, 200, 1379], [45, 421, 206, 1420], [46, 432, 212, 1462], [47, 443, 217, 1496], [48, 455, 221, 1524], [49, 469, 227, 1565], [50, 481, 233, 1607], [51, 496, 239, 1648],
+  [52, 512, 245, 1689], [53, 523, 257, 1772], [54, 543, 266, 1834], [55, 560, 274, 1889], [56, 577, 282, 1944], [57, 595, 290, 2000], [58, 615, 300, 2069], [59, 634, 310, 2137], [60, 654, 320, 2206]];
+H.hbOfHrc = hrc => MD.interp(H.CONV, hrc, 0, 1);
+H.hrcOfHb = hb => MD.interp(H.CONV, hb, 1, 0);
+H.ksiOfHrc = hrc => MD.interp(H.CONV, hrc, 0, 2);
+H.mpaOfHrc = hrc => MD.interp(H.CONV, hrc, 0, 3);
+H.PARTS = {
+  shaft: { n: 'Pump shaft, 4140 quenched and tempered', short: 'Q&T shaft', mat: 'steel', hrc: 30, hb: 286, col: '#8f979d' },
+  pin:   { n: 'Hardened dowel pin', short: 'Hardened pin', mat: 'tool', hrc: 58, hb: 615, col: '#7c858b' },
+  file:  { n: 'Hardened tool-steel wear strip', short: 'Wear strip', mat: 'tool', hrc: 55, hb: 560, col: '#7c858b' },
+  plate: { n: 'Mild steel plate, hot-rolled', short: 'Mild steel', mat: 'mild', hrb: 75, eqC: 2, hb: 140, col: '#9aa2a8' },
+  brass: { n: 'Brass bushing', short: 'Brass', mat: 'brass', hrb: 60, eqC: -8, hb: 105, col: '#cfae55' },
+  iron:  { n: 'Grey cast iron pump casing', short: 'Cast iron', mat: 'cast', hrb: 92, eqC: 11, hb: 200, col: '#6d6f70' },
+  alu:   { n: 'Aluminium bracket', short: 'Aluminium', mat: 'alum', hrb: 50, eqC: -20, hb: 90, col: '#c9cfd6' },
+  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' }
+};
+H.trueHR = function (part, sc) {
+  const p = H.PARTS[part];
+  if (sc === 'C') return p.hrc != null ? p.hrc : p.eqC;
+  if (p.hrb != null) return p.hrb;
+  return 100 + (p.hrc - 23) * 0.6 + 4;
+};
+H.depth = (part, sc) => (H.SCALE[sc].N - H.trueHR(part, sc)) * H.DIV;
+H.valid = (HR, sc) => sc === 'C' ? HR >= 20 && HR <= 70 : HR >= 0 && HR <= 100;
+H.ballDamage = (part, sc) => sc === 'B' && H.PARTS[part].hrc != null && H.PARTS[part].hrc >= 23;
+H.D = 10;
+H.LOADS = [500, 1000, 3000];
+H.hbOf = (F, d, D = H.D) => 2 * F / (Math.PI * D * (D - Math.sqrt(D * D - d * d)));
+H.dOf = (F, hb, D = H.D) => { const x = D - 2 * F / (Math.PI * D * hb); return Math.sqrt(Math.max(0, D * D - x * x)); };
+H.capH = (F, hb, D = H.D) => 2 * F / (Math.PI * D * hb);
+H.dOK = (d, D = H.D) => d >= 0.24 * D - 1e-9 && d <= 0.6 * D + 1e-9;
+H.D1 = 1.008; H.D2 = 0.992;
+H.FILES = [40, 45, 50, 55, 60, 65];
+H.bites = (fileHRC, part) => { const p = H.PARTS[part]; return p.hrc == null || fileHRC > p.hrc; };
+H.MIN_T = 10; H.EDGE = 2.5; H.SPACE = 3;
+H.coneD = h => { const r = 0.2, hs = r * (1 - Math.cos(Math.PI / 6)); return h <= hs ? 2 * Math.sqrt(Math.max(0, 2 * r * h - h * h)) : 2 * (r * Math.sin(Math.PI / 6) + (h - hs) * Math.tan(Math.PI / 3)); };
+H.ballD = (h, R = 1.5875 / 2) => 2 * Math.sqrt(Math.max(0, 2 * R * Math.min(h, R) - Math.min(h, R) ** 2));
+root.MDH = H;
+})(typeof window !== 'undefined' ? window : globalThis);</script><script>(function (root) {
+'use strict';
+const MD = root.MD, L = {};
+L.VGLIST = [10, 15, 22, 32, 46, 68, 100, 150, 220, 320, 460, 680];
+L.vgLimits = vg => [vg * .9, vg * 1.1];
+L.OILS = {
+  32: { v40: 31.5, v100: 5.5, vi: 110, name: 'HYDREX AW 32' }, 46: { v40: 46.4, v100: 6.9, vi: 104, name: 'HYDREX AW 46' },
+  68: { v40: 67.4, v100: 8.9, vi: 106, name: 'HYDREX AW 68' }, 100: { v40: 101, v100: 11.6, vi: 102, name: 'HYDREX AW 100' },
+  150: { v40: 150, v100: 15.3, vi: 103, name: 'ENDURATEX EP 150' }, 220: { v40: 220, v100: 19.4, vi: 102, name: 'ENDURATEX EP 220' },
+  320: { v40: 321, v100: 24.9, vi: 99, name: 'ENDURATEX EP 320' } };
+L.GRADES = [32, 46, 68, 100, 150, 220, 320];
+L.walther = function (o) {
+  const W = v => Math.log10(Math.log10(v + .7)), t1 = Math.log10(313.15), t2 = Math.log10(373.15);
+  const B = (W(o.v40) - W(o.v100)) / (t2 - t1);
+  return { A: W(o.v40) + B * t1, B };
+};
+L.visc = function (vg, T) { const { A, B } = L.walther(L.OILS[vg]); return Math.pow(10, Math.pow(10, A - B * Math.log10(T + 273.15))) - .7; };
+L.kappa = (vg, T, nu1) => L.visc(vg, T) / nu1;
+L.filmLevel = k => k >= 1 ? 'ok' : k >= .4 ? 'thin' : 'contact';
+L.NLGI = [['000', 445, 475, 'semi-fluid'], ['00', 400, 430, 'semi-fluid'], ['0', 355, 385, 'very soft'], ['1', 310, 340, 'soft'],
+  ['2', 265, 295, 'most bearings'], ['3', 220, 250, 'firm'], ['4', 175, 205, 'very firm'], ['5', 130, 160, 'hard'], ['6', 85, 115, 'block']];
+L.penOf = gi => (L.NLGI[gi][1] + L.NLGI[gi][2]) / 2;
+L.THICK = { li: 'Lithium 12-hydroxy', lic: 'Lithium complex', pus: 'Polyurea (shear stable)', csu: 'Calcium sulfonate', clay: 'Clay (non-soap)', alc: 'Aluminium complex' };
+L.COMPAT_LI = { li: 'c', lic: 'c', pus: 'c', csu: 'b', clay: 'x', alc: 'x' };
+L.COMPAT_WORD = { c: 'Compatible*', b: 'Borderline', x: 'Incompatible' };
+L.BRG = { '6205': { d: 25, D: 52, B: 15, type: 'ball', name: '6205 deep groove ball' }, '6309': { d: 45, D: 100, B: 25, type: 'ball', name: '6309 deep groove ball' },
+  '22220': { d: 100, D: 180, B: 46, type: 'sph', name: '22220 spherical roller' } };
+L.Gp = (D, B) => .005 * D * B;
+L.Goz = (D, B) => .114 * (D / 25.4) * (B / 25.4);
+L.GUN_G = 1.25;
+L.KTYPE = { ball: 10, cyl: 5, sph: 1 };
+L.base = (n, d) => 14e6 / (n * Math.sqrt(d));
+L.interval0 = (type, n, d) => L.KTYPE[type] * (L.base(n, d) - 4 * d);
+L.tempFactor = T => T > 70 ? Math.pow(.5, (T - 70) / 15) : 1;
+L.interval = (type, n, d, T) => L.interval0(type, n, d) * L.tempFactor(T);
+L.fillOf = (added, Gp) => 30 + 12 * added / Math.max(Gp, 1e-9);
+L.churnRise = fill => fill > 50 ? 60 * Math.pow((Math.min(fill, 100) - 50) / 50, 2) : 0;
+L.ISO = [[1, .0098, .0195], [2, .0195, .039], [3, .039, .078], [4, .078, .156], [5, .156, .313], [6, .313, .625], [7, .625, 1.25],
+  [8, 1.25, 2.5], [9, 2.5, 5], [10, 5, 10], [11, 10, 20], [12, 20, 40], [13, 40, 80], [14, 80, 160], [15, 160, 320], [16, 320, 640],
+  [17, 640, 1300], [18, 1300, 2500], [19, 2500, 5000], [20, 5000, 10000], [21, 10000, 20000], [22, 20000, 40000], [23, 40000, 80000], [24, 80000, 160000]];
+L.code = cnt => { for (const [c, lo, hi] of L.ISO) if (cnt > lo && cnt <= hi) return c; return cnt <= .0098 ? 0 : 25; };
+L.isoCode = c => `${L.code(c[0])}/${L.code(c[1])}/${L.code(c[2])}`;
+L.FILM_UM = [.1, 3];
+L.CLEAN = [400, 100, 15];
+L.DIRTY = [9000, 2500, 300];
+root.MDL = L;
+})(typeof window !== 'undefined' ? window : globalThis);</script><script>(function (root) {
+'use strict';
+const MD = root.MD, M = {};
+M.A1 = 727; M.EUT = 0.77; M.ACM_C = 2.11; M.ACM_T = 1148; M.AMB = 20; M.HARDEN_C = 0.30;
+M.A3TAB = [[0, 912], [0.2, 845], [0.4, 800], [0.6, 760], [0.77, 727]];
+M.a3 = c => MD.interp(M.A3TAB, Math.min(c, M.EUT));
+M.acm = c => M.A1 + (M.ACM_T - M.A1) * (c - M.EUT) / (M.ACM_C - M.EUT);
+M.upper = c => c <= M.EUT ? M.a3(c) : M.acm(c);
+M.hardenT = c => (c <= M.EUT ? M.a3(c) : M.A1) + 40;
+M.normT = c => M.upper(c) + 50;
+M.ms = c => Math.max(150, 539 - 423 * c);
+M.cls = c => c < 0.30 ? 'Low carbon (mild)' : c <= 0.60 ? 'Medium carbon' : 'High carbon';
+M.TEMPER = [[210, 'Light yellow', '#efe3a0'], [220, 'Straw', '#e6cf7a'], [230, 'Yellow', '#dcb85a'], [240, 'Dark yellow', '#c99b3f'], [250, 'Yellow brown', '#a9773a'],
+  [260, 'Red brown', '#8a4f34'], [270, 'Purple', '#6b3b6e'], [280, 'Violet', '#5a3c8c'], [290, 'Dark blue', '#2f3f8f'], [300, 'Wedgewood blue', '#3c67b0'],
+  [310, 'Light blue', '#6d9bd0'], [320, 'Grey blue', '#7f95a8'], [330, 'Grey green', '#7c8f84']];
+M.temperColour = T => { if (T < 205) return null; if (T > 335) return [T, 'Grey (past the chart)', '#8c918f']; let r = null; for (const row of M.TEMPER) if (T >= row[0] - 5) r = row; return r; };
+M.STEELS = { '1020': { c: 0.20, n: '1020 (low carbon)' }, '1045': { c: 0.45, n: '1045 (medium carbon)' }, '1095': { c: 0.95, n: '1095 (high carbon)' } };
+M.SAMPLES = {
+  mild: { n: 'Mild steel (1020)', mat: 'mild', look: 'Grey, dark mill scale; bright where ground', mag: true, file: 'Bites easily', ferrous: true,
+    spark: { len: 1, col0: '#fff3c4', col1: '#fff8de', vol: 1, burst: .25, shape: 'fork', head: 'Long white stream', note: 'a few forked bursts, far out' } },
+  high: { n: 'High-carbon steel (1095)', mat: 'tool', look: 'Grey, finer finish', mag: true, file: 'Bites (annealed); skates if hardened', ferrous: true,
+    spark: { len: 55 / 70, col0: '#fff3c4', col1: '#fff8de', vol: 1.5, burst: .9, shape: 'star', head: 'Shorter, bushy', note: 'many bursts from near the wheel' } },
+  cast: { n: 'Grey cast iron', mat: 'cast', look: 'Dull grey, sandy cast skin', mag: true, file: 'Bites, gritty', ferrous: true,
+    spark: { len: 25 / 70, col0: '#e0582b', col1: '#f3c55e', vol: .55, burst: .55, shape: 'sprig', head: 'Short, red stream', note: 'red near the wheel, straw outside' } },
+  stainless: { n: 'Stainless (304)', mat: 'stainless', look: 'Bright, silvery; does not rust', mag: false, file: 'Bites, gummy', ferrous: true,
+    spark: { len: 50 / 70, col0: '#f3c55e', col1: '#fff3c4', vol: .7, burst: .08, shape: 'fork', head: 'Straw, then white', note: 'medium length, few forks' } },
+  alum: { n: 'Aluminium', mat: 'alum', look: 'Light silvery-white, light in the hand', mag: false, file: 'Bites, clogs the file', ferrous: false, spark: null },
+  brass: { n: 'Brass', mat: 'brass', look: 'Yellow (copper + zinc)', mag: false, file: 'Bites easily', ferrous: false, spark: null }
+};
+M.SAMPLE_KEYS = ['mild', 'high', 'cast', 'stainless', 'alum', 'brass'];
+root.MDM = M;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function (root) {
+'use strict';
+const K = root.CFK, C = K.C, f = K.f, MD = root.MD;
+const MK = {};
+MK.MAT = {
+  steel: ['#a6aeb4', '#3b4247', '#eef1f3'], mild: ['#9aa2a8', '#3b4247', '#e6eaed'], tool: ['#8f979d', '#2f363b', '#dfe4e7'],
+  cast: ['#6d6f70', '#2b2d2e', '#a5a8a9'], stainless: ['#c4c9cc', '#5d666c', '#f7f9fa'], alum: ['#c9cfd6', '#6b737b', '#f5f7f9'],
+  copper: ['#c47a4a', '#5e3219', '#f0b48c'], brass: ['#cfae55', '#5c4a1c', '#f3e2a8'], scale: ['#4d4a47', '#232120', '#7c7873'] };
+MK.defs = () => `<defs>
+<pattern id="hIron" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="#5d6268"/><line x1="0" y1="0" x2="0" y2="14" stroke="#2c3034" stroke-width="2.2"/></pattern>
+<pattern id="hSteel" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="16" height="16" fill="#7d858b"/><line x1="0" y1="0" x2="0" y2="16" stroke="#3b4247" stroke-width="2"/><line x1="5" y1="0" x2="5" y2="16" stroke="#3b4247" stroke-width="2"/></pattern>
+<pattern id="hAlu" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="16" height="16" fill="#b5bbc0"/><line x1="0" y1="0" x2="0" y2="16" stroke="#5f666c" stroke-width="2"/><line x1="8" y1="0" x2="8" y2="16" stroke="#5f666c" stroke-width="1.6" stroke-dasharray="4 3"/></pattern>
+<pattern id="hBrick" width="30" height="16" patternUnits="userSpaceOnUse"><rect width="30" height="16" fill="#b9a789"/><path d="M0 0.5 H30 M0 8.5 H30 M7 0 V8 M22 8 V16" stroke="#8a7a60" stroke-width="2"/></pattern>
+<linearGradient id="gRound" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".25"/><stop offset=".22" stop-color="#fff" stop-opacity=".45"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
+<linearGradient id="gRoundV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".25"/><stop offset=".22" stop-color="#fff" stop-opacity=".45"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>
+<radialGradient id="gFace" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
+<linearGradient id="gWoodTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset=".25" stop-color="#9c7648"/><stop offset="1" stop-color="#6e5131"/></linearGradient>
+<linearGradient id="gMachine" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f8796"/><stop offset=".5" stop-color="#4f6675"/><stop offset="1" stop-color="#33434e"/></linearGradient>
+<linearGradient id="gOil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a441"/><stop offset="1" stop-color="#9c6a1c"/></linearGradient>
+<linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6aa6c8"/><stop offset="1" stop-color="#2f5f7d"/></linearGradient>
+<radialGradient id="gHeat" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb347" stop-opacity=".55"/><stop offset="1" stop-color="#ff6a00" stop-opacity="0"/></radialGradient>
+<radialGradient id="gSpark" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6c8" stop-opacity=".95"/><stop offset=".4" stop-color="#ffcf5a" stop-opacity=".6"/><stop offset="1" stop-color="#ff8a00" stop-opacity="0"/></radialGradient>
+</defs>`;
+MK.bench = function (y, x0 = 0, x1 = K.W, h = 46, legs = true) {
+  let s = `<g id="bench">`;
+  if (legs) for (const lx of [x0 + 60, x1 - 90]) s += `<rect x="${f(lx)}" y="${f(y + h)}" width="30" height="${f(K.FLOOR - y - h)}" fill="#3d4246" stroke="#202426" stroke-width="1.5"/>`;
+  s += `<rect x="${f(x0)}" y="${f(y)}" width="${f(x1 - x0)}" height="${h}" fill="url(#gWoodTop)" stroke="#4e3a22" stroke-width="2"/>`;
+  for (let i = 1; i < 4; i++) s += `<path d="M${f(x0)} ${f(y + i * h / 4)} Q${f((x0 + x1) / 2)} ${f(y + i * h / 4 + (i % 2 ? 3 : -3))} ${f(x1)} ${f(y + i * h / 4)}" stroke="#6e5131" stroke-width="1.2" fill="none" opacity=".6"/>`;
+  return s + `<rect x="${f(x0)}" y="${f(y)}" width="${f(x1 - x0)}" height="4" fill="#d0a873" opacity=".5"/></g>`;
+};
+MK.card = (x, y, w, h, title, id) => `<g id="${id}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="14" fill="#1f1d1a" stroke="#4a443d" stroke-width="2"/>` +
+  (title ? `<text class="lm" x="${f(x + 22)}" y="${f(y + 36)}" style="font-weight:800;letter-spacing:.06em">${title}</text>` : '');
+MK.cardEnd = '</g>';
+MK.facts = function (x, y, w, h, title, rows, id, o = {}) {
+  let s = MK.card(x, y, w, h, title, id);
+  const lh = o.lh || 44, kx = o.kx || 120;
+  rows.forEach(([a, b, col], i) => { s += `<text class="lb" x="${f(x + 22)}" y="${f(y + 82 + i * lh)}" style="fill:${col || C.acc}">${a}</text><text class="lm" x="${f(x + kx)}" y="${f(y + 82 + i * lh)}">${b}</text>`; });
+  return s + '</g>';
+};
+MK.banner = function (text, sub, col = C.bad, id = 'fail-card', cx = 800, y = 18) {
+  const w = Math.min(1540, 60 + Math.max(text.length * 15.5, (sub || '').length * 11.5));
+  return `<g id="${id}" class="pcOnly"><rect x="${f(cx - w / 2)}" y="${f(y)}" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".97"/>` +
+    `<text x="${f(cx)}" y="${f(y + 34)}" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="${f(cx)}" y="${f(y + 66)}" text-anchor="middle" style="font:700 19px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+};
+MK.NEVER = 'SIMULATION ONLY · NEVER DO THIS ON THE JOB';
+MK.glow = function (T) {
+  const st = [[480, [90, 30, 24]], [560, [125, 28, 20]], [650, [170, 32, 20]], [760, [215, 48, 24]], [850, [240, 92, 30]], [950, [255, 150, 40]], [1100, [255, 225, 130]], [1250, [255, 248, 210]]];
+  if (T <= st[0][0]) return null;
+  let a = st[0], b = st[st.length - 1];
+  for (let i = 1; i < st.length; i++) if (T <= st[i][0]) { a = st[i - 1]; b = st[i]; break; }
+  const t = MD.clamp((T - a[0]) / (b[0] - a[0]), 0, 1);
+  return `rgb(${a[1].map((v, i) => Math.round(MD.lerp(v, b[1][i], t))).join(',')})`;
+};
+MK.glowOp = T => MD.clamp((T - 480) / 260, 0, 1);
+MK.bar = function (x0, x1, cy, d, o = {}) {
+  const m = MK.MAT[o.mat || 'steel'], r = d / 2, T = o.T || 20, g = MK.glow(T);
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  s += `<rect x="${f(x0)}" y="${f(cy - r)}" width="${f(x1 - x0)}" height="${f(d)}" rx="${o.end === 'round' ? f(r) : 3}" fill="${o.fill || m[0]}" stroke="${m[1]}" stroke-width="2"/>`;
+  if (o.scale) s += `<rect x="${f(x0)}" y="${f(cy - r)}" width="${f(x1 - x0)}" height="${f(d)}" rx="3" fill="#3c3936" opacity="${f(o.scale)}"/>`;
+  if (o.spot) s += `<rect id="${o.spotId || 'spot'}" x="${f(o.spot.x)}" y="${f(cy - r + 1)}" width="${f(o.spot.w)}" height="${f(d - 2)}" fill="${o.spot.col}"/>`;
+  if (g) s += `<rect x="${f(x0)}" y="${f(cy - r)}" width="${f(x1 - x0)}" height="${f(d)}" rx="3" fill="${g}" opacity="${f(MK.glowOp(T))}"/>`;
+  s += `<rect x="${f(x0)}" y="${f(cy - r)}" width="${f(x1 - x0)}" height="${f(d)}" rx="3" fill="url(#gRound)"/>`;
+  if (o.crack != null) s += `<path d="M${f(o.crack)} ${f(cy - r)} l6 ${f(d * .3)} l-8 ${f(d * .25)} l7 ${f(d * .25)} l-4 ${f(d * .2)}" stroke="#141210" stroke-width="3" fill="none"/>`;
+  return s + '</g>';
+};
+const MC = {}; let clipN = 0;
+MK.micro = function (cx, cy, r, kind, o = {}) {
+  const key = [kind, r, o.f || 0, o.n || 0, o.seed || 0, o.tint || '', o.mix || 0, o.stretch || 0, o.carb || 0].join('|');
+  if (!MC[key]) MC[key] = microBody(r, kind, o);
+  return `<g${o.id ? ` id="${o.id}"` : ''} transform="translate(${f(cx)},${f(cy)})"><circle r="${f(r + 6)}" fill="#111" stroke="${o.ring || '#6b6359'}" stroke-width="5"/>${MC[key]}</g>`;
+};
+function shade(hex, amt) { const n = parseInt(hex.slice(1), 16), g = v => MD.clamp(Math.round(v + 255 * amt), 0, 255); return `rgb(${g(n >> 16)},${g((n >> 8) & 255)},${g(n & 255)})`; }
+MK.shade = shade;
+function microBody(r, kind, o) {
+  const H = MD.hash, n = o.n || 8, seed = o.seed || 1, fr = o.f == null ? .5 : o.f, cid = 'mc' + (clipN++), cell = 2 * r / n, V = [], st = o.stretch || 0;
+  for (let i = 0; i <= n; i++) { V[i] = []; for (let j = 0; j <= n; j++) { const ed = (i === 0 || j === 0 || i === n || j === n);
+    V[i][j] = [-r + i * cell + (ed ? 0 : (H(i, j, seed) - .5) * cell * .7), -r + j * cell + (ed ? 0 : (H(j, i, seed + 3) - .5) * cell * .7)]; } }
+  let s = `<clipPath id="${cid}"><circle r="${f(r)}"/></clipPath><g clip-path="url(#${cid})"${st ? ` transform="scale(${f(1 + st)} ${f(1 / (1 + st))})"` : ''}>`;
+  s += `<rect x="${f(-r)}" y="${f(-r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="${{ mart: '#5d5a55', tmart: '#6e6a62', aus: '#d9d4c7', graph: '#8d877c' }[kind] || '#d8d2c4'}"/>`;
+  let lam = '';
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const p = [V[i][j], V[i + 1][j], V[i + 1][j + 1], V[i][j + 1]], pts = p.map(q => q.map(v => v.toFixed(1)).join(',')).join(' '), hs = H(i + .3, j + .7, seed + 9);
+    if (kind === 'fp' || kind === 'pc' || kind === 'ferrite' || kind === 'graph') {
+      const pearl = kind === 'pc' || kind === 'graph' || (kind === 'fp' && hs < fr);
+      s += `<polygon points="${pts}" fill="${pearl ? '#8d877c' : '#e4dfd2'}" stroke="#4a463f" stroke-width="1.2"/>`;
+      if (pearl) { const cx = (p[0][0] + p[2][0]) / 2, cy = (p[0][1] + p[2][1]) / 2, a = H(i, j, seed + 5) * Math.PI, sp = Math.max(2.4, cell / 6), ca = Math.cos(a), sa = Math.sin(a);
+        for (let k = -3; k <= 3; k++) { const ox = -sa * k * sp, oy = ca * k * sp, L = cell * .42; lam += `M${(cx + ox - ca * L).toFixed(1)},${(cy + oy - sa * L).toFixed(1)}L${(cx + ox + ca * L).toFixed(1)},${(cy + oy + sa * L).toFixed(1)}`; } }
+      if (kind === 'pc') s += `<polygon points="${pts}" fill="none" stroke="#f4f1ea" stroke-width="3"/>`;
+    } else if (kind === 'aus' || kind === 'nonf') {
+      s += `<polygon points="${pts}" fill="${kind === 'aus' ? `hsl(40,12%,${80 + hs * 10}%)` : shade(o.tint || '#cfc8bb', hs * .25 - .12)}" stroke="#5a554c" stroke-width="1.3"/>`;
+      if (hs < .35) { const a = p[0], b = p[2]; s += `<line x1="${f(MD.lerp(a[0], b[0], .3))}" y1="${f(MD.lerp(a[1], b[1], .2))}" x2="${f(MD.lerp(a[0], b[0], .75))}" y2="${f(MD.lerp(a[1], b[1], .85))}" stroke="#7d776b" stroke-width="1.2"/>`; }
+      if (o.mix && hs > 1 - o.mix) s += `<polygon points="${pts}" fill="#efeadf" stroke="#5a554c" stroke-width="1.3"/>`;
+    } else s += `<polygon points="${pts}" fill="none" stroke="#3e3b37" stroke-width="1"/>`;
+  }
+  if (lam) s += `<path d="${lam}" stroke="#3b3731" stroke-width="1.5" fill="none"/>`;
+  if (o.carb) { for (let i = 1; i < n; i++) for (let j = 1; j < n; j++) if (H(i, j, seed + 21) < .5) s += `<circle cx="${f(V[i][j][0])}" cy="${f(V[i][j][1])}" r="${f(2.5 + 2 * H(i, j, seed + 22))}" fill="#fbfaf6" stroke="#6b665d" stroke-width="1"/>`; }
+  if (kind === 'mart' || kind === 'tmart') { let d = ''; const cnt = Math.round(r * 2.2);
+    for (let k = 0; k < cnt; k++) { const x = (H(k, 1, seed) - .5) * 2 * r, y = (H(k, 2, seed) - .5) * 2 * r, a = H(k, 3, seed) * Math.PI, L = 5 + H(k, 4, seed) * r * .3;
+      d += `M${(x - Math.cos(a) * L / 2).toFixed(1)},${(y - Math.sin(a) * L / 2).toFixed(1)}L${(x + Math.cos(a) * L / 2).toFixed(1)},${(y + Math.sin(a) * L / 2).toFixed(1)}`; }
+    s += `<path d="${d}" stroke="${kind === 'mart' ? '#e2ded5' : '#b9b3a7'}" stroke-width="${kind === 'mart' ? 2.2 : 1.8}" opacity="${kind === 'mart' ? .9 : .6}" fill="none"/>`;
+    if (kind === 'tmart') { let c = ''; for (let k = 0; k < r * 1.4; k++) c += `<circle cx="${((H(k, 7, seed) - .5) * 2 * r).toFixed(1)}" cy="${((H(k, 8, seed) - .5) * 2 * r).toFixed(1)}" r="1.6"/>`; s += `<g fill="#2b2925">${c}</g>`; } }
+  if (kind === 'graph') { let d = ''; for (let k = 0; k < 26; k++) { const x = (H(k, 11, seed) - .5) * 2 * r, y = (H(k, 12, seed) - .5) * 2 * r, a = H(k, 13, seed) * Math.PI, L = r * .25 + H(k, 14, seed) * r * .4, b = (H(k, 15, seed) - .5) * L * .6;
+    d += `M${(x - Math.cos(a) * L / 2).toFixed(1)},${(y - Math.sin(a) * L / 2).toFixed(1)}Q${(x - Math.sin(a) * b).toFixed(1)},${(y + Math.cos(a) * b).toFixed(1)} ${(x + Math.cos(a) * L / 2).toFixed(1)},${(y + Math.sin(a) * L / 2).toFixed(1)}`; }
+    s += `<path d="${d}" stroke="#151412" stroke-width="3.2" fill="none" stroke-linecap="round"/>`; }
+  return s + '</g>';
+}
+MK.gauge = function (cx, cy, r, v, lo, hi, o = {}) {
+  const a0 = o.a0 != null ? o.a0 : 135, sw = o.sweep || 270, N = o.ticks || 10, mn = o.minor || 5, ang = x => (a0 + sw * MD.clamp((x - lo) / (hi - lo), 0, 1)) * Math.PI / 180;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 8)}" fill="#3b4247" stroke="#1c2023" stroke-width="2"/><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="#eceee9" stroke="#8d969d" stroke-width="2"/>`;
+  (o.zones || []).forEach(([a, b, col]) => { const P = K.arcPts(cx, cy, r - 10, a0 + sw * (a - lo) / (hi - lo), a0 + sw * (b - lo) / (hi - lo), 24); s += `<path d="${K.pathd(P)}" stroke="${col}" stroke-width="9" fill="none" opacity=".85"/>`; });
+  for (let i = 0; i <= N * mn; i++) { const x = lo + (hi - lo) * i / (N * mn), a = ang(x), maj = i % mn === 0, r0 = r - (maj ? 18 : 10);
+    s += `<line x1="${f(cx + r0 * Math.cos(a))}" y1="${f(cy + r0 * Math.sin(a))}" x2="${f(cx + (r - 3) * Math.cos(a))}" y2="${f(cy + (r - 3) * Math.sin(a))}" stroke="#1d1d1d" stroke-width="${maj ? 2.6 : 1.3}"/>`;
+    if (maj && o.label !== false) s += `<text x="${f(cx + (r - 34) * Math.cos(a))}" y="${f(cy + (r - 34) * Math.sin(a) + 6)}" text-anchor="middle" style="font:700 ${f(Math.max(12, r * .13))}px ${K.FONT};fill:#1d1d1d">${o.label ? o.label(x) : MD.n0(x)}</text>`; }
+  if (o.unit) s += `<text x="${f(cx)}" y="${f(cy + r * .45)}" text-anchor="middle" style="font:700 ${f(Math.max(12, r * .12))}px ${K.FONT};fill:#3b4247">${o.unit}</text>`;
+  const a = ang(v);
+  s += `<line x1="${f(cx - 14 * Math.cos(a))}" y1="${f(cy - 14 * Math.sin(a))}" x2="${f(cx + (r - 14) * Math.cos(a))}" y2="${f(cy + (r - 14) * Math.sin(a))}" stroke="${o.needle || '#c8322a'}" stroke-width="4" stroke-linecap="round"/><circle cx="${f(cx)}" cy="${f(cy)}" r="8" fill="#1d1d1d"/>`;
+  return s + '</g>';
+};
+MK.vbar = function (x, y, w, h, v, lo, hi, col, marks = [], id = '') {
+  const yy = val => y + h - h * MD.clamp((val - lo) / (hi - lo), 0, 1);
+  let s = `<g${id ? ` id="${id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="${f(w / 2)}" fill="#141210" stroke="#4a443d" stroke-width="2"/>`;
+  s += `<rect x="${f(x + 4)}" y="${f(yy(v))}" width="${f(w - 8)}" height="${f(y + h - 4 - yy(v))}" rx="${f(w / 2 - 4)}" fill="${col}"/>`;
+  marks.forEach(([mv, lab, mc]) => { const my = yy(mv); s += `<line x1="${f(x - 6)}" y1="${f(my)}" x2="${f(x + w + 6)}" y2="${f(my)}" stroke="${mc || C.muted}" stroke-width="2.5"/>` + (lab ? `<text class="lm halo" x="${f(x + w + 12)}" y="${f(my + 7)}" style="fill:${mc || C.muted}">${lab}</text>` : ''); });
+  return s + '</g>';
+};
+root.MK = MK;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+
+<script>(function () {
+'use strict';
+const K = window.CFK, C = K.C, f = K.f, MK = window.MK, MD = window.MD, L = window.MDL;
+const GCOL = { li: '#c9a54a', lic: '#b8873a', pus: '#5e8fb0', csu: '#8b6aa8', clay: '#b85c3c', alc: '#9a9a52' };
+const CX = 400, CY = 360;
+window.CFScenes = window.CFScenes || {};
+window.CFScenes['lb-grease'] = function () {
+  const sc = {};
+  sc.defaults = { units: 'met', card: 'gp', brg: '6309', n: 1800, bT: 60, grade: 4, thick: 'li', pump: 0, added: 0, base: 30, purged: 0, lost: 0,
+    wiped: true, drain: false, run: true, fail: false, blown: false, gT: 80, gvg: 220 };
+  sc.instant = ['units', 'card', 'brg', 'grade', 'thick', 'wiped', 'drain', 'run', 'fail', 'blown', 'gvg'];
+  let ang = 0, temp = 60, gunT = .35, lever = 0, drips = [], hist = [], histT = 0, blowT = 0, wipeT = 0, coneT = 0, tAll = 0;
+  sc.reset = S => { ang = 0; temp = S ? S.bT : 60; gunT = .35; lever = 0; drips = []; hist = []; histT = 0; blowT = 0; wipeT = 0; coneT = 0; };
+  sc.onSet = (S, keys) => {
+    if (keys.some(q => ['brg', 'bT', 'snap'].includes(q)) && !S.added) temp = S.bT;
+    if (keys.includes('grade')) coneT = 0;
+    if (keys.includes('wiped') && S.wiped) wipeT = 0;
+    if (keys.includes('added') && S.added === 0) { S.purged = 0; S.lost = 0; S.blown = false; blowT = 0; drips = []; }
+  };
+  sc.calc = function (S) {
+    const b = L.BRG[S.brg], o = { b };
+    o.Gp = L.Gp(b.D, b.B); o.Goz = L.Goz(b.D, b.B);
+    o.strokes = Math.ceil(o.Gp / L.GUN_G - 1e-9); o.strokesDone = Math.round(S.added / L.GUN_G);
+    o.fill = Math.max(0, L.fillOf(S.added, o.Gp) + S.base - 30 - S.purged - S.lost);
+    o.packed = o.fill >= 100;
+    o.rise = S.run ? L.churnRise(o.fill) : 0;
+    o.tTarget = S.bT + o.rise;
+    o.temp = temp;
+    o.btype = b.type; o.K = L.KTYPE[b.type]; o.base = L.base(S.n, b.d); o.minus = 4 * b.d;
+    o.t0 = L.interval0(b.type, S.n, b.d); o.fT = L.tempFactor(S.bT); o.tf = o.t0 * o.fT; o.tooFast = o.t0 <= 0;
+    o.years = o.tf / 8760;
+    o.mix = S.added > 0 ? L.COMPAT_LI[S.thick] : 'c';
+    o.grade = L.NLGI[S.grade][0]; o.pen = L.penOf(S.grade); o.penLo = L.NLGI[S.grade][1]; o.penHi = L.NLGI[S.grade][2];
+    o.blown = !!S.blown;
+    o.dirty = !S.wiped;
+    o.gnu = L.visc(S.gvg, S.gT); o.gnu1 = 25; o.gk = o.gnu / o.gnu1;
+    return o;
+  };
+  sc.busy = S => true;
+  sc.step = function (dt, S, o) {
+    tAll += dt;
+    if (S.run) ang += dt * 150 * Math.pow(S.n / 1800, .5);
+    if (S.pump && !S.blown) { gunT += dt; if (gunT >= .35) { gunT = 0; S.added = Math.round((S.added + L.GUN_G) * 100) / 100; } lever = gunT < .15 ? gunT / .15 : Math.max(0, (.35 - gunT) / .2); }
+    else { gunT = .35; lever = Math.max(0, lever - dt * 4); }
+    const fill = Math.max(0, L.fillOf(S.added, o.Gp) + S.base - 30 - S.purged - S.lost);
+    if (S.drain && S.run && fill > 50) { S.purged += Math.min(fill - 50, dt * 9); if (MD.hash(tAll * 10 | 0, 3) < dt * 8 + .1) drips.push({ t: 0, x: (MD.hash(tAll, 9) - .5) * 6 }); }
+    if (fill >= 100 && !S.drain && S.fail && S.run) { if (!S.blown) { S.blown = true; blowT = 0; } }
+    if (S.blown) blowT += dt;
+    if (S.blown && S.added > 0) S.lost = Math.max(S.lost, L.fillOf(S.added, o.Gp) + S.base - 30 - S.purged - 100);
+    drips.forEach(d => d.t += dt); drips = drips.filter(d => d.t < 1.4);
+    const tgt = S.bT + (S.run ? L.churnRise(Math.min(fill, 100)) + (S.blown ? 8 : 0) : 0);
+    temp += (tgt - temp) * Math.min(1, dt / 2.5);
+    histT += dt; if (histT >= .25) { histT = 0; hist.push(temp); if (hist.length > 60) hist.shift(); }
+    if (!S.wiped) wipeT = 0; else wipeT += dt;
+    coneT += dt;
+  };
+  function block(S, o) {
+    const b = o.b, k = Math.min(2.6, 290 / b.D), rO = b.D / 2 * k, rI = b.d / 2 * k, H = (b.D - b.d) / 2, tR = .2 * H * k, eD = .6 * H * k, rP = (b.D + b.d) / 4 * k, hB = b.B / 2 * k;
+    const Lc = Math.max(40, .55 * b.D * k), wall = 30, xL = CX - hB - Lc - wall, xR = CX + hB + Lc + wall, wT = 22 + .12 * rO, top = CY - rO - wT, bot = CY + rO + wT;
+    const g = { k, rO, rI, tR, eD, rP, hB, Lc, wall, xL, xR, top, bot };
+    let s = '';
+    const pedTop = bot + 26;
+    s += `<g id="pedestal"><rect x="${f(xL - 90)}" y="${f(pedTop)}" width="${f(xR - xL + 180)}" height="20" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+    s += `<rect x="${f(xL - 60)}" y="${f(pedTop + 20)}" width="30" height="${f(K.FLOOR - pedTop - 20)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/><rect x="${f(xR + 30)}" y="${f(pedTop + 20)}" width="30" height="${f(K.FLOOR - pedTop - 20)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/></g>`;
+    s += `<g id="housing"><rect x="${f(xL - 60)}" y="${f(bot)}" width="${f(xR - xL + 120)}" height="26" rx="4" fill="url(#hIron)" stroke="#23282c" stroke-width="2"/>`;
+    for (const bx of [xL - 34, xR + 34]) s += `<rect x="${f(bx - 13)}" y="${f(bot - 14)}" width="26" height="14" fill="#9aa2a8" stroke="#3b4247"/><rect x="${f(bx - 6)}" y="${f(bot)}" width="12" height="46" fill="#8d969d" opacity=".55"/>`;
+    s += `<path id="cap" d="M${f(xL)} ${CY} L${f(xL)} ${f(top + 30)} Q${f(xL)} ${f(top)} ${f(xL + 30)} ${f(top)} L${f(xR - 30)} ${f(top)} Q${f(xR)} ${f(top)} ${f(xR)} ${f(top + 30)} L${f(xR)} ${CY}Z" fill="url(#hIron)" stroke="#23282c" stroke-width="3"/>`;
+    s += `<rect id="base" x="${f(xL)}" y="${CY}" width="${f(xR - xL)}" height="${f(bot - CY)}" fill="url(#hIron)" stroke="#23282c" stroke-width="3"/>`;
+    s += `<line x1="${f(xL - 4)}" y1="${CY}" x2="${f(xR + 4)}" y2="${CY}" stroke="#141210" stroke-width="3"/></g>`;
+    const cxL = xL + wall, cw = xR - xL - 2 * wall;
+    s += `<rect id="cavity" x="${f(cxL)}" y="${f(CY - rO)}" width="${f(cw)}" height="${f(2 * rO)}" fill="#141210"/>`;
+    const gc = S.added > 0 && S.thick !== 'li' ? mixCol(S.thick, S.added, o.Gp) : GCOL.li;
+    const sH = rO - rI, lowF = MD.clamp(o.fill / 50, 0, 1), upF = MD.clamp((o.fill - 50) / 50, 0, 1), wav = o.fill > 50 && S.run ? 5 : 1.5;
+    s += `<clipPath id="cav"><rect x="${f(cxL)}" y="${f(CY - rO)}" width="${f(cw)}" height="${f(2 * rO)}"/></clipPath><g clip-path="url(#cav)">`;
+    const strip = (yBase, hh, id) => { let d = `M${f(cxL - 6)} ${f(yBase - hh)}`;
+      for (let i = 0; i <= Math.ceil(cw / 20) + 1; i++) d += ` L${f(cxL + i * 20)} ${f(yBase - hh + (hh > 2 ? wav * Math.sin(ang / 40 + i) : 0))}`;
+      return `<path id="${id}" d="${d} L${f(cxL + cw + 6)} ${f(yBase + 2)} L${f(cxL - 6)} ${f(yBase + 2)}Z" fill="${gc}" opacity=".95"/>`; };
+    if (lowF > 0) s += strip(CY + rO, sH * lowF, 'grease');
+    if (upF > 0) s += strip(CY - rI, sH * upF, 'grease-top');
+    if (o.fill > 55 && S.run) for (let i = 0; i < 8; i++) { const side = i < 4 ? -1 : 1, a = ang / 25 + i * 1.57, x0 = CX + side * (hB + Lc / 2), up = i % 2 && upF > .3, y0 = up ? CY - rI - sH * upF / 2 : CY + rI + sH / 2;
+      if (i % 2 && !up) continue;
+      s += `<path d="M${f(x0 + Math.cos(a) * Lc * .22)} ${f(y0 + Math.sin(a) * sH * .2)} a12 12 0 1 1 12 12" stroke="#ffe0a3" stroke-width="3" fill="none" opacity="${f(MD.clamp((o.fill - 55) / 40, 0, 1))}"/>`; }
+    if (S.added > 0 && o.mix === 'x') for (let i = 0; i < 5; i++) s += `<ellipse cx="${f(cxL + 30 + i * cw / 5)}" cy="${f(CY + rO - 8)}" rx="22" ry="6" fill="#e6c36a" opacity=".85"/>`;
+    s += '</g>';
+    s += `<g id="bearing">`;
+    for (const [y0, h] of [[CY - rO, tR], [CY + rO - tR, tR], [CY - rI - tR, tR], [CY + rI, tR]]) s += `<rect x="${f(CX - hB)}" y="${f(y0)}" width="${f(2 * hB)}" height="${f(h)}" fill="url(#hSteel)" stroke="#2f363b" stroke-width="1.5"/>`;
+    const roll = (ang / 30) % 1;
+    for (const [y, dir] of [[CY - rP, 1], [CY + rP, -1]]) {
+      if (b.type === 'ball') s += `<circle cx="${CX}" cy="${f(y)}" r="${f(eD / 2)}" fill="#d6dce0" stroke="#4a5257" stroke-width="2"/><line x1="${f(CX - eD * .32)}" y1="${f(y - eD * .35 + eD * .7 * roll)}" x2="${f(CX + eD * .32)}" y2="${f(y - eD * .35 + eD * .7 * roll)}" stroke="#9aa3aa" stroke-width="2"/>`;
+      else for (const sx of [-1, 1]) s += `<g transform="translate(${f(CX + sx * hB * .48)} ${f(y)}) rotate(${-12 * sx * dir})"><ellipse rx="${f(hB * .42)}" ry="${f(eD / 2)}" fill="#d6dce0" stroke="#4a5257" stroke-width="2"/></g>`;
+    }
+    s += '</g>';
+    s += `<g id="shaft"><rect x="0" y="${f(CY - rI)}" width="860" height="${f(2 * rI)}" fill="#a6aeb4" stroke="#3b4247" stroke-width="2"/><rect x="0" y="${f(CY - rI)}" width="860" height="${f(2 * rI)}" fill="url(#gRound)"/>`;
+    for (let i = 0; i < 14; i++) { const x = ((ang * .9 + i * 62) % 868 + 868) % 868 - 4; s += `<line x1="${f(x)}" y1="${f(CY - rI + 5)}" x2="${f(x)}" y2="${f(CY + rI - 5)}" stroke="#6e777e" stroke-width="3" opacity=".5"/>`; }
+    s += '</g>';
+    const bl = S.blown ? MD.clamp(blowT / 1.2, 0, 1) : 0;
+    s += `<g id="seal">`;
+    for (const [x, sg] of [[xL, -1], [xR - wall, 1]]) {
+      const off = sg < 0 ? -bl * 36 : 0;
+      for (const yy of [CY - rI - 14, CY + rI]) s += `<rect x="${f(x + 4 + off)}" y="${f(yy)}" width="${wall - 8}" height="14" rx="3" fill="#202020" stroke="#000"/>`;
+    }
+    s += '</g>';
+    if (bl > 0) {
+      for (const sgy of [-1, 1]) { const y = CY + sgy * (rI + 7); s += `<path d="M${f(xL + wall)} ${f(y)} L${f(xL - 140 * bl)} ${f(y + sgy * 6 * bl)}" stroke="${gc}" stroke-width="${f(14 * bl)}" stroke-linecap="round"/>`; }
+      s += `<path d="M${f(xL - 40)} ${f(CY + rI + 10)} q -6 ${f(60 * bl)} 4 ${f(120 * bl)}" stroke="${gc}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+    }
+    const dy = CY + rO - 14, dx = xR + 2, trayY = pedTop - 2;
+    s += `<rect x="${f(xR - wall - 2)}" y="${f(dy - 9)}" width="${wall + 4}" height="18" fill="#141210"/>`;
+    if (S.drain && S.purged > 0) s += `<rect x="${f(xR - wall - 2)}" y="${f(dy - 7)}" width="${wall + 4}" height="14" fill="${gc}"/>`;
+    s += `<g id="drain">${S.drain ? `<g transform="translate(${f(xR + 80)} ${f(trayY - 34)})"><rect x="-6" y="0" width="22" height="16" rx="2" fill="#b9c2c8" stroke="#333"/><rect x="16" y="2" width="12" height="12" fill="#9aa2a8" stroke="#333"/></g>`
+      : `<rect x="${f(xR - 10)}" y="${f(dy - 8)}" width="24" height="16" rx="2" fill="#b9c2c8" stroke="#333" stroke-width="2"/><rect x="${f(xR + 14)}" y="${f(dy - 11)}" width="14" height="22" rx="2" fill="#9aa2a8" stroke="#333" stroke-width="2"/>`}</g>`;
+    if (S.drain) {
+      if (S.purged > 0) s += `<path d="M${f(dx)} ${f(dy - 7)} q 18 2 20 18 q -12 4 -20 -4Z" fill="${gc}"/>`;
+      drips.forEach(dp => { const y = dy + 12 + 300 * dp.t * dp.t; if (y < bot - 8) s += `<ellipse cx="${f(dx + 16 + dp.x)}" cy="${f(y)}" rx="5" ry="7" fill="${gc}"/>`; });
+    }
+    if (S.purged > 0) s += `<ellipse id="purge-pile" cx="${f(dx + 18)}" cy="${f(bot - 3)}" rx="${f(Math.min(30, 6 + S.purged))}" ry="${f(Math.min(9, 3 + S.purged * .25))}" fill="${gc}" stroke="#6e5212"/>`;
+    void trayY;
+    const fx = CX - hB - 12, ft = top - 26;
+    s += `<line x1="${f(fx)}" y1="${f(top)}" x2="${f(fx)}" y2="${f(CY - rO)}" stroke="#141210" stroke-width="7"/>`;
+    if (S.pump) s += `<line x1="${f(fx)}" y1="${f(top)}" x2="${f(fx)}" y2="${f(CY - rO)}" stroke="${gc}" stroke-width="4"/>`;
+    s += `<g id="fitting"><rect x="${f(fx - 8)}" y="${f(ft)}" width="16" height="26" rx="3" fill="#c9a74e" stroke="#333" stroke-width="2"/><circle cx="${f(fx)}" cy="${f(ft - 5)}" r="8" fill="#c9a74e" stroke="#333" stroke-width="2"/></g>`;
+    if (!S.wiped) for (let i = 0; i < 9; i++) s += `<circle cx="${f(fx - 10 + (i * 7) % 22)}" cy="${f(ft - 12 + (i * 5) % 16)}" r="3" fill="#3a2a1a"/>`;
+    else if (wipeT < .8) s += `<rect x="${f(fx - 34 + 26 * Math.sin(wipeT * 18))}" y="${f(ft - 18)}" width="44" height="24" rx="8" fill="#d8d0bf" stroke="#8a826f"/>`;
+    const gy = ft - 14;
+    s += `<g id="grease-gun"><rect x="${f(fx - 9)}" y="${f(gy - 26)}" width="18" height="26" rx="3" fill="#9aa3aa" stroke="#333"/><rect x="${f(fx - 5)}" y="${f(gy - 70)}" width="10" height="46" fill="#c0c6ca" stroke="#555"/>`;
+    s += `<rect x="${f(fx - 30)}" y="${f(gy - 98)}" width="44" height="30" rx="5" fill="#7d858a" stroke="#222"/><rect x="${f(fx - 260)}" y="${f(gy - 96)}" width="232" height="28" rx="9" fill="#c0392b" stroke="#222" stroke-width="2"/>`;
+    s += `<g transform="rotate(${f(-18 * lever)} ${f(fx + 10)} ${f(gy - 92)})"><rect x="${f(fx + 6)}" y="${f(gy - 98)}" width="150" height="11" rx="5" fill="#555" stroke="#222"/><rect x="${f(fx + 116)}" y="${f(gy - 103)}" width="44" height="20" rx="7" fill="#222"/></g></g>`;
+    s += `<path d="M${f(fx + 4)} ${f(CY - rO + 12)} l10 0 l0 -6 l10 10 l-10 10 l0 -6 l-10 0Z" fill="${C.acc}" opacity=".9"/>`;
+    s += K.label(20, 840, `Fan bearing ${b.name}, pillow block cut through the shaft (to scale)`, null, { id: 'lbl-block', cls: 'lm' });
+    s += K.label(xR + 70, CY - rO - 30, 'Free space', [CX + hB + Lc * .6, CY - rO * .55], { id: 'lbl-free' });
+    s += K.label(xR + 70, dy + 70, S.drain ? 'Drain plug out' : 'Drain plug in', [xR + 18, dy + 6], { id: 'lbl-drain' });
+    s += K.label(Math.max(10, xL - 160), CY + rI + 70, 'Lip seal', [xL + wall / 2, CY + rI + 7], { id: 'lbl-seal' });
+    sc._g = g;
+    return s;
+  }
+  function mixCol(th, added, Gp) { const t = MD.clamp(added / Gp, 0, 1) * .6; const a = parseInt(GCOL.li.slice(1), 16), b = parseInt(GCOL[th].slice(1), 16);
+    const c = [16, 8, 0].map(sh => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t)); return `rgb(${c.join(',')})`; }
+  function tempCard(S, o, x, y, w, h) {
+    const col = o.temp >= 95 ? C.bad : o.temp >= 80 ? C.warn : C.ok;
+    let s = MK.card(x, y, w, h, 'BEARING TEMPERATURE (IR GUN)', 'c-temp');
+    s += `<text id="temp-read" class="la" x="${x + 22}" y="${y + 90}" style="fill:${col};font-size:44px">${MD.fT(o.temp, S.units)}</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${y + 124}">normal running ${MD.fT(S.bT, S.units)}${S.run ? '' : ' · fan stopped'}</text>`;
+    const px = x + 300, pw = w - 330, py = y + 50, ph = h - 80, ty = t => py + ph - ph * MD.clamp((t - 20) / 110, 0, 1);
+    s += `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#191714" stroke="#3a3530"/>`;
+    s += `<line x1="${px}" y1="${f(ty(S.bT))}" x2="${px + pw}" y2="${f(ty(S.bT))}" stroke="${C.muted}" stroke-dasharray="6 5"/>`;
+    if (hist.length > 1) s += `<path id="temp-trace" d="${hist.map((t, i) => (i ? 'L' : 'M') + f(px + pw * i / 59) + ' ' + f(ty(t))).join(' ')}" fill="none" stroke="${col}" stroke-width="4"/>`;
+    return s + '</g>';
+  }
+  function fillCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, 'HOW FULL IS THE FREE SPACE?', 'c-fill');
+    const bx = x + 22, bw = w - 44, by = y + 60, bh = 34, fx = v => bx + bw * MD.clamp(v / 110, 0, 1);
+    s += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="8" fill="#141210" stroke="#4a443d"/>`;
+    s += `<rect x="${f(fx(30))}" y="${by}" width="${f(fx(50) - fx(30))}" height="${bh}" fill="#2f6b45"/>`;
+    s += `<rect id="fill-bar" x="${bx}" y="${by + 6}" width="${f(fx(Math.min(o.fill, 110)) - bx)}" height="${bh - 12}" rx="5" fill="${o.fill >= 100 ? C.bad : o.fill > 50 ? C.warn : '#c9a54a'}"/>`;
+    for (const v of [0, 30, 50, 100]) s += `<line x1="${f(fx(v))}" y1="${by + bh}" x2="${f(fx(v))}" y2="${by + bh + 10}" stroke="${C.muted}" stroke-width="2"/><text class="lm" x="${f(fx(v))}" y="${by + bh + 34}" text-anchor="middle">${v} %</text>`;
+    s += `<text id="fill-read" class="lb" x="${bx}" y="${by + bh + 76}" style="fill:${o.fill >= 100 ? C.bad : o.fill > 50 ? C.warn : C.ok}">${MD.n0(Math.min(o.fill, 120))} % full${o.fill >= 100 ? ': packed solid' : o.fill > 50 ? ': too full, it churns' : ': good (30–50 %)'}</text>`;
+    const steps = [['Wipe the fitting clean', S.wiped], ['Pull the drain plug', S.drain], [`Pump one Gp: ${o.strokes} strokes`, o.strokesDone >= o.strokes], ['Run it: the extra purges out', S.drain && S.purged > 0 && o.fill <= 51], ['Plug back in when it stops', !S.drain && S.purged > 0 && !S.blown && o.fill <= 51]];
+    steps.forEach(([t, ok], i) => { const yy = by + bh + 120 + i * 38; s += `<text class="lb" x="${bx}" y="${yy}" style="fill:${ok ? C.ok : C.muted}">${ok ? '✔' : '○'}</text><text class="lm" x="${bx + 34}" y="${yy}" style="fill:${ok ? C.text : C.muted}">${t}</text>`; });
+    return s + '</g>';
+  }
+  function gpCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, 'HOW MUCH: Gp = 0.005 × D × B', 'c-gp');
+    const sc2 = Math.min(1.25, 190 / o.b.D), rw = o.b.B * sc2, rh = o.b.D * sc2, rx = x + 40, ry = y + 60;
+    s += `<rect id="gp-rect" x="${rx}" y="${ry}" width="${f(rw)}" height="${f(rh)}" fill="url(#hSteel)" stroke="${C.acc}" stroke-width="3"/>`;
+    s += K.dim(rx + rw + 20, ry, rx + rw + 20, ry + rh, '', {}) + `<text class="lb halo" x="${f(rx + rw + 34)}" y="${f(ry + rh / 2 + 8)}" style="fill:#7ec8e3">D ${S.units === 'imp' ? MD.n2(o.b.D / 25.4) + ' in' : o.b.D + ' mm'}</text>`;
+    s += K.dim(rx, ry + rh + 22, rx + rw, ry + rh + 22, '', {}) + `<text class="lb halo" x="${f(rx)}" y="${f(ry + rh + 56)}" style="fill:#b9e37e">B ${S.units === 'imp' ? MD.n2(o.b.B / 25.4) + ' in' : o.b.B + ' mm'}</text>`;
+    const tx = x + 300;
+    s += `<text id="gp-formula" class="lb" x="${tx}" y="${y + 92}">${S.units === 'imp' ? `0.114 × <tspan style="fill:#7ec8e3">${MD.n2(o.b.D / 25.4)}</tspan> × <tspan style="fill:#b9e37e">${MD.n2(o.b.B / 25.4)}</tspan>` : `0.005 × <tspan style="fill:#7ec8e3">${o.b.D}</tspan> × <tspan style="fill:#b9e37e">${o.b.B}</tspan>`}</text>`;
+    s += `<text id="gp-val" class="la" x="${tx}" y="${y + 140}" style="font-size:40px">= ${S.units === 'imp' ? MD.n2(o.Goz) + ' oz' : MD.n1(o.Gp) + ' g'}</text>`;
+    const r = Math.min(46, 8 + Math.sqrt(o.Gp) * 5.5);
+    s += `<circle id="gp-blob" cx="${f(x + w - 30 - r)}" cy="${f(y + 120)}" r="${f(r)}" fill="#c9a54a" stroke="#6e5212" stroke-width="2"/>`;
+    const n = o.strokes, sw = Math.min(28, (w - 330) / Math.max(n, 1));
+    s += `<text class="lm" x="${tx}" y="${y + 196}">${n} strokes × ${S.units === 'imp' ? MD.n2(L.GUN_G / 28.3495) + ' oz' : L.GUN_G + ' g'} (EXAMPLE gun)</text>`;
+    for (let i = 0; i < n; i++) s += `<rect x="${f(tx + i * sw)}" y="${y + 212}" width="${f(sw - 5)}" height="34" rx="3" fill="${i < o.strokesDone ? '#c9a54a' : 'none'}" stroke="${i < o.strokesDone ? '#6e5212' : C.muted}" stroke-width="2"/>`;
+    return s + '</g>';
+  }
+  function intCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, 'HOW OFTEN: t = K × (14,000,000 ÷ (n√d) − 4d)', 'c-int');
+    const bx = x + 250, bw = w - 280, mx = Math.max(o.base, 1), bl = v => bw * MD.clamp(v / mx, 0, 1), yy = y + 64;
+    s += `<text class="lm" x="${x + 22}" y="${yy + 22}">14,000,000 ÷ (n√d)</text><rect id="int-base" x="${bx}" y="${yy}" width="${f(bl(o.base))}" height="28" rx="4" fill="#5e8fb0"/><text class="lb halo" x="${f(bx + 8)}" y="${yy + 23}">${MD.n0(o.base)}</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${yy + 64}">− 4 × d (${o.b.d} mm)</text><rect id="int-minus" x="${f(bx + bl(o.base) - bl(o.minus))}" y="${yy + 42}" width="${f(bl(o.minus))}" height="28" rx="4" fill="${C.bad}" opacity=".85"/><text class="lb halo" x="${f(bx + bl(o.base) - bl(o.minus) - 8)}" y="${yy + 65}" text-anchor="end">${MD.n0(o.minus)}</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${yy + 108}">× K (${o.btype === 'ball' ? 'ball' : o.btype === 'cyl' ? 'cyl. roller' : 'spherical roller'})</text><text class="lb" x="${bx}" y="${yy + 108}">× ${o.K}</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${yy + 146}">× temperature (${MD.fT(S.bT, S.units)})</text><text class="lb" x="${bx}" y="${yy + 146}" style="fill:${o.fT < 1 ? C.warn : C.text}">× ${MD.n2(o.fT)}${o.fT < 1 ? '  halves every 15 °C over 70 °C' : '  (70 °C or less)'}</text>`;
+    s += `<text id="int-val" class="la" x="${x + 22}" y="${yy + 188}" style="font-size:38px;fill:${o.tooFast ? C.bad : C.acc}">${o.tooFast ? 'negative: grease will not do, use oil' : '= ' + MD.n0(Math.round(o.tf / 10) * 10) + ' hours'}</text>`;
+    if (!o.tooFast) s += `<text class="lm" x="${x + 22}" y="${yy + 220}">running 24 h a day: about ${o.tf >= 8760 ? MD.n1(o.years) + ' years' : MD.n0(o.tf / 730) + ' months'} · n = ${MD.n0(S.n)} rpm, d = bore</text>`;
+    return s + '</g>';
+  }
+  function nlgiCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, 'NLGI GRADE: HOW FAR A CONE SINKS IN 5 s AT 25 °C', 'c-nlgi');
+    const cx = x + 150, cupT = y + 76, cupW = 200, cupH = 170, depth = o.pen * .42 * MD.clamp(coneT / 1.2, 0, 1);
+    s += `<path d="M${cx - cupW / 2} ${cupT} L${cx - cupW / 2} ${cupT + cupH} L${cx + cupW / 2} ${cupT + cupH} L${cx + cupW / 2} ${cupT}" fill="none" stroke="#9aa2a8" stroke-width="5"/>`;
+    s += `<rect x="${cx - cupW / 2 + 3}" y="${cupT + 6}" width="${cupW - 6}" height="${cupH - 9}" fill="#c9a54a" opacity="${f(.55 + .05 * S.grade)}"/>`;
+    const tipY = cupT + 6 + depth;
+    s += `<g id="nlgi-cone"><rect x="${cx - 6}" y="${f(tipY - 150)}" width="12" height="110" fill="#9aa3aa" stroke="#555"/><path d="M${cx - 44} ${f(tipY - 44)} L${cx + 44} ${f(tipY - 44)} L${cx} ${f(tipY)}Z" fill="#cfd6db" stroke="#444" stroke-width="2"/></g>`;
+    s += K.dim(cx + cupW / 2 + 26, cupT + 6, cx + cupW / 2 + 26, f(tipY), '', {}) + `<text class="lb halo" x="${cx + cupW / 2 + 40}" y="${f(cupT + 6 + depth / 2 + 8)}" style="fill:${C.acc}">${MD.n1(o.pen / 10 * MD.clamp(coneT / 1.2, 0, 1))} mm</text>`;
+    const bx = x + 22, bw = (w - 44) / 9;
+    L.NLGI.forEach((r, i) => { const on = i === S.grade; s += `<rect${on ? ' id="nlgi-sel"' : ''} x="${f(bx + i * bw + 2)}" y="${y + h - 120}" width="${f(bw - 4)}" height="44" rx="6" fill="${on ? C.acc : '#33302b'}"/><text x="${f(bx + i * bw + bw / 2)}" y="${y + h - 90}" text-anchor="middle" style="font:800 19px ${K.FONT};fill:${on ? '#1F1D1A' : C.text}">${r[0]}</text>`; });
+    s += `<text class="lm" x="${bx}" y="${y + h - 50}">softer ←</text><text class="lm" x="${x + w - 22}" y="${y + h - 50}" text-anchor="end">→ firmer</text>`;
+    s += `<text id="nlgi-read" class="lb" x="${bx}" y="${y + h - 18}" style="fill:${C.acc}">NLGI ${o.grade}: ${o.penLo}–${o.penHi} tenths of a mm · ${L.NLGI[S.grade][3]}</text>`;
+    s += `<text class="lm" x="${x + 440}" y="${y + 90}">worked 60 strokes first</text><text class="lm" x="${x + 440}" y="${y + 122}">deeper = softer grease</text><text class="lm" x="${x + 440}" y="${y + 154}">grade comes from the</text><text class="lm" x="${x + 440}" y="${y + 186}">thickener, not the oil</text>`;
+    return s + '</g>';
+  }
+  function compatCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, 'MIXING WITH THE LITHIUM GREASE IN THE HOUSING', 'c-compat');
+    Object.keys(L.THICK).forEach((kk, i) => {
+      const r = L.COMPAT_LI[kk], col = r === 'c' ? C.ok : r === 'b' ? C.warn : C.bad, on = kk === S.thick, yy = y + 82 + i * 38;
+      if (on) s += `<rect id="compat-sel" x="${x + 12}" y="${yy - 28}" width="${w - 24}" height="38" rx="6" fill="none" stroke="${C.acc}" stroke-width="3"/>`;
+      s += `<circle cx="${x + 36}" cy="${yy - 9}" r="10" fill="${GCOL[kk]}"/><text class="lm" x="${x + 58}" y="${yy}" style="fill:${on ? C.text : C.muted}">${L.THICK[kk]}</text><text class="lb" x="${x + w - 24}" y="${yy}" text-anchor="end" style="fill:${col}">${L.COMPAT_WORD[r]}</text>`;
+    });
+    s += `<text class="lm" x="${x + 22}" y="${y + h - 16}">Mobil chart (2024), a general guide. *Test it. Dyes are colour only.</text>`;
+    return s + '</g>';
+  }
+  function oilCard(S, o, x, y, w, h) {
+    let s = MK.card(x, y, w, h, `GEARBOX OIL AT ${MD.fT(S.gT, S.units)} vs ν1 ${o.gnu1} cSt (EXAMPLE)`, 'c-oil');
+    const gs = [100, 150, 220, 320], bx = x + 40, by = y + 60, bh = h - 110, mx = 80, sc3 = v => bh * MD.clamp(v / mx, 0, 1), bw = (w - 80) / gs.length;
+    s += `<line id="oil-need" x1="${bx - 10}" y1="${f(by + bh - sc3(o.gnu1))}" x2="${x + w - 30}" y2="${f(by + bh - sc3(o.gnu1))}" stroke="${C.bad}" stroke-width="3" stroke-dasharray="10 6"/>`;
+    gs.forEach((gg, i) => { const v = L.visc(gg, S.gT), on = gg === S.gvg, k = v / o.gnu1, col = k >= 1 ? C.ok : k >= .4 ? C.warn : C.bad;
+      s += `<rect${on ? ' id="oil-sel"' : ''} x="${f(bx + i * bw + 10)}" y="${f(by + bh - sc3(v))}" width="${f(bw - 30)}" height="${f(sc3(v))}" rx="5" fill="${col}" opacity="${on ? 1 : .55}" stroke="${on ? C.acc : 'none'}" stroke-width="4"/>`;
+      s += `<text class="lb halo" x="${f(bx + i * bw + bw / 2 - 5)}" y="${f(by + bh - sc3(v) - 10)}" text-anchor="middle">${MD.n0(v)}</text><text class="lm" x="${f(bx + i * bw + bw / 2 - 5)}" y="${by + bh + 30}" text-anchor="middle">VG ${gg}</text>`; });
+    return s + '</g>';
+  }
+  sc.draw = function (S, o) {
+    let s = K.backdrop(K.FLOOR) + block(S, o);
+    const X = 880, W = 700;
+    if (S.card === 'nlgi') s += nlgiCard(S, o, X, 20, W, 420) + compatCard(S, o, X, 455, W, 330);
+    else if (S.card === 'fill') s += fillCard(S, o, X, 20, W, 430) + tempCard(S, o, X, 465, W, 270);
+    else if (S.card === 'job') s += gpCard(S, o, X, 20, W, 290) + intCard(S, o, X, 322, W, 300) + oilCard(S, o, X, 634, W, 236);
+    else s += gpCard(S, o, X, 20, W, 290) + intCard(S, o, X, 322, W, 300) + tempCard(S, o, X, 636, W, 200);
+    if (S.blown && blowT > .6) s += MK.banner('PACKED SOLID: THE SEAL BLEW OUT', MK.NEVER, C.bad, 'fail-card', 430);
+    else if (S.added > 0 && o.mix === 'x') s += MK.banner(`${L.THICK[S.thick].toUpperCase()} + LITHIUM: INCOMPATIBLE, OIL BLEEDS OUT`, MK.NEVER, C.bad, 'fail-card', 430);
+    else if (S.run && o.fill > 75 && !S.drain) s += MK.banner('TOO FULL: THE GREASE CHURNS AND HEATS UP', 'Over half full, the bearing works the grease instead of rolling through it', C.warn, 'warn-card', 430);
+    return s;
+  };
+  sc.controls = {
+    brg: { type: 'seg', label: 'Bearing', options: [['6205', '6205'], ['6309', '6309'], ['22220', '22220']] },
+    n: { type: 'range', label: 'Shaft speed', min: 300, max: 3600, step: 50, fmt: v => MD.n0(v) + ' rpm' },
+    bT: { type: 'range', label: 'Normal running temperature', min: 40, max: 110, step: 1, fmt: (v, S) => MD.fT(v, S.units) },
+    grade: { type: 'seg', label: 'NLGI grade', options: L.NLGI.map((r, i) => [i, r[0]]) },
+    thick: { type: 'seg', label: 'Grease in the gun (thickener)', options: [['li', 'Lithium'], ['lic', 'Li complex'], ['pus', 'Polyurea'], ['csu', 'Ca sulfonate'], ['clay', 'Clay'], ['alc', 'Al complex']] },
+    wiped: { type: 'seg', label: 'Grease fitting', options: [[false, 'Dirty'], [true, 'Wiped clean']] },
+    drain: { type: 'seg', label: 'Drain plug', options: [[false, 'In'], [true, 'Out']] },
+    pump: { type: 'hold', key: 'pump', label: '▼ Hold to pump the gun' },
+    run: { type: 'seg', label: 'Fan', options: [[true, 'Running'], [false, 'Stopped']] },
+    gvg: { type: 'seg', label: 'Gearbox oil grade', options: [[100, 'VG 100'], [150, 'VG 150'], [220, 'VG 220'], [320, 'VG 320']] },
+    gT: { type: 'range', label: 'Gearbox oil temperature', min: 40, max: 100, step: 1, fmt: (v, S) => MD.fT(v, S.units) },
+    added: { type: 'range', label: 'Grease added', min: 0, max: 80, step: 1.25, fmt: (v, S) => S.units === 'imp' ? MD.n2(v / 28.3495) + ' oz' : MD.n1(v) + ' g', lessonOnly: true },
+    units: { type: 'seg', label: 'Units', options: [['met', 'Metric'], ['imp', 'Imperial']] }
+  };
+  sc.phoneVB = () => '0 40 880 800';
+  return sc;
+};
+})();</script>
+<script>(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+window.MetAdapter = function (C, PC) {
+  const K = window.CFK, sc = window.CFScenes[C.scene](C.sceneOpts || {});
+  window.MET_SCENE = sc;
+  let svg = null, g = null, api = null, cur = null, T = 0, callouts = [], drag = null;
+  const A = {};
+  A.defaults = Object.assign({}, sc.defaults, C.start || {}); delete A.defaults.snap;
+  A.instant = sc.instant || [];
+  A.viewBox = '0 0 1600 880';
+  A.fns = PC.fns || {};
+  const outOf = s => sc.calc(s);
+  A.calc = s => sc.calc(s);
+  A.onSet = (s, keys) => { cur = s; sc.onSet && sc.onSet(s, keys); };
+  A.apply = (s, prev, initial) => { cur = s; if (initial && sc.reset) sc.reset(s); };
+  A.reset = () => {};
+  A.advance = (ms, s) => { cur = s; const dt = ms / 1000; T += dt; const o = sc.calc(s); sc.step && sc.step(dt, s, o, T); };
+  A.busy = () => !!(cur && sc.busy && sc.busy(cur, outOf(cur)));
+  A.controls = {};
+  for (const [k, c0] of Object.entries(sc.controls || {})) {
+    const c = Object.assign({}, c0, (C.ctl || {})[k] || {});
+    if (c.type === 'seg') A.controls[k] = { type: 'chips', label: c.label, options: c.options.map(([v, t]) => ({ v, t })) };
+    else if (c.type === 'range') A.controls[k] = { type: 'slider', label: c.label, min: c.min, max: c.max, step: c.step, fmt: v => c.fmt ? c.fmt(v, cur || A.defaults, outOf(cur || A.defaults)) : String(v) };
+    else if (c.type === 'hold') A.controls[k] = { type: 'hold', key: c.key || k, on: c.on, label: c.label, hotkey: c.hotkey };
+    else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
+  }
+  window.PAGE_SCENE = A;
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.caption = (s, o) => (sc.caption && document.body.classList.contains('phone')) ? sc.caption(s, o) : null;
+  A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
+  function bboxOf(id) {
+    const el = svg && svg.querySelector('#' + CSS.escape(id)); if (!el || !el.getBBox) return null;
+    let b; try { b = el.getBBox(); } catch (e) { return null; }
+    if (!b || (!b.width && !b.height)) return null;
+    const m = svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => { const p = svg.createSVGPoint(); p.x = x; p.y = y; return p.matrixTransform(m); });
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }
+  A.spot = id => { const b = bboxOf(id); return b ? [b.x + b.w / 2, b.y + b.h / 2, Math.max(18, Math.hypot(b.w, b.h) / 2)] : null; };
+  A.callout = (id, text, o = {}) => { callouts.push({ id, text, pos: o.pos, ring: !!o.ring || o.pos === 'ring', at: T + (o.delay || 0) / 1000 }); return true; };
+  A.clear = () => { callouts = []; };
+  function overlay() {
+    let s = '';
+    for (const c of callouts) {
+      if (T < c.at) continue;
+      const b = bboxOf(c.id); if (!b) continue;
+      const pad = 8, bx = b.x - pad, by = b.y - pad, bw = b.w + 2 * pad, bh = b.h + 2 * pad;
+      s += `<rect x="${K.f(bx)}" y="${K.f(by)}" width="${K.f(bw)}" height="${K.f(bh)}" rx="10" fill="none" stroke="${K.C.acc}" stroke-width="4"/>`;
+      if (c.ring) continue;
+      const tw = Math.min(620, 24 + c.text.length * 14.2), th = 48, gap = 46;
+      let tx, ty, ax, ay;
+      const pos = c.pos || 'right';
+      if (pos === 'left') { tx = bx - gap - tw; ty = by + bh / 2 - th / 2; ax = bx; ay = by + bh / 2; }
+      else if (pos === 'top') { tx = bx + bw / 2 - tw / 2; ty = by - gap - th; ax = bx + bw / 2; ay = by; }
+      else if (pos === 'bottom') { tx = bx + bw / 2 - tw / 2; ty = by + bh + gap; ax = bx + bw / 2; ay = by + bh; }
+      else { tx = bx + bw + gap; ty = by + bh / 2 - th / 2; ax = bx + bw; ay = by + bh / 2; }
+      tx = Math.max(8, Math.min(K.W - tw - 8, tx)); ty = Math.max(8, Math.min(K.H - th - 8, ty));
+      const lx = Math.max(tx, Math.min(tx + tw, ax)), ly = Math.max(ty, Math.min(ty + th, ay));
+      s += `<line x1="${K.f(ax)}" y1="${K.f(ay)}" x2="${K.f(lx)}" y2="${K.f(ly)}" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<rect x="${K.f(tx)}" y="${K.f(ty)}" width="${K.f(tw)}" height="${th}" rx="10" fill="#1F1D1A" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<text x="${K.f(tx + tw / 2)}" y="${K.f(ty + 32)}" text-anchor="middle" style="font:800 25px ${K.FONT};fill:${K.C.text}">${K.esc(c.text)}</text>`;
+    }
+    return s;
+  }
+  A.draw = (s, o) => {
+    cur = s; K.T = T;
+    g.innerHTML = K.style(sc.phoneCss || '') + K.defs() + (window.MK ? window.MK.defs() : '') + sc.draw(s, o, T) + '<g id="ovl"></g>';
+    if (callouts.length) g.querySelector('#ovl').innerHTML = overlay();
+    if (document.body.classList.contains('phone')) {
+      const m = svg.getScreenCTM(), k = m ? m.a : 1;
+      g.querySelectorAll('text').forEach(t => { if (parseFloat(getComputedStyle(t).fontSize) * k < 11) { t.style.display = 'none'; const pg = t.parentNode; if (pg && pg.querySelector && pg.querySelector(':scope > path.ld') && !Array.from(pg.querySelectorAll(':scope > text')).some(x => x.style.display !== 'none')) pg.querySelectorAll(':scope > path.ld, :scope > circle').forEach(e => { e.style.display = 'none'; }); } });
+    }
+  };
+  function toSvg(e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+  A.mount = (el, shellApi) => {
+    svg = el; api = shellApi;
+    g = document.createElementNS(NS, 'g'); g.id = 'scene'; svg.appendChild(g);
+    if (sc.css) document.head.insertAdjacentHTML('beforeend', '<style>' + sc.css + '</style>');
+    svg.addEventListener('pointerdown', e => {
+      const t = e.target.closest && e.target.closest('[data-act]'); if (!t || !sc.pointer || !cur) return;
+      const st = api.step();
+      if (!st.free && st.step && st.step.drawActs && !st.step.drawActs.includes(t.dataset.act)) return;
+      e.preventDefault(); try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+      drag = { act: t.dataset.act, p0: toSvg(e) };
+      sc.pointer('down', drag.act, drag.p0, cur, drag); api.redraw();
+    });
+    svg.addEventListener('pointermove', e => { if (drag && cur) { sc.pointer('move', drag.act, toSvg(e), cur, drag); api.redraw(); } });
+    const up = () => { if (drag && cur) { sc.pointer('up', drag.act, null, cur, drag); drag = null; api.redraw(); } };
+    svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  };
+  A.challenge = (rng, n) => {
+    const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
+    if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
+    const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
+    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+  };
+  return A;
+};
+})();</script>
+<script>/* Lesson code (text, steps and questions: lubrication.json, written by test/make_lubrication_json.py): Lubrication:
+ * viscosity, grease and intervals (episode 073). RSOS F-25 performs maintenance and testing. Numbers: Petro-Canada
+ * HYDREX AW / ENDURATEX EP typical data (40 / 100 °C), Walther (ASTM D341), NLGI / ASTM D217, Mobil grease technical
+ * topic and compatibility chart (2024), SKF (Gp = 0.005 × D × B; intervals halve per 15 °C over 70 °C), GfT interval
+ * formula (K 10 / 5 / 1), ISO 4406 range table. Every answer is computed from MDL (data-lube.js) or the scene's calc();
+ * simulators/metals-lube/test/test_lubrication.py repeats them.
+ */
+(function () {
+const K = window.CFK, MD = window.MD, L = window.MDL, C = K.C;
+const pick = (rng, a) => a[Math.floor(rng() * a.length)];
+const ch = (t, why) => (why ? { t, why } : { t });
+const shuffle = (rng, choices, answer) => { const idx = choices.map((c, i) => i).sort(() => rng() - .5); return { choices: idx.map(i => choices[i]), answer: idx.indexOf(answer) }; };
+const kcol = o => o.level === 'ok' ? C.ok : o.level === 'thin' ? C.warn : C.bad;
+const fT = (c, S) => MD.fT(c, S.units);
+const g = (S, o) => S.units === 'imp' ? MD.n2(o.Goz) + ' oz' : MD.n1(o.Gp) + ' g';
+const r10 = v => MD.n0(Math.round(v / 10) * 10);
+
+/* film pages: shared readouts */
+const RF = (S, o) => [['Shaft speed', MD.n0(S.n) + ' rpm'], ['Oil now (ν)', S.oil ? MD.n1(o.nu) + ' cSt' : 'none', C.acc],
+  ['Needs (ν1)', isFinite(o.nu1) ? MD.n1(o.nu1) + ' cSt' : '—'], ['κ = ν ÷ ν1', S.n > 0 && S.oil ? MD.n2(o.kappa) : '0', kcol(o)], ['Oil temp', fT(o.Trun, S), o.Trun >= 95 ? C.bad : o.Trun >= 80 ? C.warn : C.text]];
+/* grease pages: shared readouts */
+const RG = (S, o) => [['Bearing', S.brg], ['Gp per charge', g(S, o), C.acc], ['Strokes', MD.n0(o.strokesDone) + ' of ' + MD.n0(o.strokes)],
+  ['Housing fill', MD.n0(Math.min(o.fill, 120)) + ' %', o.fill >= 100 ? C.bad : o.fill > 50 ? C.warn : C.ok], ['Bearing temp', fT(o.temp, S), o.temp >= 95 ? C.bad : o.temp >= 80 ? C.warn : C.ok]];
+const RJ = (S, o) => [['Gp per charge', g(S, o), C.acc], ['Strokes', MD.n0(o.strokesDone) + ' of ' + MD.n0(o.strokes)], ['Interval', o.tooFast ? 'use oil' : r10(o.tf) + ' h', C.acc],
+  ['Gearbox oil', `VG ${S.gvg}: ${MD.n1(o.gnu)} cSt`], ['Gearbox κ', MD.n2(o.gk), o.gk >= 1 ? C.ok : o.gk >= .4 ? C.warn : C.bad]];
+const RC = (S, o) => [['ISO 4406 code', o.iso, o.clean ? C.ok : o.over >= 3 ? C.bad : C.warn], ['Target (EXAMPLE)', o.targetIso], ['≥ 14 µm per mL', MD.n0(o.cnt[2])],
+  ['Water', MD.n0(S.ppm) + ' ppm', o.water === 'clear' ? C.ok : o.water === 'hazy' ? C.warn : C.bad], ['Breather', S.vent === 'open' ? 'Open vent cap' : 'Desiccant']];
+
+/* ---------------- challenges (computed with the same formulas the sim uses) */
+function kappaQ(rng) {
+  const vg = pick(rng, [32, 46, 68, 100]), T = pick(rng, [50, 60, 70, 80]), nu1 = pick(rng, [10, 12, 13, 15, 20]);
+  const nu = L.visc(vg, T), k = nu / nu1;
+  const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C, not at ${T} °C. Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
+  const sh = shuffle(rng, [ch(MD.n2(k))].concat(wrong.map(([v, w]) => ch(MD.n2(v), w))), 0);
+  return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
+    choices: sh.choices, answer: sh.answer, explain: `At ${T} °C VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
+}
+function regimeQ(rng) {
+  const n = pick(rng, [0, 300, 900, 1800, 3000]), nu = L.visc(68, 60), k = n > 0 ? nu / (13 * Math.sqrt(1800 / n)) : 0;
+  const r = k >= 1 ? 'Full film' : k >= .4 ? 'Mixed film' : 'Boundary (metal touches)';
+  const all = ['Full film', 'Mixed film', 'Boundary (metal touches)'];
+  const why = { 'Full film': 'Run it at that speed and read κ: full film needs κ of 1 or more.', 'Mixed film': 'Read κ at that speed: mixed is between about 0.4 and 1.', 'Boundary (metal touches)': 'Boundary is at a standstill, starting, or very slow.' };
+  return { setup: { view: 'film', n, vg: 68, T: 60, oil: 1 }, q: `VG 68 oil at 60 °C. The shaft turns at **${MD.n0(n)} rpm**. What kind of lubrication does the bearing get?`,
+    choices: all.map(t => t === r ? ch(t) : ch(t, why[t])), answer: all.indexOf(r), explain: `At ${MD.n0(n)} rpm κ is ${MD.n2(k)}: **${r.toLowerCase()}**. Speed builds the oil wedge; starting and stopping are when the surfaces touch.` };
+}
+function nlgiQ(rng) {
+  const i = pick(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8]), r = L.NLGI[i], others = L.NLGI.filter((x, j) => Math.abs(j - i) === 1 || Math.abs(j - i) === 2).slice(0, 3);
+  const sh = shuffle(rng, [ch('NLGI ' + r[0])].concat(others.map(x => ch('NLGI ' + x[0], `NLGI ${x[0]} is ${x[1]}–${x[2]} tenths of a mm.`))), 0);
+  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C. Which NLGI grade?`, choices: sh.choices, answer: sh.answer,
+    explain: `${r[1]}–${r[2]} is **NLGI ${r[0]}** (${r[3]}). Set the grade on the card to check.` };
+}
+function gpQ(rng) {
+  const b = pick(rng, ['6205', '6309', '22220']), B = L.BRG[b], gp = L.Gp(B.D, B.B), imp = rng() < .3;
+  const fmt = v => imp ? MD.n2(v / 28.3495) + ' oz' : MD.n1(v) + ' g';
+  const sh = shuffle(rng, [ch(fmt(gp)), ch(fmt(.005 * B.D), 'You left out the width B.'), ch(fmt(gp * 10), 'Check the decimal: 0.005 × D × B.'), ch(fmt(.005 * B.d * B.B), 'Use the OUTSIDE diameter D, not the bore.')], 0);
+  return { setup: { card: 'gp', brg: b, added: 0, units: imp ? 'imp' : 'met' }, q: `How much grease per charge for a **${b}** (${B.d} × ${B.D} × ${B.B} mm)? (Gp = 0.005 × D × B)`, choices: sh.choices, answer: sh.answer,
+    explain: `Gp = 0.005 × ${B.D} × ${B.B} = **${MD.n1(gp)} g**${imp ? ` = ${MD.n2(gp / 28.3495)} oz` : ''}.` };
+}
+function intQ(rng) {
+  const b = pick(rng, ['6205', '6309', '22220']), B = L.BRG[b], n = pick(rng, [900, 1200, 1800, 3000]), T = pick(rng, [60, 70, 85, 100]);
+  const t = L.interval(B.type, n, B.d, T), t0 = L.interval0(B.type, n, B.d);
+  if (t <= 0) return gpQ(rng);
+  const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C, halve it for every 15 °C.' : 'At 70 °C or less the temperature factor is 1.'),
+    ch(r10(L.KTYPE[B.type] * L.base(n, B.d)) + ' h', 'You forgot to take away 4 × d.'), ch(r10(t * 10) + ' h', 'Check K and the decimal.')], 0);
+  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C**, be regreased?`, choices: sh.choices, answer: sh.answer,
+    explain: `t = ${L.KTYPE[B.type]} × (14,000,000 ÷ (${MD.n0(n)} × √${B.d}) − 4 × ${B.d}) × ${MD.n2(L.tempFactor(T))} = about **${r10(t)} hours**.` };
+}
+function fillQ(rng) {
+  const base = pick(rng, [30, 40, 50]), charges = pick(rng, [1, 2, 3]), fl = base + 12 * charges;
+  const r = fl > 50 ? 'Too full: it will churn and heat up' : 'About right (30 to 50 %)';
+  const all = ['About right (30 to 50 %)', 'Too full: it will churn and heat up'];
+  return { setup: { card: 'fill', base, added: L.Gp(100, 25) * charges, drain: false, run: true }, q: `The free space was **${base} %** full. With the plug in, you pump **${charges} charge${charges > 1 ? 's' : ''}** (each adds about 12 points here). How is it now?`,
+    choices: all.map(t => t === r ? ch(t) : ch(t, `${base} + ${12 * charges} = ${fl} %.`)), answer: all.indexOf(r), explain: `${base} + 12 × ${charges} = **${fl} %**. ${fl > 50 ? 'Over half full: pull the plug and let it purge.' : 'Within 30 to 50 %.'}` };
+}
+function isoQ(rng) {
+  const code = pick(rng, [[18, 16, 13], [19, 17, 14], [20, 18, 15], [17, 15, 12], [16, 14, 11]]), i = pick(rng, [0, 1, 2]), row = L.ISO.find(r => r[0] === code[i]), sz = ['4', '6', '14'][i];
+  const fmt = r => `${MD.n0(r[1])} to ${MD.n0(r[2])} per mL`;
+  const near = [L.ISO.find(r => r[0] === code[i] + 1), L.ISO.find(r => r[0] === code[i] - 1)];
+  const sh = shuffle(rng, [ch(fmt(row)), ch(fmt(near[0]), 'One range too high: each step doubles.'), ch(fmt(near[1]), 'One range too low.'), ch(`${code[i]} per mL`, 'It is a range number, not a count.')], 0);
+  return { setup: {}, q: `An oil sample reads **${code.join('/')}**. How many particles of **${sz} µm and up** is that?`, choices: sh.choices, answer: sh.answer, explain: `Range ${code[i]} = more than ${MD.n0(row[1])}, up to ${MD.n0(row[2])} particles per mL (ISO 4406 table).` };
+}
+function gearQ(rng) {
+  const T = pick(rng, [60, 70, 80, 90]), nu1 = pick(rng, [20, 25, 30]), gs = [68, 100, 150, 220, 320];
+  const ok = gs.find(gg => L.visc(gg, T) / nu1 >= 1);
+  if (!ok) return kappaQ(rng);
+  const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C.`));
+  const sh = shuffle(rng, [ch('VG ' + ok)].concat(wrongs), 0);
+  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, choices: sh.choices, answer: sh.answer,
+    explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C: κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
+}
+
+window.LESSON_CODE = window.LESSON_CODE || {};
+window.LESSON_CODE['lubrication'] = {
+  1: { readouts: RF, challenge: regimeQ,
+    fns: { p1_live: (S, o) => `${MD.n0(S.n)} rpm · κ **${S.n > 0 && S.oil ? MD.n2(o.kappa) : '0'}** · ${S.n > 0 && S.oil ? o.regime.toLowerCase() : 'no film'}` } },
+  2: { readouts: RF, challenge: kappaQ,
+    fns: { p2_live: (S, o) => `VG ${S.vg} at ${fT(o.Trun, S)}: **${MD.n1(o.nu)} cSt** · κ **${MD.n2(o.kappa)}**`, p2_scored: (S, o) => o.failing && o.scored } },
+  3: { readouts: RG, challenge: nlgiQ, fns: {} },
+  4: { readouts: RG, challenge: (rng) => (rng() < .5 ? gpQ : intQ)(rng),
+    fns: { p4_one: (S, o) => o.strokesDone >= o.strokes && o.strokesDone <= o.strokes + 1,
+      p4_live: (S, o) => `**${MD.n0(o.strokesDone)}** of ${o.strokes} strokes · ${MD.n1(S.added)} g in · fill ${MD.n0(Math.min(o.fill, 120))} %`,
+      p4_int: (S, o) => `${fT(S.bT, S)} · × ${MD.n2(o.fT)} · interval **${o.tooFast ? 'use oil' : r10(o.tf) + ' h'}**` } },
+  5: { readouts: RG, challenge: fillQ,
+    fns: { p4_one: (S, o) => o.strokesDone >= o.strokes && o.strokesDone <= o.strokes + 1,
+      p4_live: (S, o) => `**${MD.n0(o.strokesDone)}** of ${o.strokes} strokes · fill ${MD.n0(Math.min(o.fill, 120))} %`,
+      p5_purged: (S, o) => S.purged > 0 && o.fill <= 50.5,
+      p5_live: (S, o) => `Fill **${MD.n0(o.fill)} %** · purged out of the drain: ${MD.n1(S.purged / 12 * o.Gp)} g`,
+      p5_plug: (S, o) => !S.drain && S.purged > 0,
+      p5_blown: S => !!S.blown } },
+  6: { readouts: RC, challenge: isoQ,
+    fns: { p6_clean: (S, o) => o.clean, p6_dirty: (S, o) => o.code[2] > o.target[2], p6_right: (S, o) => S.can === 'sealed' && o.clean,
+      p6_live: (S, o) => `Code **${o.iso}** · target ${o.targetIso}` } },
+  7: { readouts: RJ, challenge: (rng) => (rng() < .5 ? gearQ : intQ)(rng),
+    fns: { p4_live: (S, o) => `**${MD.n0(o.strokesDone)}** of ${o.strokes} strokes · fitting ${S.wiped ? 'clean' : 'dirty'} · plug ${S.drain ? 'out' : 'in'}`,
+      p7_greased: (S, o) => S.wiped && S.drain && o.strokesDone >= o.strokes && o.strokesDone <= o.strokes + 1 } }
+};
+})();
+</script>
+<script>/* CrewForge simulator-lesson page shell (instructor 2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+   Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
+   top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
+   at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
+   (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
+   Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
+   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
+   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+
+   Scene interface (one per page):
+     defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
+     mount(svg, api), apply(state, prev, initial), advance(ms, state), calc(state) -> out,
+     readouts(state, out) -> [{label, short, value, cls:'ok'|'warn'|'bad', color, id}],
+     caption(state, out) -> null | {kind:'fail'|'warn', title, text}, spot(id) -> [x, y, r] (svg units),
+     drag (optional, wired by the scene; it calls api.input(partial)), challenge(rng, n) -> question, busy() -> bool,
+     phoneViewBox, viewBox, reset().
+     Optional generic hooks (added 2026-11-13 for the hoisting and block-and-tackle ports):
+       instant: [keys]            never tweened by sim.set(partial, ms) (e.g. a hoist size that rebuilds the rig)
+       onSet(state, keys)         after every sim.set / learner input (not on tween frames): rebuild what those keys need
+       normalize(state)           after any change, before calc()
+       callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
+       fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+     step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
+
+   Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
+     slider  {min, max, step, unit, fmt(v)}: - / + steppers (hold to repeat), range, tap the value to type it
+     chips   {options:[{v, t}]}: one choice
+     hold    {key, on = 1, label, hotkey}: PRESS-AND-HOLD TO RUN. state[key] = on while the button is held (pointer,
+             Space / Enter on the focused button, or the optional hotkey anywhere on the page), 0 on release, lost
+             pointer capture, blur or leaving the page. The scene moves on its own clock (advance), so in ?capture=1
+             a script does the same with sim.set({key: 1}) ... sim.set({key: 0}) on the virtual clock. 52 px tall.
+             Dragging the part itself in the drawing is the scene's job (drag + api.input).
+     custom  {html(state)}: scene-made markup (e.g. a crane pendant); any element in it with data-hk="key" is a
+             hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
+   Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
+     the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
+     every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
+     while it matches), points [..] (teach: a short list), hint2 on question variants.
+   Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
+     or "fn:name" for the whole goal.
+   Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
+     sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
+(function () {
+'use strict';
+const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
+const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
+const NS = 'http://www.w3.org/2000/svg';
+
+window.CFShell = { start };
+
+function start(C, S) {
+  const log = [], T0 = performance.now(), L = (type, d = {}) => log.push({ t: Math.round(performance.now() - T0), type, ...d });
+  let state = Object.assign({}, S.defaults), out = S.calc(state), tweens = [], listeners = [], dirty = true;
+  let idx = 0, phase = 'step', hintLvl = 0, done = new Set(), helped = new Set(), qv = {}, qState = null, goalSince = null;
+  let free = false, challenge = null, chalN = 0, finished = false;
+  const N = C.lesson.pages.length, PN = C.n, steps = C.steps;
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const KEY = 'cf-lp:' + C.lesson.id;
+  const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
+  let muted = !!prefs.muted, rate = prefs.rate || 1;
+
+  /* ---------------------------------------------------------------- layout */
+  document.body.innerHTML = '';
+  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  if (STAGE_ONLY) document.body.classList.add('capture');
+  const app = el('div', { class: 'app' });
+  const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
+  app.innerHTML = `<header class="bar">
+    <button class="btn" id="b-back" aria-label="Back">&#9664; Back</button>
+    <div class="title"><div class="kick">${C.lesson.title.toUpperCase()} · PAGE ${PN} OF ${N}</div><div class="h">${C.title}</div></div>
+    <div class="dots" aria-label="page ${PN} of ${N}">${dots}</div>
+    <div class="voice"><button class="btn" id="b-mute" aria-label="Voice on or off"></button><button class="btn" id="b-rate" aria-label="Voice speed"></button></div>
+    <button class="btn pri" id="b-next" aria-label="Next page">${PN === N ? 'Finish' : 'Next'} &#9654;</button></header>
+  <section class="what" id="what"><button class="wt" id="b-what" aria-expanded="false">WHAT YOU'RE LOOKING AT <span class="chev">&#9662;</span></button><div class="wx">${md(C.what)}</div></section>
+  <div class="main"><div class="stage" id="stage"><svg id="sv" xmlns="${NS}" viewBox="${S.viewBox || '0 0 1600 880'}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${C.title} simulator"></svg>
+    <div class="caption" id="caption" role="status"></div><div class="read" id="read"></div></div>
+    <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
+  document.body.appendChild(app);
+  const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  if (S.captionAt) cap.dataset.at = S.captionAt;   // optional: a scene with cards at the top puts the caption at the bottom
+  let spotG, calloutG;
+
+  /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
+  let lastVB = '';
+  function fit() {
+    const phone = innerWidth < 700 && innerHeight > innerWidth;
+    document.body.classList.toggle('phone', phone);
+    const asp = Math.max(0.6, Math.min(3, (svg.clientWidth || 1) / (svg.clientHeight || 1)));
+    const vb = phone && S.phoneViewBox ? (typeof S.phoneViewBox === 'function' ? S.phoneViewBox(state, asp) : S.phoneViewBox) : (S.viewBox || '0 0 1600 880');
+    if (vb !== lastVB) { svg.setAttribute('viewBox', vb); lastVB = vb; }
+  }
+  addEventListener('resize', fit); fit();
+  $('#b-what').onclick = () => { const w = $('#what'); w.classList.toggle('open'); $('#b-what').setAttribute('aria-expanded', w.classList.contains('open')); };
+
+  /* ---------------------------------------------------------------- host / progress (SCORM wrapper or localStorage) */
+  const host = (() => { try { return window.parent !== window && window.parent.CFHost ? window.parent.CFHost : null; } catch (e) { return null; } })();
+  function progress() {
+    if (host) host.page(PN, N, C.file);
+    else if (store) { try { const p = JSON.parse(store.getItem(KEY) || '{}'); p.seen = Array.from(new Set((p.seen || []).concat([PN]))); p.last = PN; if (PN === N) p.complete = true; store.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+  }
+  const firstVisit = !(store && store.getItem(KEY));
+  progress();
+  const go = d => {
+    stopVoice();
+    const target = PN + d;
+    if (target < 1) return;
+    if (target > N) { finish(); return; }
+    L('page', { to: target });
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+  };
+  $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
+  if (PN === 1) $('#b-back').disabled = true;
+
+  /* ---------------------------------------------------------------- voice (Kokoro af_heart clips beside the page) */
+  const audio = new Audio(); audio.preload = 'auto';
+  let voiceOK = false, queue = [];
+  function setVoiceUI() {
+    $('#b-mute').innerHTML = muted ? '&#128263;<span class="vt"> Off</span>' : '&#128266;<span class="vt"> On</span>'; $('#b-mute').classList.toggle('off', muted);
+    $('#b-rate').textContent = rate === 1 ? '1×' : '0.8×';
+    try { store && store.setItem('cf-voice', JSON.stringify({ muted, rate })); } catch (e) {}
+  }
+  setVoiceUI();
+  $('#b-mute').onclick = () => { muted = !muted; setVoiceUI(); if (muted) stopVoice(); else speak(curKey()); L('voice', { muted }); };
+  $('#b-rate').onclick = () => { rate = rate === 1 ? 0.8 : 1; audio.playbackRate = rate; setVoiceUI(); };
+  function stopVoice() { queue = []; try { audio.pause(); } catch (e) {} }
+  function speak(...keys) {
+    queue = keys.filter(k => k && C.audio && C.audio[k]);
+    try { audio.pause(); } catch (e) {}
+    playNext();
+  }
+  function playNext() {
+    if (muted || !voiceOK || CAPTURE || !queue.length) return;
+    const k = queue.shift();
+    audio.src = (C.audioBase || 'audio/') + C.audio[k]; audio.playbackRate = rate;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    audio.play().catch(() => { showStart(); });
+  }
+  audio.addEventListener('ended', () => setTimeout(playNext, 250));
+  function curKey() { if (free) return challenge ? null : 'free'; const st = steps[idx]; if (!st) return null; if (st.type === 'question') return `s${idx}v${(qv[idx] || 0) % st.variants.length}`; return 's' + idx; }
+  function showStart() {
+    if (CAPTURE || $('#start')) return;
+    const first = PN === 1 && firstVisit;
+    const o = el('div', { id: 'start' }, `<div class="box"><h2>${first ? C.lesson.title : C.title}</h2><p>${first ? 'The narrator reads each step aloud. You can mute it or slow it down at the top right.' : 'Tap to hear this page read aloud.'}</p>
+      <button class="btn pri" id="b-start">&#9654; ${first ? 'Start lesson' : 'Start page'}</button> <button class="btn" id="b-quiet">Read it myself</button></div>`);
+    document.body.appendChild(o);
+    $('#b-start').onclick = () => { o.remove(); voiceOK = true; muted = false; setVoiceUI(); speak('what', curKey()); L('start'); };
+    $('#b-quiet').onclick = () => { o.remove(); voiceOK = true; muted = true; setVoiceUI(); L('start', { quiet: true }); };
+  }
+
+  /* ---------------------------------------------------------------- sim state */
+  function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+  function full() { return Object.assign({}, state, { out }); }
+  function applyState(next, user) {
+    const prev = state; state = Object.assign({}, state, next); if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, prev); dirty = true;
+    if (user) { if (S.onSet) { S.onSet(state, Object.keys(next)); out = S.calc(state); } listeners.forEach(fn => fn(full())); }
+  }
+  function snapTo(partial) {      // sim.set({snap: true, ...}): page defaults first, no tweens, then the rest
+    tweens = []; S.reset && S.reset(); state = Object.assign({}, S.defaults, partial); delete state.snap;
+    if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, null, true); dirty = true;
+  }
+  function set(partial, dur = 0) {
+    if (!partial) return;
+    if (partial.snap) return snapTo(partial);
+    const inst = {}, tw = {}, keys = Object.keys(partial), noTween = S.instant || [];
+    for (const k in partial) { if (dur > 0 && typeof partial[k] === 'number' && typeof state[k] === 'number' && !noTween.includes(k)) tw[k] = [state[k], partial[k]]; else inst[k] = partial[k]; }
+    if (Object.keys(tw).length) tweens.forEach(T => { for (const k in tw) delete T.tw[k]; });   // a new tween on a key replaces the old one
+    if (Object.keys(inst).length) applyState(inst);
+    if (Object.keys(tw).length) tweens.push({ tw, t: 0, dur });
+    if (S.onSet) { S.onSet(state, keys); out = S.calc(state); dirty = true; }
+  }
+  function stepTweens(ms) {
+    if (!tweens.length) return;
+    const next = {};
+    tweens = tweens.filter(T => { T.t += ms; const u = Math.min(1, T.t / T.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; for (const k in T.tw) next[k] = T.tw[k][0] + (T.tw[k][1] - T.tw[k][0]) * e; return u < 1; });
+    applyState(next);
+  }
+  function advance(ms) {
+    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+  }
+  function checkGame(ms) {
+    const c = challenge; if (!c || !c.game || c.result || !free) return;
+    c.t = (c.t || 0) + ms / 1000;
+    const r = c.goal(state, out, c.t) || {}; c.live = r.live || '';
+    const g = card.querySelector('#glive'); if (g && g.innerHTML !== md(c.live)) g.innerHTML = md(c.live);
+    if (r.done) { c.result = { ok: !!r.ok, msg: r.msg || '' }; L('challenge', { right: c.result.ok }); renderFree(); }
+  }
+  const api = {
+    input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
+    get: full, redraw() { dirty = true; },
+    step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
+  };
+  S.mount(svg, api);
+  spotG = document.createElementNS(NS, 'g'); spotG.id = 'spotg'; svg.appendChild(spotG);
+  calloutG = document.createElementNS(NS, 'g'); calloutG.id = 'calloutg'; svg.appendChild(calloutG);
+  /* video contract */
+  window.sim = {
+    set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
+    get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
+    onChange: fn => listeners.push(fn),
+    callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+    clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
+  };
+
+  /* ---------------------------------------------------------------- readouts + caption */
+  let lastRead = '', lastCap = '';
+  function render() {
+    if (!dirty) return; dirty = false;
+    if (document.body.classList.contains('phone')) fit();
+    S.draw && S.draw(state, out);
+    const r = S.readouts(state, out).map(o => `<div class="ro ${o.cls || ''}" id="ro-${o.id || ''}"><small><span class="lf">${o.label}</span><span class="ls">${o.short || o.label}</span></small><span${o.color ? ` style="color:${o.color}"` : ''}>${o.value}</span></div>`).join('');
+    if (r !== lastRead) { read.innerHTML = r; lastRead = r; }
+    const c = S.caption && S.caption(state, out), cs = c ? JSON.stringify(c) : '';
+    if (cs !== lastCap) { lastCap = cs; cap.className = 'caption' + (c ? ' on ' + (c.kind || '') : ''); cap.innerHTML = c ? `<b>${c.title}</b><span class="ct">${c.text}</span>` : ''; }
+    drawSpot(); syncTray(); liveLine();
+  }
+  /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
+  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function tpl(t) {
+    const f = fn(t); if (f) return String(f(state, out));
+    const st = full();
+    return String(t || '').replace(/\{([\w.]+)(?::(%|\d))?\}/g, (m, p, d) => { const v = getPath(st, p); if (typeof v !== 'number') return v == null ? m : String(v);
+      return d === '%' ? Math.round(v * 100).toLocaleString('en-CA') + ' %' : v.toLocaleString('en-CA', { minimumFractionDigits: +(d || 0), maximumFractionDigits: +(d || 0) }); });
+  }
+  let lastLive = '';
+  function liveLine() {
+    const st = !free && steps[idx], box = card.querySelector('#live'); if (!box || !st) return;
+    let h = st.live ? md(tpl(st.live)) : '';
+    const w = (st.wrong || []).find(x => goalMet(x.when)); if (w && !done.has(idx)) h += (h ? '<br>' : '') + `<span class="wrongsay">${md(w.say)}</span>`;
+    if (h !== lastLive) { lastLive = h; box.innerHTML = h; box.style.display = h ? '' : 'none'; }
+  }
+  function syncTray() {               // programmatic changes (Show me, setups, tweens) move the controls too
+    const ae = document.activeElement;
+    trayKeys.forEach(k => { const c = S.controls[k], v = state[k];
+      if (c.type === 'hold' || c.type === 'custom') return;
+      if (c.type === 'chips') tray.querySelectorAll(`.chip[data-k="${k}"]`).forEach(b => { const on = String(v) === b.dataset.v; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+      else { const r = tray.querySelector(`input[data-k="${k}"]`), t = tray.querySelector(`.val[data-k="${k}"]`), txt = (c.fmt || (x => x + (c.unit || '')))(v);
+        if (r && r !== ae && +r.value !== v) r.value = v; if (t && t.textContent !== txt) t.textContent = txt; } });
+    tray.querySelectorAll('[data-hk]').forEach(b => { const on = !!state[b.dataset.hk]; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+  }
+
+  /* ---------------------------------------------------------------- control tray */
+  function ctrlHTML(key) {
+    const c = S.controls[key], v = state[key], fmt = c.fmt || (x => x + (c.unit || ''));
+    if (c.type === 'hold') return `<div class="ctrl holdc" id="c-${key}"><button class="btn hold" data-hk="${c.key || key}" data-on="${c.on != null ? c.on : 1}" aria-pressed="false" title="Press and hold${c.hotkey ? ' (or hold the ' + c.hotkey + ' key)' : ''}">${c.label}</button></div>`;
+    if (c.type === 'custom') return `<div class="ctrl custom" id="c-${key}">${c.html(state)}</div>`;
+    if (c.type === 'chips') return `<div class="chipwrap" id="c-${key}"><span class="lab">${c.label}</span><div class="chips" role="group" aria-label="${c.label}">${c.options.map(o => `<button class="chip${o.v === v ? ' on' : ''}" data-k="${key}" data-v="${o.v}" aria-pressed="${o.v === v}">${o.t}</button>`).join('')}</div></div>`;
+    return `<div class="ctrl" id="c-${key}"><span class="lab">${c.label}</span><button class="btn" data-k="${key}" data-d="-1" aria-label="${c.label} down">&minus;</button>
+      <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-k="${key}" aria-label="${c.label}"><button class="btn" data-k="${key}" data-d="1" aria-label="${c.label} up">+</button>
+      <button class="val" data-k="${key}" title="Tap to type a value">${fmt(v)}</button></div>`;
+  }
+  let trayKeys = [];
+  function renderTray(keys) {
+    if (keys) trayKeys = keys;
+    const ae = document.activeElement, activeRange = ae && ae.type === 'range' && tray.contains(ae) ? ae.dataset.k : null;
+    if (activeRange) {           // never rebuild under a finger: update values only
+      trayKeys.forEach(k => { const c = S.controls[k]; const v = $(`#c-${k} .val`); if (v) v.textContent = (c.fmt || (x => x + (c.unit || '')))(state[k]); });
+      return;
+    }
+    tray.innerHTML = trayKeys.map(ctrlHTML).join('');
+    tray.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k, c = S.controls[k], o = c.options.find(o => String(o.v) === b.dataset.v); api.input({ [k]: o.v }); });
+    tray.querySelectorAll('.chip.on').forEach(c => { const p = c.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = c.offsetLeft - p.offsetLeft - 8; });   // phone: the picked chip in view
+    tray.querySelectorAll('input[type=range]').forEach(r => { r.oninput = () => api.input({ [r.dataset.k]: +r.value }); r.onchange = () => renderTray(); });
+    tray.querySelectorAll('.btn[data-d]').forEach(b => {
+      let h = null; const k = b.dataset.k, c = S.controls[k];
+      const bump = () => { const v = Math.max(c.min, Math.min(c.max, +(state[k] + (+b.dataset.d) * c.step).toFixed(6))); api.input({ [k]: v }); };
+      b.onpointerdown = e => { e.preventDefault(); bump(); h = setTimeout(function rep() { bump(); h = setTimeout(rep, 90); }, 420); };
+      const stop = () => { clearTimeout(h); h = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; addEventListener('pointerup', stop);
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } };
+    });
+    tray.querySelectorAll('[data-hk]').forEach(wireHold);
+    tray.querySelectorAll('.val').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, c = S.controls[k], inp = el('input', { class: 'tv', type: 'number', inputmode: 'decimal', min: c.min, max: c.max, step: c.step, value: state[k], 'aria-label': c.label });
+      b.replaceWith(inp); inp.focus(); inp.select();
+      const ok = () => { const v = +inp.value; if (isFinite(v)) api.input({ [k]: Math.max(c.min, Math.min(c.max, v)) }); renderTray(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') renderTray(); }; inp.onblur = ok;
+    });
+  }
+
+  /* hold-to-run: state[key] = on while held (pointer, Space / Enter on the button, or the control's hotkey) */
+  const held = new Set();
+  function hold(k, on, v) {
+    if (on ? held.has(k) : !held.has(k)) return;
+    if (on) held.add(k); else held.delete(k);
+    api.input({ [k]: on ? (v != null ? v : 1) : 0 });
+  }
+  function wireHold(b) {
+    const k = b.dataset.hk, v = b.dataset.on != null ? +b.dataset.on : 1;
+    b.style.touchAction = 'none';
+    b.onpointerdown = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} hold(k, true, v); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => hold(k, false);
+    b.oncontextmenu = e => e.preventDefault();
+    b.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(k, true, v); } };
+    b.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); hold(k, false); } };
+    b.onblur = () => hold(k, false);
+  }
+  const releaseAll = () => Array.from(held).forEach(k => hold(k, false));
+  addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT') return; trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) { e.preventDefault(); hold(c.key || k, true, c.on); } }); });
+  addEventListener('keyup', e => { trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) hold(c.key || k, false); }); });
+
+  /* ---------------------------------------------------------------- spotlight (hint level 2) */
+  let spotIds = [];
+  function drawSpot() {
+    if (STAGE_ONLY) return;                 // video: no lesson spotlight on the stage
+    spotG.innerHTML = spotIds.map(id => { const p = S.spot && S.spot(id, state); if (!p) return ''; const [x, y, r] = p;
+      return `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/><circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="10 7"/>`; }).join('');
+  }
+  function spot(ids, ctrls) {
+    spotIds = ids || []; drawSpot();
+    tray.querySelectorAll('.spotlit').forEach(e => e.classList.remove('spotlit'));
+    (ctrls || []).forEach(k => { const e = $('#c-' + k); if (e) e.classList.add('spotlit'); });
+  }
+
+  /* ---------------------------------------------------------------- steps */
+  let tries = 0;
+  function markTry() { tries++; }
+  function goalMet(g) {
+    if (!g) return false;
+    const f = fn(g); if (f) return !!f(state, out);
+    const st = full();
+    return Object.keys(g).every(k => { const v = getPath(st, k), m = g[k];
+      if (Array.isArray(m)) return v >= m[0] - 1e-9 && v <= m[1] + 1e-9;
+      if (m && typeof m === 'object') { if ('in' in m) return m.in.includes(v); if ('near' in m) return Math.abs(v - m.near) <= (m.tol != null ? m.tol : 1e-6);
+        if ('gte' in m) return v >= m.gte - 1e-9; if ('lte' in m) return v <= m.lte + 1e-9; if ('gt' in m) return v > m.gt; if ('lt' in m) return v < m.lt; if ('not' in m) return v !== m.not; }
+      return v === m; });
+  }
+  function checkGoal(ms) {
+    if (free || phase !== 'step') return;
+    const st = steps[idx]; if (!st || done.has(idx) || !(st.type === 'do' || st.type === 'fail' || (st.type === 'predict' && qState === 'answered' && st.goal))) return;
+    if (goalMet(st.goal)) { goalSince = (goalSince || 0) + ms; if (goalSince >= (st.hold != null ? st.hold : 450)) complete(); }
+    else goalSince = null;
+  }
+  function complete(how) {
+    if (done.has(idx)) return;
+    done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+  }
+  function enter(i, opts = {}) {
+    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    const st = steps[idx];
+    if (!opts.noSetup) {
+      if (st.setup) set(st.setup, 0);
+      if (st.set) set(st.set, st.dur || 1200);
+      if (st.type === 'question') { const v = st.variants[(qv[idx] || 0) % st.variants.length]; if (v.setup) set(v.setup, 0); }
+    }
+    releaseAll(); lastLive = '';
+    if (!opts.noSetup) { window.sim.clear(); if (st.callout) [].concat(st.callout).forEach(c => window.sim.callout(c.id, c.text, { pos: c.pos })); }
+    L('enter', { step: idx, type: st.type });
+    spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
+  }
+  function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
+  function stepHead(label) {
+    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  }
+  function wireHead() {
+    const p = $('#b-sprev'), n = $('#b-snext');
+    if (p) { p.onclick = () => { if (free) enter(steps.length - 1); else if (idx > 0) enter(idx - 1); }; p.disabled = !free && idx === 0; }
+    if (n) n.onclick = () => { if (free) go(1); else { L('skip', { step: idx }); if (!done.has(idx)) helped.add(idx); nextStep(); } };
+  }
+  function hintBlock(st) {
+    let h = '';
+    if (hintLvl >= 1) h += `<div class="hint">${md(st.hint || 'Look at the readouts under the drawing.')}</div>`;
+    if (hintLvl >= 2 && st.hint2) h += `<div class="hint">${md(st.hint2)}</div>`;
+    return h;
+  }
+  function hintButtons(st, showLabel = 'Show me') {
+    return `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; ${showLabel}</button>${hintLvl >= 2 || helped.has(idx) ? '<button class="skip" id="b-skip">Skip this step</button>' : ''}</div>`;
+  }
+  function renderStep() {
+    if (free) return renderFree();
+    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    const ctrls = st.controls || [];
+    if (st.type === 'teach') {
+      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+    } else if (st.type === 'do' || st.type === 'fail') {
+      if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
+      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      else h += hintBlock(st) + hintButtons(st);
+    } else if (st.type === 'predict') {
+      h += `<p>${md(st.text)}</p>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      else {
+        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
+        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      }
+    } else if (st.type === 'question') {
+      const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
+      h += `<h3>${md(v.q)}</h3>`;
+      if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
+        `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+      else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
+        `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
+      else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
+        `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
+    lastLive = ''; liveLine();
+  }
+  let predPick = null, qPick = null;
+  function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
+  function choose(i) {
+    const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'predict') {
+      if (qState) return; predPick = i; qState = 'answered';
+      if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+      if (!st.goal) done.add(idx);
+      renderStep(); return;
+    }
+    if (st.type !== 'question' || qState) return;
+    const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
+    if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
+    else qState = 'wrong';
+    renderStep();
+  }
+  function newQuestion() {
+    if (challenge) { return nextChallenge(); }
+    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
+    L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
+  }
+  function hint() {
+    if (challenge) { hintLvl++; renderFree(); return; }
+    const st = steps[idx]; hintLvl = Math.min(2, hintLvl + 1); L('hint', { step: idx, lvl: hintLvl });
+    renderStep();
+    if (hintLvl >= 2) spot(st.hintSpot ? [].concat(st.hintSpot) : (st.spot ? [].concat(st.spot) : []), st.controls || []);
+  }
+  function showMe() {
+    if (challenge) { challenge.shown = true; renderFree(); return; }
+    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
+  }
+
+  /* ---------------------------------------------------------------- free play */
+  const allKeys = (C.freeControls || Object.keys(S.controls)).filter(k => S.controls[k] && !(S.controls[k].lessonOnly));
+  function enterFree() { stopVoice(); free = true; challenge = null; spot([], []); releaseAll(); window.sim.clear(); L('free'); renderFree(); speak('free'); }
+  function renderFree() {
+    card.className = 'card step free';
+    let h = stepHead('FREE PLAY · EVERYTHING UNLOCKED');
+    if (!challenge) {
+      h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
+    } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
+      h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    } else {
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
+      if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
+      else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
+      else h += opts(c.choices, ord, () => '', true) + (hintLvl ? `<div class="hint">${md(c.hint)}</div>` : '');
+      h += `<div class="row">${c.state === 'wrong' || c.state === 'right' || c.shown ? '<button class="btn pri" id="b-newq">Try a new question &#9654;</button>' : '<button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button>'}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(challenge ? (challenge.game ? (challenge.controls || allKeys) : []) : allKeys);
+    const ch = $('#b-chal'); if (ch) ch.onclick = () => nextChallenge();
+    const rs = $('#b-reset'); if (rs) rs.onclick = () => reset();
+    const np = $('#b-np'); if (np) np.onclick = () => go(1);
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => nextChallenge();
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => { const c = challenge; c.pick = +b.dataset.i; c.state = c.pick === c.answer ? 'right' : 'wrong'; L('challenge', { right: c.state === 'right' }); renderFree(); });
+  }
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function nextChallenge() {
+    chalN++; hintLvl = 0;
+    const c = S.challenge(rng(PN * 1000 + chalN * 7919 + (Q.get('seed') | 0)), chalN);
+    if (c.setup) set(c.setup, 0);
+    challenge = Object.assign({ state: null, pick: null }, c); free = true; L('challenge', { n: chalN }); renderFree();
+  }
+  function reset() { tweens = []; held.clear(); S.reset && S.reset(); state = Object.assign({}, S.defaults); out = S.calc(state); S.apply(state, null, true); dirty = true; challenge = null; L('reset'); renderFree(); }
+
+  function finish() {
+    finished = true; stopVoice(); L('finish'); if (host && host.finish) host.finish();
+    card.className = 'card step free';
+    card.innerHTML = `<div class="sh"><b>LESSON COMPLETE</b></div><p>${md(C.lesson.done)}</p><div class="row">${C.lesson.sheet ? `<a class="btn pri" href="${C.lesson.sheet}" target="_blank" rel="noopener">&#128196; Summary sheet (PDF)</a>` : ''}<button class="btn" id="b-again">Back to free play</button></div>`;
+    tray.innerHTML = ''; $('#b-again').onclick = () => enterFree();
+    speak('done');
+  }
+
+  /* ---------------------------------------------------------------- loop */
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+    if (!CAPTURE) advance(dt);
+    requestAnimationFrame(frame);
+  }
+  S.apply(state, null, true); render();
+  enter(0, { quiet: true, noSetup: STAGE_ONLY });     // a video page starts from the page defaults: the script sets it up
+  if (!CAPTURE) {
+    requestAnimationFrame(frame);
+    if ((PN === 1 && firstVisit) || host && host.fresh) showStart();
+    else { voiceOK = true; speak('what', curKey()); }      // later pages: autoplay; if the browser refuses, play() shows the Start tap
+  }
+  if (CAPTURE) { voiceOK = false; }
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight' && e.altKey) go(1); if (e.key === 'ArrowLeft' && e.altKey) go(-1); });
+  window.sim.ready = true;
+
+  /* test / run-through API */
+  window.lessonPage = {
+    log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
+      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+  };
+}
+})();
+</script>
+<script>(function(){const C={"n":4,"file":"04-how-much-how-often.html","title":"How much, how often","scene":"lb-grease","capture":"stage","start":{"card":"gp","brg":"6309","n":1800,"bT":60,"thick":"li","added":0,"base":30,"wiped":true,"drain":true,"run":true},"what":"The same pillow block, drain plug out. Top right: **how much** grease each service needs, worked out from the bearing's size. Middle: **how often**, from its bore, speed, type and temperature. The gun on the fitting is an example gun that puts out **1.25 g** a stroke.","steps":[{"type":"teach","text":"For grease fed into the side of the bearing, SKF's rule is **Gp = 0.005 × D × B**: grams, with the outside diameter D and width B in mm. In inches it is **0.114 × D × B** in ounces. A 6309 is 100 mm outside diameter and 25 mm wide: 0.005 × 100 × 25 = **12.5 g**.","spot":["c-gp"]},{"type":"do","text":"Pump in one charge: hold the gun for **10 strokes**.","controls":["pump"],"goal":"fn:p4_one","solve":{"added":12.5},"wrong":[{"when":{"out.strokesDone":{"gt":10}},"say":"That's more than one charge. Too much grease churns and heats. Reset and try again."}],"hint":"Press and hold the pump button; count the boxes on the card.","ok":"One charge in. Weigh ten strokes of **your** gun on a scale and divide: guns differ.","live":"fn:p4_live"},{"type":"do","setup":{"added":0},"text":"Swap in the big **22220** spherical roller bearing (180 mm outside diameter, 46 mm wide). How much now?","controls":["brg"],"goal":{"brg":"22220"},"solve":{"brg":"22220"},"hint":"Tap 22220.","ok":"0.005 × 180 × 46 = **41.4 g**: 34 strokes of this gun."},{"type":"teach","setup":{"brg":"6309"},"text":"How often: **t = K × (14 million ÷ (n × √d), minus 4 × d)** hours, with n in rpm and d the bore in mm. **K** is 10 for ball bearings, 5 for cylindrical roller, 1 for spherical and tapered roller. Over **70 °C**, halve it for every **15 °C** (SKF).","spot":["c-int"]},{"type":"do","text":"The 6309 at 1,800 rpm and 60 °C needs grease about every **9,790 hours**. The fan starts running hot: set the bearing to **85 °C**.","controls":["bT"],"goal":{"bT":[84,86]},"solve":{"bT":85},"hint":"Drag Normal running temperature to 85 °C.","ok":"15 °C over 70: half the interval, about **4,900 hours**. Heat ages grease fast. And find out why it runs hot.","live":"fn:p4_int"},{"type":"predict","setup":{"bT":60},"text":"Same bearing at 60 °C, but the shaft speeds up to **3,600 rpm**. The interval…","choices":["gets longer","gets shorter","stays the same"],"answer":1,"reveal":{"set":{"n":3600},"dur":1500},"after":"Faster = shorter: 14,000,000 ÷ (3,600 × √45) − 180 = 400, × 10 = about **4,000 hours**."},{"type":"question","setup":{"n":1800},"variants":[{"q":"A **6309** bearing is **100 mm** outside diameter and **25 mm** wide. How much grease per relubrication? (Gp = 0.005 × D × B)","choices":[{"t":"12.5 g"},{"t":"285.0 g","why":"0.114 is the inch factor (ounces, inches). In mm use 0.005."},{"t":"0.5 g","why":"You left out the width B: multiply by it too."},{"t":"2,500 g","why":"You left out the 0.005 factor."}],"answer":0,"explain":"Gp = 0.005 × 100 × 25 = **12.5 g**. With a gun that puts out 1.25 g a stroke, that's 10 strokes.","setup":{"card":"gp"}},{"q":"A **6205** bearing is **52 mm** outside diameter and **15 mm** wide. How much grease per relubrication? (Gp = 0.005 × D × B)","choices":[{"t":"3.9 g"},{"t":"88.9 g","why":"0.114 is the inch factor (ounces, inches). In mm use 0.005."},{"t":"0.3 g","why":"You left out the width B: multiply by it too."},{"t":"780 g","why":"You left out the 0.005 factor."}],"answer":0,"explain":"Gp = 0.005 × 52 × 15 = **3.9 g**. With a gun that puts out 1.25 g a stroke, that's 4 strokes.","setup":{"card":"gp"}},{"q":"A **22220** bearing is **180 mm** outside diameter and **46 mm** wide. How much grease per relubrication? (Gp = 0.005 × D × B)","choices":[{"t":"41.4 g"},{"t":"943.9 g","why":"0.114 is the inch factor (ounces, inches). In mm use 0.005."},{"t":"0.9 g","why":"You left out the width B: multiply by it too."},{"t":"8,280 g","why":"You left out the 0.005 factor."}],"answer":0,"explain":"Gp = 0.005 × 180 × 46 = **41.4 g**. With a gun that puts out 1.25 g a stroke, that's 34 strokes.","setup":{"card":"gp"}},{"q":"A **6309** bearing is **3.94 in** outside diameter and **0.98 in** wide. How much grease per relubrication? (Gp = 0.114 × D × B, ounces and inches)","choices":[{"t":"0.44 oz"},{"t":"0.019 oz","why":"0.005 is the metric factor (grams, mm). In inches use 0.114."},{"t":"0.45 oz","why":"You left out the width B: multiply by it too."},{"t":"4.4 oz","why":"Check your decimal place: 0.114 × D × B."}],"answer":0,"explain":"Gp = 0.114 × 3.94 × 0.98 = **0.44 oz** (the same as 12.5 g).","setup":{"card":"gp"}}]},{"type":"question","variants":[{"q":"A **6309** (ball, bore **45 mm**) turns at **1,800 rpm** and runs at **60 °C**. About how often should it be regreased? (t = K × (14 million ÷ (n√d), minus 4d), K = 10)","choices":[{"t":"9,790 h"},{"t":"19,590 h","why":"Check the temperature factor: at 70 °C or less it is 1."},{"t":"11,590 h","why":"You forgot to take away 4 × d."},{"t":"980 h","why":"Multiply by K = 10 for this bearing type."}],"answer":0,"explain":"14,000,000 ÷ (1,800 × √45) = 1,159; − 4 × 45 = 979; × 10 = 9,794 h → about **9,790 hours**.","setup":{"card":"gp","brg":"6309","n":1800,"bT":60}},{"q":"A **6205** (ball, bore **25 mm**) turns at **3,000 rpm** and runs at **60 °C**. About how often should it be regreased? (t = K × (14 million ÷ (n√d), minus 4d), K = 10)","choices":[{"t":"8,330 h"},{"t":"16,670 h","why":"Check the temperature factor: at 70 °C or less it is 1."},{"t":"9,330 h","why":"You forgot to take away 4 × d."},{"t":"830 h","why":"Multiply by K = 10 for this bearing type."}],"answer":0,"explain":"14,000,000 ÷ (3,000 × √25) = 933; − 4 × 25 = 833; × 10 = 8,333 h → about **8,330 hours**.","setup":{"card":"gp","brg":"6205","n":3000,"bT":60}},{"q":"A **22220** (spherical roller, bore **100 mm**) turns at **1,200 rpm** and runs at **60 °C**. About how often should it be regreased? (t = K × (14 million ÷ (n√d), minus 4d), K = 1)","choices":[{"t":"770 h"},{"t":"1,530 h","why":"Check the temperature factor: at 70 °C or less it is 1."},{"t":"1,170 h","why":"You forgot to take away 4 × d."},{"t":"770 h","why":"Multiply by K = 1 for this bearing type."}],"answer":0,"explain":"14,000,000 ÷ (1,200 × √100) = 1,167; − 4 × 100 = 767; × 1 = 767 h → about **770 hours**.","setup":{"card":"gp","brg":"22220","n":1200,"bT":60}},{"q":"A **6309** (ball, bore **45 mm**) turns at **1,800 rpm** and runs at **85 °C**. About how often should it be regreased? (t = K × (14 million ÷ (n√d), minus 4d), K = 10)","choices":[{"t":"4,900 h"},{"t":"9,790 h","why":"Over 70 °C, halve it for every 15 °C."},{"t":"11,590 h","why":"You forgot to take away 4 × d."},{"t":"490 h","why":"Multiply by K = 10 for this bearing type."}],"answer":0,"explain":"14,000,000 ÷ (1,800 × √45) = 1,159; − 4 × 45 = 979; × 10 = 9,794 h × 0.5^((85 − 70) ÷ 15) = × 0.50 → about **4,900 hours**.","setup":{"card":"gp","brg":"6309","n":1800,"bT":85}}]}],"free":"Everything is unlocked. Pick a bearing, a speed and a temperature, and read how much and how often. Pump a charge and watch the boxes fill. Try a challenge.","lesson":{"id":"lubrication","title":"Lubrication","episode":"073-lubrication","done":"You finished **Lubrication: viscosity, grease and intervals**. Print the summary sheet to keep the rules and the numbers. On the job, follow the machine maker's lube chart, the lubricant data sheet and your site's procedures.","sheet":"lubrication-summary.pdf","footer":"Exam prep, not a procedure: on the job, follow the machine maker's lube chart and manual, the lubricant data sheet and SDS, and your site procedures. Lock out before reaching past a guard (WorkSafeBC OHS Regulation s. 12.6 asks for guards that allow lubrication without removal, where practicable). Check your province's rules.","summary":{"title":"Lubrication: viscosity, grease and intervals","pic":{"page":5,"state":{"base":50,"added":25,"drain":true,"wiped":true}},"rules":["A lubricant separates the surfaces, carries heat away and keeps out rust and dirt. Motion drags oil into the narrowing gap (oil wedge); stopped or starting = boundary lubrication.","Viscosity = resistance to flow, in cSt (mm²/s). ISO VG = cSt at 40 °C ±10 % (VG 68 = 61.2 to 74.8). Oil thins as it heats: read the viscosity at the running temperature.","κ = ν ÷ ν1 (oil you have ÷ oil the bearing needs, from the maker's chart): aim for about 1 to 4. Under 1 the peaks touch.","Grease = base oil (80 to 97 %) + thickener + additives. NLGI grade = cone penetration at 25 °C (000 fluid to 6 block); NLGI 2 for most bearings. Don't mix incompatible thickeners (check the maker's chart).","How much (side relubrication, SKF): Gp = 0.005 × D × B (g, mm) = 0.114 × D × B (oz, in). 6309: 12.5 g. Weigh ten strokes to know your gun.","How often: t = K × (14,000,000 ÷ (n√d) − 4d) h; K = 10 ball, 5 cylindrical roller, 1 spherical / tapered roller; halve for every 15 °C over 70 °C. 6309 at 1,800 rpm, 60 °C: about 9,790 h.","Right way: wipe the fitting, drain plug out, one charge, run to purge, plug back in. Fill the free space about 30 to 50 %: packed housings churn, overheat and blow seals.","ISO 4406 = particles per mL at 4 / 6 / 14 µm as range numbers; each step doubles. Films are about 0.1 to 3 µm, so particles dent and scratch. Sealed labelled containers, filtered top-ups, desiccant breathers. Milky oil = free water."]},"pages":[{"file":"01-why-lubricate.html","title":"The oil film"},{"file":"02-viscosity-grades.html","title":"Viscosity grades"},{"file":"03-grease.html","title":"Grease and NLGI"},{"file":"04-how-much-how-often.html","title":"How much, how often"},{"file":"05-over-greasing.html","title":"Over-greasing"},{"file":"06-contamination.html","title":"Dirt and water"},{"file":"07-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p4-what-f28457d7.mp3","s0":"p4-s0-38246747.mp3","s1":"p4-s1-58291960.mp3","s2":"p4-s2-f67ac286.mp3","s3":"p4-s3-64345368.mp3","s4":"p4-s4-ef652564.mp3","s5":"p4-s5-d2d5ea92.mp3","s6v0":"p4-s6v0-e4ee83c9.mp3","s6v1":"p4-s6v1-79903976.mp3","s6v2":"p4-s6v2-8d1060f7.mp3","s6v3":"p4-s6v3-43f88750.mp3","s7v0":"p4-s7v0-aa8cc172.mp3","s7v1":"p4-s7v1-a431e82d.mp3","s7v2":"p4-s7v2-33637b95.mp3","s7v3":"p4-s7v3-c4cf2be1.mp3","free":"p4-free-ad1d619b.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["lubrication"][C.n]));})();</script>
+</body></html>

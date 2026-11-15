@@ -17,7 +17,7 @@
 .main{display:grid;grid-template-columns:1fr 380px;gap:14px;padding:12px 18px 16px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
-#co{position:absolute;inset:0;pointer-events:none}
+#co{position:absolute;inset:0;pointer-events:none;z-index:5}
 .co-ring{position:absolute;border:3px solid var(--accent);border-radius:12px;box-shadow:0 0 0 4px rgba(240,138,43,.18)}
 .co-label{position:absolute;background:var(--accent);color:#1F1D1A;font-weight:800;font-size:22px;padding:8px 14px;border-radius:10px;max-width:460px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
 .read{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
@@ -730,7 +730,7 @@ const RT = (() => {
       if (!coLayer) return;
       coLayer.innerHTML = '';
       callouts.forEach(co => {
-        const el = document.getElementById(co.target);
+        const el0 = document.getElementById(co.target), el = el0 && el0.closest ? (el0.closest(".ro") || el0) : el0;   // a readout: ring the whole box, label above it
         if (!el) return;
         const r = el.getBoundingClientRect(), lr = coLayer.getBoundingClientRect();
         if (!r.width && !r.height) return;
@@ -740,7 +740,7 @@ const RT = (() => {
         if (!co.text) return;
         const lb = document.createElement('div'); lb.className = 'co-label'; lb.textContent = co.text; coLayer.appendChild(lb);
         const lw = lb.offsetWidth, lh = lb.offsetHeight, pad = 14, vw = lr.width, vh = lr.height;
-        lb.style.opacity = clamp(co.age / 250, 0, 1);
+        lb.style.opacity = 1;                               // full opacity from the first frame (render review 2026-11-14)
         let x, y; const cx = r.left - lr.left, cy = r.top - lr.top;
         if (co.pos === 'left') { x = cx - lw - pad - 10; y = cy + r.height / 2 - lh / 2; }
         else if (co.pos === 'top') { x = cx + r.width / 2 - lw / 2; y = cy - lh - pad - 10; }
@@ -788,7 +788,10 @@ const RT = (() => {
       }
       window.sim = {
         set, callout, clear, advance: ms => { frame(ms); }, calc: () => calc(), get: getState, failure: failInfo, ready: true,
-        isIdle: () => !tweens.length && !(F.on && F.t < 4000) && (def.idle ? def.idle(A, S) : true),
+        // every scene moves continuously on the virtual clock (sway, swinging ends): never idle, so the renderer
+        // captures every frame (crewforgepipe/render.py reuses the last frame while isIdle() is true: that froze the
+        // first sling-angles renders). A scene with no continuous motion may set def.still = true.
+        isIdle: () => !!def.still && !tweens.length && !(F.on && F.t < 4000) && (def.idle ? def.idle(A, S) : true),
         onChange: fn => { LISTEN.push(fn); return () => { const i = LISTEN.indexOf(fn); if (i >= 0) LISTEN.splice(i, 1); }; },
         lock: ids => { (ids === 'all' ? controlIds() : ids).forEach(i => LOCKED.add(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },
         unlock: ids => { if (ids === 'all' || !ids) LOCKED.clear(); else ids.forEach(i => LOCKED.delete(i.startsWith('c-') ? i : 'c-' + i)); opts.onLock && opts.onLock(LOCKED); },

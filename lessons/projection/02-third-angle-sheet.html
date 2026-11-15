@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="cf-lesson-page" content="projection:2">
+<title>Reading a third-angle drawing · Orthographic projection: first and third angle · CrewForge</title>
+<!-- CrewForge simulator-lesson page (built by simulators/drawings/build.py from src/; do not edit by hand) -->
+<style>/* CrewForge simulator-lesson page shell (approved layout, docs/mockups/lesson-page.html; docs/LESSON_DESIGN.md s.2) */
+:root{--bg:#1F1D1A;--panel:#2a2723;--panel2:#33302b;--line:#4a4640;--text:#F5F5F4;--muted:#b9b4ab;--accent:#F08A2B;
+  --fill:#C05A00;--ok:#3ddc84;--warn:#F2C230;--bad:#ff5a4f}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font:16px/1.4 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#171512;border-bottom:1px solid var(--line)}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+  font-weight:700;font-size:15px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:#6a645b}.btn:focus-visible,.opt:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.pri{background:var(--accent);color:#1F1D1A;border-color:var(--accent)}
+.btn.ghost{background:transparent}.btn[disabled]{opacity:.45;cursor:default}
+.title{flex:1;min-width:0}.kick{color:var(--accent);font-size:12px;letter-spacing:.14em;font-weight:800}
+.h{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dots{display:flex;gap:6px}.dots i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{background:var(--accent)}.dots i.done{background:#7a5a3a}
+.voice{display:flex;align-items:center;gap:6px}
+.voice .btn{padding:6px 10px;font-size:13px}
+.voice .btn.off{color:var(--muted)}
+.what{margin:10px 18px 0;padding:10px 16px;background:var(--panel);border-left:4px solid var(--accent);border-radius:8px;font-size:15.5px}
+.what .wt{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800;background:none;border:0;padding:0;min-height:0;display:flex;gap:8px;align-items:center}
+.what .wt .chev{display:none}
+.what b.hl{color:var(--text)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
+.stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+.read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
+.caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
+  background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
+.caption b{display:block;color:var(--bad);letter-spacing:.12em;font-size:13px}
+.caption.warn{border-color:var(--warn)}.caption.warn b{color:var(--warn)}
+.caption.on{display:block}
+.caption[data-at=bottom]{top:auto;bottom:96px}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.step .sh{display:flex;align-items:center;gap:8px}
+.step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
+.step .sh .nav{padding:4px 8px;min-height:44px;min-width:44px;font-size:18px;background:transparent;border:0;color:var(--muted)}
+.step p{font-size:18px;margin:6px 0 10px;font-weight:600}
+.step .note{font-size:15px;color:var(--muted);margin:6px 0 8px;font-weight:500}
+.step .hint{font-size:15px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(240,138,43,.10);border:1px solid rgba(240,138,43,.5)}
+.step .good{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(61,220,132,.10);border:1px solid var(--ok)}
+.step .good b{color:var(--ok)}
+.step .bad{font-size:15.5px;margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(242,194,48,.10);border:1px solid var(--warn)}
+.step .bad b{color:var(--warn)}
+.step .never{font-size:13px;font-weight:800;letter-spacing:.1em;color:var(--bad);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.skip{background:none;border:0;color:var(--muted);text-decoration:underline;min-height:44px;padding:0 6px;font-size:14px}
+.q h3{margin:4px 0 8px;font-size:17px}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:10px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--text);font-size:15.5px;font-weight:600;min-height:44px}
+.opt.wrong{border-color:var(--bad);background:rgba(255,90,79,.12)}
+.opt.right{border-color:var(--ok);background:rgba(61,220,132,.12)}
+.opt.ans{border-color:var(--ok)}
+.free{border:2px dashed var(--accent)}
+.free .fk{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:800}
+.ctrlcard{display:flex;flex-direction:column;gap:12px}
+.ctrlcard:empty{display:none}
+.ctrl{display:flex;align-items:center;gap:8px}
+.ctrl .lab{font-weight:700;width:96px;flex:none;font-size:15px;line-height:1.15}
+.ctrl .val{font-weight:800;color:var(--accent);min-width:72px;text-align:right;background:none;border:0;padding:0;min-height:44px;font-size:16px}
+.ctrl input[type=range]{flex:1;min-width:60px;accent-color:var(--accent);height:44px}
+.ctrl .tv{width:80px;font:inherit;font-weight:800;padding:6px;border-radius:8px;border:2px solid var(--accent);background:#171512;color:var(--text)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chipwrap .lab{font-weight:700;font-size:15px;margin-bottom:6px;display:block}
+.chip{padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);font-weight:700;min-height:44px;font-size:14.5px}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.spotlit{box-shadow:0 0 0 3px var(--accent),0 0 18px rgba(240,138,43,.6);border-radius:12px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px var(--accent),0 0 28px rgba(240,138,43,.75)}}
+#start{position:fixed;inset:0;background:rgba(15,14,12,.82);display:flex;align-items:center;justify-content:center;z-index:20}
+#start .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 28px;max-width:440px;text-align:center}
+#start h2{margin:0 0 6px;font-size:24px}#start p{color:var(--muted);margin:0 0 18px}
+#start .btn{font-size:18px;padding:12px 22px}
+/* phone portrait: top bar -> what (collapsible) -> step -> simulator -> control tray (no page scroll) */
+body.phone .app{grid-template-rows:auto auto minmax(0,1fr)}
+body.phone .bar{flex-wrap:wrap;padding:6px 8px;gap:6px}
+body.phone .title{order:-1;flex-basis:100%;display:flex;gap:8px;align-items:baseline}
+body.phone .kick{font-size:11px}body.phone .h{font-size:16px}
+body.phone .dots{flex:1;justify-content:center}body.phone .dots i{width:14px}
+body.phone .what{margin:6px 8px 0;padding:6px 10px;font-size:14px}
+body.phone .what .wt{min-height:44px;width:100%}
+body.phone .what .wt .chev{display:inline}
+body.phone .what:not(.open) .wx{display:none}
+body.phone .main{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;padding:6px 8px 8px;gap:6px}
+body.phone .side{display:contents}
+body.phone .step{order:1;padding:8px 12px}body.phone .stage{order:2}body.phone .ctrlcard{order:3;padding:8px 10px;gap:6px}
+body.phone .step p{font-size:15.5px;margin:2px 0 6px}
+body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
+body.phone .q h3{font-size:15px;margin:2px 0 4px}
+body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
+body.phone .read{padding:4px 6px;gap:4px}
+body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .ctrl .lab{width:70px;font-size:13px}
+body.phone .chip{padding:6px 9px;font-size:13px}
+body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
+body.phone .caption{font-size:13px;padding:6px 10px;top:6px}
+body.phone .btn{padding:6px 10px;font-size:14px}
+body.phone .step .sh{min-height:28px}
+body.phone .main{grid-template-columns:minmax(0,1fr)}
+body.phone .card,body.phone .stage{min-width:0}
+body.phone .bar .btn{padding:4px 10px;font-size:14px}
+body.phone .voice .vt{display:none}
+body.phone .ro .lf{display:none}
+.ro .ls{display:none}body.phone .ro .ls{display:inline}
+body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
+.what .wt{pointer-events:none}body.phone .what .wt{pointer-events:auto}
+.main{grid-template-rows:minmax(0,1fr)}
+
+/* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
+body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
+body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
+body.phone .chip{flex:none}
+body.phone .chipwrap{display:flex;align-items:center;gap:8px}
+body.phone .chipwrap .lab{margin:0;width:70px;flex:none}
+body.phone .bar{row-gap:2px}
+body.phone .what{padding:0 10px}
+.chip{min-width:44px}
+body.phone .caption .ct{display:none}body.phone .caption b{font-size:12px}body.phone .caption{padding:4px 10px;bottom:56px}
+
+/* hold-to-run controls (shell.js: type 'hold' and data-hk buttons inside 'custom' controls) */
+.ctrl.holdc{display:block}
+.btn.hold{width:100%;min-height:52px;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+.btn.hold.on{background:var(--fill);border-color:var(--accent);color:var(--text)}
+.ctrl.custom{display:block}
+.step ul.points{margin:4px 0 10px;padding-left:20px;font-size:16px}.step ul.points li{margin:3px 0}
+.step .wrongsay{color:var(--warn);font-weight:700}
+body.phone .btn.hold{min-height:48px}
+/* video layout (content capture:'stage' + ?capture=1): the stage and its readouts fill the window */
+body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
+body.capture .app{grid-template-rows:minmax(0,1fr)}
+body.capture .main{grid-template-columns:1fr;padding:10px 12px}
+body.capture .read{padding:10px 12px}
+body.capture .ro{padding:7px 10px}
+</style></head>
+<body><noscript>This lesson needs JavaScript.</noscript>
+<script>(function (root) {
+'use strict';
+const K = {};
+K.W = 1600; K.H = 880; K.FLOOR = 800;
+K.FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+K.C = { bg: '#24211d', panel: '#2a2723', text: '#F5F5F4', muted: '#b9b4ab', acc: '#F08A2B', ok: '#3ddc84', warn: '#F2C230',
+  bad: '#ff5a4f', steelD: '#3b4247', steelM: '#8d969d', steelL: '#b9c1c7', steelHi: '#eef1f3', ropeD: '#454c51',
+  ropeM: '#aab3b9', ropeV: '#6a737a', timberD: '#5e4426', paint: '#5d6670', paintD: '#23282c' };
+const C = K.C;
+const f = v => { const r = Math.round(v * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
+K.f = f;
+K.pathd = (P, closed) => 'M' + P.map(p => f(p[0]) + ' ' + f(p[1])).join(' L') + (closed ? 'Z' : '');
+K.esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+K.catmull = function (P, n = 8, closed = false) {
+  const out = [], m = P.length, last = closed ? m : m - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = P[(closed || i > 0) ? (i - 1 + m) % m : i], p1 = P[i], p2 = P[(i + 1) % m];
+    const p3 = P[(closed || i + 2 < m) ? (i + 2) % m : (i + 1) % m];
+    for (let j = 0; j < n; j++) {
+      const t = j / n, t2 = t * t, t3 = t2 * t;
+      out.push([0, 1].map(c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 +
+        (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+    }
+  }
+  if (!closed) out.push(P[m - 1]);
+  return out;
+};
+K.arcPts = (cx, cy, r, a0, a1, n = 24) => { const o = []; for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; o.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } return o; };
+K.resample = function (P, step) {
+  const out = [P[0]]; let acc = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [x0, y0] = P[i], [x1, y1] = P[i + 1], seg = Math.hypot(x1 - x0, y1 - y0);
+    if (!seg) continue;
+    let t = step - acc;
+    while (t <= seg) { out.push([x0 + (x1 - x0) * t / seg, y0 + (y1 - y0) * t / seg]); t += step; }
+    acc = seg - (t - step);
+  }
+  return out;
+};
+K.normals = P => P.map((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; });
+K.litOffset = function (P, amt) {
+  const N = K.normals(P), Lx = -0.7071, Ly = -0.7071;
+  return P.map((p, i) => { const s = N[i][0] * Lx + N[i][1] * Ly; return [p[0] + N[i][0] * s * amt, p[1] + N[i][1] * s * amt]; });
+};
+K.walker = function (P) {
+  const L = [0];
+  for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const at = s => {
+    s = Math.max(0, Math.min(L[L.length - 1], s));
+    let i = 0; while (i < L.length - 2 && L[i + 1] < s) i++;
+    const seg = (L[i + 1] - L[i]) || 1, t = (s - L[i]) / seg, a = P[i], b = P[i + 1] || a;
+    const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1;
+    return [a[0] + dx * t, a[1] + dy * t, dx / d, dy / d];
+  };
+  return { len: L[L.length - 1], at };
+};
+K.defs = () => `<defs>
+<linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd5da"/><stop offset=".45" stop-color="#8d969d"/><stop offset="1" stop-color="#4b5359"/></linearGradient>
+<linearGradient id="gForge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7d868d"/><stop offset=".5" stop-color="#555d63"/><stop offset="1" stop-color="#33393d"/></linearGradient>
+<linearGradient id="gBarV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b747b"/><stop offset=".3" stop-color="#dfe4e7"/><stop offset=".62" stop-color="#8f989f"/><stop offset="1" stop-color="#454c52"/></linearGradient>
+<linearGradient id="gBarH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8f989f"/><stop offset=".28" stop-color="#e3e7ea"/><stop offset=".65" stop-color="#8a939a"/><stop offset="1" stop-color="#40474c"/></linearGradient>
+<linearGradient id="gPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e7882"/><stop offset="1" stop-color="#4a525a"/></linearGradient>
+<linearGradient id="gPaintSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#727c86"/><stop offset="1" stop-color="#454d55"/></linearGradient>
+<linearGradient id="gGB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a8396"/><stop offset=".5" stop-color="#4c6273"/><stop offset="1" stop-color="#34444f"/></linearGradient>
+<radialGradient id="gWheel" cx=".38" cy=".34" r=".8"><stop offset="0" stop-color="#7d97aa"/><stop offset=".6" stop-color="#4c6273"/><stop offset="1" stop-color="#2c3a44"/></radialGradient>
+<linearGradient id="gCrane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b04a"/><stop offset=".5" stop-color="#b98f2c"/><stop offset="1" stop-color="#7d5f19"/></linearGradient>
+<linearGradient id="gMotor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7a8f"/><stop offset=".35" stop-color="#8aa6b8"/><stop offset=".7" stop-color="#4a6577"/><stop offset="1" stop-color="#2e4250"/></linearGradient>
+<linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#211e1b"/><stop offset="1" stop-color="#2b2824"/></linearGradient>
+<linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46413b"/><stop offset=".12" stop-color="#3a3631"/><stop offset="1" stop-color="#2a2723"/></linearGradient>
+<linearGradient id="gTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a58"/><stop offset="1" stop-color="#8a6740"/></linearGradient>
+<linearGradient id="gConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c8780"/><stop offset="1" stop-color="#5f5a53"/></linearGradient>
+<radialGradient id="gShadow"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<radialGradient id="gDust"><stop offset="0" stop-color="#b9ad98" stop-opacity=".55"/><stop offset="1" stop-color="#b9ad98" stop-opacity="0"/></radialGradient>
+<marker id="mAcc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.acc}"/></marker>
+<marker id="mTxt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.text}"/></marker>
+<marker id="mMut" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="${C.muted}"/></marker>
+</defs>`;
+K.style = (extraPhone = '') => `<style>
+.lb{font:700 26px ${K.FONT};fill:${C.text}} .lm{font:600 21px ${K.FONT};fill:${C.muted}} .la{font:800 30px ${K.FONT};fill:${C.acc}}
+.ld{stroke:${C.muted};stroke-width:2;fill:none} .tag{font:700 12px ${K.FONT};fill:#1d1d1d} .tagb{font:800 15px ${K.FONT};fill:#1d1d1d}
+.halo{paint-order:stroke;stroke:#1F1D1A;stroke-width:6px;stroke-linejoin:round} .phOnly{display:none}
+.drag{cursor:grab} .drag:active{cursor:grabbing}
+@media (max-width:700px){ .lb{font-size:33px} .lm{font-size:29px} .la{font-size:36px} .pcOnly{display:none} .phOnly{display:inline} ${extraPhone} }
+</style>`;
+K.backdrop = function (floor = K.FLOOR, wainscot = true) {
+  let s = `<rect width="${K.W}" height="${floor}" fill="url(#gWall)"/>`;
+  if (wainscot) s += `<rect x="0" y="${floor - 150}" width="${K.W}" height="150" fill="#fff" opacity=".018"/><line x1="0" y1="${floor - 150}" x2="${K.W}" y2="${floor - 150}" stroke="#3a3530" stroke-width="2"/>`;
+  s += `<rect x="0" y="${floor}" width="${K.W}" height="${K.H - floor}" fill="url(#gFloor)"/><line x1="0" y1="${floor}" x2="${K.W}" y2="${floor}" stroke="#5a544c" stroke-width="2.5"/>`;
+  return s;
+};
+K.column = (x, floor = K.FLOOR, top = 0, w = 34, op = .55) =>
+  `<g opacity="${op}"><rect x="${f(x)}" y="${f(top)}" width="${w}" height="${f(floor - top)}" fill="#2f2c28"/><rect x="${f(x)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#3a3632"/>` +
+  `<rect x="${f(x + w - 5)}" y="${f(top)}" width="5" height="${f(floor - top)}" fill="#262320"/><rect x="${f(x - 14)}" y="${f(floor - 8)}" width="${w + 28}" height="8" fill="#2f2c28"/></g>`;
+K.shadow = (cx, y, w, h = 14, op = 1) => `<ellipse cx="${f(cx)}" cy="${f(y)}" rx="${f(w / 2)}" ry="${f(h / 2)}" fill="url(#gShadow)" opacity="${op}"/>`;
+K.roundBar = function (P, d, body = '#8d969d', dark = C.steelD, hi = '#e8ecef', cap = 'round', hiOp = .85) {
+  const p = K.pathd(P);
+  return `<path d="${p}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.6)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${p}" fill="none" stroke="${body}" stroke-width="${f(d)}" stroke-linecap="${cap}" stroke-linejoin="round"/>` +
+    `<path d="${K.pathd(K.litOffset(P, d * .24))}" fill="none" stroke="${hi}" stroke-width="${f(Math.max(.8, d * .2))}" stroke-linecap="round" stroke-linejoin="round" opacity="${hiOp}"/>`;
+};
+K.wireRope = function (P, d, phase = 0) {
+  const dense = K.resample(P, Math.max(.8, d / 4));
+  if (dense.length < 2) dense.push(P[P.length - 1]);
+  let s = K.roundBar(dense, d, C.ropeM, C.ropeD, '#e9edf0', 'butt', .7);
+  if (d < 2.2) return s;
+  const pitch = 1.08 * d, adv = 2.0 * d, w = K.walker(dense);
+  let v = '', sv = -adv - (((phase % pitch) + pitch) % pitch);
+  while (sv < w.len) {
+    const seg = [];
+    for (let j = 0; j < 5; j++) {
+      const q = sv + adv * j / 4;
+      if (q >= 0 && q <= w.len) { const [x, y, ux, uy] = w.at(q), o = (-0.5 + j / 4) * d * .86; seg.push([x - uy * o, y + ux * o]); }
+    }
+    if (seg.length > 1) v += K.pathd(seg) + ' ';
+    sv += pitch;
+  }
+  return s + `<path d="${v}" fill="none" stroke="${C.ropeV}" stroke-width="${f(Math.max(.7, d * .13))}" stroke-linecap="round" opacity=".9"/>`;
+};
+K.chain = function (P, pitch, d, phase = 0, col = '#9aa3aa', dark = '#2f363b') {
+  const w = K.walker(P);
+  let s = '', idx = Math.floor(phase / pitch), s0 = -(((phase % pitch) + pitch) % pitch);
+  const L = pitch + d;
+  for (let sv = s0, n = 0; sv < w.len + pitch; sv += pitch, n++) {
+    const a = Math.max(0, sv), b = Math.min(w.len, sv + pitch);
+    if (b - a < pitch * .25) continue;
+    const [x, y, ux, uy] = w.at((a + b) / 2), ang = Math.atan2(uy, ux) * 180 / Math.PI;
+    const face = ((n + idx) & 1) === 0, len = (b - a) / pitch * L;
+    if (face) {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${dark}" stroke-width="${f(d + 1.4)}"/>` +
+        `<rect x="${f(-len / 2)}" y="${f(-(d * 1.65))}" width="${f(len)}" height="${f(d * 3.3)}" rx="${f(d * 1.6)}" fill="none" stroke="${col}" stroke-width="${f(d)}"/>` +
+        `<path d="M${f(-len / 2 + d * 1.4)} ${f(-d * 1.95)} L${f(len / 2 - d * 1.4)} ${f(-d * 1.95)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.7, d * .3))}" opacity=".75"/></g>`;
+    } else {
+      s += `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(ang)})"><rect x="${f(-len / 2)}" y="${f(-d * .62)}" width="${f(len)}" height="${f(d * 1.24)}" rx="${f(d * .6)}" fill="${col}" stroke="${dark}" stroke-width="1.1"/>` +
+        `<path d="M${f(-len / 2 + d)} ${f(-d * .3)} L${f(len / 2 - d)} ${f(-d * .3)}" stroke="#e3e8eb" stroke-width="${f(Math.max(.6, d * .25))}" opacity=".7"/></g>`;
+    }
+  }
+  return s;
+};
+K.timberEnd = function (x, y, w, h, id = '') {
+  const cx = x + w * .78, cy = y + h * 1.15, cid = 'tc' + Math.round(x) + '_' + Math.round(y);
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="#a77c4c" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  s += `<clipPath id="${cid}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/></clipPath><g clip-path="url(#${cid})">`;
+  for (let i = 1; i < 9; i++) s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(i * Math.max(w, h) * .17)}" fill="none" stroke="#7d5b35" stroke-width="1" opacity=".55"/>`;
+  s += `<line x1="${f(x + w * .3)}" y1="${f(y + h * .12)}" x2="${f(x + w * .42)}" y2="${f(y + h * .45)}" stroke="#4a3420" stroke-width="1.3" opacity=".7"/><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h * .18)}" fill="#fff" opacity=".08"/></g>`;
+  return s;
+};
+K.timberSide = function (x, y, w, h, seed = 1) {
+  let s = `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="url(#gTimber)" stroke="${C.timberD}" stroke-width="1.6"/>`;
+  const n = Math.max(2, Math.floor(h / 7));
+  for (let i = 1; i < n; i++) {
+    const yy = y + h * i / n, wob = 1.6 * Math.sin(i * 1.7 + seed);
+    s += `<path d="M${f(x + 4)} ${f(yy)} C${f(x + w * .3)} ${f(yy + wob)} ${f(x + w * .6)} ${f(yy - wob)} ${f(x + w - 4)} ${f(yy + wob * .5)}" stroke="#6e5131" stroke-width=".9" fill="none" opacity=".55"/>`;
+  }
+  return s + `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(Math.min(4, h * .15))}" fill="#fff" opacity=".1"/>`;
+};
+const HOOK_OUT = [[-0.705, -6.59], [-1.25, -6.05], [-2.3, -5.2], [-3.15, -4.1], [-3.5, -2.8], [-3.3, -1.5], [-2.6, -0.55],
+  [-1.4, -0.05], [0, 0], [1.35, -0.25], [2.3, -1.0], [2.72, -2.1], [2.75, -3.1], [2.6, -3.95], [2.38, -4.5]];
+const HOOK_TIP = [2.08, -4.82], HOOK_RI = 1.6, HOOK_CY = -3.41, HOOK_SADDLE = -1.81, HOOK_L = 10.43;
+K.HOOK = { saddle: HOOK_SADDLE, L: HOOK_L, ri: HOOK_RI, cy: HOOK_CY };
+function hookContour(open = 0) {
+  const tip = HOOK_OUT.map(p => p[1] < -2.4 && p[0] > 0 ? [p[0] + open * 1.2 * ((-p[1] - 2.4) / 2.4), p[1] + open * .5 * ((-p[1] - 2.4) / 2.4)] : p);
+  let out = K.catmull(tip, 6);
+  const tp = [HOOK_TIP[0] + open * 1.3, HOOK_TIP[1] + open * .55];
+  out = out.concat([tp, [1.8 + open * 1.25, -4.5 + open * .5], [1.64 + open * .6, -4.0 + open * .2]]);
+  for (let a = 0; a <= 180; a += 9) out.push([HOOK_RI * Math.cos(a * Math.PI / 180), HOOK_CY + HOOK_RI * Math.sin(a * Math.PI / 180)]);
+  out = out.concat(K.catmull([[-1.6, -3.41], [-1.5, -4.25], [-1.05, -4.95], [-0.3, -5.45], [0.45, -5.78], [0.705, -6.15]], 5).slice(1));
+  return [[-0.705, -HOOK_L]].concat(out, [[0.705, -HOOK_L]]);
+}
+K.hookProfile = function (x, ysad, k, o = {}) {
+  const m = o.mirror ? -1 : 1, open = o.open || 0;
+  const T = p => [x + m * p[0] * k, ysad + (p[1] - HOOK_SADDLE) * k];
+  const c = hookContour(open).map(T);
+  let s = `<g id="${o.id || 'hook'}"${o.rot ? ` transform="rotate(${f(o.rot)} ${f(x)} ${f(ysad)})"` : ''}><path d="${K.pathd(c, true)}" fill="url(#gForge)" stroke="#1c2023" stroke-width="${f(Math.max(1, Math.min(1.8, k * .2)))}" stroke-linejoin="round"/>`;
+  const back = K.catmull([[-0.45, -7.4], [-0.9, -6.0], [-2.0, -5.0], [-2.85, -3.9], [-3.05, -2.7], [-2.75, -1.55], [-1.9, -0.6]], 6).map(T);
+  s += `<path d="${K.pathd(back)}" fill="none" stroke="#c3cad0" stroke-width="${f(k * .32)}" stroke-linecap="round" opacity=".55"/>`;
+  s += `<path d="${K.pathd([T([-0.32, -10.3]), T([-0.32, -6.9])])}" stroke="#d3d9de" stroke-width="${f(k * .3)}" stroke-linecap="round" opacity=".6"/>`;
+  if (k > 4) for (const p of [[0.95, -5.55], [1.95 + open * 1.1, -4.15 + open * .3]]) { const q = T(p); s += `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(k * .09)}" fill="#20252a"/>`; }
+  if (o.latch === 'missing') {
+    const pv = T([0.92, -5.95]);
+    s += `<circle cx="${f(pv[0])}" cy="${f(pv[1])}" r="${f(k * .3)}" fill="none" stroke="${C.bad}" stroke-width="2"/>`;
+  } else if (o.latch !== false) {
+    const piv = T([0.92, -5.95]), end = T([1.9 + open * 0.2, -4.62 + open * .1]), mid = T([1.5, -5.35]);
+    const d = `M${f(piv[0])} ${f(piv[1])} Q${f(mid[0])} ${f(mid[1])} ${f(end[0])} ${f(end[1])}`;
+    s += `<path d="${d}" stroke="#1c2023" stroke-width="${f(k * .5)}" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#c9ced2" stroke-width="${f(k * .34)}" fill="none" stroke-linecap="round"/>`;
+    s += `<circle cx="${f(piv[0])}" cy="${f(piv[1])}" r="${f(k * .26)}" fill="#7b848b" stroke="#1c2023" stroke-width="1"/>`;
+  }
+  return s + '</g>';
+};
+K.hookEdge = function (x, ysad, k, id = 'hook') {
+  const T = (px, py) => [x + px * k, ysad + (py - HOOK_SADDLE) * k];
+  const body = [T(-0.705, -10.43), T(-0.705, -6.59), T(-0.78, -6.1), T(-0.8, -3.0), T(-0.72, -0.9), T(-0.45, -0.12), T(0, 0),
+    T(0.45, -0.12), T(0.72, -0.9), T(0.8, -3.0), T(0.78, -6.1), T(0.705, -6.59), T(0.705, -10.43)];
+  return `<g id="${id}"><path d="${K.pathd(K.catmull(body, 4), true)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1.6"/></g>`;
+};
+K.hookNeck = function (x, ytop, ysad, k) {
+  const yShank = ysad - (HOOK_L + HOOK_SADDLE) * k;
+  let s = '';
+  if (ytop < yShank) s += `<rect x="${f(x - .55 * k)}" y="${f(ytop)}" width="${f(1.1 * k)}" height="${f(yShank - ytop + 1)}" fill="url(#gBarV)" stroke="#1c2023" stroke-width="1"/>`;
+  return s;
+};
+K.wbeamSide = function (x0, x1, ytop, d, tf, stiff = [], paint = '#5b6168') {
+  let s = `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(d)}" fill="#3f454b" stroke="#202427" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + tf)}" width="${f(x1 - x0)}" height="${f(d * .28)}" fill="#000" opacity=".25"/>`;
+  for (const xs of stiff) s += `<rect x="${f(xs - 3)}" y="${f(ytop + tf)}" width="6" height="${f(d - 2 * tf)}" fill="#646b72" stroke="#2a3035" stroke-width="1"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#7b838a" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop)}" width="${f(x1 - x0)}" height="${f(tf * .35)}" fill="#c3cad0" opacity=".55"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(tf)}" fill="#656d74" stroke="#202427" stroke-width="1.2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(ytop + d - tf)}" width="${f(x1 - x0)}" height="${f(Math.max(1, tf * .3))}" fill="#aab2b8" opacity=".5"/>`;
+  return s;
+};
+K.wbeamEnd = function (cx, ytop, d, bf, tf, tw, bend = 0, col = '#6e767d') {
+  const yb = ytop + d;
+  const fl = (y, down) => {
+    const tip = down ? bend : 0;
+    return `<path d="M${f(cx - bf / 2)} ${f(y + tip)} L${f(cx - tw / 2)} ${f(y)} L${f(cx + tw / 2)} ${f(y)} L${f(cx + bf / 2)} ${f(y + tip)} L${f(cx + bf / 2)} ${f(y + tf + tip)} L${f(cx + tw / 2)} ${f(y + tf)} L${f(cx - tw / 2)} ${f(y + tf)} L${f(cx - bf / 2)} ${f(y + tf + tip)}Z" fill="${col}" stroke="#202427" stroke-width="1.6" stroke-linejoin="round"/>`;
+  };
+  let s = `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(tw)}" height="${f(d - 2 * tf)}" fill="${col}" stroke="#202427" stroke-width="1.6"/>`;
+  s += fl(ytop, false) + fl(yb - tf, true);
+  s += `<rect x="${f(cx - bf / 2)}" y="${f(ytop)}" width="${f(bf)}" height="${f(Math.max(1.5, tf * .3))}" fill="#c3cad0" opacity=".5"/>`;
+  s += `<rect x="${f(cx - tw / 2)}" y="${f(ytop + tf)}" width="${f(Math.max(1, tw * .35))}" height="${f(d - 2 * tf)}" fill="#c3cad0" opacity=".35"/>`;
+  return s;
+};
+K.label = function (tx, ty, text, target, o = {}) {
+  const anchor = o.anchor || 'start', cls = o.cls || 'lb';
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}${o.cl ? ` class="${o.cl}"` : ''}>`;
+  if (target) {
+    const [x2, y2] = target, sx = anchor === 'start' ? tx - 6 : anchor === 'end' ? tx + 6 : tx, sy = anchor === 'middle' ? ty + 8 : ty - 8;
+    if (o.elbow) s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(o.elbow[0])} ${f(o.elbow[1])} L${f(x2)} ${f(y2)}"/>`;
+    else s += `<path class="ld" d="M${f(sx)} ${f(sy)} L${f(x2)} ${f(y2)}"/>`;
+    s += `<circle cx="${f(x2)}" cy="${f(y2)}" r="4" fill="${C.text}" stroke="#1F1D1A" stroke-width="1.5"/>`;
+  }
+  s += `<text class="${cls} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${anchor}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 26)}" text-anchor="${anchor}"${o.subFill ? ` style="fill:${o.subFill}"` : ''}>${o.sub}</text>`;
+  return s + '</g>';
+};
+K.angleArc = function (cx, cy, r, a0, a1, text, tx, ty, o = {}) {
+  const col = o.col || C.acc, P = K.arcPts(cx, cy, r, a0, a1, 40);
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><path d="${K.pathd(P)}" fill="none" stroke="#1F1D1A" stroke-width="7" stroke-linecap="round" opacity=".6"/><path d="${K.pathd(P)}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
+  for (const a of [a0, a1]) { const r1 = a * Math.PI / 180; s += `<line x1="${f(cx + (r - 9) * Math.cos(r1))}" y1="${f(cy + (r - 9) * Math.sin(r1))}" x2="${f(cx + (r + 9) * Math.cos(r1))}" y2="${f(cy + (r + 9) * Math.sin(r1))}" stroke="${col}" stroke-width="3"/>`; }
+  s += `<text class="la halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(tx)}" y="${f(ty + 24)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.arrow = function (x0, y0, x1, y1, o = {}) {
+  const col = o.col || C.text, w = o.w || 4, d = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / d, uy = (y1 - y0) / d, hl = o.head || 18, hw = hl * .55;
+  const bx = x1 - ux * hl, by = y1 - uy * hl;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (d > hl) s += `<line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="#1F1D1A" stroke-width="${w + 3}" opacity=".5"/><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="${w}"/>`;
+  s += `<path d="M${f(x1)} ${f(y1)} L${f(bx - uy * hw)} ${f(by + ux * hw)} L${f(bx + uy * hw)} ${f(by - ux * hw)}Z" fill="${col}" stroke="#1F1D1A" stroke-width="1"/>`;
+  if (o.text) s += `<text class="${o.cls || 'lb'} halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f(o.ty != null ? o.ty : y1)}" text-anchor="${o.anchor || 'start'}" style="fill:${col}">${o.text}</text>`;
+  if (o.sub) s += `<text class="lm halo" x="${f(o.tx != null ? o.tx : x1 + 14)}" y="${f((o.ty != null ? o.ty : y1) + 25)}" text-anchor="${o.anchor || 'start'}">${o.sub}</text>`;
+  return s + '</g>';
+};
+K.dim = function (x0, y0, x1, y1, text, o = {}) {
+  const col = o.col || C.muted, d = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / d * 9, ny = (x1 - x0) / d * 9;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><line x1="${f(x0)}" y1="${f(y0)}" x2="${f(x1)}" y2="${f(y1)}" stroke="${col}" stroke-width="2" marker-start="url(#mMut)" marker-end="url(#mMut)"/>`;
+  for (const [x, y] of [[x0, y0], [x1, y1]]) s += `<line x1="${f(x - nx)}" y1="${f(y - ny)}" x2="${f(x + nx)}" y2="${f(y + ny)}" stroke="${col}" stroke-width="2"/>`;
+  const tx = o.tx != null ? o.tx : (x0 + x1) / 2, ty = o.ty != null ? o.ty : (y0 + y1) / 2 - 10;
+  s += `<text class="${o.cls || 'lb'} halo" x="${f(tx)}" y="${f(ty)}" text-anchor="${o.anchor || 'middle'}"${o.fill ? ` style="fill:${o.fill}"` : ''}>${text}</text>`;
+  return s + '</g>';
+};
+K.inset = function (refId, sx, sy, mag, cx, cy, r, title, sub, id) {
+  const rs = r / mag, d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d, cid = 'ci' + Math.round(cx) + '_' + Math.round(cy);
+  let s = `<g${id ? ` id="${id}"` : ''}><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
+  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
+  s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
+  if (title) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
+  if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
+  return s + '</g>';
+};
+K.plate = function (x, y, w, rows, o = {}) {
+  const lh = o.lh || 22, h = 12 + rows.length * lh;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" fill="#d9dcdf" stroke="#23282c" stroke-width="1.5"/>`;
+  rows.forEach((r, i) => {
+    const yy = y + 6 + lh * (i + 1) - 6;
+    if (r.hi) s += `<rect x="${f(x + 4)}" y="${f(yy - lh + 6)}" width="${f(w - 8)}" height="${f(lh)}" rx="4" fill="none" stroke="${C.acc}" stroke-width="2.5"/>`;
+    s += `<text class="mk" x="${f(x + 10)}" y="${f(yy)}" style="font:${r.b ? 800 : 700} ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.l}</text>`;
+    if (r.r != null) s += `<text class="mk" x="${f(x + w - 10)}" y="${f(yy)}" text-anchor="end" style="font:800 ${r.size || 16}px ${K.FONT};fill:#1d1d1d">${r.r}</text>`;
+  });
+  return s + '</g>';
+};
+K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
+  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
+  const x = (K.W - w) / 2;
+  return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
+    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+};
+K.dust = (cx, y, t, w = 160) => {
+  if (t < 0 || t > 1.6) return '';
+  const a = 1 - t / 1.6, r = 30 + t * 70;
+  return `<g opacity="${f(a)}"><ellipse cx="${f(cx - w * .35 - t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/>` +
+    `<ellipse cx="${f(cx + w * .35 + t * 40)}" cy="${f(y - r * .3)}" rx="${f(r)}" ry="${f(r * .45)}" fill="url(#gDust)"/></g>`;
+};
+K.skid = function (cx, yTop, w, h, label, o = {}) {
+  const x0 = cx - w / 2, rot = o.rot || 0;
+  let s = `<g id="${o.id || 'load'}"${rot ? ` transform="rotate(${f(rot)} ${f(cx)} ${f(yTop + h / 2)})"` : ''}>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h)}" fill="url(#gPaint)" stroke="#23282c" stroke-width="2"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="${f(h * .16)}" fill="#7b858e"/><rect x="${f(x0)}" y="${f(yTop)}" width="${f(w)}" height="3" fill="#c3cad0" opacity=".5"/>`;
+  for (let i = 1; i < 5; i++) s += `<rect x="${f(x0 + w * i / 5 - 3)}" y="${f(yTop + h * .16)}" width="6" height="${f(h * .84)}" fill="#4a525a"/>`;
+  s += `<rect x="${f(x0)}" y="${f(yTop + h * .8)}" width="${f(w)}" height="${f(h * .2)}" fill="#3f474e"/>`;
+  if (label) s += `<rect x="${f(cx - 50)}" y="${f(yTop + h * .38)}" width="100" height="26" rx="3" fill="#d9dcdf" stroke="#23282c"/><text x="${f(cx)}" y="${f(yTop + h * .38 + 18)}" text-anchor="middle" class="mk" style="font:800 15px ${K.FONT};fill:#1d1d1d">${label}</text>`;
+  const lug = o.lug != null ? o.lug : w * .4;
+  for (const sg of (o.lugs || [-1, 1])) s += `<path d="M${f(cx + sg * lug - 12)} ${f(yTop)} L${f(cx + sg * lug - 7)} ${f(yTop - 18)} A7 7 0 0 1 ${f(cx + sg * lug + 7)} ${f(yTop - 18)} L${f(cx + sg * lug + 12)} ${f(yTop)}Z" fill="#77818a" stroke="#23282c" stroke-width="1.4"/><circle cx="${f(cx + sg * lug)}" cy="${f(yTop - 16)}" r="3" fill="#1b1a18"/>`;
+  return s + '</g>';
+};
+K.bridle = function (hk, a, b, pitch, d) { return `<g id="sling">${K.chain([hk, a], pitch, d, 0, '#9aa3aa')}${K.chain([hk, b], pitch, d, 0, '#9aa3aa')}</g>`; };
+K.miniHoist = function (x, yPin, kk, run = 0, label = '', dropIn = 22) {
+  let s = `<g id="hoist"><rect x="${f(x - 3.2 * kk)}" y="${f(yPin + 2 * kk)}" width="${f(6.4 * kk)}" height="${f(6.6 * kk)}" rx="${f(1.5 * kk)}" fill="url(#gGB)" stroke="#1b232a" stroke-width="1.6"/>`;
+  s += `<circle cx="${f(x)}" cy="${f(yPin + 5.3 * kk)}" r="${f(2.5 * kk)}" fill="#2f3a42" stroke="#1b232a" stroke-width="1.2"/>`;
+  for (let i = 0; i < 6; i++) { const a = run + i * Math.PI / 3; s += `<line x1="${f(x)}" y1="${f(yPin + 5.3 * kk)}" x2="${f(x + 2.3 * kk * Math.cos(a))}" y2="${f(yPin + 5.3 * kk + 2.3 * kk * Math.sin(a))}" stroke="#76828c" stroke-width="2"/>`; }
+  s += `<rect x="${f(x - .9 * kk)}" y="${f(yPin)}" width="${f(1.8 * kk)}" height="${f(2.2 * kk)}" fill="#4c6273" stroke="#1b232a"/>`;
+  const hy = yPin + 5.3 * kk, drop = dropIn * kk, ang = K.sway(2.4, 1.6);
+  s += `<g id="hand-chain" transform="rotate(${f(ang)} ${f(x)} ${f(hy)})">${K.chain([[x - 2.5 * kk, hy], [x - 2.5 * kk, hy + drop - 2 * kk], [x, hy + drop], [x + 2.5 * kk, hy + drop - 2 * kk], [x + 2.5 * kk, hy]], .9 * kk, .2 * kk, run * 30, '#a9b1b7')}</g>`;
+  if (label) s += `<text class="mk" x="${f(x)}" y="${f(yPin + 8.2 * kk)}" text-anchor="middle" style="font:800 ${f(Math.max(9, 1.1 * kk))}px ${K.FONT};fill:#e6edf2">${label}</text>`;
+  return { svg: s + '</g>', yBot: yPin + 8.6 * kk, xl: x - .9 * kk, hr: 2.5 * kk };
+};
+K.n0 = v => Math.round(v).toLocaleString('en-CA');
+K.n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+K.n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+K.LB2KG = 0.45359237;
+K.T = 0;
+K.sway = (period, amp, phase = 0) => amp * Math.sin(2 * Math.PI * K.T / period + phase);
+root.CFK = K;
+})(typeof window !== 'undefined' ? window : globalThis);</script>
+<script>(function () {
+'use strict';
+const EPS = 1e-5;
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const len = a => Math.sqrt(dot(a, a));
+const unit = a => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+function Poly(vs, tag, plane) {
+  this.vs = vs; this.tag = tag || {};
+  if (plane) { this.n = plane.n; this.w = plane.w; }
+  else { const n = unit(cross(sub(vs[1], vs[0]), sub(vs[2], vs[0]))); this.n = n; this.w = dot(n, vs[0]); }
+}
+Poly.prototype.flip = function () { return new Poly(this.vs.slice().reverse(), this.tag, { n: mul(this.n, -1), w: -this.w }); };
+function split(n, w, q, cf, cb, f, b) {
+  const COP = 0, FR = 1, BK = 2, SP = 3; let type = 0; const types = [];
+  for (const v of q.vs) { const t = dot(n, v) - w, ty = t < -EPS ? BK : t > EPS ? FR : COP; type |= ty; types.push(ty); }
+  if (type === COP) (dot(n, q.n) > 0 ? cf : cb).push(q);
+  else if (type === FR) f.push(q);
+  else if (type === BK) b.push(q);
+  else {
+    const fs = [], bs = [], m = q.vs.length;
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m, ti = types[i], tj = types[j], vi = q.vs[i], vj = q.vs[j];
+      if (ti !== BK) fs.push(vi);
+      if (ti !== FR) bs.push(vi);
+      if ((ti | tj) === SP) { const t = (w - dot(n, vi)) / dot(n, sub(vj, vi)), v = lerp(vi, vj, t); fs.push(v); bs.push(v); }
+    }
+    if (fs.length >= 3) f.push(new Poly(fs, q.tag, q));
+    if (bs.length >= 3) b.push(new Poly(bs, q.tag, q));
+  }
+}
+function Node(polys) { this.n = null; this.w = 0; this.front = null; this.back = null; this.polys = []; if (polys) this.build(polys); }
+Node.prototype.clone = function () {
+  const c = new Node(); c.n = this.n; c.w = this.w; c.front = this.front && this.front.clone(); c.back = this.back && this.back.clone(); c.polys = this.polys.slice(); return c;
+};
+Node.prototype.invert = function () {
+  this.polys = this.polys.map(p => p.flip()); if (this.n) { this.n = mul(this.n, -1); this.w = -this.w; }
+  if (this.front) this.front.invert(); if (this.back) this.back.invert();
+  const t = this.front; this.front = this.back; this.back = t;
+};
+Node.prototype.clipPolys = function (ps) {
+  if (!this.n) return ps.slice();
+  let f = [], b = [];
+  for (const p of ps) split(this.n, this.w, p, f, b, f, b);
+  if (this.front) f = this.front.clipPolys(f);
+  b = this.back ? this.back.clipPolys(b) : [];
+  return f.concat(b);
+};
+Node.prototype.clipTo = function (bsp) { this.polys = bsp.clipPolys(this.polys); if (this.front) this.front.clipTo(bsp); if (this.back) this.back.clipTo(bsp); };
+Node.prototype.all = function () { let p = this.polys.slice(); if (this.front) p = p.concat(this.front.all()); if (this.back) p = p.concat(this.back.all()); return p; };
+Node.prototype.build = function (ps) {
+  if (!ps.length) return;
+  if (!this.n) { this.n = ps[0].n; this.w = ps[0].w; }
+  const f = [], b = [];
+  for (const p of ps) split(this.n, this.w, p, this.polys, this.polys, f, b);
+  if (f.length) { if (!this.front) this.front = new Node(); this.front.build(f); }
+  if (b.length) { if (!this.back) this.back = new Node(); this.back.build(b); }
+};
+Node.prototype.order = function (w, out) {
+  if (!this.n) return out;
+  const fr = dot(this.n, w) > 0;
+  const near = fr ? this.front : this.back, far = fr ? this.back : this.front;
+  if (far) far.order(w, out);
+  for (const p of this.polys) out.push(p);
+  if (near) near.order(w, out);
+  return out;
+};
+function Solid(polys) { this.polys = polys || []; }
+Solid.prototype.union = function (o) {
+  const a = new Node(this.polys), b = new Node(o.polys);
+  a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); return new Solid(a.all());
+};
+Solid.prototype.subtract = function (o) {
+  const a = new Node(this.polys), b = new Node(o.polys);
+  a.invert(); a.clipTo(b); b.clipTo(a); b.invert(); b.clipTo(a); b.invert(); a.build(b.all()); a.invert(); return new Solid(a.all());
+};
+Solid.prototype.intersect = function (o) {
+  const a = new Node(this.polys), b = new Node(o.polys);
+  a.invert(); b.clipTo(a); b.invert(); a.clipTo(b); b.clipTo(a); a.build(b.all()); a.invert(); return new Solid(a.all());
+};
+Solid.prototype.map = function (fn) { return new Solid(this.polys.map(p => new Poly(p.vs.map(fn), p.tag))); };
+Solid.prototype.retag = function (t) { return new Solid(this.polys.map(p => new Poly(p.vs, Object.assign({}, p.tag, t), p))); };
+function box(x0, y0, z0, x1, y1, z1, tag) {
+  const P = (x, y, z) => [x ? x1 : x0, y ? y1 : y0, z ? z1 : z0];
+  const F = [[[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]],
+    [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]],
+    [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]];
+  return new Solid(F.map(f => new Poly(f.map(c => P(c[0], c[1], c[2])), tag)));
+}
+const AX = { x: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], y: [[0, 1, 0], [0, 0, 1], [1, 0, 0]], z: [[0, 0, 1], [1, 0, 0], [0, 1, 0]] };
+function framePt(ax, a, b, t) { const [A, U, V] = AX[ax]; return add(add(mul(U, a), mul(V, b)), mul(A, t)); }
+let SMOOTH = 0;
+function cyl(ax, c, r, from, to, n = 48, tag = {}, r1) {
+  const sm = Object.assign({}, tag, { smooth: ++SMOOTH }), rr = r1 == null ? r : r1, ps = [];
+  const ring = (t, R) => { const o = []; for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n; o.push(framePt(ax, c[0] + R * Math.cos(a), c[1] + R * Math.sin(a), t)); } return o; };
+  const A = ring(from, r), B = ring(to, rr);
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; ps.push(new Poly([A[i], A[j], B[j], B[i]], sm)); }
+  ps.push(new Poly(B.slice(), tag)); ps.push(new Poly(A.slice().reverse(), tag));
+  return new Solid(ps);
+}
+function prism(ax, pts, from, to, tag = {}) {
+  const A = pts.map(p => framePt(ax, p[0], p[1], from)), B = pts.map(p => framePt(ax, p[0], p[1], to)), ps = [], n = pts.length;
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; ps.push(new Poly([A[i], A[j], B[j], B[i]], tag)); }
+  ps.push(new Poly(B.slice(), tag)); ps.push(new Poly(A.slice().reverse(), tag));
+  return new Solid(ps);
+}
+function rotPt(v, p, a, deg) {
+  const t = deg * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), q = sub(v, p);
+  const r = add(add(mul(q, c), mul(cross(a, q), s)), mul(a, dot(a, q) * (1 - c)));
+  return add(r, p);
+}
+window.CSG = { split, Poly, Node, Solid, box, cyl, prism, rotPt, AX, framePt, V: { sub, add, mul, dot, cross, len, unit, lerp }, EPS,
+  union: (...s) => s.reduce((a, b) => a.union(b)), bsp: polys => new Node(polys) };
+})();</script>
+<script>(function () {
+'use strict';
+const { V, Node } = window.CSG, { dot, cross, unit, sub, add, mul } = V;
+const f = v => { const r = Math.round(v * 10) / 10; return Object.is(r, -0) ? '0' : String(r); };
+const INK = '#161616', PAPER = '#fbfaf5';
+const LW = { thick: 2.8, thin: 1.3 };
+const DASH = { hidden: '11 4', centre: '34 6 7 6', phantom: '34 6 6 5 6 5', cut: '30 6 6 6 6 6' };
+const VIEWS = {
+  front: { px: [1, 0, 0], py: [0, 1, 0], w: [0, 0, 1] },
+  top: { px: [1, 0, 0], py: [0, 0, -1], w: [0, 1, 0] },
+  right: { px: [0, 0, -1], py: [0, 1, 0], w: [1, 0, 0] },
+  left: { px: [0, 0, 1], py: [0, 1, 0], w: [-1, 0, 0] },
+  bottom: { px: [1, 0, 0], py: [0, 0, 1], w: [0, -1, 0] },
+  rear: { px: [-1, 0, 0], py: [0, 1, 0], w: [0, 0, -1] },
+};
+for (const k in VIEWS) VIEWS[k].name = k;
+function cam(yaw, pitch) {
+  const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+  const w = [Math.sin(y) * Math.cos(p), Math.sin(p), Math.cos(y) * Math.cos(p)], u = [Math.cos(y), 0, -Math.sin(y)];
+  return { px: u, py: cross(w, u), w };
+}
+const ISO_PITCH = Math.atan(1 / Math.sqrt(2)) * 180 / Math.PI;
+function iso(scaleTrue = true) {
+  const c = cam(45, ISO_PITCH), k = scaleTrue ? Math.sqrt(3 / 2) : 1;
+  return { px: mul(c.px, k), py: mul(c.py, k), w: c.w, iso: true };
+}
+function oblique(angle = 45, depth = 1) {
+  const a = angle * Math.PI / 180, ca = Math.cos(a) * depth, sa = Math.sin(a) * depth;
+  return { px: [1, 0, -ca], py: [0, 1, -sa], w: unit([ca, sa, 1]), oblique: true };
+}
+function along(n, up = [0, 1, 0]) {
+  const w = unit(n); let u = cross(up, w); if (Math.hypot(...u) < 1e-6) u = cross([0, 0, -1], w); u = unit(u);
+  return { px: u, py: cross(w, u), w };
+}
+const P2 = (vw, p) => [dot(p, vw.px), dot(p, vw.py)];
+const { split } = window.CSG;
+function clipAway(polys, regions) {
+  let cur = polys;
+  for (const R of regions) {
+    const next = [];
+    for (const q of cur) {
+      let rest = q;
+      for (const pl of R) {
+        const cf = [], cb = [], fr = [], bk = [];
+        split(pl.n, pl.w, rest, cf, cb, fr, bk);
+        for (const x of bk.concat(cb)) next.push(x);
+        rest = fr.concat(cf)[0] || null;
+        if (fr.length + cf.length > 1) for (const x of fr.concat(cf).slice(1)) next.push(x);
+        if (!rest) break;
+      }
+    }
+    cur = next;
+  }
+  return cur;
+}
+function sliceLoops(polys, n, w) {
+  const segs = [];
+  for (const q of polys) {
+    const d = q.vs.map(v => dot(n, v) - w), pts = [];
+    for (let i = 0; i < q.vs.length; i++) {
+      const j = (i + 1) % q.vs.length, a = d[i], b = d[j];
+      if ((a > 0) !== (b > 0)) { const t = a / (a - b); pts.push(V.lerp(q.vs[i], q.vs[j], t)); }
+    }
+    if (pts.length >= 2) segs.push([pts[0], pts[1]]);
+  }
+  const key = p => p.map(x => Math.round(x * 1000)).join(','), ends = new Map(), used = new Array(segs.length).fill(false), loops = [];
+  segs.forEach((s, i) => s.forEach(p => { const k = key(p); if (!ends.has(k)) ends.set(k, []); ends.get(k).push(i); }));
+  segs.forEach((s, i) => {
+    if (used[i]) return; used[i] = true; const L = [s[0], s[1]];
+    for (let guard = 0; guard < 100000; guard++) {
+      const tip = L[L.length - 1], j = (ends.get(key(tip)) || []).find(k => !used[k]); if (j == null) break; used[j] = true;
+      const o = segs[j]; L.push(key(o[0]) === key(tip) ? o[1] : o[0]);
+    }
+    if (L.length > 3) loops.push(L);
+  });
+  return loops;
+}
+function clipLoop(L, n, w) {
+  const out = [];
+  for (let i = 0; i < L.length; i++) {
+    const a = L[i], b = L[(i + 1) % L.length], da = dot(n, a) - w, db = dot(n, b) - w;
+    if (da >= 0) out.push(a);
+    if ((da >= 0) !== (db >= 0)) out.push(V.lerp(a, b, da / (da - db)));
+  }
+  return out;
+}
+function prep(model) {
+  const all = [], caps = [];
+  for (const part of model.parts) {
+    let ps = part.solid.polys.map(p => { const q = new window.CSG.Poly(p.vs, Object.assign({}, p.tag, { part: part.id }), p); return q; });
+    if (model.cut && !part.noSection && !part.hidden) {
+      const before = ps;
+      ps = clipAway(ps, model.cut);
+      for (const R of model.cut) R.forEach((pl, i) => {
+        if (pl.cap === false) return;
+        let loops = sliceLoops(before, pl.n, pl.w);
+        R.forEach((o, j) => { if (j !== i) loops = loops.map(L => clipLoop(L, o.n, o.w)).filter(L => L.length > 2); });
+        if (loops.length) caps.push({ part: part.id, n: pl.n, w: pl.w, loops, R, i });
+      });
+    }
+    if (model.cut && part.noSection && part.solid.polys.every(q => q.vs.every(v => model.cut.some(R => R.every(pl => dot(pl.n, v) > pl.w - 1e-9))))) continue;
+    for (const q of ps) all.push(q);
+  }
+  const area = q => { let a = [0, 0, 0]; for (let i = 1; i + 1 < q.vs.length; i++) a = add(a, cross(sub(q.vs[i], q.vs[0]), sub(q.vs[i + 1], q.vs[0]))); return Math.hypot(a[0], a[1], a[2]) / 2; };
+  const bsp = new Node(all.filter(q => area(q) > 1e-5)), polys = bsp.all().filter(q => area(q) > 1e-7);
+  const R5 = x => Math.round(x * 1e5), R3 = x => Math.round(x * 1e3);
+  const cutPl = (model.cut || []).flat(), onCut = p => cutPl.some(pl => Math.abs(dot(pl.n, p) - pl.w) < 1e-5);
+  const groups = new Map();
+  polys.forEach(P => {
+    P.edges = [];
+    const g = P.tag.part + '|' + (P.tag.smooth ? 's' + P.tag.smooth : P.n.map(R5).join(',') + ',' + R3(P.w));
+    if (!groups.has(g)) groups.set(g, new Map());
+    const lines = groups.get(g), m = P.vs.length;
+    for (let i = 0; i < m; i++) {
+      const a = P.vs[i], b = P.vs[(i + 1) % m], e = sub(b, a), Ln = Math.hypot(e[0], e[1], e[2]); if (Ln < 1e-7) continue;
+      let d = mul(e, 1 / Ln), sg = 1;
+      for (let k = 0; k < 3; k++) { if (Math.abs(d[k]) > 1e-6) { sg = d[k] > 0 ? 1 : -1; break; } }
+      d = mul(d, sg);
+      const p0 = sub(a, mul(d, dot(a, d))), key = d.map(R5).join(',') + '|' + p0.map(R3).join(',');
+      if (!lines.has(key)) lines.set(key, { d, p0, items: [] });
+      const t0 = dot(a, d), t1 = dot(b, d);
+      lines.get(key).items.push({ P, lo: Math.min(t0, t1), hi: Math.max(t0, t1), sg });
+    }
+  });
+  const smooth = [], segs = [];
+  for (const [gk, lines] of groups) {
+    const isSmooth = gk.includes('|s');
+    for (const [, Ln] of lines) {
+      const ts = Array.from(new Set(Ln.items.flatMap(it => [it.lo, it.hi]).map(t => Math.round(t * 1e6) / 1e6))).sort((a, b) => a - b);
+      for (let k = 0; k + 1 < ts.length; k++) {
+        const a = ts[k], b = ts[k + 1]; if (b - a < 1e-6) continue;
+        const mid = (a + b) / 2, cov = Ln.items.filter(it => it.lo <= mid && it.hi >= mid);
+        const net = cov.reduce((s, it) => s + it.sg, 0);
+        const A3 = add(Ln.p0, mul(Ln.d, a)), B3 = add(Ln.p0, mul(Ln.d, b));
+        if (net !== 0) {
+          if (onCut(A3) && onCut(B3)) continue;
+          const owners = new Set(cov.filter(it => Math.sign(it.sg) === Math.sign(net)).map(it => it.P));
+          for (const P of owners) P.edges.push({ a: A3, b: B3, kind: 'crease' });
+          segs.push({ a: A3, b: B3, part: cov[0].P.tag.part });
+        } else if (isSmooth) {
+          const pos = cov.find(it => it.sg > 0), neg = cov.find(it => it.sg < 0);
+          if (pos && neg) { pos.P.edges.push({ a: A3, b: B3, kind: 'smooth', on: neg.P.n }); neg.P.edges.push({ a: A3, b: B3, kind: 'smooth', on: pos.P.n }); smooth.push({ a: A3, b: B3, P: pos.P, on: neg.P.n }); }
+        }
+      }
+    }
+  }
+  const tangentOK = (E, P) => true;
+  const merged = new Map();
+  for (const s of segs) {
+    const e = sub(s.b, s.a), Ln = Math.hypot(...e); let d = mul(e, 1 / Ln), sg = 1;
+    for (let k = 0; k < 3; k++) { if (Math.abs(d[k]) > 1e-6) { sg = d[k] > 0 ? 1 : -1; break; } }
+    d = mul(d, sg); const p0 = sub(s.a, mul(d, dot(s.a, d))), key = s.part + '|' + d.map(R5).join(',') + '|' + p0.map(R3).join(',');
+    if (!merged.has(key)) merged.set(key, { d, p0, part: s.part, iv: [] });
+    const t0 = dot(s.a, d), t1 = dot(s.b, d); merged.get(key).iv.push([Math.min(t0, t1), Math.max(t0, t1)]);
+  }
+  const hsegs = [];
+  for (const [, g] of merged) {
+    g.iv.sort((a, b) => a[0] - b[0]); let cur = null;
+    for (const [a, b] of g.iv) { if (cur && a <= cur[1] + 1e-4) { cur[1] = Math.max(cur[1], b); continue; } if (cur) hsegs.push(cur); cur = [a, b]; }
+    if (cur) hsegs.push(cur);
+    for (const h of hsegs.splice(0)) segs.push({ a: add(g.p0, mul(g.d, h[0])), b: add(g.p0, mul(g.d, h[1])), part: g.part, merged: true });
+  }
+  const segsOut = segs.filter(s => s.merged);
+  return { model, bsp, polys, segs: segsOut, smooth, caps, parts: model.parts };
+}
+const seg = ([t0, t1, E]) => ({ a: add(E.p0, mul(E.d, t0)), b: add(E.p0, mul(E.d, t1)), part: E.P.tag.part });
+function chain(segs2) {
+  const key = p => Math.round(p[0] * 4) + ',' + Math.round(p[1] * 4), ends = new Map(), used = new Array(segs2.length).fill(false), lines = [];
+  segs2.forEach((s, i) => { for (const p of s) { const k = key(p); if (!ends.has(k)) ends.set(k, []); ends.get(k).push(i); } });
+  const next = (p, cur) => (ends.get(key(p)) || []).find(j => !used[j] && j !== cur);
+  segs2.forEach((s, i) => {
+    if (used[i]) return; used[i] = true; let L = [s[0], s[1]];
+    for (let dir = 0; dir < 2; dir++) {
+      for (;;) {
+        const tip = dir ? L[0] : L[L.length - 1], j = next(tip); if (j == null) break; used[j] = true;
+        const o = segs2[j], far = key(o[0]) === key(tip) ? o[1] : o[0];
+        if (dir) L.unshift(far); else L.push(far);
+      }
+    }
+    lines.push(L);
+  });
+  return lines;
+}
+const pd = (L, closed) => 'M' + L.map(p => f(p[0]) + ' ' + f(p[1])).join('L') + (closed ? 'Z' : '');
+function hatchDefs(ids) {
+  return ids.map(([id, ang, sp, col, bg]) => `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${sp}" height="${sp}" patternTransform="rotate(${ang})">` +
+    `<rect width="${sp}" height="${sp}" fill="${bg || PAPER}"/><line x1="0" y1="-1" x2="0" y2="${sp + 1}" stroke="${col || INK}" stroke-width="1.25"/></pattern>`).join('');
+}
+const hatchId = (ang, mode) => `hx${mode === 'shade' ? 's' : 'p'}${Math.round(ang)}`;
+const HATCH_ANGLES = [45, 135, 30, 60, 150, 120, 75, 15];
+function defs() {
+  const p = [], seen = {};
+  for (const a of HATCH_ANGLES) { p.push([hatchId(a, 'paper'), a, 9, INK, PAPER]); p.push([hatchId(a, 'shade'), a, 9, '#2b2f33', '#e9b884']); seen[a] = 1; }
+  return hatchDefs(p);
+}
+function draw(M, vw, o = {}) {
+  const s = o.s || 4, ox = o.ox || 0, oy = o.oy || 0, mode = o.mode || 'paper', w = vw.w;
+  const X = p => { const q = P2(vw, p); return [ox + q[0] * s, oy - q[1] * s]; };
+  const order = M.bsp.order(w, []);
+  const L = { thick: (o.lw || LW.thick), thin: (o.lwThin || LW.thin) };
+  const hiPart = o.hiPart, hiFace = o.hiFace;
+  const partOf = id => M.parts.find(p => p.id === id) || {};
+  let A = '';
+  const light = unit(add(add(mul(vw.px, -0.4), mul(vw.py, 0.55)), mul(w, 0.75)));
+  const paint = P => {
+    const fd = dot(P.n, w); if (fd <= 1e-7) return;
+    const pts = P.vs.map(X), part = partOf(P.tag.part);
+    if (part.hidden) return;
+    let fill, stroke;
+    if (P.tag.cut) { const id = hatchId(part.hatch != null ? part.hatch : 45, mode); fill = `url(#${id})`; stroke = fill; }
+    else if (mode === 'paper') { fill = PAPER; stroke = PAPER; }
+    else {
+      const lam = Math.max(0, dot(P.n, light)), base = part.color || [182, 190, 197], k = 0.42 + 0.58 * lam;
+      const c = base.map(v => Math.round(Math.min(255, v * k + 18 * Math.pow(lam, 8))));
+      fill = `rgb(${c[0]},${c[1]},${c[2]})`; stroke = fill;
+    }
+    if (hiPart && hiPart === P.tag.part && !P.tag.cut) fill = o.hiFill || '#f6c38f';
+    if (hiFace && hiFace(P)) fill = o.hiFill || '#f6c38f';
+    A += `<path d="${pd(pts, true)}" fill="${fill}" stroke="${stroke}" stroke-width=".9" stroke-linejoin="round"/>`;
+    let e = '';
+    for (const E of P.edges || []) {
+      if (E.kind === 'none') continue;
+      if (E.kind === 'smooth' && !(E.on && dot(E.on, w) <= 1e-7)) continue;
+      const a = X(E.a), b = X(E.b); e += `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+    }
+    if (e) A += `<path d="${e}" stroke="${mode === 'paper' ? INK : (o.edge || '#20262b')}" stroke-width="${mode === 'paper' ? L.thick : 1.7}" stroke-linecap="round" fill="none"/>`;
+  };
+  for (const P of order) paint(P);
+  const caps = (M.caps || []).filter(c => dot(c.n, w) > 1e-7 && !partOf(c.part).hidden)
+    .sort((a, b) => dot(a.loops[0][0], w) - dot(b.loops[0][0], w));
+  for (const c of caps) {
+    const part = partOf(c.part), id = hatchId(part.hatch != null ? part.hatch : 45, mode);
+    const fill = (o.hiCut && o.hiCut(c)) ? (o.hiFill || '#f6c38f') : `url(#${id})`;
+    A += `<path d="${c.loops.map(Lp => pd(Lp.map(X), true)).join('')}" fill="${fill}" fill-rule="evenodd" stroke="none"/>`;
+    let e = '';
+    for (const Lp of c.loops) for (let i = 0; i < Lp.length; i++) {
+      const a3 = Lp[i], b3 = Lp[(i + 1) % Lp.length];
+      if (c.R.some((pl, j) => j !== c.i && Math.abs(dot(pl.n, a3) - pl.w) < 1e-6 && Math.abs(dot(pl.n, b3) - pl.w) < 1e-6)) continue;
+      const a = X(a3), b = X(b3); e += `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+    }
+    A += `<path d="${e}" stroke="${mode === 'paper' ? INK : '#20262b'}" stroke-width="${mode === 'paper' ? L.thick : 1.7}" stroke-linecap="round" fill="none"/>`;
+    for (const P of order) { if (P.tag.part === c.part && false) continue; const cen = P.vs.reduce((u, v) => add(u, v), [0, 0, 0]); if (dot(c.n, cen) / P.vs.length > c.w + 1e-4) paint(P); }
+  }
+  let C = '';
+  if (o.centre !== false && mode === 'paper') C = centreLines(M, vw, X, s, o);
+  let B = '';
+  if (o.hidden) {
+    const sil = [];
+    for (const E of M.smooth) {
+      if (!E.on) continue;
+      const a1 = dot(E.P.n, w), a2 = dot(E.on, w);
+      if ((a1 > 1e-7) !== (a2 > 1e-7)) sil.push(E);
+    }
+    const list = M.segs.concat(sil.map(E => ({ a: E.a, b: E.b, part: E.P.tag.part })));
+    const s2 = list.filter(q => !(partOf(q.part).hidden)).map(q => [X(q.a), X(q.b)]).filter(([a, b]) => Math.hypot(a[0] - b[0], a[1] - b[1]) > 0.05);
+    const lines = chain(s2);
+    const col = mode === 'paper' ? INK : (o.xcol || '#f08a2b');
+    B = `<path d="${lines.map(l => pd(l)).join('')}" stroke="${col}" stroke-width="${mode === 'paper' ? L.thin : 1.8}" stroke-dasharray="${o.dash || DASH.hidden}" fill="none"/>`;
+  }
+  return `<g${o.id ? ` id="${o.id}"` : ''}>${A}${C}${B}</g>`;
+}
+function centreLines(M, vw, X, s, o) {
+  let out = '';
+  const ext = (o.cext || 4);
+  for (const part of M.parts) {
+    if (part.hidden) continue;
+    for (const F of part.feats || []) {
+      if (F.cl === false) continue;
+      if (F.type === 'cyl') {
+        const A = window.CSG.AX[F.ax][0], c3 = (t) => window.CSG.framePt(F.ax, F.c[0], F.c[1], t);
+        const k = Math.abs(dot(A, vw.w));
+        if (k > 0.999) {
+          const c = X(c3(F.from)), r = F.r * s + ext * s;
+          if (F.noCross) continue;
+          out += `M${f(c[0] - r)} ${f(c[1])}L${f(c[0] + r)} ${f(c[1])}M${f(c[0])} ${f(c[1] - r)}L${f(c[0])} ${f(c[1] + r)}`;
+        } else if (k < 0.001 && !F.noAxis) {
+          const a = X(c3(Math.min(F.from, F.to) - ext)), b = X(c3(Math.max(F.from, F.to) + ext));
+          out += `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+        }
+      } else if (F.type === 'bc') {
+        const A = window.CSG.AX[F.ax][0];
+        if (Math.abs(dot(A, vw.w)) > 0.999) {
+          const P = []; for (let i = 0; i <= 96; i++) { const a = 2 * Math.PI * i / 96; P.push(X(window.CSG.framePt(F.ax, F.c[0] + F.r * Math.cos(a), F.c[1] + F.r * Math.sin(a), F.at))); }
+          out += pd(P);
+        }
+      } else if (F.type === 'line') {
+        const a = X(F.a), b = X(F.b), ok = F.views ? F.views.includes(vw.name) : true;
+        if (ok) out += `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+      }
+    }
+  }
+  return out ? `<path d="${out}" stroke="${INK}" stroke-width="${o.lwThin || LW.thin}" stroke-dasharray="${o.cdash || DASH.centre}" fill="none"/>` : '';
+}
+function bounds(M, vw) {
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const P of M.polys) for (const v of P.vs) { const q = P2(vw, v); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+  return { x0, x1, y0, y1, w: x1 - x0, h: y1 - y0 };
+}
+function slice(solid, n, w0, u, v) {
+  const t = 0.01, big = 2000, nn = unit(n);
+  const c = mul(nn, w0), uu = unit(u), vv = unit(v);
+  const corner = (a, b, d) => add(add(add(c, mul(uu, a)), mul(vv, b)), mul(nn, d));
+  const pts = [];
+  for (const d of [-t, t]) for (const [a, b] of [[-big, -big], [big, -big], [big, big], [-big, big]]) pts.push(corner(a, b, d));
+  const P = window.CSG.Poly, q = (i) => pts[i];
+  const faces = [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]];
+  const slab = new window.CSG.Solid(faces.map(F => new P(F.map(q), { cut: true })));
+  slab.polys = slab.polys.map(p => { const cen = p.vs.reduce((a, b) => add(a, b), [0, 0, 0]).map(x => x / p.vs.length); return dot(p.n, sub(cen, c)) < 0 ? p.flip() : p; });
+  const r = solid.intersect(slab);
+  const out = [];
+  for (const p of r.polys) if (p.tag.cut && dot(p.n, nn) > 0.99) out.push(p.vs.map(x => { const d = sub(x, c); return [dot(d, uu), dot(d, vv)]; }));
+  return out;
+}
+function glassBox(M, o) {
+  const angle = o.angle || 'third', u = Math.max(0, Math.min(1, o.u || 0)), cm = o.cam, s = o.s || 2, ox = o.ox || 0, oy = o.oy || 0;
+  const m = o.margin != null ? o.margin : 22;
+  let X0 = 1e9, X1 = -1e9, Y0 = 1e9, Y1 = -1e9, Z0 = 1e9, Z1 = -1e9;
+  for (const P of M.polys) for (const v of P.vs) { X0 = Math.min(X0, v[0]); X1 = Math.max(X1, v[0]); Y0 = Math.min(Y0, v[1]); Y1 = Math.max(Y1, v[1]); Z0 = Math.min(Z0, v[2]); Z1 = Math.max(Z1, v[2]); }
+  X0 -= m; X1 += m; Y0 -= m; Y1 += m; Z0 -= m; Z1 += m;
+  const third = angle === 'third', rot = window.CSG.rotPt;
+  const SCR = p => { const q = P2(cm, p); return [ox + q[0] * s, oy - q[1] * s]; };
+  const theta = 90 * u;
+  const F = {
+    front: { vw: VIEWS.front, d: third ? Z1 : Z0, rect: [[X0, Y0], [X1, Y1]], hinge: null },
+    top: { vw: VIEWS.top, d: third ? Y1 : Y0, hinge: third ? [0, Y1, Z1] : [0, Y0, Z0], axis: [1, 0, 0], sg: 1 },
+    right: { vw: VIEWS.right, d: third ? X1 : X0, hinge: third ? [X1, 0, Z1] : [X0, 0, Z0], axis: [0, 1, 0], sg: -1 },
+  };
+  const place = (name, p) => { const f0 = F[name]; return f0.hinge ? rot(p, f0.hinge, f0.axis, f0.sg * theta) : p; };
+  const onFace = (name, sx, sy) => { const v = F[name].vw; return add(add(mul(v.px, sx), mul(v.py, sy)), mul(v.w, F[name].d)); };
+  const faceCorners = name => {
+    const v = F[name].vw, cs = [];
+    const xs = [], ys = [];
+    for (const x of [X0, X1]) for (const y of [Y0, Y1]) for (const z of [Z0, Z1]) { const q = P2(v, [x, y, z]); xs.push(q[0]); ys.push(q[1]); }
+    const a = Math.min(...xs), b = Math.max(...xs), c = Math.min(...ys), d = Math.max(...ys);
+    for (const [sx, sy] of [[a, c], [b, c], [b, d], [a, d]]) cs.push(onFace(name, sx, sy));
+    return { cs, a, b, c, d };
+  };
+  const views = o.views || ['front', 'top', 'right'];
+  const layers = [], rects = {};
+  for (const name of views) {
+    const fc = faceCorners(name), cs = fc.cs.map(p => place(name, p)), scr = cs.map(SCR);
+    const P0 = SCR(place(name, onFace(name, 0, 0))), Pa = SCR(place(name, onFace(name, 1, 0))), Pb = SCR(place(name, onFace(name, 0, -1)));
+    const mtx = [Pa[0] - P0[0], Pa[1] - P0[1], Pb[0] - P0[0], Pb[1] - P0[1], P0[0], P0[1]];
+    const cen = cs.reduce((p, q) => add(p, q), [0, 0, 0]).map(x => x / 4), depth = dot(cen, cm.w);
+    const nrm = place(name, add(F[name].vw.w, F[name].hinge || [0, 0, 0]));
+    const facing = name === 'front' ? dot(F.front.vw.w, cm.w) : dot(sub(nrm, F[name].hinge || [0, 0, 0]), cm.w);
+    const xs = scr.map(p => p[0]), ys = scr.map(p => p[1]);
+    rects[name] = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+    const glass = o.glass != null ? o.glass : u;
+    const fill = glass >= .999 ? PAPER : `rgba(${Math.round(150 + 101 * glass)},${Math.round(196 + 54 * glass)},${Math.round(226 + 19 * glass)},${(0.16 + 0.84 * glass).toFixed(3)})`;
+    let g = `<g id="gb-${name}"><path d="${pd(scr, true)}" fill="${fill}" stroke="${o.hi === name ? '#F08A2B' : '#7fa7c2'}" stroke-width="${o.hi === name ? 4 : 1.6}"/>`;
+    if (Math.abs(facing) > 0.02) {
+      const ck = name + '|' + !!o.hidden + '|' + s + '|' + o.centre; M._vc = M._vc || {};
+      const inner = M._vc[ck] || (M._vc[ck] = draw(M, F[name].vw, { s: 1, ox: 0, oy: 0, hidden: o.hidden, lw: 2.8 / s, lwThin: 1.3 / s, centre: o.centre, cext: 4, dash: (11 / s) + ' ' + (4 / s), cdash: DASH.centre.split(' ').map(v => (v / s).toFixed(2)).join(' ') }));
+      g += `<g transform="matrix(${mtx.map(v => v.toFixed(4)).join(' ')})" opacity="${(0.25 + 0.75 * Math.min(1, glass * 1.4 + .35)).toFixed(3)}">${inner}</g>`;
+    }
+    g += '</g>';
+    layers.push({ depth, g, name });
+  }
+  const objOp = o.objFade != null ? 1 - o.objFade : 1;
+  const obj = objOp > 0.01 ? `<g id="gb-part" opacity="${objOp.toFixed(3)}">${draw(M, cm, { s, ox, oy, mode: 'shade' })}</g>` : '';
+  let pj = '';
+  if (o.proj && u < 0.35) {
+    const op = (1 - u / 0.35) * 0.9, pts = [];
+    for (const P of M.polys) for (const v of P.vs) pts.push(v);
+    const pick = [[X0 + m, Y1 - m, Z1 - m], [X1 - m, Y1 - m, Z1 - m], [X1 - m, Y0 + m, Z1 - m], [X1 - m, Y1 - m, Z0 + m]]
+      .map(t => pts.reduce((a, b) => (Math.hypot(...sub(b, t)) < Math.hypot(...sub(a, t)) ? b : a)));
+    for (const name of views) for (const p of pick) {
+      const v = F[name].vw, q = P2(v, p), on = place(name, onFace(name, q[0], q[1])), a = SCR(p), b = SCR(on);
+      pj += `M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}`;
+    }
+    pj = `<path id="gb-proj" d="${pj}" stroke="#F08A2B" stroke-width="1.6" stroke-dasharray="6 5" opacity="${op.toFixed(2)}" fill="none"/>`;
+  }
+  layers.sort((a, b) => a.depth - b.depth);
+  let svg = '';
+  if (third) svg = obj + pj + layers.map(l => l.g).join('');
+  else svg = layers.map(l => l.g).join('') + pj + obj;
+  return { svg, rects, box: { X0, X1, Y0, Y1, Z0, Z1 } };
+}
+window.G3 = { VIEWS, cam, iso, oblique, along, P2, prep, draw, bounds, slice, defs, hatchId, chain, pd, f, INK, PAPER, LW, DASH, ISO_PITCH, glassBox };
+})();</script>
+<script>(function () {
+'use strict';
+const G = window.G3, f = G.f, INK = G.INK, PAPER = G.PAPER, LW = G.LW, D = G.DASH;
+const FONT = "Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const TYPES = {
+  visible: { w: LW.thick, dash: '' }, hidden: { w: LW.thin, dash: D.hidden }, centre: { w: LW.thin, dash: D.centre },
+  phantom: { w: LW.thin, dash: D.phantom }, dim: { w: LW.thin, dash: '' }, ext: { w: LW.thin, dash: '' },
+  leader: { w: LW.thin, dash: '' }, section: { w: LW.thin, dash: '' }, cut: { w: LW.thick + .6, dash: D.cut },
+  chain: { w: LW.thick, dash: '30 6 6 6' }, breakLong: { w: LW.thin, dash: '' }, breakShort: { w: LW.thick, dash: '' },
+};
+function line(pts, type = 'visible', o = {}) {
+  const t = TYPES[type] || TYPES.visible, col = o.col || INK;
+  return `<path${o.id ? ` id="${o.id}"` : ''} d="${G.pd(pts)}" stroke="${col}" stroke-width="${o.w || t.w}"${t.dash ? ` stroke-dasharray="${t.dash}"` : ''} fill="none" stroke-linecap="${t.dash ? 'butt' : 'round'}" stroke-linejoin="round"/>`;
+}
+const text = (x, y, s, o = {}) => `<text${o.id ? ` id="${o.id}"` : ''} x="${f(x)}" y="${f(y)}" text-anchor="${o.anchor || 'middle'}"${o.rot ? ` transform="rotate(${o.rot} ${f(x)} ${f(y)})"` : ''} style="font:${o.weight || 600} ${o.size || 19}px ${FONT};fill:${o.col || INK}${o.ls ? ';letter-spacing:' + o.ls : ''}">${esc(s)}</text>`;
+function arrowHead(x, y, ux, uy, col = INK, L = 13, W = 4.2) {
+  const bx = x - ux * L, by = y - uy * L;
+  return `<path d="M${f(x)} ${f(y)}L${f(bx - uy * W)} ${f(by + ux * W)}L${f(bx + uy * W)} ${f(by - ux * W)}Z" fill="${col}"/>`;
+}
+function dim(p1, p2, off, txt, o = {}) {
+  const col = o.col || INK, dir = o.dir || 'a';
+  let a = p1, b = p2;
+  if (dir === 'h') b = [p2[0], p1[1]]; else if (dir === 'v') b = [p1[0], p2[1]];
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = uy, ny = -ux;
+  const A = [a[0] + nx * off, a[1] + ny * off], B = [b[0] + nx * off, b[1] + ny * off];
+  const sg = Math.sign(off) || 1, gap = 6 * sg, ext = 10 * sg;
+  const e1s = [p1[0] + nx * gap, p1[1] + ny * gap], e2s = dir === 'a' ? [p2[0] + nx * gap, p2[1] + ny * gap] : (dir === 'h' ? [p2[0], p2[1] + ny * gap] : [p2[0] + nx * gap, p2[1]]);
+  const e2e = [B[0] + nx * ext, B[1] + ny * ext], e1e = [A[0] + nx * ext, A[1] + ny * ext];
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (!o.noExt1) s += line([e1s, e1e], 'ext', { col });
+  if (!o.noExt2) s += line([dir === 'h' ? [p2[0], p2[1] + ny * gap] : e2s, e2e], 'ext', { col });
+  s += line([A, B], 'dim', { col }) + arrowHead(A[0], A[1], -ux, -uy, col) + arrowHead(B[0], B[1], ux, uy, col);
+  const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, horiz = Math.abs(uy) < 0.3;
+  const tx = o.tx != null ? o.tx : (horiz ? mx : mx + (sg > 0 ? -12 : 12) * (ux > 0 ? 1 : -1)), ty = o.ty != null ? o.ty : (horiz ? my - 8 : my + 7);
+  if (!horiz && o.tx == null) {
+    const w = String(txt).length * 10.5 + 10, xx = A[0] + (off > 0 ? -1 : 1) * 0;
+    s += `<rect x="${f(xx - w / 2)}" y="${f(my - 13)}" width="${f(w)}" height="24" fill="${PAPER}"/>` + text(xx, my + 7, txt, { col, size: o.size || 19 });
+  } else s += text(tx, ty, txt, { col, size: o.size || 19 });
+  return s + '</g>';
+}
+function leader(p, q, txt, o = {}) {
+  const col = o.col || INK, right = q[0] >= p[0], sh = [q[0] + (right ? -18 : 18), q[1]];
+  const dx = p[0] - sh[0], dy = p[1] - sh[1], L = Math.hypot(dx, dy) || 1;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>` + line([sh, q], 'leader', { col }) + line([sh, p], 'leader', { col });
+  s += o.dot ? `<circle cx="${f(p[0])}" cy="${f(p[1])}" r="4" fill="${col}"/>` : arrowHead(p[0], p[1], dx / L, dy / L, col);
+  if (txt) String(txt).split('\n').forEach((t, i) => { s += text(q[0] + (right ? 6 : -6), q[1] + 7 + i * 24, t, { anchor: right ? 'start' : 'end', col, size: o.size || 19 }); });
+  return s + '</g>';
+}
+function balloon(c, n, target, o = {}) {
+  const col = o.col || INK, r = o.r || 17, dx = target[0] - c[0], dy = target[1] - c[1], L = Math.hypot(dx, dy) || 1;
+  const sx = c[0] + dx / L * r, sy = c[1] + dy / L * r;
+  return `<g${o.id ? ` id="${o.id}"` : ''}>${line([[sx, sy], target], 'leader', { col })}<circle cx="${f(target[0])}" cy="${f(target[1])}" r="3.5" fill="${col}"/>` +
+    `<circle cx="${f(c[0])}" cy="${f(c[1])}" r="${r}" fill="${o.fill || PAPER}" stroke="${col}" stroke-width="${o.hi ? 3.5 : 1.6}"/>` + text(c[0], c[1] + 7, n, { col, weight: 700, size: 19 }) + '</g>';
+}
+function table(x, y, widths, rows, o = {}) {
+  const rh = o.rh || 30, W = widths.reduce((a, b) => a + b, 0), col = o.col || INK;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><rect x="${f(x)}" y="${f(y)}" width="${f(W)}" height="${f(rh * rows.length)}" fill="${o.fill || PAPER}" stroke="${col}" stroke-width="1.8"/>`;
+  rows.forEach((r, i) => {
+    const yy = y + rh * i;
+    if (i) s += line([[x, yy], [x + W], [x + W, yy]].length ? [[x, yy], [x + W, yy]] : [], 'dim', { col });
+    if (o.hiRow === i) s += `<rect id="${o.id ? o.id + '-r' + i : ''}" x="${f(x + 2)}" y="${f(yy + 2)}" width="${f(W - 4)}" height="${f(rh - 4)}" fill="#f6c38f"/>`;
+    let xx = x;
+    r.forEach((c, j) => {
+      if (j) s += line([[xx, yy], [xx, yy + rh]], 'dim', { col });
+      const al = (o.align || [])[j] || 'start';
+      const tx = al === 'middle' ? xx + widths[j] / 2 : al === 'end' ? xx + widths[j] - 7 : xx + 7;
+      s += text(tx, yy + rh / 2 + 6, c, { anchor: al, col, weight: (o.header !== false && i === 0) ? 800 : 600, size: o.size || 16 });
+      xx += widths[j];
+    });
+  });
+  return s + '</g>';
+}
+function projSymbol(x, y, h, angle, o = {}) {
+  const col = o.col || INK, R = h / 2, r = h * 0.3, L = h * 1.1, gap = h * 0.45;
+  const trap = (x0, bigLeft) => { const yb = R, ys = r; return bigLeft ? [[x0, y - yb], [x0 + L, y - ys], [x0 + L, y + ys], [x0, y + yb]] : [[x0, y - ys], [x0 + L, y - yb], [x0 + L, y + yb], [x0, y + ys]]; };
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`, tx, cx;
+  if (angle === 'third') { tx = x; cx = x + L + gap + R; s += `<path d="${G.pd(trap(tx, true), true)}" fill="none" stroke="${col}" stroke-width="2"/>`; }
+  else { cx = x + R; tx = x + 2 * R + gap; s += `<path d="${G.pd(trap(tx, true), true)}" fill="none" stroke="${col}" stroke-width="2"/>`; }
+  s += `<circle cx="${f(cx)}" cy="${f(y)}" r="${f(R)}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${f(cx)}" cy="${f(y)}" r="${f(r)}" fill="none" stroke="${col}" stroke-width="2"/>`;
+  const cl = G.DASH.centre.split(' ').map(v => v * .35).join(' ');
+  s += `<path d="M${f(Math.min(tx, cx - R) - 6)} ${f(y)}H${f(Math.max(tx + L, cx + R) + 6)}M${f(cx)} ${f(y - R - 6)}V${f(y + R + 6)}" stroke="${col}" stroke-width="1" stroke-dasharray="${cl}"/>`;
+  return s + '</g>';
+}
+function titleBlock(x, y, w, o) {
+  const col = INK, rh = 36, rows = o.rows || [];
+  let s = `<g id="${o.id || 'title-block'}"><rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(rh * (rows.length + 1))}" fill="${PAPER}" stroke="${col}" stroke-width="2.4"/>`;
+  s += text(x + 12, y + 25, o.company || 'CREWFORGE TRAINING', { anchor: 'start', weight: 800, size: 18, ls: '.08em' });
+  rows.forEach(([lab, val, id], i) => {
+    const yy = y + rh * (i + 1);
+    s += line([[x, yy], [x + w, yy]], 'dim');
+    s += `<g${id ? ` id="${id}"` : ''}>` + text(x + 10, yy + 14, lab.toUpperCase(), { anchor: 'start', size: 11, weight: 700, col: '#55514b', ls: '.08em' }) + text(x + 10, yy + 31, val, { anchor: 'start', size: 17, weight: 700 }) + '</g>';
+  });
+  if (o.angle) s += projSymbol(x + w - 118, y + rh * (rows.length + 1) - 40, 34, o.angle, { id: 'proj-symbol' });
+  return s + '</g>';
+}
+function surf(x, y, o = {}) {
+  const col = o.col || INK, h = 16, kind = o.kind || 'mach';
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}><path d="M${f(x - h * .55)} ${f(y - h)}L${f(x)} ${f(y)}L${f(x + h * 1.2)} ${f(y - h * 2.1)}${o.long !== false ? `H${f(x + h * 3.2)}` : ''}" stroke="${col}" stroke-width="1.8" fill="none"/>`;
+  if (kind === 'mach') s += `<path d="M${f(x - h * .55)} ${f(y - h)}H${f(x + h * .52)}" stroke="${col}" stroke-width="1.8"/>`;
+  if (kind === 'noremove') s += `<circle cx="${f(x)}" cy="${f(y - h * .62)}" r="${f(h * .36)}" fill="none" stroke="${col}" stroke-width="1.6"/>`;
+  if (o.ra != null) s += text(x + h * .1, y - h * 1.15, String(o.ra), { anchor: 'end', size: 16, weight: 700, col });
+  return s + '</g>';
+}
+function weld(ax, ay, rx, ry, o = {}) {
+  const col = o.col || INK, len = o.len || 170;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>` + line([[rx, ry], [ax, ay]], 'leader', { col });
+  const dx = ax - rx, dy = ay - ry, L = Math.hypot(dx, dy); s += arrowHead(ax, ay, dx / L, dy / L, col);
+  s += line([[rx, ry], [rx + len, ry]], 'leader', { col, w: 1.8 });
+  const fil = (x, below) => { const t = 22, sg = below ? 1 : -1; return `<path d="M${f(x)} ${f(ry)}V${f(ry + sg * t)}L${f(x + t)} ${f(ry)}" fill="none" stroke="${col}" stroke-width="1.8"/>`; };
+  const sx = rx + len * .42;
+  const sides = o.side === 'both' ? [true, false] : [o.side !== 'other'];
+  for (const below of sides) {
+    if ((o.type || 'fillet') === 'fillet') s += fil(sx, below);
+    else if (o.type === 'v') { const t = 18, sg = below ? 1 : -1; s += `<path d="M${f(sx - t * .6)} ${f(ry + sg * t)}L${f(sx)} ${f(ry)}L${f(sx + t * .6)} ${f(ry + sg * t)}" fill="none" stroke="${col}" stroke-width="1.8"/>`; }
+    if (o.size) s += text(sx - 8, ry + (below ? 19 : -6), o.size, { anchor: 'end', size: 17, weight: 700, col });
+    if (o.length) s += text(sx + 30, ry + (below ? 19 : -6), o.length, { anchor: 'start', size: 17, weight: 700, col });
+  }
+  if (o.allAround) s += `<circle cx="${f(rx)}" cy="${f(ry)}" r="7" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+  if (o.field) s += `<path d="M${f(rx)} ${f(ry)}V${f(ry - 30)}L${f(rx + 20)} ${f(ry - 24)}L${f(rx)} ${f(ry - 18)}Z" fill="${col}" stroke="${col}" stroke-width="1.4"/>`;
+  if (o.tail) { s += `<path d="M${f(rx + len)} ${f(ry)}L${f(rx + len + 16)} ${f(ry - 14)}M${f(rx + len)} ${f(ry)}L${f(rx + len + 16)} ${f(ry + 14)}" stroke="${col}" stroke-width="1.8" fill="none"/>` + text(rx + len + 22, ry + 6, o.tail, { anchor: 'start', size: 16, col }); }
+  return s + '</g>';
+}
+function gdSym(kind, x, y, z, col = INK) {
+  const h = z * .32, st = `stroke="${col}" stroke-width="1.7" fill="none"`;
+  switch (kind) {
+    case 'flat': return `<path d="M${f(x - h)} ${f(y + h * .55)}L${f(x - h * .45)} ${f(y - h * .55)}L${f(x + h)} ${f(y - h * .55)}L${f(x + h * .45)} ${f(y + h * .55)}Z" ${st}/>`;
+    case 'straight': return `<path d="M${f(x - h)} ${f(y)}H${f(x + h)}" ${st}/>`;
+    case 'circ': return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(h * .8)}" ${st}/>`;
+    case 'cyl': return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(h * .6)}" ${st}/><path d="M${f(x - h * .3)} ${f(y + h)}L${f(x - h * .05)} ${f(y - h)}M${f(x + h * .05)} ${f(y + h)}L${f(x + h * .3)} ${f(y - h)}" ${st}/>`;
+    case 'perp': return `<path d="M${f(x - h)} ${f(y + h * .8)}H${f(x + h)}M${f(x)} ${f(y + h * .8)}V${f(y - h)}" ${st}/>`;
+    case 'par': return `<path d="M${f(x - h * .7)} ${f(y + h)}L${f(x - h * .1)} ${f(y - h)}M${f(x + h * .1)} ${f(y + h)}L${f(x + h * .7)} ${f(y - h)}" ${st}/>`;
+    case 'ang': return `<path d="M${f(x + h)} ${f(y + h * .8)}H${f(x - h)}L${f(x + h * .8)} ${f(y - h)}" ${st}/>`;
+    case 'pos': return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(h * .65)}" ${st}/><path d="M${f(x - h)} ${f(y)}H${f(x + h)}M${f(x)} ${f(y - h)}V${f(y + h)}" ${st}/>`;
+    case 'pline': return `<path d="M${f(x - h)} ${f(y + h * .5)}A${f(h)} ${f(h)} 0 0 1 ${f(x + h)} ${f(y + h * .5)}" ${st}/>`;
+    case 'psurf': return `<path d="M${f(x - h)} ${f(y + h * .5)}A${f(h)} ${f(h)} 0 0 1 ${f(x + h)} ${f(y + h * .5)}Z" ${st}/>`;
+    case 'runout': return `<path d="M${f(x - h * .6)} ${f(y + h)}L${f(x + h * .5)} ${f(y - h * .7)}" ${st}/>${arrowHead(x + h * .55, y - h * .8, .55, -.83, col, 9, 3.5)}`;
+    case 'trunout': return `<path d="M${f(x - h * .9)} ${f(y + h)}L${f(x + h * .2)} ${f(y - h * .7)}M${f(x - h * .3)} ${f(y + h)}L${f(x + h * .8)} ${f(y - h * .7)}M${f(x - h * .9)} ${f(y + h)}H${f(x - h * .3)}" ${st}/>${arrowHead(x + h * .25, y - h * .8, .55, -.83, col, 8, 3)}${arrowHead(x + h * .85, y - h * .8, .55, -.83, col, 8, 3)}`;
+    default: return '';
+  }
+}
+function fcf(x, y, cells, o = {}) {
+  const col = o.col || INK, h = 34;
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`, xx = x;
+  cells.forEach((c, i) => {
+    const w = i === 0 ? h : Math.max(h, String(c).length * 12 + 18);
+    s += `<rect x="${f(xx)}" y="${f(y)}" width="${f(w)}" height="${h}" fill="${PAPER}" stroke="${col}" stroke-width="1.8"/>`;
+    if (i === 0) s += gdSym(c, xx + w / 2, y + h / 2, h, col);
+    else {
+      const t = String(c), mmc = t.includes('(M)'), tt = t.replace('(M)', '').trim();
+      s += text(xx + (mmc ? w / 2 - 10 : w / 2), y + h / 2 + 7, tt, { col, size: 18, weight: 700 });
+      if (mmc) s += `<circle cx="${f(xx + w - 16)}" cy="${f(y + h / 2)}" r="9" fill="none" stroke="${col}" stroke-width="1.5"/>` + text(xx + w - 16, y + h / 2 + 5, 'M', { col, size: 13, weight: 800 });
+    }
+    xx += w;
+  });
+  return s + '</g>';
+}
+function datum(x, y, letter, toX, toY, o = {}) {
+  const col = o.col || INK;
+  return `<g${o.id ? ` id="${o.id}"` : ''}>${line([[x, y + 15], [toX, toY]], 'leader', { col })}<path d="M${f(toX - 9)} ${f(toY)}L${f(toX + 9)} ${f(toY)}L${f(toX)} ${f(toY - 14)}Z" fill="${col}"/>` +
+    `<rect x="${f(x - 16)}" y="${f(y - 17)}" width="32" height="32" fill="${PAPER}" stroke="${col}" stroke-width="1.8"/>` + text(x, y + 7, letter, { col, size: 19, weight: 800 }) + '</g>';
+}
+function cutLine(pts, letter, ldir, o = {}) {
+  const col = o.col || INK, a = pts[0], b = pts[pts.length - 1];
+  let s = `<g${o.id ? ` id="${o.id}"` : ''}>` + line(pts, 'cut', { col });
+  for (const [p, q] of [[a, pts[1]], [b, pts[pts.length - 2]]]) {
+    const dx = p[0] - q[0], dy = p[1] - q[1], L = Math.hypot(dx, dy) || 1, ex = [p[0] + dx / L * 0, p[1] + dy / L * 0];
+    const tip = [ex[0] + ldir[0] * 34, ex[1] + ldir[1] * 34];
+    s += line([ex, tip], 'visible', { col, w: 2.4 }) + arrowHead(tip[0] + ldir[0] * 6, tip[1] + ldir[1] * 6, ldir[0], ldir[1], col, 16, 6);
+    if (letter) s += text(tip[0] + ldir[0] * 20 + dx / L * 14, tip[1] + ldir[1] * 20 + dy / L * 14 + 7, letter, { col, size: 22, weight: 800 });
+  }
+  return s + '</g>';
+}
+function breakShort(a, b, o = {}) {
+  const n = 7, P = []; for (let i = 0; i <= n * 4; i++) { const t = i / (n * 4), x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / L, ny = (b[0] - a[0]) / L, w = Math.sin(t * Math.PI * 2 * (o.waves || 2.2)) * (o.amp || 7); P.push([x + nx * w, y + ny * w]); }
+  return line(P, 'breakShort', { col: o.col, id: o.id });
+}
+function breakLong(a, b, o = {}) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, nx = -uy, ny = ux, m = L / 2, z = 12;
+  const at = (t, k) => [a[0] + ux * t + nx * k, a[1] + uy * t + ny * k];
+  return line([at(-12, 0), at(m - z, 0), at(m - z / 2, -z * 1.4), at(m + z / 2, z * 1.4), at(m + z, 0), at(L + 12, 0)], 'breakLong', { col: o.col, id: o.id });
+}
+function threadSide(x0, x1, yc, R, r, kind, o = {}) {
+  const col = o.col || INK; let s = `<g${o.id ? ` id="${o.id}"` : ''}>`;
+  if (kind === 'simplified') s += line([[x0, yc - r], [x1, yc - r]], 'hidden', { col }) + line([[x0, yc + r], [x1, yc + r]], 'hidden', { col });
+  else if (kind === 'schematic') { const p = o.pitch || 10; for (let x = x0 + p / 2; x < x1; x += p) s += line([[x, yc - R], [x, yc + R]], 'dim', { col, w: 1.3 }) + (x + p / 2 < x1 ? line([[x + p / 2, yc - r], [x + p / 2, yc + r]], 'visible', { col, w: 2.6 }) : ''); }
+  else if (kind === 'detailed') { const p = o.pitch || 10; let u = '', d = ''; for (let x = x0; x < x1; x += p) { u += `M${f(x)} ${f(yc - R)}L${f(x + p / 2)} ${f(yc - r)}L${f(Math.min(x1, x + p))} ${f(yc - R)}`; d += `M${f(x + p / 2)} ${f(yc + R)}L${f(x + p)} ${f(yc + r)}L${f(Math.min(x1, x + p * 1.5))} ${f(yc + R)}`; s += line([[x, yc - R], [x + p / 2, yc + R]], 'dim', { col, w: 1.2 }); } s += `<path d="${u}${d}" stroke="${col}" stroke-width="2" fill="none"/>`; }
+  return s + '</g>';
+}
+function sheet(x, y, w, h, o = {}) {
+  return `<g id="${o.id || 'sheet'}"><rect x="${f(x + 8)}" y="${f(y + 10)}" width="${f(w)}" height="${f(h)}" rx="3" fill="#000" opacity=".35"/>` +
+    `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="2" fill="${PAPER}" stroke="#cfcac0" stroke-width="1"/>` +
+    (o.border !== false ? `<rect x="${f(x + 14)}" y="${f(y + 14)}" width="${f(w - 28)}" height="${f(h - 28)}" fill="none" stroke="${INK}" stroke-width="2.6"/>` : '') + '</g>';
+}
+window.DK = { line, text, dim, leader, balloon, table, projSymbol, titleBlock, surf, weld, gdSym, fcf, datum, cutLine, breakShort, breakLong, threadSide, sheet, arrowHead, esc, FONT, TYPES };
+})();</script>
+<script>(function () {
+'use strict';
+const { box, cyl, prism, Solid, Poly, rotPt } = window.CSG;
+const cache = new Map();
+const memo = (key, fn) => { if (!cache.has(key)) cache.set(key, fn()); return cache.get(key); };
+const tag = id => ({ part: id });
+function bracket(o = {}) {
+  return memo('bracket' + JSON.stringify(o), () => {
+    const d = { W: 120, D: 80, T: 14, UH: 70, UT: 14, R: 60, bore: 36, hole: 14, hx: 38, hz: 12 };
+    const t = tag('bracket');
+    let s = box(-60, 0, -40, 60, d.T, 40, t);
+    let up = box(-60, d.T, -40, 60, d.UH, -40 + d.UT, t).union(cyl('z', [0, d.UH], d.R, -40, -40 + d.UT, 64, t));
+    s = s.union(up);
+    if (o.slot) s = s.subtract(box(-12, -1, 18, 12, d.T + 1, 41, t));
+    s = s.subtract(cyl('z', [0, d.UH], d.bore / 2, -41, -40 + d.UT + 1, 48, t));
+    for (const x of [-d.hx, d.hx]) s = s.subtract(cyl('y', [d.hz, x], d.hole / 2, -1, d.T + 1, 32, t));
+    const feats = [{ type: 'cyl', ax: 'z', c: [0, d.UH], r: d.bore / 2, from: -40, to: -40 + d.UT },
+      ...[-d.hx, d.hx].map(x => ({ type: 'cyl', ax: 'y', c: [d.hz, x], r: d.hole / 2, from: 0, to: d.T }))];
+    return { id: 'bracket', name: 'Bearing bracket', solid: s, feats, dims: d, hatch: 45 };
+  });
+}
+function stepBlock(o = {}) {
+  const depth = o.depth == null ? 30 : o.depth;
+  return memo('step' + depth, () => {
+    const d = { W: 100, H: 60, D: 60, stepH: 30, stepW: 45, hole: 16, depth, wall: 0 };
+    const t = tag('step');
+    let s = box(-50, 0, -30, 50, 60, 30, t).subtract(box(5, 30, -31, 51, 61, 31, t));
+    if (depth > 0) {
+      const top = 60, bot = top - depth;
+      s = s.subtract(cyl('y', [0, -22.5], d.hole / 2, bot, top + 1, 32, t));
+      const ch = (d.hole / 2) / Math.tan(59 * Math.PI / 180);
+      s = s.subtract(cyl('y', [0, -22.5], 0.01, bot - ch, bot + 0.001, 32, t, d.hole / 2));
+    }
+    s = s.subtract(cyl('z', [-22.5, 12], 7, -31, 31, 32, t));
+    d.crossTop = 12 + 7; d.wall = 60 - depth - (12 + 7);
+    const feats = [{ type: 'cyl', ax: 'y', c: [0, -22.5], r: d.hole / 2, from: Math.max(0, 60 - depth), to: 60 },
+      { type: 'cyl', ax: 'z', c: [-22.5, 12], r: 7, from: -30, to: 30 }];
+    return { id: 'step', name: 'Step block', solid: s, feats, dims: d, hatch: 45 };
+  });
+}
+function housing(o = {}) {
+  return memo('housing' + JSON.stringify(o), () => {
+    const d = { L: 190, B: 52, T: 20, CH: 60, boss: 110, bore: 62, len: 52, hole: 18, hx: 72, rib: 10 };
+    const t = tag('housing');
+    let s = box(-95, 0, -26, 95, d.T, 26, t);
+    s = s.union(box(-38, d.T - 1, -26, 38, d.CH - 3, 26, t));
+    s = s.union(cyl('z', [0, d.CH], d.boss / 2, -26, 26, 64, t));
+    for (const x of [-1, 1]) {
+      const x0 = x * 38, x1 = x * 70, pts = x > 0 ? [[x0, d.T - 1], [x1, d.T - 1], [x0, d.CH - 8]] : [[x0, d.T - 1], [x0, d.CH - 8], [x1, d.T - 1]];
+      s = s.union(prism('z', pts, -d.rib / 2, d.rib / 2, t));
+    }
+    s = s.subtract(cyl('z', [0, d.CH], d.bore / 2, -27, 27, 48, t));
+    for (const x of [-d.hx, d.hx]) s = s.subtract(cyl('y', [0, x], d.hole / 2, -1, d.T + 1, 32, t));
+    s = s.subtract(cyl('y', [0, 0], 4, d.CH + 20, d.CH + d.boss / 2 + 1, 24, t));
+    const feats = [{ type: 'cyl', ax: 'z', c: [0, d.CH], r: d.boss / 2, from: -26, to: 26 },
+      ...[-d.hx, d.hx].map(x => ({ type: 'cyl', ax: 'y', c: [0, x], r: d.hole / 2, from: 0, to: d.T })),
+      { type: 'cyl', ax: 'y', c: [0, 0], r: 4, from: d.CH + 20, to: d.CH + d.boss / 2, cl: true }];
+    return { id: 'housing', name: 'Bearing housing', solid: s, feats, dims: d, hatch: 45, color: [120, 132, 140] };
+  });
+}
+function hub(o = {}) {
+  const n = o.n || 4, rot = o.rot || 0;
+  return memo('hub' + n + ',' + rot + ',' + (o.key !== false), () => {
+    const d = { F: 160, FT: 22, H: 80, HL: 60, bore: 45, BC: 124, hole: 16, n, key: 14, keyD: 3.8 };
+    const t = tag('hub');
+    let s = cyl('z', [0, 0], d.F / 2, 0, d.FT, 96, t).union(cyl('z', [0, 0], d.H / 2, d.FT - 1, d.FT + d.HL, 64, t));
+    s = s.subtract(cyl('z', [0, 0], d.bore / 2, -1, d.FT + d.HL + 1, 48, t));
+    if (o.key !== false) s = s.subtract(box(-d.key / 2, 0, -1, d.key / 2, d.bore / 2 + d.keyD, d.FT + d.HL + 1, t));
+    const feats = [{ type: 'cyl', ax: 'z', c: [0, 0], r: d.F / 2, from: 0, to: d.FT + d.HL },
+      { type: 'bc', ax: 'z', c: [0, 0], r: d.BC / 2, at: 0 }];
+    for (let i = 0; i < n; i++) {
+      const a = (90 + rot + 360 * i / n) * Math.PI / 180, x = d.BC / 2 * Math.cos(a), y = d.BC / 2 * Math.sin(a);
+      s = s.subtract(cyl('z', [x, y], d.hole / 2, -1, d.FT + 1, 32, t));
+      feats.push({ type: 'cyl', ax: 'z', c: [x, y], r: d.hole / 2, from: 0, to: d.FT, noAxis: Math.abs(x) > 1 });
+    }
+    return { id: 'hub', name: 'Coupling hub', solid: s, feats, dims: d, hatch: 45 };
+  });
+}
+function shaft(o = {}) {
+  return memo('shaft' + JSON.stringify(o), () => {
+    const d = { L: 300, d1: 40, d2: 55, d3: 40, l1: 80, l2: 140, key: 16, keyD: 6, keyL: 90, keyX: 25 };
+    const t = tag(o.id || 'shaft');
+    const x0 = -150, xa = x0 + d.l1, xb = xa + d.l2, x1 = 150;
+    let s = cyl('x', [0, 0], d.d1 / 2, x0, xa + 0.5, 48, t).union(cyl('x', [0, 0], d.d2 / 2, xa, xb, 48, t)).union(cyl('x', [0, 0], d.d3 / 2, xb - 0.5, x1, 48, t));
+    if (o.key !== false) s = s.subtract(box(-d.keyL / 2 + d.keyX, d.d2 / 2 - d.keyD, -d.key / 2, d.keyL / 2 + d.keyX, d.d2 / 2 + 1, d.key / 2, t));
+    const feats = [{ type: 'cyl', ax: 'x', c: [0, 0], r: d.d2 / 2, from: x0, to: x1 }];
+    return { id: o.id || 'shaft', name: 'Stepped shaft', solid: s, feats, dims: Object.assign(d, { x0, xa, xb, x1 }), hatch: 45, noSection: true };
+  });
+}
+function guide(o = {}) {
+  return memo('guide', () => {
+    const d = { W: 110, H: 70, D: 60, ang: 30, hole: 20, low: 30 };
+    const t = tag('guide');
+    const yR = 70 - 45 * Math.tan(30 * Math.PI / 180);
+    let s = prism('z', [[-55, 0], [55, 0], [55, yR], [10, 70], [-55, 70]], -30, 30, t);
+    const mx = 32.5, my = (70 + yR) / 2, n = [Math.sin(30 * Math.PI / 180), Math.cos(30 * Math.PI / 180), 0];
+    let h = cyl('y', [0, 0], d.hole / 2, -30, 20, 40, t);
+    h = h.map(v => rotPt(v, [0, 0, 0], [0, 0, -1], 30)).map(v => [v[0] + mx, v[1] + my, v[2]]);
+    s = s.subtract(h);
+    d.yR = yR; d.mx = mx; d.my = my; d.n = n; d.faceLen = Math.hypot(45, 70 - yR);
+    const feats = [{ type: 'line', a: [mx - n[0] * 40, my - n[1] * 40, 0], b: [mx + n[0] * 12, my + n[1] * 12, 0], views: ['front'] }];
+    return { id: 'guide', name: 'Guide block', solid: s, feats, dims: d, hatch: 45 };
+  });
+}
+function bearing(o = {}) {
+  return memo('bearing', () => {
+    const d = { D: 62, d: 30, B: 16, ball: 9.5, pitch: 46 };
+    const ti = tag('inner'), to = tag('outer');
+    const inner = cyl('z', [0, 60], 19.2, -8, 8, 48, ti).subtract(cyl('z', [0, 60], 15, -9, 9, 48, ti));
+    const outer = cyl('z', [0, 60], 31, -8, 8, 64, to).subtract(cyl('z', [0, 60], 26.8, -9, 9, 64, to));
+    return { inner: { id: 'inner', name: 'Inner ring', solid: inner, feats: [], hatch: 135 },
+      outer: { id: 'outer', name: 'Outer ring', solid: outer, feats: [], hatch: 30 }, dims: d };
+  });
+}
+function sphere(c, r, id, n = 12) {
+  const ps = [], m = n * 2, t = { part: id, smooth: 999000 + Math.round(c[0] * 10 + c[1] * 100) };
+  const P = (i, j) => { const th = Math.PI * i / n, ph = 2 * Math.PI * j / m; return [c[0] + r * Math.sin(th) * Math.cos(ph), c[1] + r * Math.cos(th), c[2] + r * Math.sin(th) * Math.sin(ph)]; };
+  for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
+    const a = P(i, j), b = P(i + 1, j), cc = P(i + 1, j + 1), dd = P(i, j + 1);
+    if (i === 0) ps.push(new Poly([a, cc, b], t)); else if (i === n - 1) ps.push(new Poly([a, dd, b], t)); else ps.push(new Poly([a, dd, cc, b], t));
+  }
+  return new Solid(ps.map(p => { const cen = p.vs.reduce((u, v) => [u[0] + v[0], u[1] + v[1], u[2] + v[2]], [0, 0, 0]).map(x => x / p.vs.length); const dd = [cen[0] - c[0], cen[1] - c[1], cen[2] - c[2]]; return (p.n[0] * dd[0] + p.n[1] * dd[1] + p.n[2] * dd[2]) < 0 ? p.flip() : p; }));
+}
+window.PARTS = { bracket, stepBlock, housing, hub, shaft, guide, bearing, sphere, cache };
+})();</script>
+<script>(function () {
+'use strict';
+const K = window.CFK, C = K.C, f = K.f, G = window.G3, DK = window.DK, P = window.PARTS;
+const PARTS = { bracket: () => P.bracket(), step: () => P.stepBlock({ depth: 30 }), guide: () => P.guide(), housing: () => P.housing(), hub: () => P.hub({ n: 4 }) };
+const NAMES = { bracket: 'Bearing bracket', step: 'Step block', guide: 'Guide block', housing: 'Pillow-block housing', hub: 'Coupling hub' };
+const models = {};
+function model(part, mirror) {
+  const k = part + (mirror ? '-m' : '');
+  if (!models[k]) {
+    let p = PARTS[part]();
+    if (mirror) {
+      const S = new window.CSG.Solid(p.solid.polys.map(q => new window.CSG.Poly(q.vs.map(v => [v[0], v[1], -v[2]]).reverse(), q.tag)));
+      p = Object.assign({}, p, { solid: S, feats: (p.feats || []).map(F => F.type === 'cyl' && F.ax === 'z' ? Object.assign({}, F, { from: -F.to, to: -F.from }) : F.type === 'cyl' && F.ax === 'y' ? Object.assign({}, F, { c: [-F.c[0], F.c[1]] }) : F) });
+    }
+    models[k] = G.prep({ parts: [p] });
+    models[k].part = p;
+  }
+  return models[k];
+}
+const ease = u => u * u * (3 - 2 * u);
+window.CFScenes = window.CFScenes || {};
+window.CFScenes.projection = function (opts = {}) {
+  const sc = {};
+  sc.defaults = Object.assign({ mode: 'box', part: 'bracket', angle: 'third', unfold: 0, yaw: 34, pitch: 24, hidden: true, hiView: 'none',
+    symbol: true, misread: false, spin: 0, fail: false, read: 'same' }, opts.defaults || {});
+  sc.instant = ['mode', 'part', 'angle', 'hidden', 'hiView', 'symbol', 'misread', 'read'];
+  let spinT = 0;
+  sc.calc = function (S) {
+    const M = model(S.part), b = G.bounds(M, G.VIEWS.front), bt = G.bounds(M, G.VIEWS.top);
+    const third = S.angle === 'third';
+    const o = { third, topPos: third ? 'above' : 'below', rightPos: third ? 'right' : 'left', W: Math.round(b.w), H: Math.round(b.h), D: Math.round(bt.h) };
+    o.readAs = S.read === 'other' ? (third ? 'first' : 'third') : S.angle;
+    o.misread = S.read === 'other';
+    o.unfoldPct = Math.round(S.unfold * 100);
+    return o;
+  };
+  sc.reset = () => { spinT = 0; };
+  sc.busy = S => S.mode === 'sheet' || S.spin > 0;
+  sc.step = function (dt, S) { spinT += dt; };
+  function drawBox(S, o) {
+    const M = model(S.part), e = ease(S.unfold);
+    const yaw = S.yaw * (1 - e) + (S.spin ? 7 * Math.sin(spinT * 0.6) * (1 - e) : 0), pitch = S.pitch * (1 - e);
+    const cm = G.cam(yaw, pitch), sc2 = 2.15;
+    const bx = 560 + (o.third ? -120 : 150) * e, by = 470 + (o.third ? 180 : -70) * e;
+    const gb = G.glassBox(M, { angle: S.angle, u: S.unfold, cam: cm, s: sc2, ox: bx, oy: by, hidden: S.hidden, proj: true, hi: S.hiView,
+      objFade: o.third ? 0 : Math.max(0, Math.min(1, (S.unfold - .35) / .45)), glass: Math.min(1, Math.max(0, (S.unfold - .55) / .45)) });
+    sc._rects = gb.rects;
+    let s = `<rect width="1600" height="880" fill="#24211d"/>` + floorGrid() + gb.svg;
+    if (S.unfold > .8) for (const v of ['front', 'top', 'right']) {
+      const r = gb.rects[v]; if (!r) continue;
+      s += `<text class="lm" x="${f(r[0] + 10)}" y="${f(r[1] + 26)}" style="fill:#55514b;font-weight:800;font-size:17px;letter-spacing:.08em">${{ front: 'FRONT', top: 'TOP', right: 'RIGHT SIDE' }[v]}</text>`;
+    }
+    s += infoCard(S, o, 1160, 30, 410, 820);
+    if (S.unfold < .5) s += `<rect data-act="orbit" class="drag" x="0" y="0" width="1140" height="880" fill="#000" fill-opacity="0"/>`;
+    return s;
+  }
+  function floorGrid() { return `<rect x="0" y="0" width="1600" height="880" fill="url(#gWall)" opacity=".6"/>`; }
+  function viewsLayout(S, o, M, x0, y0, s, angle) {
+    const bf = G.bounds(M, G.VIEWS.front), bt = G.bounds(M, G.VIEWS.top), br = G.bounds(M, G.VIEWS.right), gap = 26;
+    const third = angle === 'third';
+    const fx = x0, fy = y0;
+    const tx = fx, ty = third ? fy - (bf.y1 - 0) * s - gap * s - (0 - bt.y0) * s : fy - (bf.y0) * s + gap * s + (bt.y1) * s;
+    const rx = third ? fx + (bf.x1) * s + gap * s - br.x0 * s : fx + bf.x0 * s - gap * s - br.x1 * s, ry = fy;
+    return { front: [fx, fy, bf], top: [tx, ty, bt], right: [rx, ry, br] };
+  }
+  function drawSheet(S, o) {
+    const M = model(S.part), s = M.part.id === 'housing' ? 1.9 : 2.2;
+    let svg = `<rect width="1600" height="880" fill="#24211d"/>` + DK.sheet(30, 24, 1110, 832);
+    const bf = G.bounds(M, G.VIEWS.front), bt = G.bounds(M, G.VIEWS.top), br = G.bounds(M, G.VIEWS.right), gap = 26;
+    const Wb = (bf.w + gap + br.w) * s, Hb = (bf.h + gap + bt.h) * s;
+    const left = 30 + (1110 - 260 - Wb) / 2 + 40, top = 24 + (832 - Hb) / 2;
+    const fx = o.third ? left - bf.x0 * s : left + (br.w + gap) * s - bf.x0 * s;
+    const fy = o.third ? top + (bt.h + gap) * s + bf.y1 * s : top + bf.y1 * s;
+    const L = viewsLayout(S, o, M, fx, fy, s, S.angle);
+    for (const v of ['front', 'top', 'right']) {
+      const [x, y, b] = L[v], hi = S.hiView === v;
+      svg += `<g id="v-${v}">` + (hi ? `<rect x="${f(x + b.x0 * s - 16)}" y="${f(y - b.y1 * s - 16)}" width="${f(b.w * s + 32)}" height="${f(b.h * s + 32)}" rx="8" fill="#f6c38f" opacity=".45" stroke="${C.acc}" stroke-width="3"/>` : '') +
+        G.draw(M, G.VIEWS[v], { s, ox: x, oy: y, hidden: S.hidden }) + '</g>';
+      svg += `<text x="${f(x + (b.x0 + b.x1) / 2 * s)}" y="${f(y - b.y0 * s + 34)}" text-anchor="middle" style="font:800 15px ${DK.FONT};fill:#6a655d;letter-spacing:.1em">${{ front: 'FRONT', top: 'TOP', right: 'RIGHT SIDE' }[v]}</text>`;
+    }
+    svg += DK.titleBlock(780, 24 + 832 - 14 - 36 * 5, 346, { rows: [['Part', NAMES[S.part]], ['Material', 'Cast iron'], ['Scale', '1:2'], ['Projection', S.symbol ? (o.third ? 'Third angle' : 'First angle') : '?']], angle: S.symbol ? S.angle : null });
+    if (!S.symbol) svg += `<g id="proj-symbol"><rect x="${f(780 + 346 - 128)}" y="${f(24 + 832 - 14 - 60)}" width="112" height="44" fill="#f6c38f" opacity=".6"/><text x="${f(780 + 346 - 72)}" y="${f(24 + 832 - 30)}" text-anchor="middle" style="font:800 24px ${DK.FONT};fill:#1d1d1d">?</text></g>`;
+    svg += modelCard(S, o, 1160, 112, 410, 400) + readCard(S, o, 1160, 528, 410, 328);
+    if (o.misread) svg += K.banner('READ AS ' + o.readAs.toUpperCase() + ' ANGLE: THE PART COMES OUT BACKWARDS', 'A mirror image of the real part · never guess the projection: check the symbol', C.bad, 'fail-card');
+    return svg;
+  }
+  function modelCard(S, o, x, y, w, h) {
+    const M = model(S.part, o.misread), s = 1.55;
+    const yaw = 34 + 26 * Math.sin(spinT * 0.35), cm = G.cam(yaw, 22);
+    let svg = `<g id="model-card"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#1f1d1a" stroke="#4a443d" stroke-width="2"/>`;
+    svg += `<text class="lm" x="${x + 20}" y="${y + 34}" style="font-weight:800;letter-spacing:.06em">${o.misread ? 'THE PART AS MADE' : '3-D MODEL OF THE PART'}</text>`;
+    const b = G.bounds(M, cm);
+    svg += `<g id="model">${G.draw(M, cm, { s, ox: x + w / 2 - (b.x0 + b.x1) / 2 * s, oy: y + h / 2 + 30 + (b.y0 + b.y1) / 2 * s, mode: 'shade' })}</g>`;
+    if (S.hiView !== 'none') {
+      const dir = { front: [0, 0, 1], top: [0, 1, 0], right: [1, 0, 0] }[S.hiView], c = [0, 60, 0], far = [c[0] + dir[0] * 120, c[1] + dir[1] * 120, c[2] + dir[2] * 120];
+      const p = G.P2(cm, c), q = G.P2(cm, far), X = v => [x + w / 2 + (v[0] - (b.x0 + b.x1) / 2) * s, y + h / 2 + 30 - (v[1] - (b.y0 + b.y1) / 2) * s];
+      const A = X(q), B = X(p);
+      svg += K.arrow(A[0], A[1], A[0] + (B[0] - A[0]) * .45, A[1] + (B[1] - A[1]) * .45, { col: C.acc, w: 5, id: 'look-arrow' });
+      svg += `<text class="la halo" x="${f(x + w / 2)}" y="${f(Math.max(y + 64, Math.min(y + h - 16, A[1] - 14)))}" text-anchor="middle" style="font-size:22px">look here for the ${S.hiView === 'right' ? 'right side' : S.hiView} view</text>`;
+    }
+    if (o.misread) svg += `<rect x="${x + 4}" y="${y + 4}" width="${w - 8}" height="${h - 8}" rx="12" fill="none" stroke="${C.bad}" stroke-width="4"/>`;
+    return svg + '</g>';
+  }
+  function readCard(S, o, x, y, w, h) {
+    let s = `<g id="info-card"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#1f1d1a" stroke="#4a443d" stroke-width="2"/>`;
+    s += `<text class="lm" x="${x + 20}" y="${y + 34}" style="font-weight:800;letter-spacing:.06em">HOW THIS SHEET IS LAID OUT</text>`;
+    s += `<rect x="${x + 20}" y="${y + 54}" width="${w - 40}" height="78" rx="8" fill="#fbfaf5"/>` + (S.symbol ? DK.projSymbol(x + 40, y + 93, 40, S.angle, { id: 'card-symbol' }) : '') +
+      `<text x="${x + 190}" y="${y + 100}" style="font:800 24px ${DK.FONT};fill:#1d1d1d">${S.symbol ? (o.third ? 'Third angle' : 'First angle') : 'Symbol missing'}</text>`;
+    const rows = [['Top view', S.symbol ? o.topPos.toUpperCase() + ' the front' : '?'], ['Right side view', S.symbol ? (o.rightPos === 'right' ? 'RIGHT of the front' : 'LEFT of the front') : '?'], ['Used mostly in', o.third ? 'Canada, U.S.' : 'Europe, most of Asia']];
+    rows.forEach(([a, b], i) => { s += `<text class="lm" x="${x + 20}" y="${y + 176 + i * 58}">${a}</text><text class="lb" x="${x + 20}" y="${y + 204 + i * 58}" style="font-size:23px">${b}</text>`; });
+    return s + '</g>';
+  }
+  function infoCard(S, o, x, y, w, h) {
+    let s = `<g id="info-card"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#1f1d1a" stroke="#4a443d" stroke-width="2"/>`;
+    s += `<text class="lm" x="${x + 20}" y="${y + 36}" style="font-weight:800;letter-spacing:.06em">${o.third ? 'THIRD-ANGLE PROJECTION' : 'FIRST-ANGLE PROJECTION'}</text>`;
+    s += `<rect x="${x + 20}" y="${y + 56}" width="${w - 40}" height="96" rx="8" fill="#fbfaf5"/>` + DK.projSymbol(x + 46, y + 104, 50, S.angle, { id: 'card-symbol' });
+    s += `<text x="${x + 236}" y="${y + 98}" style="font:800 20px ${DK.FONT};fill:#1d1d1d">ISO symbol</text><text x="${x + 236}" y="${y + 124}" style="font:600 16px ${DK.FONT};fill:#1d1d1d">in the title block</text>`;
+    const lines = o.third
+      ? ['You look THROUGH the glass:', 'the view is drawn on the face', 'between you and the part.', '', 'Unfolded:', '• top view ABOVE the front', '• right view to the RIGHT']
+      : ['The part sits between you', 'and the face: the view is', 'drawn on the face BEYOND it.', '', 'Unfolded:', '• top view BELOW the front', '• right view on the LEFT'];
+    lines.forEach((t, i) => { s += `<text class="${t.startsWith('•') ? 'lb' : 'lm'}" x="${x + 22}" y="${y + 200 + i * 34}" style="font-size:${t.startsWith('•') ? 23 : 20}px">${t}</text>`; });
+    s += `<text class="lm" x="${x + 22}" y="${y + 470}">Unfolded</text><text id="unfold-read" class="la" x="${x + 22}" y="${y + 510}">${o.unfoldPct} %</text>`;
+    s += `<rect x="${x + 22}" y="${y + 530}" width="${w - 44}" height="14" rx="7" fill="#141210"/><rect x="${x + 22}" y="${y + 530}" width="${f((w - 44) * S.unfold)}" height="14" rx="7" fill="${C.acc}"/>`;
+    s += `<text class="lm" x="${x + 22}" y="${y + 590}">Part</text><text class="lb" x="${x + 22}" y="${y + 620}">${NAMES[S.part]}</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${y + 660}" style="font-size:18px">${o.W} wide × ${o.H} high × ${o.D} deep (mm)</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${y + 720}" style="font-size:18px">Hidden lines: ${S.hidden ? 'shown (dashed)' : 'off'}</text>`;
+    return s + '</g>';
+  }
+  let cacheK = '', cacheV = '';
+  sc.draw = function (S, o) {
+    if (S.mode === 'sheet') return drawSheet(S, o);
+    return drawBox(S, o);
+  };
+  sc.spotRects = () => sc._rects;
+  sc.pointer = function (type, act, p, S, drag) {
+    if (act !== 'orbit') return;
+    if (type === 'down') { drag.y0 = S.yaw; drag.p0 = p; drag.pi = S.pitch; return; }
+    if (type === 'move' && p) { S.yaw = Math.max(-60, Math.min(60, drag.y0 + (p.x - drag.p0.x) * .25)); S.pitch = Math.max(0, Math.min(45, drag.pi - (p.y - drag.p0.y) * .2)); }
+  };
+  sc.controls = {
+    unfold: { type: 'range', label: 'Unfold the box', min: 0, max: 1, step: .05, fmt: v => Math.round(v * 100) + ' %' },
+    angle: { type: 'seg', label: 'Projection', options: [['third', 'Third angle'], ['first', 'First angle']] },
+    yaw: { type: 'range', label: 'Turn the box', min: -50, max: 50, step: 2, fmt: v => v + '°' },
+    hidden: { type: 'seg', label: 'Hidden lines', options: [[true, 'Show'], [false, 'Hide']] },
+    hiView: { type: 'seg', label: 'Point to a view', options: [['none', 'None'], ['front', 'Front'], ['top', 'Top'], ['right', 'Right side']] },
+    part: { type: 'seg', label: 'Part', options: [['bracket', 'Bracket'], ['step', 'Step block'], ['guide', 'Guide block'], ['hub', 'Hub']] },
+    read: { type: 'seg', label: 'Read it as', options: [['same', 'The projection shown'], ['other', 'The other projection']] },
+  };
+  sc.phoneVB = S => S.mode === 'sheet' ? '30 24 1110 832' : '150 60 900 800';
+  sc.css = '';
+  return sc;
+};
+})();</script>
+<script>(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg', CAPTURE = new URLSearchParams(location.search).has('capture');
+window.DrawAdapter = function (C, PC) {
+  const K = window.CFK, sc = window.CFScenes[C.scene](C.sceneOpts || {});
+  window.DRAW_SCENE = sc;
+  let svg = null, g = null, api = null, cur = null, T = 0, callouts = [], drag = null;
+  const A = {};
+  A.defaults = Object.assign({}, sc.defaults, C.start || {}); delete A.defaults.snap;
+  A.instant = sc.instant || [];
+  A.viewBox = '0 0 1600 880';
+  A.fns = PC.fns || {};
+  const outOf = s => sc.calc(s);
+  A.calc = s => sc.calc(s);
+  A.onSet = (s, keys) => { cur = s; sc.onSet && sc.onSet(s, keys); };
+  A.apply = (s, prev, initial) => { cur = s; if (initial && sc.reset) sc.reset(s); };
+  A.reset = () => {};
+  A.advance = (ms, s) => { cur = s; const dt = ms / 1000; T += dt; const o = sc.calc(s); sc.step && sc.step(dt, s, o, T); };
+  A.busy = () => CAPTURE || !!(cur && sc.busy && sc.busy(cur, outOf(cur)));
+  A.controls = {};
+  for (const [k, c0] of Object.entries(sc.controls || {})) {
+    const c = Object.assign({}, c0, (C.ctl || {})[k] || {});
+    if (c.type === 'seg') A.controls[k] = { type: 'chips', label: c.label, options: c.options.map(([v, t]) => ({ v, t })) };
+    else if (c.type === 'range') A.controls[k] = { type: 'slider', label: c.label, min: c.min, max: c.max, step: c.step, fmt: v => c.fmt ? c.fmt(v, cur || A.defaults, outOf(cur || A.defaults)) : String(v) };
+    else if (c.type === 'hold') A.controls[k] = { type: 'hold', key: c.key || k, on: c.on, label: c.label, hotkey: c.hotkey };
+    else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
+  }
+  window.PAGE_SCENE = A;
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.caption = () => null;
+  A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
+  function bboxOf(id) {
+    const el = svg && svg.querySelector('#' + CSS.escape(id)); if (!el || !el.getBBox) return null;
+    let b; try { b = el.getBBox(); } catch (e) { return null; }
+    if (!b || (!b.width && !b.height)) return null;
+    const m = svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    const pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].map(([x, y]) => { const p = svg.createSVGPoint(); p.x = x; p.y = y; return p.matrixTransform(m); });
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  }
+  A.spot = id => { const b = bboxOf(id); return b ? [b.x + b.w / 2, b.y + b.h / 2, Math.max(18, Math.hypot(b.w, b.h) / 2)] : null; };
+  A.callout = (id, text, o = {}) => { callouts.push({ id, text, pos: o.pos, ring: !!o.ring || o.pos === 'ring', at: T + (o.delay || 0) / 1000 }); return true; };
+  A.clear = () => { callouts = []; };
+  function overlay() {
+    let s = '';
+    for (const c of callouts) {
+      if (T < c.at) continue;
+      const b = bboxOf(c.id); if (!b) continue;
+      const pad = 8, bx = b.x - pad, by = b.y - pad, bw = b.w + 2 * pad, bh = b.h + 2 * pad;
+      s += `<rect x="${K.f(bx)}" y="${K.f(by)}" width="${K.f(bw)}" height="${K.f(bh)}" rx="10" fill="none" stroke="${K.C.acc}" stroke-width="4"/>`;
+      if (c.ring) continue;
+      const tw = Math.min(620, 24 + c.text.length * 14.2), th = 48, gap = 46;
+      let tx, ty, ax, ay;
+      const pos = c.pos || 'right';
+      if (pos === 'left') { tx = bx - gap - tw; ty = by + bh / 2 - th / 2; ax = bx; ay = by + bh / 2; }
+      else if (pos === 'top') { tx = bx + bw / 2 - tw / 2; ty = by - gap - th; ax = bx + bw / 2; ay = by; }
+      else if (pos === 'bottom') { tx = bx + bw / 2 - tw / 2; ty = by + bh + gap; ax = bx + bw / 2; ay = by + bh; }
+      else { tx = bx + bw + gap; ty = by + bh / 2 - th / 2; ax = bx + bw; ay = by + bh / 2; }
+      tx = Math.max(8, Math.min(K.W - tw - 8, tx)); ty = Math.max(8, Math.min(K.H - th - 8, ty));
+      const lx = Math.max(tx, Math.min(tx + tw, ax)), ly = Math.max(ty, Math.min(ty + th, ay));
+      s += `<line x1="${K.f(ax)}" y1="${K.f(ay)}" x2="${K.f(lx)}" y2="${K.f(ly)}" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<rect x="${K.f(tx)}" y="${K.f(ty)}" width="${K.f(tw)}" height="${th}" rx="10" fill="#1F1D1A" stroke="${K.C.acc}" stroke-width="3"/>`;
+      s += `<text x="${K.f(tx + tw / 2)}" y="${K.f(ty + 32)}" text-anchor="middle" style="font:800 25px ${K.FONT};fill:${K.C.text}">${K.esc(c.text)}</text>`;
+    }
+    return s;
+  }
+  A.draw = (s, o) => {
+    cur = s; K.T = T;
+    g.innerHTML = K.style(sc.phoneCss || '') + K.defs() + '<defs>' + window.G3.defs() + '</defs>' + sc.draw(s, o, T) + '<g id="ovl"></g>';
+    if (callouts.length) g.querySelector('#ovl').innerHTML = overlay();
+    if (document.body.classList.contains('phone')) {
+      const m = svg.getScreenCTM(), k = m ? m.a : 1;
+      g.querySelectorAll('text').forEach(t => { if (parseFloat(getComputedStyle(t).fontSize) * k < 11) t.style.display = 'none'; });
+    }
+  };
+  function toSvg(e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+  A.mount = (el, shellApi) => {
+    svg = el; api = shellApi;
+    g = document.createElementNS(NS, 'g'); g.id = 'scene'; svg.appendChild(g);
+    if (sc.css) document.head.insertAdjacentHTML('beforeend', '<style>' + sc.css + '</style>');
+    svg.addEventListener('pointerdown', e => {
+      const t = e.target.closest && e.target.closest('[data-act]'); if (!t || !sc.pointer || !cur) return;
+      const st = api.step();
+      if (!st.free && st.step && st.step.drawActs && !st.step.drawActs.includes(t.dataset.act)) return;
+      e.preventDefault(); try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+      drag = { act: t.dataset.act, p0: toSvg(e) };
+      sc.pointer('down', drag.act, drag.p0, cur, drag); api.redraw();
+    });
+    svg.addEventListener('pointermove', e => { if (drag && cur) { sc.pointer('move', drag.act, toSvg(e), cur, drag); api.redraw(); } });
+    const up = () => { if (drag && cur) { sc.pointer('up', drag.act, null, cur, drag); drag = null; api.redraw(); } };
+    svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  };
+  A.challenge = (rng, n) => {
+    const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
+    if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
+    const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
+    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+  };
+  return A;
+};
+})();</script>
+<script>/* Lesson code (text, steps and questions: projection.json): Orthographic projection, first angle and third angle
+ * (episode 061). RSOS A-3.03 uses drawings and schematics (range of variables: first- or third-angle projection;
+ * orthographic projection). Answers come from the scene's calc() (src/scenes/projection.js): third angle puts the top
+ * view above the front view and the right side view to its right; first angle puts the top view below and the right
+ * side view on the left (WisTech Blueprint Reading; gdandtbasics; ISO 5456-2 symbol, cited by number).
+ */
+(function () {
+const K = window.CFK, C = K.C;
+const pick = (rng, a) => a[Math.floor(rng() * a.length)];
+const ch = (t, why) => (why ? { t, why } : { t });
+const shuffle = (rng, choices, answer) => { const idx = choices.map((c, i) => i).sort(() => rng() - .5); return { choices: idx.map(i => choices[i]), answer: idx.indexOf(answer) }; };
+const NAME = { third: 'third angle', first: 'first angle' };
+const R = (S, o) => [['Projection', S.symbol === false ? '?' : (o.third ? 'Third angle' : 'First angle'), C.acc], ['Top view goes', S.symbol === false ? '?' : o.topPos + ' the front'], ['Right side view goes', S.symbol === false ? '?' : (o.rightPos === 'right' ? 'right of the front' : 'left of the front')], ['Unfolded', o.unfoldPct + ' %']];
+const RS = (S, o) => [['Projection', S.symbol === false ? '?' : (o.third ? 'Third angle' : 'First angle'), C.acc], ['Read as', o.misread ? NAME[o.readAs] + ' (wrong)' : 'as drawn', o.misread ? C.bad : C.ok], ['Part', `${o.W} × ${o.H} × ${o.D} mm`]];
+/* where a view goes: the core fact, asked many ways */
+function whereQ(rng) {
+  const angle = pick(rng, ['third', 'first']), view = pick(rng, ['top', 'right']);
+  const ans = angle === 'third' ? (view === 'top' ? 'Above the front view' : 'To the right of the front view') : (view === 'top' ? 'Below the front view' : 'To the left of the front view');
+  const all = ['Above the front view', 'Below the front view', 'To the right of the front view', 'To the left of the front view'];
+  const why = { 'Above the front view': 'That is the top view in THIRD angle.', 'Below the front view': 'That is the top view in FIRST angle.', 'To the right of the front view': 'That is the right side view in THIRD angle.', 'To the left of the front view': 'That is the right side view in FIRST angle.' };
+  const sh = shuffle(rng, all.map(t => t === ans ? ch(t) : ch(t, why[t] + ' Check which projection the question says.')), all.indexOf(ans));
+  return { setup: { mode: 'sheet', angle, hiView: view, symbol: true, read: 'same' }, q: `On a **${NAME[angle]}** drawing, where is the **${view === 'top' ? 'top' : 'right side'}** view?`, choices: sh.choices, answer: sh.answer,
+    explain: angle === 'third' ? 'Third angle: you look through the glass, so the view lands on your side: top above, right side to the right.' : 'First angle: the part is between you and the plane, so views land on the far side: top below, right side on the left.' };
+}
+function whichQ(rng) {
+  const angle = pick(rng, ['third', 'first']), clue = pick(rng, ['top', 'right']);
+  const clueText = clue === 'top' ? (angle === 'third' ? 'the top view is above the front view' : 'the top view is below the front view') : (angle === 'third' ? 'the right side view is to the right of the front view' : 'the right side view is to the left of the front view');
+  const sh = shuffle(rng, [ch(angle === 'third' ? 'Third angle' : 'First angle'), ch(angle === 'third' ? 'First angle' : 'Third angle', 'Swap it: ' + (angle === 'third' ? 'first angle puts top below and right side on the left.' : 'third angle puts top above and right side on the right.')), ch('You cannot tell without the parts list', 'The layout of the views tells you, and so does the symbol in the title block.')], 0);
+  return { setup: { mode: 'sheet', angle, hiView: clue, symbol: false, read: 'same' }, q: `The projection symbol is missing, but ${clueText}. Which projection is it?`, choices: sh.choices, answer: sh.answer,
+    explain: `${clueText[0].toUpperCase() + clueText.slice(1)}: that is **${NAME[angle]}**. Then ask for a drawing with the symbol, or check the views against the part.` };
+}
+
+window.LESSON_CODE = window.LESSON_CODE || {};
+window.LESSON_CODE.projection = {
+  1: { readouts: R, challenge: whereQ, fns: { full: S => S.unfold >= .99 } },
+  2: { readouts: RS, challenge: whereQ, fns: {} },
+  3: { readouts: R, challenge: whereQ, fns: { full: S => S.unfold >= .99 } },
+  4: { readouts: RS, challenge: whichQ, fns: { misread: (S, o) => o.misread } },
+  5: { readouts: RS, challenge: (rng) => (rng() < .5 ? whereQ(rng) : whichQ(rng)), fns: {} },
+};
+})();
+</script>
+<script>/* CrewForge simulator-lesson page shell (instructor 2026-11-13, docs/LESSON_DESIGN.md). One page = one idea.
+   Runs a page scene (CFShell.start(content, scene)) inside the approved layout:
+   top bar (Back, lesson + page n of N, progress dots, voice mute + speed, Next: nothing locks) -> "What you're looking
+   at" (fixed per page) -> simulator + readouts -> step box (fixed per step: instruction, Hint, Show me) -> control tray
+   (only this step's controls). Steps: teach -> do -> predict -> fail -> question; then free play (everything unlocked,
+   Reset, "Give me a challenge"). Questions are practice: a wrong pick gets a red outline and the explanation of that
+   mistake, then "Try a new question" serves a different variant until one is right. Moodle "done" = the learner reached
+   the last page (the SCORM host page, tools/lesson_pages.py, records it).
+
+   Scene interface (one per page):
+     defaults {}, controls {key: {type:'slider'|'chips'|'hold'|'custom', label, ...}} (below),
+     mount(svg, api), apply(state, prev, initial), advance(ms, state), calc(state) -> out,
+     readouts(state, out) -> [{label, short, value, cls:'ok'|'warn'|'bad', color, id}],
+     caption(state, out) -> null | {kind:'fail'|'warn', title, text}, spot(id) -> [x, y, r] (svg units),
+     drag (optional, wired by the scene; it calls api.input(partial)), challenge(rng, n) -> question, busy() -> bool,
+     phoneViewBox, viewBox, reset().
+     Optional generic hooks (added 2026-11-13 for the hoisting and block-and-tackle ports):
+       instant: [keys]            never tweened by sim.set(partial, ms) (e.g. a hoist size that rebuilds the rig)
+       onSet(state, keys)         after every sim.set / learner input (not on tween frames): rebuild what those keys need
+       normalize(state)           after any change, before calc()
+       callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
+       fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+     step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
+
+   Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
+     slider  {min, max, step, unit, fmt(v)}: - / + steppers (hold to repeat), range, tap the value to type it
+     chips   {options:[{v, t}]}: one choice
+     hold    {key, on = 1, label, hotkey}: PRESS-AND-HOLD TO RUN. state[key] = on while the button is held (pointer,
+             Space / Enter on the focused button, or the optional hotkey anywhere on the page), 0 on release, lost
+             pointer capture, blur or leaving the page. The scene moves on its own clock (advance), so in ?capture=1
+             a script does the same with sim.set({key: 1}) ... sim.set({key: 0}) on the virtual clock. 52 px tall.
+             Dragging the part itself in the drawing is the scene's job (drag + api.input).
+     custom  {html(state)}: scene-made markup (e.g. a crane pendant); any element in it with data-hk="key" is a
+             hold-to-run button for state[key] (same rules as hold) and has class "on" while state[key] is truthy.
+   Content (content.json page): what, steps, free, freeControls, capture: 'stage' (video layout: ?capture=1 shows only
+     the stage and readouts and never applies lesson steps; without it capture keeps the full page as before).
+   Step extras: callout [{id, text, pos}] (shown while the step is on), live (a line under the instruction, refreshed
+     every frame: "fn:name" or a template "{key:1}" / "{out.x:0}" / "{out.util:%}"), wrong [{when: goal, say}] (shown
+     while it matches), points [..] (teach: a short list), hint2 on question variants.
+   Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
+     or "fn:name" for the whole goal.
+   Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
+     sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
+(function () {
+'use strict';
+const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
+const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
+const NS = 'http://www.w3.org/2000/svg';
+
+window.CFShell = { start };
+
+function start(C, S) {
+  const log = [], T0 = performance.now(), L = (type, d = {}) => log.push({ t: Math.round(performance.now() - T0), type, ...d });
+  let state = Object.assign({}, S.defaults), out = S.calc(state), tweens = [], listeners = [], dirty = true;
+  let idx = 0, phase = 'step', hintLvl = 0, done = new Set(), helped = new Set(), qv = {}, qState = null, goalSince = null;
+  let free = false, challenge = null, chalN = 0, finished = false;
+  const N = C.lesson.pages.length, PN = C.n, steps = C.steps;
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const KEY = 'cf-lp:' + C.lesson.id;
+  const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
+  let muted = !!prefs.muted, rate = prefs.rate || 1;
+
+  /* ---------------------------------------------------------------- layout */
+  document.body.innerHTML = '';
+  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  if (STAGE_ONLY) document.body.classList.add('capture');
+  const app = el('div', { class: 'app' });
+  const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
+  app.innerHTML = `<header class="bar">
+    <button class="btn" id="b-back" aria-label="Back">&#9664; Back</button>
+    <div class="title"><div class="kick">${C.lesson.title.toUpperCase()} · PAGE ${PN} OF ${N}</div><div class="h">${C.title}</div></div>
+    <div class="dots" aria-label="page ${PN} of ${N}">${dots}</div>
+    <div class="voice"><button class="btn" id="b-mute" aria-label="Voice on or off"></button><button class="btn" id="b-rate" aria-label="Voice speed"></button></div>
+    <button class="btn pri" id="b-next" aria-label="Next page">${PN === N ? 'Finish' : 'Next'} &#9654;</button></header>
+  <section class="what" id="what"><button class="wt" id="b-what" aria-expanded="false">WHAT YOU'RE LOOKING AT <span class="chev">&#9662;</span></button><div class="wx">${md(C.what)}</div></section>
+  <div class="main"><div class="stage" id="stage"><svg id="sv" xmlns="${NS}" viewBox="${S.viewBox || '0 0 1600 880'}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${C.title} simulator"></svg>
+    <div class="caption" id="caption" role="status"></div><div class="read" id="read"></div></div>
+    <aside class="side"><div class="card step" id="stepcard" aria-live="polite"></div><div class="card ctrlcard" id="tray"></div></aside></div>`;
+  document.body.appendChild(app);
+  const svg = $('#sv'), card = $('#stepcard'), tray = $('#tray'), read = $('#read'), cap = $('#caption');
+  if (S.captionAt) cap.dataset.at = S.captionAt;   // optional: a scene with cards at the top puts the caption at the bottom
+  let spotG, calloutG;
+
+  /* phone: the scene crops its drawing to the subject at the stage's own aspect, so labels stay >= 11 px */
+  let lastVB = '';
+  function fit() {
+    const phone = innerWidth < 700 && innerHeight > innerWidth;
+    document.body.classList.toggle('phone', phone);
+    const asp = Math.max(0.6, Math.min(3, (svg.clientWidth || 1) / (svg.clientHeight || 1)));
+    const vb = phone && S.phoneViewBox ? (typeof S.phoneViewBox === 'function' ? S.phoneViewBox(state, asp) : S.phoneViewBox) : (S.viewBox || '0 0 1600 880');
+    if (vb !== lastVB) { svg.setAttribute('viewBox', vb); lastVB = vb; }
+  }
+  addEventListener('resize', fit); fit();
+  $('#b-what').onclick = () => { const w = $('#what'); w.classList.toggle('open'); $('#b-what').setAttribute('aria-expanded', w.classList.contains('open')); };
+
+  /* ---------------------------------------------------------------- host / progress (SCORM wrapper or localStorage) */
+  const host = (() => { try { return window.parent !== window && window.parent.CFHost ? window.parent.CFHost : null; } catch (e) { return null; } })();
+  function progress() {
+    if (host) host.page(PN, N, C.file);
+    else if (store) { try { const p = JSON.parse(store.getItem(KEY) || '{}'); p.seen = Array.from(new Set((p.seen || []).concat([PN]))); p.last = PN; if (PN === N) p.complete = true; store.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+  }
+  const firstVisit = !(store && store.getItem(KEY));
+  progress();
+  const go = d => {
+    stopVoice();
+    const target = PN + d;
+    if (target < 1) return;
+    if (target > N) { finish(); return; }
+    L('page', { to: target });
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+  };
+  $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
+  if (PN === 1) $('#b-back').disabled = true;
+
+  /* ---------------------------------------------------------------- voice (Kokoro af_heart clips beside the page) */
+  const audio = new Audio(); audio.preload = 'auto';
+  let voiceOK = false, queue = [];
+  function setVoiceUI() {
+    $('#b-mute').innerHTML = muted ? '&#128263;<span class="vt"> Off</span>' : '&#128266;<span class="vt"> On</span>'; $('#b-mute').classList.toggle('off', muted);
+    $('#b-rate').textContent = rate === 1 ? '1×' : '0.8×';
+    try { store && store.setItem('cf-voice', JSON.stringify({ muted, rate })); } catch (e) {}
+  }
+  setVoiceUI();
+  $('#b-mute').onclick = () => { muted = !muted; setVoiceUI(); if (muted) stopVoice(); else speak(curKey()); L('voice', { muted }); };
+  $('#b-rate').onclick = () => { rate = rate === 1 ? 0.8 : 1; audio.playbackRate = rate; setVoiceUI(); };
+  function stopVoice() { queue = []; try { audio.pause(); } catch (e) {} }
+  function speak(...keys) {
+    queue = keys.filter(k => k && C.audio && C.audio[k]);
+    try { audio.pause(); } catch (e) {}
+    playNext();
+  }
+  function playNext() {
+    if (muted || !voiceOK || CAPTURE || !queue.length) return;
+    const k = queue.shift();
+    audio.src = (C.audioBase || 'audio/') + C.audio[k]; audio.playbackRate = rate;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    audio.play().catch(() => { showStart(); });
+  }
+  audio.addEventListener('ended', () => setTimeout(playNext, 250));
+  function curKey() { if (free) return challenge ? null : 'free'; const st = steps[idx]; if (!st) return null; if (st.type === 'question') return `s${idx}v${(qv[idx] || 0) % st.variants.length}`; return 's' + idx; }
+  function showStart() {
+    if (CAPTURE || $('#start')) return;
+    const first = PN === 1 && firstVisit;
+    const o = el('div', { id: 'start' }, `<div class="box"><h2>${first ? C.lesson.title : C.title}</h2><p>${first ? 'The narrator reads each step aloud. You can mute it or slow it down at the top right.' : 'Tap to hear this page read aloud.'}</p>
+      <button class="btn pri" id="b-start">&#9654; ${first ? 'Start lesson' : 'Start page'}</button> <button class="btn" id="b-quiet">Read it myself</button></div>`);
+    document.body.appendChild(o);
+    $('#b-start').onclick = () => { o.remove(); voiceOK = true; muted = false; setVoiceUI(); speak('what', curKey()); L('start'); };
+    $('#b-quiet').onclick = () => { o.remove(); voiceOK = true; muted = true; setVoiceUI(); L('start', { quiet: true }); };
+  }
+
+  /* ---------------------------------------------------------------- sim state */
+  function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+  function full() { return Object.assign({}, state, { out }); }
+  function applyState(next, user) {
+    const prev = state; state = Object.assign({}, state, next); if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, prev); dirty = true;
+    if (user) { if (S.onSet) { S.onSet(state, Object.keys(next)); out = S.calc(state); } listeners.forEach(fn => fn(full())); }
+  }
+  function snapTo(partial) {      // sim.set({snap: true, ...}): page defaults first, no tweens, then the rest
+    tweens = []; S.reset && S.reset(); state = Object.assign({}, S.defaults, partial); delete state.snap;
+    if (S.normalize) S.normalize(state); out = S.calc(state); S.apply(state, null, true); dirty = true;
+  }
+  function set(partial, dur = 0) {
+    if (!partial) return;
+    if (partial.snap) return snapTo(partial);
+    const inst = {}, tw = {}, keys = Object.keys(partial), noTween = S.instant || [];
+    for (const k in partial) { if (dur > 0 && typeof partial[k] === 'number' && typeof state[k] === 'number' && !noTween.includes(k)) tw[k] = [state[k], partial[k]]; else inst[k] = partial[k]; }
+    if (Object.keys(tw).length) tweens.forEach(T => { for (const k in tw) delete T.tw[k]; });   // a new tween on a key replaces the old one
+    if (Object.keys(inst).length) applyState(inst);
+    if (Object.keys(tw).length) tweens.push({ tw, t: 0, dur });
+    if (S.onSet) { S.onSet(state, keys); out = S.calc(state); dirty = true; }
+  }
+  function stepTweens(ms) {
+    if (!tweens.length) return;
+    const next = {};
+    tweens = tweens.filter(T => { T.t += ms; const u = Math.min(1, T.t / T.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; for (const k in T.tw) next[k] = T.tw[k][0] + (T.tw[k][1] - T.tw[k][0]) * e; return u < 1; });
+    applyState(next);
+  }
+  function advance(ms) {
+    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+  }
+  function checkGame(ms) {
+    const c = challenge; if (!c || !c.game || c.result || !free) return;
+    c.t = (c.t || 0) + ms / 1000;
+    const r = c.goal(state, out, c.t) || {}; c.live = r.live || '';
+    const g = card.querySelector('#glive'); if (g && g.innerHTML !== md(c.live)) g.innerHTML = md(c.live);
+    if (r.done) { c.result = { ok: !!r.ok, msg: r.msg || '' }; L('challenge', { right: c.result.ok }); renderFree(); }
+  }
+  const api = {
+    input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
+    get: full, redraw() { dirty = true; },
+    step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
+  };
+  S.mount(svg, api);
+  spotG = document.createElementNS(NS, 'g'); spotG.id = 'spotg'; svg.appendChild(spotG);
+  calloutG = document.createElementNS(NS, 'g'); calloutG.id = 'calloutg'; svg.appendChild(calloutG);
+  /* video contract */
+  window.sim = {
+    set(p, d) { set(p, d); render(); },      // draw now, so a callout cued on the same word finds its target
+    get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
+    onChange: fn => listeners.push(fn),
+    callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+    clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
+  };
+
+  /* ---------------------------------------------------------------- readouts + caption */
+  let lastRead = '', lastCap = '';
+  function render() {
+    if (!dirty) return; dirty = false;
+    if (document.body.classList.contains('phone')) fit();
+    S.draw && S.draw(state, out);
+    const r = S.readouts(state, out).map(o => `<div class="ro ${o.cls || ''}" id="ro-${o.id || ''}"><small><span class="lf">${o.label}</span><span class="ls">${o.short || o.label}</span></small><span${o.color ? ` style="color:${o.color}"` : ''}>${o.value}</span></div>`).join('');
+    if (r !== lastRead) { read.innerHTML = r; lastRead = r; }
+    const c = S.caption && S.caption(state, out), cs = c ? JSON.stringify(c) : '';
+    if (cs !== lastCap) { lastCap = cs; cap.className = 'caption' + (c ? ' on ' + (c.kind || '') : ''); cap.innerHTML = c ? `<b>${c.title}</b><span class="ct">${c.text}</span>` : ''; }
+    drawSpot(); syncTray(); liveLine();
+  }
+  /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
+  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function tpl(t) {
+    const f = fn(t); if (f) return String(f(state, out));
+    const st = full();
+    return String(t || '').replace(/\{([\w.]+)(?::(%|\d))?\}/g, (m, p, d) => { const v = getPath(st, p); if (typeof v !== 'number') return v == null ? m : String(v);
+      return d === '%' ? Math.round(v * 100).toLocaleString('en-CA') + ' %' : v.toLocaleString('en-CA', { minimumFractionDigits: +(d || 0), maximumFractionDigits: +(d || 0) }); });
+  }
+  let lastLive = '';
+  function liveLine() {
+    const st = !free && steps[idx], box = card.querySelector('#live'); if (!box || !st) return;
+    let h = st.live ? md(tpl(st.live)) : '';
+    const w = (st.wrong || []).find(x => goalMet(x.when)); if (w && !done.has(idx)) h += (h ? '<br>' : '') + `<span class="wrongsay">${md(w.say)}</span>`;
+    if (h !== lastLive) { lastLive = h; box.innerHTML = h; box.style.display = h ? '' : 'none'; }
+  }
+  function syncTray() {               // programmatic changes (Show me, setups, tweens) move the controls too
+    const ae = document.activeElement;
+    trayKeys.forEach(k => { const c = S.controls[k], v = state[k];
+      if (c.type === 'hold' || c.type === 'custom') return;
+      if (c.type === 'chips') tray.querySelectorAll(`.chip[data-k="${k}"]`).forEach(b => { const on = String(v) === b.dataset.v; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+      else { const r = tray.querySelector(`input[data-k="${k}"]`), t = tray.querySelector(`.val[data-k="${k}"]`), txt = (c.fmt || (x => x + (c.unit || '')))(v);
+        if (r && r !== ae && +r.value !== v) r.value = v; if (t && t.textContent !== txt) t.textContent = txt; } });
+    tray.querySelectorAll('[data-hk]').forEach(b => { const on = !!state[b.dataset.hk]; if (b.classList.contains('on') !== on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); } });
+  }
+
+  /* ---------------------------------------------------------------- control tray */
+  function ctrlHTML(key) {
+    const c = S.controls[key], v = state[key], fmt = c.fmt || (x => x + (c.unit || ''));
+    if (c.type === 'hold') return `<div class="ctrl holdc" id="c-${key}"><button class="btn hold" data-hk="${c.key || key}" data-on="${c.on != null ? c.on : 1}" aria-pressed="false" title="Press and hold${c.hotkey ? ' (or hold the ' + c.hotkey + ' key)' : ''}">${c.label}</button></div>`;
+    if (c.type === 'custom') return `<div class="ctrl custom" id="c-${key}">${c.html(state)}</div>`;
+    if (c.type === 'chips') return `<div class="chipwrap" id="c-${key}"><span class="lab">${c.label}</span><div class="chips" role="group" aria-label="${c.label}">${c.options.map(o => `<button class="chip${o.v === v ? ' on' : ''}" data-k="${key}" data-v="${o.v}" aria-pressed="${o.v === v}">${o.t}</button>`).join('')}</div></div>`;
+    return `<div class="ctrl" id="c-${key}"><span class="lab">${c.label}</span><button class="btn" data-k="${key}" data-d="-1" aria-label="${c.label} down">&minus;</button>
+      <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${v}" data-k="${key}" aria-label="${c.label}"><button class="btn" data-k="${key}" data-d="1" aria-label="${c.label} up">+</button>
+      <button class="val" data-k="${key}" title="Tap to type a value">${fmt(v)}</button></div>`;
+  }
+  let trayKeys = [];
+  function renderTray(keys) {
+    if (keys) trayKeys = keys;
+    const ae = document.activeElement, activeRange = ae && ae.type === 'range' && tray.contains(ae) ? ae.dataset.k : null;
+    if (activeRange) {           // never rebuild under a finger: update values only
+      trayKeys.forEach(k => { const c = S.controls[k]; const v = $(`#c-${k} .val`); if (v) v.textContent = (c.fmt || (x => x + (c.unit || '')))(state[k]); });
+      return;
+    }
+    tray.innerHTML = trayKeys.map(ctrlHTML).join('');
+    tray.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k, c = S.controls[k], o = c.options.find(o => String(o.v) === b.dataset.v); api.input({ [k]: o.v }); });
+    tray.querySelectorAll('.chip.on').forEach(c => { const p = c.parentElement; if (p.scrollWidth > p.clientWidth) p.scrollLeft = c.offsetLeft - p.offsetLeft - 8; });   // phone: the picked chip in view
+    tray.querySelectorAll('input[type=range]').forEach(r => { r.oninput = () => api.input({ [r.dataset.k]: +r.value }); r.onchange = () => renderTray(); });
+    tray.querySelectorAll('.btn[data-d]').forEach(b => {
+      let h = null; const k = b.dataset.k, c = S.controls[k];
+      const bump = () => { const v = Math.max(c.min, Math.min(c.max, +(state[k] + (+b.dataset.d) * c.step).toFixed(6))); api.input({ [k]: v }); };
+      b.onpointerdown = e => { e.preventDefault(); bump(); h = setTimeout(function rep() { bump(); h = setTimeout(rep, 90); }, 420); };
+      const stop = () => { clearTimeout(h); h = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; addEventListener('pointerup', stop);
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bump(); } };
+    });
+    tray.querySelectorAll('[data-hk]').forEach(wireHold);
+    tray.querySelectorAll('.val').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, c = S.controls[k], inp = el('input', { class: 'tv', type: 'number', inputmode: 'decimal', min: c.min, max: c.max, step: c.step, value: state[k], 'aria-label': c.label });
+      b.replaceWith(inp); inp.focus(); inp.select();
+      const ok = () => { const v = +inp.value; if (isFinite(v)) api.input({ [k]: Math.max(c.min, Math.min(c.max, v)) }); renderTray(); };
+      inp.onkeydown = e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') renderTray(); }; inp.onblur = ok;
+    });
+  }
+
+  /* hold-to-run: state[key] = on while held (pointer, Space / Enter on the button, or the control's hotkey) */
+  const held = new Set();
+  function hold(k, on, v) {
+    if (on ? held.has(k) : !held.has(k)) return;
+    if (on) held.add(k); else held.delete(k);
+    api.input({ [k]: on ? (v != null ? v : 1) : 0 });
+  }
+  function wireHold(b) {
+    const k = b.dataset.hk, v = b.dataset.on != null ? +b.dataset.on : 1;
+    b.style.touchAction = 'none';
+    b.onpointerdown = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} hold(k, true, v); };
+    b.onpointerup = b.onpointercancel = b.onlostpointercapture = () => hold(k, false);
+    b.oncontextmenu = e => e.preventDefault();
+    b.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(k, true, v); } };
+    b.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); hold(k, false); } };
+    b.onblur = () => hold(k, false);
+  }
+  const releaseAll = () => Array.from(held).forEach(k => hold(k, false));
+  addEventListener('blur', releaseAll); document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  addEventListener('keydown', e => { if (e.repeat || e.target.tagName === 'INPUT') return; trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) { e.preventDefault(); hold(c.key || k, true, c.on); } }); });
+  addEventListener('keyup', e => { trayKeys.forEach(k => { const c = S.controls[k]; if (c && c.type === 'hold' && c.hotkey === e.key) hold(c.key || k, false); }); });
+
+  /* ---------------------------------------------------------------- spotlight (hint level 2) */
+  let spotIds = [];
+  function drawSpot() {
+    if (STAGE_ONLY) return;                 // video: no lesson spotlight on the stage
+    spotG.innerHTML = spotIds.map(id => { const p = S.spot && S.spot(id, state); if (!p) return ''; const [x, y, r] = p;
+      return `<circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/><circle cx="${x}" cy="${y}" r="${r + 6}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="10 7"/>`; }).join('');
+  }
+  function spot(ids, ctrls) {
+    spotIds = ids || []; drawSpot();
+    tray.querySelectorAll('.spotlit').forEach(e => e.classList.remove('spotlit'));
+    (ctrls || []).forEach(k => { const e = $('#c-' + k); if (e) e.classList.add('spotlit'); });
+  }
+
+  /* ---------------------------------------------------------------- steps */
+  let tries = 0;
+  function markTry() { tries++; }
+  function goalMet(g) {
+    if (!g) return false;
+    const f = fn(g); if (f) return !!f(state, out);
+    const st = full();
+    return Object.keys(g).every(k => { const v = getPath(st, k), m = g[k];
+      if (Array.isArray(m)) return v >= m[0] - 1e-9 && v <= m[1] + 1e-9;
+      if (m && typeof m === 'object') { if ('in' in m) return m.in.includes(v); if ('near' in m) return Math.abs(v - m.near) <= (m.tol != null ? m.tol : 1e-6);
+        if ('gte' in m) return v >= m.gte - 1e-9; if ('lte' in m) return v <= m.lte + 1e-9; if ('gt' in m) return v > m.gt; if ('lt' in m) return v < m.lt; if ('not' in m) return v !== m.not; }
+      return v === m; });
+  }
+  function checkGoal(ms) {
+    if (free || phase !== 'step') return;
+    const st = steps[idx]; if (!st || done.has(idx) || !(st.type === 'do' || st.type === 'fail' || (st.type === 'predict' && qState === 'answered' && st.goal))) return;
+    if (goalMet(st.goal)) { goalSince = (goalSince || 0) + ms; if (goalSince >= (st.hold != null ? st.hold : 450)) complete(); }
+    else goalSince = null;
+  }
+  function complete(how) {
+    if (done.has(idx)) return;
+    done.add(idx); if (how) helped.add(idx); L('done', { step: idx, how: how || 'goal' }); spot([], []); renderStep();
+  }
+  function enter(i, opts = {}) {
+    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    const st = steps[idx];
+    if (!opts.noSetup) {
+      if (st.setup) set(st.setup, 0);
+      if (st.set) set(st.set, st.dur || 1200);
+      if (st.type === 'question') { const v = st.variants[(qv[idx] || 0) % st.variants.length]; if (v.setup) set(v.setup, 0); }
+    }
+    releaseAll(); lastLive = '';
+    if (!opts.noSetup) { window.sim.clear(); if (st.callout) [].concat(st.callout).forEach(c => window.sim.callout(c.id, c.text, { pos: c.pos })); }
+    L('enter', { step: idx, type: st.type });
+    spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
+  }
+  function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
+  function stepHead(label) {
+    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  }
+  function wireHead() {
+    const p = $('#b-sprev'), n = $('#b-snext');
+    if (p) { p.onclick = () => { if (free) enter(steps.length - 1); else if (idx > 0) enter(idx - 1); }; p.disabled = !free && idx === 0; }
+    if (n) n.onclick = () => { if (free) go(1); else { L('skip', { step: idx }); if (!done.has(idx)) helped.add(idx); nextStep(); } };
+  }
+  function hintBlock(st) {
+    let h = '';
+    if (hintLvl >= 1) h += `<div class="hint">${md(st.hint || 'Look at the readouts under the drawing.')}</div>`;
+    if (hintLvl >= 2 && st.hint2) h += `<div class="hint">${md(st.hint2)}</div>`;
+    return h;
+  }
+  function hintButtons(st, showLabel = 'Show me') {
+    return `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; ${showLabel}</button>${hintLvl >= 2 || helped.has(idx) ? '<button class="skip" id="b-skip">Skip this step</button>' : ''}</div>`;
+  }
+  function renderStep() {
+    if (free) return renderFree();
+    const st = steps[idx], isDone = done.has(idx), lab = `STEP ${idx + 1} OF ${steps.length}`;
+    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    const ctrls = st.controls || [];
+    if (st.type === 'teach') {
+      h += `<p>${md(st.text)}</p>` + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+    } else if (st.type === 'do' || st.type === 'fail') {
+      if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
+      h += `<p>${md(st.text)}</p>` + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
+      if (isDone) h += `<div class="good"><b>${st.type === 'fail' ? 'That is why.' : 'Done.'}</b> ${md(fn(st.ok) ? tpl(st.ok) : st.ok || '')}</div><div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      else h += hintBlock(st) + hintButtons(st);
+    } else if (st.type === 'predict') {
+      h += `<p>${md(st.text)}</p>`;
+      if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
+      else {
+        h += st.choices.map((c, i) => `<button class="opt ${i === st.answer ? 'right' : i === predPick ? 'wrong' : ''}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
+        h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
+        if (st.goal && !isDone) h += `<p style="font-size:16px">${md(st.doText)}</p>` + hintBlock(st) + hintButtons(st);
+        else h += `<div class="row"><button class="btn pri" id="b-ok">Next step &#9654;</button></div>`;
+      }
+    } else if (st.type === 'question') {
+      const vi = (qv[idx] || 0) % st.variants.length, v = st.variants[vi], ord = perm(v.choices.length, PN * 1000 + idx * 37 + vi * 7 + 3);
+      h += `<h3>${md(v.q)}</h3>`;
+      if (!qState) h += opts(v.choices, ord, () => '', true) + hintBlock({ hint: v.hint || st.hint, hint2: v.hint2 }) +
+        `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+      else if (qState === 'wrong') h += opts(v.choices, ord, i => i === qPick ? 'wrong' : '') +
+        `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
+      else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
+        `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
+    lastLive = ''; liveLine();
+  }
+  let predPick = null, qPick = null;
+  function perm(n, seed) { const r = rng(seed), a = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
+  function choose(i) {
+    const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'predict') {
+      if (qState) return; predPick = i; qState = 'answered';
+      if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+      if (!st.goal) done.add(idx);
+      renderStep(); return;
+    }
+    if (st.type !== 'question' || qState) return;
+    const v = st.variants[(qv[idx] || 0) % st.variants.length]; qPick = i;
+    if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
+    else qState = 'wrong';
+    renderStep();
+  }
+  function newQuestion() {
+    if (challenge) { return nextChallenge(); }
+    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
+    L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
+  }
+  function hint() {
+    if (challenge) { hintLvl++; renderFree(); return; }
+    const st = steps[idx]; hintLvl = Math.min(2, hintLvl + 1); L('hint', { step: idx, lvl: hintLvl });
+    renderStep();
+    if (hintLvl >= 2) spot(st.hintSpot ? [].concat(st.hintSpot) : (st.spot ? [].concat(st.spot) : []), st.controls || []);
+  }
+  function showMe() {
+    if (challenge) { challenge.shown = true; renderFree(); return; }
+    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; renderStep(); return; }
+    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
+  }
+
+  /* ---------------------------------------------------------------- free play */
+  const allKeys = (C.freeControls || Object.keys(S.controls)).filter(k => S.controls[k] && !(S.controls[k].lessonOnly));
+  function enterFree() { stopVoice(); free = true; challenge = null; spot([], []); releaseAll(); window.sim.clear(); L('free'); renderFree(); speak('free'); }
+  function renderFree() {
+    card.className = 'card step free';
+    let h = stepHead('FREE PLAY · EVERYTHING UNLOCKED');
+    if (!challenge) {
+      h += `<p>${md(C.free)}</p><div class="row">${S.challenge ? '<button class="btn pri" id="b-chal">&#127919; Give me a challenge</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button>${PN < N ? `<button class="btn" id="b-np">Next page &#9654;</button>` : ''}</div>`;
+    } else if (challenge.game) {      // a job to do on the simulator: goal(state, out, seconds) -> {live, done, ok, msg}
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3><div class="note" id="glive">${md(c.live || '')}</div>`;
+      if (c.result) h += `<div class="${c.result.ok ? 'good' : 'bad'}"><b>${c.result.ok ? 'Done.' : 'Not this time.'}</b> ${md(c.result.msg)}</div>`;
+      h += `<div class="row">${c.result ? '<button class="btn pri" id="b-newq">Try another &#9654;</button>' : ''}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    } else {
+      const c = challenge;
+      h += `<h3 style="font-size:17px;margin:4px 0 8px">${md(c.q)}</h3>`;
+      const ord = c.ord || (c.ord = perm(c.choices.length, chalN * 13 + 5));
+      if (c.state === 'wrong') h += opts(c.choices, ord, i => i === c.pick ? 'wrong' : '') + `<div class="bad"><b>Not quite.</b> ${md(c.choices[c.pick].why)}</div>`;
+      else if (c.state === 'right' || c.shown) h += opts(c.choices, ord, i => i === c.answer ? 'right' : '') + `<div class="good"><b>${c.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(c.explain)}</div>`;
+      else h += opts(c.choices, ord, () => '', true) + (hintLvl ? `<div class="hint">${md(c.hint)}</div>` : '');
+      h += `<div class="row">${c.state === 'wrong' || c.state === 'right' || c.shown ? '<button class="btn pri" id="b-newq">Try a new question &#9654;</button>' : '<button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button>'}<button class="btn" id="b-reset">&#8634; Reset</button></div>`;
+    }
+    card.innerHTML = h; wireHead();
+    renderTray(challenge ? (challenge.game ? (challenge.controls || allKeys) : []) : allKeys);
+    const ch = $('#b-chal'); if (ch) ch.onclick = () => nextChallenge();
+    const rs = $('#b-reset'); if (rs) rs.onclick = () => reset();
+    const np = $('#b-np'); if (np) np.onclick = () => go(1);
+    const nq = $('#b-newq'); if (nq) nq.onclick = () => nextChallenge();
+    const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
+    const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
+    card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => { const c = challenge; c.pick = +b.dataset.i; c.state = c.pick === c.answer ? 'right' : 'wrong'; L('challenge', { right: c.state === 'right' }); renderFree(); });
+  }
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function nextChallenge() {
+    chalN++; hintLvl = 0;
+    const c = S.challenge(rng(PN * 1000 + chalN * 7919 + (Q.get('seed') | 0)), chalN);
+    if (c.setup) set(c.setup, 0);
+    challenge = Object.assign({ state: null, pick: null }, c); free = true; L('challenge', { n: chalN }); renderFree();
+  }
+  function reset() { tweens = []; held.clear(); S.reset && S.reset(); state = Object.assign({}, S.defaults); out = S.calc(state); S.apply(state, null, true); dirty = true; challenge = null; L('reset'); renderFree(); }
+
+  function finish() {
+    finished = true; stopVoice(); L('finish'); if (host && host.finish) host.finish();
+    card.className = 'card step free';
+    card.innerHTML = `<div class="sh"><b>LESSON COMPLETE</b></div><p>${md(C.lesson.done)}</p><div class="row">${C.lesson.sheet ? `<a class="btn pri" href="${C.lesson.sheet}" target="_blank" rel="noopener">&#128196; Summary sheet (PDF)</a>` : ''}<button class="btn" id="b-again">Back to free play</button></div>`;
+    tray.innerHTML = ''; $('#b-again').onclick = () => enterFree();
+    speak('done');
+  }
+
+  /* ---------------------------------------------------------------- loop */
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+    if (!CAPTURE) advance(dt);
+    requestAnimationFrame(frame);
+  }
+  S.apply(state, null, true); render();
+  enter(0, { quiet: true, noSetup: STAGE_ONLY });     // a video page starts from the page defaults: the script sets it up
+  if (!CAPTURE) {
+    requestAnimationFrame(frame);
+    if ((PN === 1 && firstVisit) || host && host.fresh) showStart();
+    else { voiceOK = true; speak('what', curKey()); }      // later pages: autoplay; if the browser refuses, play() shows the Start tap
+  }
+  if (CAPTURE) { voiceOK = false; }
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight' && e.altKey) go(1); if (e.key === 'ArrowLeft' && e.altKey) go(-1); });
+  window.sim.ready = true;
+
+  /* test / run-through API */
+  window.lessonPage = {
+    log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
+      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+  };
+}
+})();
+</script>
+<script>(function(){const C={"n":2,"file":"02-third-angle-sheet.html","title":"Reading a third-angle drawing","scene":"projection","capture":"stage","start":{"mode":"sheet","angle":"third","part":"bracket","hidden":true,"hiView":"none","symbol":true,"read":"same"},"what":"The finished **drawing sheet** of the bracket, in **third-angle** projection. The title block in the bottom corner names the part, the scale and the projection, with the **ISO projection symbol**. The 3-D model on the right turns so you can match each view to the part.","steps":[{"type":"teach","text":"Find the **projection symbol** first, every time. Third angle: the cone shape (a trapezoid) is on the **left**, with its small end pointing at the two circles on the right.","callout":[{"id":"proj-symbol","text":"Third-angle symbol","pos":"left"}]},{"type":"do","text":"Point to the **top view**. Watch where the arrow on the model looks from.","controls":["hiView"],"goal":{"hiView":"top"},"solve":{"hiView":"top"},"hint":"Tap Top under Point to a view.","ok":"Looking straight down: the top view, drawn **above** the front view."},{"type":"do","text":"Now point to the **right side view**.","controls":["hiView"],"goal":{"hiView":"right"},"solve":{"hiView":"right"},"hint":"Tap Right side.","ok":"Looking from the right: drawn to the **right** of the front view, level with it."},{"type":"teach","setup":{"hiView":"front"},"text":"The **front view** is the main view. The drafter picks the side that shows the most shape with the fewest hidden lines. Here it is the bracket's face with the bore.","points":["Front: most shape, fewest hidden lines","Top and side: fill in the depth","Dashed lines: edges you cannot see from that side"]},{"type":"question","setup":{"hiView":"none"},"variants":[{"q":"On this sheet, the two bolt holes in the base show as **circles** in which view?","choices":[{"t":"The top view"},{"t":"The front view","why":"From the front you see the holes edge on: they show as dashed lines."},{"t":"The right side view","why":"From the side they are also hidden: dashed lines."},{"t":"None of them","why":"Looking straight down the hole, it is a circle."}],"answer":0,"explain":"The holes run up and down. Looking straight down them, in the top view, they are circles."},{"q":"In the front view the bolt holes in the base are drawn as dashed lines. Why?","choices":[{"t":"They are inside the part, out of sight from the front"},{"t":"They are optional holes","why":"Dashes mean hidden, not optional."},{"t":"They are drilled later","why":"Line types show what you can see, not when it is made."},{"t":"They are centre lines","why":"Centre lines are long and short dashes. These are short even dashes: hidden lines."}],"answer":0,"explain":"Short even dashes are **hidden lines**: edges behind the surface you are looking at."},{"q":"Which view shows the **depth** of the base (front to back) and the **height** of the upright?","choices":[{"t":"The right side view"},{"t":"The front view","why":"The front view shows width and height, not depth."},{"t":"The top view","why":"The top view shows width and depth, not height."},{"t":"No view shows both","why":"The side view shows depth and height together."}],"answer":0,"explain":"The right side view shows height and depth."}]}],"free":"Point to each view and match it on the turning model. Try the other parts.","freeControls":["hiView","part","hidden"],"lesson":{"id":"projection","title":"Orthographic projection: first and third angle","episode":"061-mechanical-drawings","done":"You finished **Orthographic projection: first and third angle**. Print the summary sheet. On the job, check the projection symbol in the title block before you read any view.","sheet":"projection-summary.pdf","summary":{"title":"Orthographic projection: first and third angle","pic":{"page":1,"state":{"mode":"box","angle":"third","part":"bracket","hidden":true,"unfold":0.45,"spin":0}},"rules":["A multiview drawing shows a part as flat views, each looking straight at one side. Front, top and right side are the usual three.","Glass box: the part sits in a box of glass. Each view is the picture on one face. Unfold the box and the faces become the layout of the drawing.","THIRD angle (Canada, the U.S.): you look through the glass at the part. Top view ABOVE the front view; right side view to the RIGHT.","FIRST angle (Europe, most of Asia): the part sits between you and the plane. Top view BELOW the front view; right side view on the LEFT.","The ISO 5456-2 symbol in the title block tells you which. Third angle: the cone (trapezoid) on the left, its small end pointing at the circles. First angle: circles on the left.","Views line up: the top view shares widths with the front view; the side view shares heights with it; top and side share depth.","Read a first-angle drawing as third angle and you make a mirror image of the part. Never guess: check the symbol."]},"pages":[{"file":"01-glass-box.html","title":"The glass box"},{"file":"02-third-angle-sheet.html","title":"Reading a third-angle drawing"},{"file":"03-first-angle.html","title":"First-angle projection"},{"file":"04-which-angle.html","title":"Which angle is it?"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p2-what-d588e85f.mp3","s0":"p2-s0-3b649c8e.mp3","s1":"p2-s1-76e08b75.mp3","s2":"p2-s2-73591248.mp3","s3":"p2-s3-732f7e67.mp3","s4v0":"p2-s4v0-56b3bbe6.mp3","s4v1":"p2-s4v1-78b4b7f8.mp3","s4v2":"p2-s4v2-6e204fa9.mp3","free":"p2-free-ec1303c3.mp3"},"audioBase":"audio/"};CFShell.start(C, DrawAdapter(C, window.LESSON_CODE["projection"][C.n] || {}));})();</script>
+</body></html>
