@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -1115,6 +1125,124 @@ M.defs = () => `<defs>
 <linearGradient id="mBronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9b77a"/><stop offset=".5" stop-color="#a8823f"/><stop offset="1" stop-color="#6e5322"/></linearGradient>
 </defs>`;
 
+/* Video callouts placed clear of the drawing's own words (render review 2026-11-17: shell labels sat on top of part
+   labels, formula lines and dial graduations in 039-048). Capture mode only (?capture=1); the interactive lessons keep
+   the shell's callout. A dashed box goes round the target; the label (a dark tag, orange text) is put on the asked
+   side first, sliding along that side and then trying the others, and the spot with the least overlap wins:
+   any <text> in the drawing counts 80x more than other art, and it never covers the target, the readout bar or leaves the
+   stage. A leader line joins tag and box when they are apart. Call from the scene's draw(); it patches once.
+   mapId(id) may point a callout id at another element (levels/shims SPOTMAP). */
+M.autoCallouts = function (svg, mapId) {
+  if (!/[?&]capture=1/.test(location.search) || !window.sim) return;
+  if (window.sim._auto) return window.sim._autoFollow();
+  const NS = M.NS, ACC = A.ACC, g = document.createElementNS(NS, 'g');
+  g.id = 'acallout'; g.setAttribute('pointer-events', 'none'); svg.appendChild(g);
+  const SKIP = '#acallout, #calloutg, #mcallout, defs, clipPath, mask, pattern, marker';
+  const toUser = () => { const m = svg.getScreenCTM(); return m ? m.inverse() : null; };
+  const boxOf = (el, inv) => {   // client rect -> [x0, y0, x1, y1] in svg units
+    const r = el.getBoundingClientRect(); if (!r.width && !r.height) return null;
+    const P = [[r.left, r.top], [r.right, r.bottom]].map(([x, y]) => [inv.a * x + inv.c * y + inv.e, inv.b * x + inv.d * y + inv.f]);
+    return [Math.min(P[0][0], P[1][0]), Math.min(P[0][1], P[1][1]), Math.max(P[0][0], P[1][0]), Math.max(P[0][1], P[1][1])];
+  };
+  // what is really visible: the box cut down by any clip-path on the way up (the zoom windows clip their drawings)
+  const clipped = (el, b) => {
+    if (!b) return b; const r = svg.getCTM && svg.getCTM(); if (!r) return b;
+    for (let a = el; a && a !== svg && a.getAttribute; a = a.parentNode) {
+      const m = /url\(#([^)]+)\)/.exec(a.getAttribute('clip-path') || ''); if (!m) continue;
+      const cp = svg.querySelector('#' + CSS.escape(m[1])), c = cp && cp.firstElementChild, am = a.getCTM && a.getCTM(); if (!c || !am || !c.getBBox) continue;
+      const cb = c.getBBox(), mm = r.inverse().multiply(am), P = [[cb.x, cb.y], [cb.x + cb.width, cb.y + cb.height]].map(([x, y]) => [mm.a * x + mm.c * y + mm.e, mm.b * x + mm.d * y + mm.f]);
+      b = [Math.max(b[0], Math.min(P[0][0], P[1][0])), Math.max(b[1], Math.min(P[0][1], P[1][1])), Math.min(b[2], Math.max(P[0][0], P[1][0])), Math.min(b[3], Math.max(P[0][1], P[1][1]))];
+      if (b[2] <= b[0] || b[3] <= b[1]) return null;
+    }
+    return b;
+  };
+  const ov = (a, b) => Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+  const orig = window.sim.callout, origClear = window.sim.clear;
+  let cur = null, tick = 0;   // the callout on screen: re-placed when its target moves or grows (a card gaining a line)
+  window.sim.callout = function (id, text, o = {}) { cur = null; place(id, text, o); };
+  window.sim._autoFollow = () => {
+    if (!cur || cur.ring) return; const el = svg.querySelector('#' + CSS.escape(mapId ? mapId(cur.id) : cur.id)), inv = toUser(), b = el && inv && clipped(el, boxOf(el, inv));
+    if (!b) { if (inv) { g.innerHTML = ''; cur = null; } return; }   // the target left the picture (the page changed view): so does its callout
+    // every 10th draw: a word that moved under the tag since it was placed (a label riding a tweened part) moves the tag
+    if (cur.r && ++tick % 10 === 0) { let hitW = false;
+      svg.querySelectorAll('text').forEach(t => { if (hitW || t.closest(SKIP)) return; const w = clipped(t, boxOf(t, inv)); if (w && ov(w, cur.r) > 0) hitW = true; });
+      if (hitW) return place(cur.id, cur.text, Object.assign({}, cur.o, { pos: cur.side || cur.o.pos })); }
+    if (b.some((v, i) => Math.abs(v - cur.tb[i]) > 6)) place(cur.id, cur.text, Object.assign({}, cur.o, { pos: cur.side || cur.o.pos }));
+  };
+  function place(id, text, o) {
+    const inv = toUser(), vb = svg.viewBox.baseVal, sg = svg.querySelector('#calloutg');
+    if (!inv || !vb || !vb.width) { g.innerHTML = ''; return orig.call(window.sim, id, text, o); }
+    const el = svg.querySelector('#' + CSS.escape(mapId ? mapId(id) : id));
+    let tb = el && !el.closest(SKIP) ? clipped(el, boxOf(el, inv)) : null;
+    if (!tb) {   // not a drawing element (a readout id such as ro-fit): the scene's spot() finds the place; use its ring
+      g.innerHTML = ''; cur = null; orig.call(window.sim, id, text, o);
+      const c = sg && sg.querySelector('circle'); if (!c) return;
+      const cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy'), r = Math.max(14, +c.getAttribute('r') - 10);
+      tb = [cx - r, cy - r, cx + r, cy + r];
+    }
+    cur = { id, text, o, tb, ring: !el || !!el.closest(SKIP) };
+    if (sg) sg.innerHTML = '';
+    svg.appendChild(g);
+    const P = 5, T = [Math.max(vb.x + 4, tb[0] - P), Math.max(vb.y + 4, tb[1] - P), Math.min(vb.x + vb.width - 4, tb[2] + P), Math.min(vb.y + vb.height - 4, tb[3] + P)];   // kept on the stage
+    g.innerHTML = `<text class="la" x="0" y="0">${text}</text>`;
+    const lb = g.firstChild.getBBox(), w = lb.width + 24, h = lb.height + 12;
+    // obstacles: words (hard-ish), art (soft), html overlays on the stage (hard)
+    const words = [], art = [], hard = [], frameA = vb.width * vb.height;
+    svg.querySelectorAll('text').forEach(t => { if (t.closest(SKIP)) return; const b = clipped(t, boxOf(t, inv)); if (b) words.push([b[0] - 4, b[1] - 4, b[2] + 4, b[3] + 4]); });
+    svg.querySelectorAll('path, line, circle, ellipse, rect, polygon, polyline, image').forEach(e => {
+      if (e.closest(SKIP)) return; const b = boxOf(e, inv); if (b && (b[2] - b[0]) * (b[3] - b[1]) < frameA * 0.2) art.push(b); });
+    document.querySelectorAll('.read, .caption.on').forEach(e => { const b = boxOf(e, inv); if (b) hard.push(b); });
+    // a word the box only clips (a neighbouring title) is put outside the box, not struck through by its dashes
+    for (const b of words) {
+      const a = (b[2] - b[0]) * (b[3] - b[1]), inside = ov(b, T);
+      if (!inside || inside > a * 0.5) continue;
+      const mv = [b[3] - T[1], T[3] - b[1], b[2] - T[0], T[2] - b[0]], k = mv.indexOf(Math.min(...mv)), lim = k < 2 ? (T[3] - T[1]) * 0.25 : (T[2] - T[0]) * 0.25;
+      if (mv[k] > lim) continue;
+      if (k === 0) T[1] = b[3] + 2; else if (k === 1) T[3] = b[1] - 2; else if (k === 2) T[0] = b[2] + 2; else T[2] = b[0] - 2;
+    }
+    const F = M.f, ring = `<rect x="${F(T[0])}" y="${F(T[1])}" width="${F(T[2] - T[0])}" height="${F(T[3] - T[1])}" rx="10" fill="none" stroke="#1F1D1A" stroke-width="8" opacity=".55"/>` +
+      `<rect x="${F(T[0])}" y="${F(T[1])}" width="${F(T[2] - T[0])}" height="${F(T[3] - T[1])}" rx="10" fill="none" stroke="${ACC}" stroke-width="4" stroke-dasharray="10 7"/>`;
+    if (!String(text).trim()) { g.innerHTML = ring; return; }   // a highlight with no words: just the box
+    const cx = (T[0] + T[2]) / 2, cy = (T[1] + T[3]) / 2, G = 14;
+    const sides = [o.pos || 'right'].concat(['right', 'left', 'top', 'bottom'].filter(p => p !== (o.pos || 'right')));
+    const cand = [];
+    sides.forEach((p, si) => {
+      for (const k of [0, 1, 2]) for (const d of [0, -45, 45, -90, 90, -140, 140, -200, 200, -270, 270, -350, 350]) {
+        let x, y;
+        if (p === 'right') { x = T[2] + G + k * 50; y = cy - h / 2 + d; }
+        else if (p === 'left') { x = T[0] - G - w - k * 50; y = cy - h / 2 + d; }
+        else if (p === 'top') { x = cx - w / 2 + d * 1.6; y = T[1] - G - h - k * 40; }
+        else { x = cx - w / 2 + d * 1.6; y = T[3] + G + k * 40; }
+        cand.push({ p, r: [x, y, x + w, y + h], pen: si * 0.3 + k * 0.15 + Math.abs(d) * 0.003 });
+      }
+    });
+    const M0 = 12, L = [vb.x + M0, vb.y + M0, vb.x + vb.width - M0, vb.y + vb.height - M0], area = w * h;
+    let best = null;
+    for (const c of cand) {
+      const r = c.r;
+      if (r[0] < L[0] || r[1] < L[1] || r[2] > L[2] || r[3] > L[3] || ov(r, T) > 0 || hard.some(b => ov(r, b) > 0)) continue;
+      let sw = 0, sa = 0; for (const b of words) sw += ov(r, b); for (const b of art) sa += Math.min(area, ov(r, b));
+      // the leader line should not run through words either: sample it
+      const nx = M.clamp((r[0] + r[2]) / 2, T[0], T[2]), ny = M.clamp((r[1] + r[3]) / 2, T[1], T[3]), lx = M.clamp(nx, r[0], r[2]), ly = M.clamp(ny, r[1], r[3]);
+      let cross = 0; if (Math.hypot(lx - nx, ly - ny) > G + 6) for (let k = 1; k < 12; k++) { const px = nx + (lx - nx) * k / 12, py = ny + (ly - ny) * k / 12;
+        if (words.some(b => px > b[0] && px < b[2] && py > b[1] && py < b[3])) cross++; }
+      const sc = 200 * sw / area + 2.5 * sa / area + 0.6 * cross + c.pen;
+      if (!best || sc < best.sc) best = { r, sc, p: c.p };
+    }
+    if (!best) { g.innerHTML = ''; cur = null; return orig.call(window.sim, id, text, o); }
+    const r = best.r; cur.side = best.p; cur.r = r;
+    // leader: nearest points of the two boxes
+    const nx = M.clamp((r[0] + r[2]) / 2, T[0], T[2]), ny = M.clamp((r[1] + r[3]) / 2, T[1], T[3]);
+    const lx = M.clamp(nx, r[0], r[2]), ly = M.clamp(ny, r[1], r[3]);
+    const lead = Math.hypot(lx - nx, ly - ny) > G + 6 ? `<line x1="${F(nx)}" y1="${F(ny)}" x2="${F(lx)}" y2="${F(ly)}" stroke="#1F1D1A" stroke-width="7" opacity=".55"/><line x1="${F(nx)}" y1="${F(ny)}" x2="${F(lx)}" y2="${F(ly)}" stroke="${ACC}" stroke-width="3"/>` : '';
+    g.innerHTML = ring + lead +
+      `<rect x="${F(r[0])}" y="${F(r[1])}" width="${F(w)}" height="${F(h)}" rx="8" fill="#1F1D1A" fill-opacity=".94" stroke="${ACC}" stroke-width="2"/>` +
+      `<text class="la" x="${F(r[0] + w / 2)}" y="${F(r[1] + h / 2 - lb.y - lb.height / 2)}" text-anchor="middle">${text}</text>`;
+  }
+  window.sim.clear = function () { g.innerHTML = ''; cur = null; return origClear.call(window.sim); };
+  window.sim._auto = true;
+};
+
 root.MX = M;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
@@ -1250,6 +1378,202 @@ MIC.read = (units, rs, pos, vern) => {
 root.MIC = MIC;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
+<script>/* CrewForge measuring kit: DEPTH MICROMETER (2026-11-18: "they read backwards and its a common exam question").
+   Standalone (no CFArt / MX): used by the Micrometer lesson page 7 (simulators/measuring/micrometer/src/p7.js) and by the
+   measuring-tools mic mode (mic_type 'depth', inlined into micrometer.html by simulators/measuring-tools/build.py).
+
+   THE TOOL (Starrett 749.1 user guide; Mitutoyo 129 series user's manual 99MAA024A; see NOTES.md and docs/reference/):
+     a flat base sits on the work; the micrometer head stands up from it; a measuring rod runs down through the head and
+     out of the base. Turning the thimble screws the head DOWN toward the base and pushes the rod further out.
+     Interchangeable rods: 0-1, 1-2, 2-3 in (metric 0-25, 25-50, 50-75 mm). At zero a 0-1 rod is flush with the base,
+     a 1-2 rod already sticks out 1 in: ADD the rod's start to the head reading (Starrett 749.1 §3.2).
+   WHY IT READS BACKWARDS: the thimble covers the sleeve as the rod goes down, so the covered length IS the rod travel.
+     The reading is what is HIDDEN, not what is showing. The sleeve is numbered the other way from an outside micrometer
+     (Starrett: "The Depth Micrometer scale reads from right to left. The measurement is made by comparing what you can
+     see with what you cannot"): drawn head-on with the thimble on the right (as the makers draw it), the sleeve reads
+     0 9 8 7 ... from the base end toward the thimble, whole mm above the index and half mm below (Mitutoyo 129 figure,
+     25 20 ... reading 17.87 mm). Thimble numbers grow DOWNWARD in that view (Starrett fig. 13B: 21 22 23 24 0 1 2 going
+     down; Mitutoyo 30 35 40 45 going down): the opposite way from the outside mic (kit/mic.js, numbers grow upward).
+     Reading = the last number the thimble has covered + the lines covered past it + the thimble line on the index.
+   THE CLASSIC MISREAD: read like an outside mic (what is SHOWING), you get what is left: span - reading
+     (0.750 for 0.250 on a 0-1 rod). Both scales are mirrored, so the whole outside-mic reading is exactly the complement.
+   Head coordinates (inches): x = 0 at the top of the base hub, along the head axis away from the base; the sleeve zero line
+     is at xz = 0.14 + span; the thimble edge is at xz - head reading. */
+(function (root) {
+'use strict';
+const f = v => (Math.round(v * 100) / 100).toString();
+const DM = {};
+const IN_PER_MM = 1 / 25.4;
+DM.U = units => units === 'mm'
+  ? { u: 'mm', pitch: 0.5, divs: 50, lc: 0.01, span: 25, dp: 2, toIn: IN_PER_MM, major: 1 }
+  : { u: 'in', pitch: 0.025, divs: 25, lc: 0.001, span: 1, dp: 3, toIn: 1, major: 0.1 };
+/* EXAMPLE sizes (direction is the teaching point; sizes illustrate): a chip under one end of the base raises the rod
+   end by about half its thickness; a base that is not held down is lifted by the rod as the ratchet turns. */
+DM.CHIP = { in: 0.008, mm: 0.2 };
+DM.LIFT = { in: 0.003, mm: 0.08 };
+DM.G = { hub: 0.3, base: 0.5, baseL: 4.0, xz0: 0.14, rSleeve: 0.24, rThim: 0.36, rEdge: 0.31, thimL: 1.0, ratL: 0.45, rRat: 0.25, rod: 0.16 };
+
+/* the head reading split the way you read it. h = what the scales show (display units, 0 ... span) */
+DM.read = (units, h) => {
+  const U = DM.U(units), s = Math.max(0, Math.min(U.span, h));
+  const n = Math.floor(s / U.lc + 1e-6), perPitch = Math.round(U.pitch / U.lc);
+  const turns = Math.floor(n / perPitch), thDiv = n - turns * perPitch;
+  const sleeve = turns * U.pitch, majorN = Math.floor(sleeve / U.major + 1e-6), minor = sleeve - majorN * U.major;
+  const reading = sleeve + thDiv * U.lc;
+  return { U, s, turns, sleeve, majorN, minor, minorLines: Math.round(minor / U.pitch), thDiv, thVal: thDiv * U.lc, reading,
+    comp: U.span - reading, dp: U.dp };
+};
+
+/* the whole model, shared by both simulators. State (display units):
+     units 'in'|'mm', rod 0|1|2 (rod start = rod x span), pos = where the thimble is turned to (head travel, 0 ... span),
+     work 'slot'|'step'|'plate'|'blocks', depth = true depth of the slot or step below the top face,
+     seat 'held'|'lifted'|'chip', zero = zero error on the scales, misread 0|'outside'|'norod' */
+DM.calc = s => {
+  const U = DM.U(s.units), rs = (s.rod || 0) * U.span;
+  const work = s.work || 'slot', tru = work === 'plate' ? 0 : work === 'blocks' ? rs : s.depth;
+  const chip = s.seat === 'chip' ? DM.CHIP[U.u] / 2 : 0;
+  const need0 = tru + chip - rs;                     // head travel for the rod to touch, base down (or on the chip)
+  const tooLong = need0 < -1e-9, tooShort = need0 > U.span + 1e-9;
+  const contact = !tooLong && !tooShort && s.pos >= need0 - 1e-9;
+  const lift = contact && s.seat === 'lifted' ? DM.LIFT[U.u] : 0;
+  const head = tooLong ? 0 : contact ? Math.min(U.span, need0 + lift) : Math.max(0, Math.min(U.span, s.pos));
+  const rise = tooLong ? rs - tru : chip + lift;      // how far the base (at the rod) stands above the top face
+  const zeroErr = s.zero || 0, scale = Math.max(0, Math.min(U.span, head + zeroErr));
+  const r = DM.read(s.units, scale);
+  const depth = rs + r.reading;
+  const yours = s.misread === 'outside' ? rs + r.comp : s.misread === 'norod' ? r.reading : depth;
+  return Object.assign({}, r, { u: U.u, rs, work, tru, head, ext: rs + head, rise, chip, lift, tooLong, tooShort, contact,
+    driving: contact && s.pos > need0 + 1e-9, zeroErr, scale, depth, error: depth - tru, yours, corrected: depth - zeroErr,
+    turnsF: head / U.pitch });
+};
+
+DM.defs = () => `<defs>
+<linearGradient id="dmSatin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c949a"/><stop offset=".3" stop-color="#dde2e6"/><stop offset=".62" stop-color="#c0c7cc"/><stop offset="1" stop-color="#7c848a"/></linearGradient>
+<linearGradient id="dmSatinV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8c949a"/><stop offset=".3" stop-color="#dde2e6"/><stop offset=".62" stop-color="#c0c7cc"/><stop offset="1" stop-color="#7c848a"/></linearGradient>
+<linearGradient id="dmChromeV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7f888f"/><stop offset=".22" stop-color="#eef1f3"/><stop offset=".5" stop-color="#c3cad0"/><stop offset=".82" stop-color="#737c83"/><stop offset="1" stop-color="#9aa2a8"/></linearGradient>
+<linearGradient id="dmChrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7f888f"/><stop offset=".22" stop-color="#eef1f3"/><stop offset=".5" stop-color="#c3cad0"/><stop offset=".82" stop-color="#737c83"/><stop offset="1" stop-color="#9aa2a8"/></linearGradient>
+<linearGradient id="dmBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d7dce0"/><stop offset=".18" stop-color="#aab2b8"/><stop offset="1" stop-color="#6d757b"/></linearGradient>
+<linearGradient id="dmBlock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a9196"/><stop offset=".5" stop-color="#666d72"/><stop offset="1" stop-color="#4a5055"/></linearGradient>
+<linearGradient id="dmGauge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9aa2a8"/><stop offset=".4" stop-color="#eef1f3"/><stop offset="1" stop-color="#8c949a"/></linearGradient>
+</defs>`;
+
+/* the head drawn along +x (thimble to the right, as the makers draw it to be read). (X, Y) = top of the base hub on
+   the axis, P = px per inch, h = scale reading (display units), o: {units, nums, id, numCls, ratchet (turns), clipX} */
+DM.head = (X, Y, P, h, o = {}) => {
+  const G = DM.G, U = DM.U(o.units), spanIn = U.span * U.toIn, xz = G.xz0 + spanIn, x = v => X + v * P, y = v => Y + v * P;
+  const edge = x(xz - h * U.toIn), lw = Math.max(1, P * 0.006), fs = P * 0.072, id = o.id || 'dm', ncl = o.numCls || '';
+  const turns = h / U.pitch;
+  let s = `<g id="${id}-head">`;
+  // sleeve (satin chrome), index (reading) line from the hub to the thimble edge
+  s += `<rect id="${id}-sleeve" x="${f(x(0))}" y="${f(y(-G.rSleeve))}" width="${f(Math.max(0, edge - x(0) + 0.06 * P))}" height="${f(2 * G.rSleeve * P)}" fill="url(#dmSatin)" stroke="#5b6369" stroke-width="1"/>`;
+  s += `<line id="${id}-index" x1="${f(x(0.03))}" y1="${f(Y)}" x2="${f(edge)}" y2="${f(Y)}" stroke="#1d1f21" stroke-width="${f(lw)}"/>`;
+  // graduations: value v sits at x = xz - v; only the ones the thimble has not covered (v >= h) are drawn
+  const n = Math.round(U.span / U.pitch);
+  for (let j = 0; j <= n; j++) {
+    const v = j * U.pitch, xx = x(xz - v * U.toIn); if (xx > edge + 0.5) continue;
+    if (o.units === 'mm') {
+      const whole = j % 2 === 0, mm = j / 2, five = whole && mm % 5 === 0;
+      if (whole) s += `<line x1="${f(xx)}" y1="${f(Y)}" x2="${f(xx)}" y2="${f(Y - (five ? 0.1 : 0.065) * P)}" stroke="#1d1f21" stroke-width="${f(lw)}"/>`;
+      else s += `<line x1="${f(xx)}" y1="${f(Y)}" x2="${f(xx)}" y2="${f(Y + 0.065 * P)}" stroke="#1d1f21" stroke-width="${f(lw)}"/>`;
+      if (five && o.nums) s += `<text x="${f(xx)}" y="${f(Y - 0.12 * P)}" text-anchor="middle" class="${ncl}" style="font:700 ${f(fs)}px Inter,Arial,sans-serif;fill:#1d1f21">${mm}</text>`;
+    } else {
+      const big = j % 4 === 0;
+      s += `<line x1="${f(xx)}" y1="${f(Y)}" x2="${f(xx)}" y2="${f(Y - (big ? 0.1 : 0.065) * P)}" stroke="#1d1f21" stroke-width="${f(lw)}"/>`;
+      if (big && o.nums) s += `<text x="${f(xx)}" y="${f(Y - 0.12 * P)}" text-anchor="middle" class="${ncl}" style="font:700 ${f(fs)}px Inter,Arial,sans-serif;fill:#1d1f21">${(j / 4) % 10}</text>`;
+    }
+  }
+  // thimble: graduated bevel at the edge, plain body, knurl
+  const t0 = edge, t0b = edge + 0.07 * P, t1 = edge + G.thimL * P;
+  s += `<g id="${id}-thimble">`;
+  s += `<path d="M${f(t0)} ${f(y(-G.rEdge))} L${f(t0b)} ${f(y(-G.rThim))} L${f(t1)} ${f(y(-G.rThim))} L${f(t1)} ${f(y(G.rThim))} L${f(t0b)} ${f(y(G.rThim))} L${f(t0)} ${f(y(G.rEdge))} Z" fill="url(#dmSatin)" stroke="#4d555b" stroke-width="1.2"/>`;
+  const k0 = edge + 0.55 * G.thimL * P;
+  for (let i = 0; i < 36; i++) { const th = ((i / 36 + turns) % 1) * 2 * Math.PI; if (Math.cos(th) < 0.05) continue; const yy = Y - G.rThim * P * Math.sin(th);
+    s += `<line x1="${f(k0)}" y1="${f(yy)}" x2="${f(t1 - 0.03 * P)}" y2="${f(yy)}" stroke="#6e767c" stroke-width="${f(Math.max(0.8, P * 0.004))}" opacity="${f(0.25 + 0.5 * Math.cos(th))}"/>`; }
+  // graduations on the bevel. Division i sits at theta = (i - d) * 360 / N and y = Y + R sin(theta): numbers grow
+  // DOWNWARD (reversed from the outside mic). As the reading grows the front of the thimble rolls up past the index.
+  const N = U.divs, dpos = ((turns % 1) + 1) % 1 * N;
+  for (let i = -N; i <= 2 * N; i++) {
+    const th = (i - dpos) * 2 * Math.PI / N; if (Math.abs(th) > Math.PI / 2 - 0.05) continue;
+    const yy = Y + G.rEdge * P * Math.sin(th), nn = ((i % N) + N) % N, five = nn % 5 === 0;
+    const L = (five ? 0.13 : 0.08) * P, c = Math.cos(th);
+    s += `<line x1="${f(t0 + 0.01 * P)}" y1="${f(yy)}" x2="${f(t0b + L)}" y2="${f(yy)}" stroke="#1d1f21" stroke-width="${f(lw * Math.max(0.5, c))}" opacity="${f(Math.max(0.15, c))}"/>`;
+    if (five && o.nums && c > 0.7) { const fz = fs * c; s += `<text x="${f(t0b + L + 0.02 * P)}" y="${f(yy + fz * 0.36)}" class="${ncl}" style="font:700 ${f(fz)}px Inter,Arial,sans-serif;fill:#1d1f21">${nn}</text>`; }
+  }
+  s += `</g>`;
+  // ratchet stop (it also holds the rod in: Starrett 749.1 §3.3), then the rod's end
+  const r0 = t1, r1 = t1 + G.ratL * P, rt = o.ratchet || 0;
+  s += `<g id="${id}-ratchet"><rect x="${f(r0)}" y="${f(y(-0.16))}" width="${f(0.08 * P)}" height="${f(0.32 * P)}" fill="#7d868c"/>`;
+  s += `<rect x="${f(r0 + 0.08 * P)}" y="${f(y(-G.rRat))}" width="${f(r1 - r0 - 0.08 * P)}" height="${f(2 * G.rRat * P)}" rx="${f(0.05 * P)}" fill="url(#dmChrome)" stroke="#4d555b" stroke-width="1.2"/>`;
+  for (let i = 0; i < 24; i++) { const th = ((i / 24 + turns + rt) % 1) * 2 * Math.PI; if (Math.cos(th) < 0.05) continue; const yy = Y - G.rRat * P * Math.sin(th);
+    s += `<line x1="${f(r0 + 0.12 * P)}" y1="${f(yy)}" x2="${f(r1 - 0.04 * P)}" y2="${f(yy)}" stroke="#5e666c" stroke-width="${f(Math.max(0.8, P * 0.004))}" opacity="${f(0.3 + 0.5 * Math.cos(th))}"/>`; }
+  s += `</g></g>`;
+  return { svg: s, edge, zeroX: x(xz), spanX: x(xz - spanIn), end: r1 };
+};
+
+/* the whole tool standing on the work, side elevation. cx = rod axis x, plateY = surface-plate top (px), P = px per
+   inch, c = DM.calc(state), s = state. o: {id, ratchet, swap (0..1 rod change: 0-.5 old rod out, .5-1 new rod in),
+   oldRod, liftK (0..1 base lift animation), nums, numCls, exag (lift drawn this many times bigger), ghost (misread depth)} */
+DM.tool = (cx, plateY, P, c, s, o = {}) => {
+  const G = DM.G, U = DM.U(s.units), id = o.id || 'dm', exag = o.exag || 20, toP = v => v * U.toIn * P;
+  const work = c.work, rsIn = c.rs * U.toIn;
+  let w = '', t = '';
+  // the work (drawn first) and what the base stands on
+  let topY = plateY;
+  if (work === 'slot' || work === 'step') {
+    const Hb = Math.max(c.tru * U.toIn + 0.6, 1.2), x0 = cx - 2.6 * P, x1 = cx + 2.6 * P, sw = 0.8 * P;
+    topY = plateY - Hb * P; const by = topY + toP(c.tru);
+    if (work === 'slot') w += `<path id="${id}-work" d="M${f(x0)} ${f(plateY)} L${f(x0)} ${f(topY)} L${f(cx - sw / 2)} ${f(topY)} L${f(cx - sw / 2)} ${f(by)} L${f(cx + sw / 2)} ${f(by)} L${f(cx + sw / 2)} ${f(topY)} L${f(x1)} ${f(topY)} L${f(x1)} ${f(plateY)} Z" fill="url(#dmBlock)" stroke="#2b3034" stroke-width="2"/>`;
+    else w += `<path id="${id}-work" d="M${f(x0)} ${f(plateY)} L${f(x0)} ${f(topY)} L${f(cx - 0.45 * P)} ${f(topY)} L${f(cx - 0.45 * P)} ${f(by)} L${f(x1)} ${f(by)} L${f(x1)} ${f(plateY)} Z" fill="url(#dmBlock)" stroke="#2b3034" stroke-width="2"/>`;
+    w += `<line x1="${f(x0 + 2)}" y1="${f(topY + 2)}" x2="${f(work === 'slot' ? cx - sw / 2 : cx - 0.45 * P)}" y2="${f(topY + 2)}" stroke="#c9d0d5" stroke-width="2" opacity=".7"/>`;
+    w += `<line id="${id}-bottom" x1="${f(work === 'slot' ? cx - sw / 2 : cx - 0.45 * P)}" y1="${f(by)}" x2="${f(work === 'slot' ? cx + sw / 2 : x1)}" y2="${f(by)}" stroke="#c9d0d5" stroke-width="3" opacity=".8"/>`;
+  } else if (work === 'blocks' && c.rs > 0) {
+    topY = plateY - rsIn * P;
+    for (const sg of [-1, 1]) { const bx = cx + sg * 1.55 * P - 0.25 * P;
+      w += `<g id="${id}-block${sg < 0 ? 'L' : 'R'}"><rect x="${f(bx)}" y="${f(topY)}" width="${f(0.5 * P)}" height="${f(rsIn * P)}" fill="url(#dmGauge)" stroke="#4d555b" stroke-width="1.5"/>` +
+        `<text x="${f(bx + 0.25 * P)}" y="${f(topY + rsIn * P / 2)}" text-anchor="middle" transform="rotate(-90 ${f(bx + 0.25 * P)} ${f(topY + rsIn * P / 2)})" class="${o.numCls || ''}" style="font:700 ${f(Math.max(12, 0.13 * P))}px Inter,Arial,sans-serif;fill:#2a2d30">${s.units === 'mm' ? c.rs + ' mm' : c.rs + '.000 in'}</text></g>`; }
+  }
+  // base: a chip under its left end tilts it (drawn exaggerated); a base not held down rises with the rod
+  const riseIn = (c.tooLong ? c.rise : c.chip + c.lift * (o.liftK == null ? 1 : o.liftK)) * U.toIn;
+  const riseV = c.tooLong ? riseIn * P : Math.min(40, riseIn * P * exag);
+  const tilt = s.seat === 'chip' && !c.tooLong ? Math.atan2(2 * riseV, G.baseL * P / 2 * 2) * 180 / Math.PI : 0;
+  const pivotX = cx + G.baseL / 2 * P, baseBot = topY - riseV;
+  let tool = `<g id="${id}-tool" transform="rotate(${f(-tilt)} ${f(pivotX)} ${f(topY)})">`;
+  const bL = cx - G.baseL / 2 * P, bR = cx + G.baseL / 2 * P, bT = baseBot - G.base * P, hubT = bT - G.hub * P;
+  // the rod: below the base, its tip ext below the base face; during a rod change it slides out of the head and back
+  const sw = o.swap == null ? 1 : o.swap, extIn = c.ext * U.toIn;
+  let rodShift = 0, rodExt = extIn;
+  if (sw < 1) { const oldExt = ((o.oldRod || 0) * U.span + c.head) * U.toIn; if (sw < 0.5) { rodExt = oldExt; rodShift = -(sw / 0.5) * (oldExt + 3.6) * P; } else { rodShift = -((1 - sw) / 0.5) * (extIn + 3.6) * P; } }
+  const tipY = baseBot + rodExt * P + rodShift, headLenIn = DM.G.xz0 + U.span * U.toIn - c.scale * U.toIn + G.thimL + G.ratL + 0.12;
+  const rodTop = hubT - headLenIn * P + rodShift;
+  tool += `<g id="${id}-rod"><rect x="${f(cx - G.rod / 2 * P)}" y="${f(Math.min(rodTop, tipY - 4))}" width="${f(G.rod * P)}" height="${f(Math.max(4, tipY - rodTop))}" fill="url(#dmChromeV)" stroke="#3b4247" stroke-width="1"/>`;
+  tool += `<rect x="${f(cx - G.rod / 2 * P)}" y="${f(tipY - 0.03 * P)}" width="${f(G.rod * P)}" height="${f(0.03 * P)}" fill="#4b4f53"/></g>`;
+  tool += `<g id="${id}-base"><path d="M${f(bL)} ${f(baseBot)} L${f(bR)} ${f(baseBot)} L${f(bR)} ${f(bT + 0.12 * P)} Q${f(bR)} ${f(bT)} ${f(bR - 0.12 * P)} ${f(bT)} L${f(bL + 0.12 * P)} ${f(bT)} Q${f(bL)} ${f(bT)} ${f(bL)} ${f(bT + 0.12 * P)} Z" fill="url(#dmBase)" stroke="#3b4247" stroke-width="2"/>`;
+  tool += `<rect x="${f(cx - 0.42 * P)}" y="${f(hubT)}" width="${f(0.84 * P)}" height="${f(G.hub * P + 1)}" rx="${f(0.04 * P)}" fill="url(#dmChromeV)" stroke="#3b4247" stroke-width="1.5"/>`;
+  tool += `<line x1="${f(bL + 0.1 * P)}" y1="${f(baseBot - 1.5)}" x2="${f(bR - 0.1 * P)}" y2="${f(baseBot - 1.5)}" stroke="#eef1f3" stroke-width="2" opacity=".8"/></g>`;
+  // spindle lock on the hub
+  tool += `<g id="${id}-lock"><rect x="${f(cx + 0.42 * P)}" y="${f(hubT + 0.06 * P)}" width="${f(0.22 * P)}" height="${f(0.16 * P)}" rx="${f(0.03 * P)}" fill="url(#dmChrome)" stroke="#3b4247"/><path d="M${f(cx + 0.64 * P)} ${f(hubT + 0.14 * P)} L${f(cx + 0.86 * P)} ${f(hubT + 0.02 * P)}" stroke="#3b4247" stroke-width="${f(0.07 * P + 1.5)}" stroke-linecap="round"/></g>`;
+  // the head, standing up: the horizontal head turned a quarter turn (thimble up)
+  const H = DM.head(0, 0, P, c.scale, { units: s.units, nums: o.nums, id, numCls: o.numCls, ratchet: o.ratchet });
+  tool += `<g transform="translate(${f(cx)} ${f(hubT)}) rotate(-90)">${H.svg}</g>`;
+  // the rod's knurled end nut sticking out of the ratchet (moves with the rod during a change)
+  tool += `<rect id="${id}-rodnut" x="${f(cx - 0.11 * P)}" y="${f(rodTop - 0.02 * P)}" width="${f(0.22 * P)}" height="${f(0.14 * P)}" rx="${f(0.03 * P)}" fill="url(#dmChromeV)" stroke="#3b4247"/>`;
+  tool += `</g>`;
+  // chip under the left end of the base
+  if (s.seat === 'chip' && !c.tooLong) t += `<path id="${id}-chip" d="M${f(bL + 0.1 * P)} ${f(topY)} l${f(0.1 * P)} ${f(-2 * riseV)} l${f(0.12 * P)} ${f(2 * riseV)} Z" fill="#c9a86a" stroke="#6b5530"/>`;
+  return { svg: w + tool + t, topY, baseBot, bL, bR, bT, hubT, tipY, cx, P, edgeY: hubT - (DM.G.xz0 + U.span * U.toIn - c.scale * U.toIn) * P,
+    zeroY: hubT - (DM.G.xz0 + U.span * U.toIn) * P, tilt, riseV };
+};
+
+/* questions: a head reading + the classic wrong answers, every number from DM.read() */
+DM.choicesFor = (units, rod, h) => {
+  const U = DM.U(units), r = DM.read(units, h), rs = rod * U.span, dp = U.dp, T = v => DM.fx(v, dp) + ' ' + U.u;
+  return { right: T(rs + r.reading), outside: T(rs + r.comp), norod: T(r.reading), line: T(rs + r.reading + U.pitch), r, rs, T };
+};
+DM.fx = (v, d) => { const k = Math.pow(10, d), x = Math.round(v * k) / k; return (Object.is(x, -0) ? 0 : x).toFixed(d); };
+
+root.DMIC = DM;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
 <script>/* Micrometer lesson scene (simulators/measuring/micrometer). One scene, configured per page (MicScene(cfg)).
    A machined shaft rests on a pair of V-blocks on the bench (seen end-on); the outside micrometer straddles it between
    the blocks (side elevation, spindle axis through the shaft centre). The shaft never turns: it is at rest while it is
@@ -1358,7 +1682,7 @@ window.MicScene = function (cfg) {
       if (s.misread) return { kind: 'warn', title: 'MISSED A SLEEVE LINE', text: `Written down ${M.fx(o.yours, o.dp)}, really ${M.fx(o.reading, o.dp)} ${o.u}: one ${o.u === 'mm' ? 'half millimetre' : '0.025 in line'} short.` };
       return null;
     },
-    draw(s, o) { if (s.stage === 'press') { gMain.innerHTML = ''; gWin.innerHTML = ''; drawPress(s, o); } else { gPress.innerHTML = ''; drawMain(s, o); drawWin(s, o); } drawLabels(s, o); },
+    draw(s, o) { M.autoCallouts(svg); if (s.stage === 'press') { gMain.innerHTML = ''; gWin.innerHTML = ''; drawPress(s, o); } else { gPress.innerHTML = ''; drawMain(s, o); drawWin(s, o); } drawLabels(s, o); },
     spot(id, stArg) {
       // video (?capture=1): the shell's step spotlight (called with the state) is a lesson aid, not part of the film;
       // callouts (called with the id only) still work. Local workaround, noted in NOTES.md.
@@ -1451,7 +1775,7 @@ window.MicScene = function (cfg) {
       void lastNumX;
     }
     w += `</g><rect id="w-frame" x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" rx="12" fill="none" stroke="${A.TEXT}" stroke-width="2.5"/>`;
-    w += `<text class="lm halo rh${s.vern ? ' rhv' : ''}" x="${WIN.x + 16}" y="${WIN.y + 34}" style="font-weight:800;letter-spacing:.06em">READ HERE · ×${MAG}</text>`;
+    w += `<rect class="pcOnly" x="${WIN.x + 8}" y="${WIN.y + 10}" width="226" height="34" rx="8" fill="#1F1D1A" opacity=".85"/><text class="lm halo rh${s.vern ? ' rhv' : ''}" x="${WIN.x + 16}" y="${WIN.y + 34}" style="font-weight:800;letter-spacing:.06em">READ HERE · ×${MAG}</text>`;
     gWin.innerHTML = w;
   }
   /* the arbor press: the shaft you miked stands on the press plate, a driving sleeve pushes the bearing's inner ring
@@ -1632,7 +1956,10 @@ window.PAGE_SCENE = MicScene({ defaults: { units: 'mm', pos: 8.82, part: 8.82, o
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1660,7 +1987,7 @@ function start(C, S) {
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1705,7 +2032,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1797,7 +2124,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -2121,10 +2456,12 @@ function start(C, S) {
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
       qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();
 </script>
-<script>CFShell.start({"n":3,"file":"03-reading-metric.html","title":"Reading a metric micrometer","what":"A 0–25 mm metric micrometer. The screw has a **0.5 mm** pitch, so one turn moves the spindle half a millimetre. Whole millimetres are marked **above** the index line, half millimetres **below** it, and the thimble has **50 divisions** of **0.01 mm**.","free":"Everything is unlocked. Set any size and read it, or close on a shaft. Tap **Give me a challenge** for a metric reading.","steps":[{"type":"teach","tag":"On the job","setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","text":"Lots of equipment in Canadian plants is metric: European pumps, bearings, gearboxes. Pick up a metric mic and read it like an inch one, and you'll be half a millimetre out without knowing. Let's see where that half millimetre hides."},{"type":"teach","setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","text":"On a metric micrometer, one turn of the thimble is **0.5 mm**. Two turns make one millimetre. Whole millimetres are **above** the index line; the half millimetres sit **below** it."},{"type":"predict","controls":["pos"],"setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","goal":{"pos":[5.495,5.505]},"solve":{"pos":5.5},"text":"Make a call. Turn the thimble one full turn from 5.00 mm. Will a new whole-millimetre number show above the line?","choices":["Yes: 6 shows","No: a half line shows below"],"answer":1,"thinkHint":"One turn is only half a millimetre.","after":"Let's find out.","doText":"Turn the thimble one full turn, from **5.00** to **5.50 mm**. Watch **below** the index line.","live":"Spindle at **{pos:2} mm**","hint":"Press **+** on the Thimble control, or drag the slider a little right.","hint2":"Stop at **5.50 mm**: the thimble's zero is back on the index.","ok":"One turn = **0.5 mm**, and the half-millimetre line below the index is now showing. That's because the 6 needs two turns. The bottom row is how the mic tells you which half you're in."},{"type":"teach","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"sum","text":"Read it: whole millimetres **8**, then a **half-millimetre line** showing below: **0.5**, then the thimble: **32** = 0.32. 8 + 0.5 + 0.32 = **8.82 mm**."},{"type":"predict","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":false},"text":"Someone reads this as **8.32 mm**. What did they miss?","choices":["The half-millimetre line below the index","A whole millimetre","A zero error"],"answer":0,"reveal":{"set":{"sum":true},"dur":0},"hint":"Look below the index line, just left of the thimble.","after":"The **half-millimetre line** below the index: 8 + **0.5** + 0.32 = 8.82 mm. That's because the thimble only counts to 0.50, so the half line carries the rest. Missing it puts you 0.5 mm out."},{"type":"do","controls":["pos"],"setup":{"units":"mm","rs":0,"pos":15.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","goal":{"pos":[12.465,12.475]},"solve":{"pos":12.47},"text":"Set the micrometer to **12.47 mm**: 12 whole millimetres, **no** half line showing, and **47** on the thimble.","hint":"Drag the Thimble slider left, then use − and + to land on 12.47.","hint2":"12 + 0 + 0.47 = **12.47 mm**.","ok":"12 + 0.47 = **12.47 mm**. No half line: that's because the thimble is in the first half of that millimetre."},{"type":"teach","tag":"Now you know","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"sum","text":"Now you know a metric mic splits each millimetre into two turns, and the half line below tells you which. So whenever you read one, you can decide fast: whole millimetres, then check below the line for a half, then the thimble."},{"type":"question","variants":[{"q":"What does this micrometer read?","setup":{"units":"mm","rs":0,"pos":6.73,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"6.73 mm"},{"t":"6.23 mm","why":"You missed the half-millimetre line below the index. Add 0.5 mm: it reads 6.73 mm."},{"t":"7.23 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 6.73 mm."}],"answer":0,"explain":"6 + 0.5 + 0.23 = **6.73 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"Read this micrometer.","setup":{"units":"mm","rs":0,"pos":17.08,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"17.08 mm"},{"t":"17.58 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 17.08 mm."},{"t":"16.58 mm","why":"You missed a line on the sleeve (one turn = 0.5 mm). It reads 17.08 mm."}],"answer":0,"explain":"17 + 0.0 + 0.08 = **17.08 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"What size is this micrometer set to?","setup":{"units":"mm","rs":0,"pos":21.56,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"21.56 mm"},{"t":"21.06 mm","why":"You missed the half-millimetre line below the index. Add 0.5 mm: it reads 21.56 mm."},{"t":"22.06 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 21.56 mm."}],"answer":0,"explain":"21 + 0.5 + 0.06 = **21.56 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"Read this setting.","setup":{"units":"mm","rs":0,"pos":3.49,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"3.49 mm"},{"t":"3.99 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 3.49 mm."},{"t":"2.99 mm","why":"You missed a line on the sleeve (one turn = 0.5 mm). It reads 3.49 mm."}],"answer":0,"explain":"3 + 0.0 + 0.49 = **3.49 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."}]},{"type":"question","variants":[{"q":"How far does one full turn of a metric micrometer's thimble move the spindle?","choices":[{"t":"0.5 mm"},{"t":"0.01 mm","why":"0.01 mm is one thimble division. One full turn is 50 divisions: 0.5 mm."},{"t":"1 mm","why":"It takes two turns to move 1 mm. One turn is 0.5 mm."},{"t":"0.05 mm","why":"One turn is 50 × 0.01 = 0.5 mm."}],"answer":0,"explain":"50 divisions × 0.01 mm = **0.5 mm** a turn.","hint":"Count the thimble divisions."},{"q":"Above the index you see **14** whole millimetres, a half line **is** showing below, and the thimble reads **6**. The reading?","choices":[{"t":"14.56 mm"},{"t":"14.06 mm","why":"You missed the half line: add 0.5. 14 + 0.5 + 0.06 = 14.56 mm."},{"t":"14.60 mm","why":"Each thimble division is 0.01 mm: 6 is 0.06. 14 + 0.5 + 0.06 = 14.56 mm."},{"t":"15.06 mm","why":"The half line adds 0.5 mm, not a whole millimetre. 14.56 mm."}],"answer":0,"explain":"14 + 0.5 + 0.06 = **14.56 mm**.","hint":"Whole, half, thimble."},{"q":"How much is **one thimble division** on a metric micrometer?","choices":[{"t":"0.01 mm"},{"t":"0.5 mm","why":"0.5 mm is a whole turn (50 divisions). One division is 0.5 ÷ 50 = 0.01 mm."},{"t":"0.001 mm","why":"That is a vernier division. The thimble alone reads 0.01 mm."},{"t":"0.1 mm","why":"0.5 ÷ 50 = 0.01 mm, not 0.1."}],"answer":0,"explain":"0.5 mm ÷ 50 = **0.01 mm**.","hint":"One turn shared by 50."},{"q":"Above the index you see **3** whole millimetres and **no** half line. The thimble reads **48**. The reading?","choices":[{"t":"3.48 mm"},{"t":"3.98 mm","why":"No half line shows, so don't add 0.5. 3 + 0.48 = 3.48 mm."},{"t":"3.048 mm","why":"Each division is 0.01 mm: 48 is 0.48. 3.48 mm."},{"t":"4.48 mm","why":"Only 3 whole millimetres show. 3 + 0.48 = 3.48 mm."}],"answer":0,"explain":"3 + 0 + 0.48 = **3.48 mm**. Two more divisions and the half line appears.","hint":"Whole, half (if showing), thimble."}]}],"capture":"stage","lesson":{"id":"micrometer","title":"Micrometer","done":"You finished **Micrometer**: how the screw works, reading inch and metric, bigger ranges and the vernier, the habits that keep it honest, and what one missed line costs. Print the summary sheet to keep the rules. On the job, always check the tool's zero, the part drawing and the maker's data.","sheet":"micrometer-summary.pdf","pages":[{"file":"01-how-it-works.html","title":"How a micrometer works"},{"file":"02-reading-inch.html","title":"Reading an inch micrometer"},{"file":"03-reading-metric.html","title":"Reading a metric micrometer"},{"file":"04-ranges-and-vernier.html","title":"Bigger ranges and the vernier"},{"file":"05-measure-it-right.html","title":"Measuring it right"},{"file":"06-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p3-what-0da640e2.mp3","s0":"p3-s0-32d3242d.mp3","s1":"p3-s1-795ef2ac.mp3","s2":"p3-s2-933bd082.mp3","s2after":"p3-s2after-fa43fa8b.mp3","s2ok":"p3-s2ok-7fc955c0.mp3","s3":"p3-s3-d12c6152.mp3","s4":"p3-s4-3ea6cdea.mp3","s4after":"p3-s4after-f2442207.mp3","s5":"p3-s5-fa74a965.mp3","s5ok":"p3-s5ok-2c251f48.mp3","s6":"p3-s6-64bcab3d.mp3","s7v0":"p3-s7v0-623408f4.mp3","s7v1":"p3-s7v1-f4488de6.mp3","s7v2":"p3-s7v2-2331f48b.mp3","s7v3":"p3-s7v3-757c72cf.mp3","s8v0":"p3-s8v0-760bdc98.mp3","s8v1":"p3-s8v1-998ab055.mp3","s8v2":"p3-s8v2-fb1b17de.mp3","s8v3":"p3-s8v3-ca1063ff.mp3","free":"p3-free-0e3a1c6c.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
+<script>CFShell.start({"n":3,"file":"03-reading-metric.html","title":"Reading a metric micrometer","what":"A 0–25 mm metric micrometer. The screw has a **0.5 mm** pitch, so one turn moves the spindle half a millimetre. Whole millimetres are marked **above** the index line, half millimetres **below** it, and the thimble has **50 divisions** of **0.01 mm**.","free":"Everything is unlocked. Set any size and read it, or close on a shaft. Tap **Give me a challenge** for a metric reading.","steps":[{"type":"teach","tag":"On the job","setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","text":"Lots of equipment in Canadian plants is metric: European pumps, bearings, gearboxes. Pick up a metric mic and read it like an inch one, and you'll be half a millimetre out without knowing. Let's see where that half millimetre hides."},{"type":"teach","setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","text":"On a metric micrometer, one turn of the thimble is **0.5 mm**. Two turns make one millimetre. Whole millimetres are **above** the index line; the half millimetres sit **below** it."},{"type":"predict","controls":["pos"],"setup":{"units":"mm","rs":0,"pos":5.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","goal":{"pos":[5.495,5.505]},"solve":{"pos":5.5},"text":"Make a call. Turn the thimble one full turn from 5.00 mm. Will a new whole-millimetre number show above the line?","choices":["Yes: 6 shows","No: a half line shows below"],"answer":1,"thinkHint":"One turn is only half a millimetre.","after":"Let's find out.","doText":"Turn the thimble one full turn, from **5.00** to **5.50 mm**. Watch **below** the index line.","live":"Spindle at **{pos:2} mm**","hint":"Press **+** on the Thimble control, or drag the slider a little right.","hint2":"Stop at **5.50 mm**: the thimble's zero is back on the index.","ok":"One turn = **0.5 mm**, and the half-millimetre line below the index is now showing. That's because the 6 needs two turns. The bottom row is how the mic tells you which half you're in."},{"type":"teach","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"sum","text":"Read it: whole millimetres **8**, then a **half-millimetre line** showing below: **0.5**, then the thimble: **32** = 0.32. 8 + 0.5 + 0.32 = **8.82 mm**."},{"type":"predict","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":false},"text":"Someone reads this as **8.32 mm**. What did they miss?","choices":["The half-millimetre line below the index","A whole millimetre","A zero error"],"answer":0,"reveal":{"set":{"sum":true},"dur":0},"hint":"Look below the index line, just left of the thimble.","after":"The **half-millimetre line** below the index: 8 + **0.5** + 0.32 = 8.82 mm. That's because the thimble only counts to 0.50, so the half line carries the rest. Missing it puts you 0.5 mm out."},{"type":"do","controls":["pos"],"setup":{"units":"mm","rs":0,"pos":15.0,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"w-frame","goal":{"pos":[12.465,12.475]},"solve":{"pos":12.47},"text":"Set the micrometer to **12.47 mm**: 12 whole millimetres, **no** half line showing, and **47** on the thimble.","hint":"Drag the Thimble slider left, then use − and + to land on 12.47.","hint2":"12 + 0 + 0.47 = **12.47 mm**.","ok":"12 + 0.47 = **12.47 mm**. No half line: that's because the thimble is in the first half of that millimetre."},{"type":"teach","tag":"Now you know","setup":{"units":"mm","rs":0,"pos":8.82,"part":8.82,"obj":"part","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":true,"win":true,"hide":false},"spot":"sum","text":"Now you know a metric mic splits each millimetre into two turns, and the half line below tells you which. So whenever you read one, you can decide fast: whole millimetres, then check below the line for a half, then the thimble."},{"type":"question","variants":[{"q":"What does this micrometer read?","setup":{"units":"mm","rs":0,"pos":6.73,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"6.73 mm"},{"t":"6.23 mm","why":"You missed the half-millimetre line below the index. Add 0.5 mm: it reads 6.73 mm."},{"t":"7.23 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 6.73 mm."}],"answer":0,"explain":"6 + 0.5 + 0.23 = **6.73 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"Read this micrometer.","setup":{"units":"mm","rs":0,"pos":17.08,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"17.08 mm"},{"t":"17.58 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 17.08 mm."},{"t":"16.58 mm","why":"You missed a line on the sleeve (one turn = 0.5 mm). It reads 17.08 mm."}],"answer":0,"explain":"17 + 0.0 + 0.08 = **17.08 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"What size is this micrometer set to?","setup":{"units":"mm","rs":0,"pos":21.56,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"21.56 mm"},{"t":"21.06 mm","why":"You missed the half-millimetre line below the index. Add 0.5 mm: it reads 21.56 mm."},{"t":"22.06 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 21.56 mm."}],"answer":0,"explain":"21 + 0.5 + 0.06 = **21.56 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."},{"q":"Read this setting.","setup":{"units":"mm","rs":0,"pos":3.49,"part":0.375,"obj":"none","dirty":false,"zero":0,"adj":0,"drive":"ratchet","vern":false,"misread":0,"stage":"measure","press":0,"bore":1.5,"fail":false,"sum":false,"win":true,"hide":true},"show":{"sum":true,"hide":false},"choices":[{"t":"3.49 mm"},{"t":"3.99 mm","why":"That counts the line still under the thimble edge. Only lines you can see count. It reads 3.49 mm."},{"t":"2.99 mm","why":"You missed a line on the sleeve (one turn = 0.5 mm). It reads 3.49 mm."}],"answer":0,"explain":"3 + 0.0 + 0.49 = **3.49 mm**","hint":"Whole millimetres above the line, a half below if you can see one, then the thimble (0.01 mm a division)."}]},{"type":"question","variants":[{"q":"How far does one full turn of a metric micrometer's thimble move the spindle?","choices":[{"t":"0.5 mm"},{"t":"0.01 mm","why":"0.01 mm is one thimble division. One full turn is 50 divisions: 0.5 mm."},{"t":"1 mm","why":"It takes two turns to move 1 mm. One turn is 0.5 mm."},{"t":"0.05 mm","why":"One turn is 50 × 0.01 = 0.5 mm."}],"answer":0,"explain":"50 divisions × 0.01 mm = **0.5 mm** a turn.","hint":"Count the thimble divisions."},{"q":"Above the index you see **14** whole millimetres, a half line **is** showing below, and the thimble reads **6**. The reading?","choices":[{"t":"14.56 mm"},{"t":"14.06 mm","why":"You missed the half line: add 0.5. 14 + 0.5 + 0.06 = 14.56 mm."},{"t":"14.60 mm","why":"Each thimble division is 0.01 mm: 6 is 0.06. 14 + 0.5 + 0.06 = 14.56 mm."},{"t":"15.06 mm","why":"The half line adds 0.5 mm, not a whole millimetre. 14.56 mm."}],"answer":0,"explain":"14 + 0.5 + 0.06 = **14.56 mm**.","hint":"Whole, half, thimble."},{"q":"How much is **one thimble division** on a metric micrometer?","choices":[{"t":"0.01 mm"},{"t":"0.5 mm","why":"0.5 mm is a whole turn (50 divisions). One division is 0.5 ÷ 50 = 0.01 mm."},{"t":"0.001 mm","why":"That is a vernier division. The thimble alone reads 0.01 mm."},{"t":"0.1 mm","why":"0.5 ÷ 50 = 0.01 mm, not 0.1."}],"answer":0,"explain":"0.5 mm ÷ 50 = **0.01 mm**.","hint":"One turn shared by 50."},{"q":"Above the index you see **3** whole millimetres and **no** half line. The thimble reads **48**. The reading?","choices":[{"t":"3.48 mm"},{"t":"3.98 mm","why":"No half line shows, so don't add 0.5. 3 + 0.48 = 3.48 mm."},{"t":"3.048 mm","why":"Each division is 0.01 mm: 48 is 0.48. 3.48 mm."},{"t":"4.48 mm","why":"Only 3 whole millimetres show. 3 + 0.48 = 3.48 mm."}],"answer":0,"explain":"3 + 0 + 0.48 = **3.48 mm**. Two more divisions and the half line appears.","hint":"Whole, half (if showing), thimble."}]}],"capture":"stage","lesson":{"id":"micrometer","title":"Micrometer","done":"You finished **Micrometer**: how the screw works, reading inch and metric, bigger ranges and the vernier, the habits that keep it honest, what one missed line costs, and the depth micrometer that reads backwards. Print the summary sheet to keep the rules. On the job, always check the tool's zero, the part drawing and the maker's data.","sheet":"micrometer-summary.pdf","pages":[{"file":"01-how-it-works.html","title":"How a micrometer works"},{"file":"02-reading-inch.html","title":"Reading an inch micrometer"},{"file":"03-reading-metric.html","title":"Reading a metric micrometer"},{"file":"04-ranges-and-vernier.html","title":"Bigger ranges and the vernier"},{"file":"05-measure-it-right.html","title":"Measuring it right"},{"file":"06-putting-it-together.html","title":"Putting it together"},{"file":"07-depth-micrometer.html","title":"Depth micrometer: reading it"},{"file":"08-depth-micrometer-rods.html","title":"Depth mic: rods and zero"}]},"audio":{"what":"p3-what-0da640e2.mp3","s0":"p3-s0-32d3242d.mp3","s1":"p3-s1-795ef2ac.mp3","s2":"p3-s2-933bd082.mp3","s2after":"p3-s2after-fa43fa8b.mp3","s2ok":"p3-s2ok-7fc955c0.mp3","s3":"p3-s3-d12c6152.mp3","s4":"p3-s4-3ea6cdea.mp3","s4after":"p3-s4after-f2442207.mp3","s5":"p3-s5-fa74a965.mp3","s5ok":"p3-s5ok-2c251f48.mp3","s6":"p3-s6-64bcab3d.mp3","s7v0":"p3-s7v0-623408f4.mp3","s7v1":"p3-s7v1-f4488de6.mp3","s7v2":"p3-s7v2-2331f48b.mp3","s7v3":"p3-s7v3-757c72cf.mp3","s8v0":"p3-s8v0-760bdc98.mp3","s8v1":"p3-s8v1-998ab055.mp3","s8v2":"p3-s8v2-fb1b17de.mp3","s8v3":"p3-s8v3-ca1063ff.mp3","free":"p3-free-0e3a1c6c.mp3"},"audioBase":"audio/"}, window.PAGE_SCENE);</script>
 </body></html>

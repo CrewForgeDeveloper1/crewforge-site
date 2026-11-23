@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -157,6 +167,20 @@ body.capture .ro{padding:7px 10px}
 .ref .rs{font-size:11px;color:var(--muted);margin-top:3px}
 body.phone .ref table{font-size:13px}
 body.phone .ref th,body.phone .ref td{padding:3px 6px}
+
+/* Level 2 additions (design L2-B1 9.3): confidence tap, reflect, quiz page, streak marker. Unused by Level 1 lessons. */
+.step .chips.conf,.step .chips.refl{margin:6px 0 8px}
+.step .chips.conf .chip{flex:1 1 0;min-width:44px}
+.step .rateq{font-size:16px;margin:8px 0 4px}
+.opt.picked{border-color:var(--accent)}
+.step textarea{display:block;width:100%;min-height:76px;margin:6px 0 10px;padding:9px 12px;border-radius:10px;border:2px solid var(--line);background:#171512;color:var(--text);font:inherit;font-size:15.5px;resize:vertical}
+.step textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.step .streak{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;border:1px solid var(--accent);color:var(--accent);font-size:11px;letter-spacing:.06em;font-weight:800}
+.step .qn{color:var(--muted);font-size:12px;letter-spacing:.1em;font-weight:800;text-transform:uppercase}
+.step .qscore{font-size:20px;margin:4px 0 6px}
+.step .qo{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:6px 0;font-size:15px;font-weight:600}
+.step .qo>span{flex:1 1 100%}
+body.phone .step .qscore{font-size:17px}
 </style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
 <script>(function (root) {
@@ -505,13 +529,107 @@ const n0 = v => Math.round(v).toLocaleString('en-CA');
 const n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 MD.n0 = n0; MD.n1 = n1; MD.n2 = n2;
-MD.fT = (c, units, both) => units === 'imp' ? n0(Math.round(MD.toF(c) / 5) * 5) + ' °F' : n0(c) + ' °C' + (both ? ` (${n0(Math.round(MD.toF(c) / 5) * 5)} °F)` : '');
-MD.fTexact = (c, units) => units === 'imp' ? n0(MD.toF(c)) + ' °F' : n0(c) + ' °C';
+MD.fT = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? `${n0(fh)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fh)}\u00a0°F)`; };
+MD.fT2 = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? [`${n0(fh)}\u00a0°F`, `(${n0(r)}\u00a0°C)`] : [`${n0(r)}\u00a0°C`, `(${n0(fh)}\u00a0°F)`]; };
+MD.fTexact = MD.fT;
+MD.dT = (d, units) => { const r = Math.round(d), fd = Math.round(d * 9 / 5); return units === 'imp' ? `${n0(fd)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fd)}\u00a0°F)`; };
 MD.fLen = (mm, units, dec = 1) => units === 'imp' ? (mm / 25.4).toFixed(dec + 2) + ' in' : (dec ? (Math.round(mm * 10 ** dec) / 10 ** dec).toFixed(dec) : n0(mm)) + ' mm';
 MD.fMass = (g, units) => units === 'imp' ? n2(g / 28.3495) + ' oz' : n1(g) + ' g';
 root.MD = MD;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 <script>(function (root) {
+'use strict';
+const MD = root.MD;
+const A = {};
+A.EL = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S', 'Pb'];
+A.EL_NAME = { C: 'Carbon', Mn: 'Manganese', Si: 'Silicon', Cr: 'Chromium', Ni: 'Nickel', Mo: 'Molybdenum', V: 'Vanadium', S: 'Sulphur', Pb: 'Lead' };
+A.EL_COL = { C: '#f2f2f2', Mn: '#c58cff', Si: '#7fd1c7', Cr: '#5fc3ff', Ni: '#3ddc84', Mo: '#F2C230', V: '#ff8fb1', S: '#e8d26a', Pb: '#9aa3ab' };
+A.GRADES = {
+  '1018': { fam: '10', famName: 'Plain carbon steel', c: 18, comp: { C: .175, Mn: .75 }, use: 'Brackets, plate, weld-on parts, low-strength pins' },
+  '1045': { fam: '10', famName: 'Plain carbon steel', c: 45, comp: { C: .46, Mn: .75 }, use: 'Shafts, pins, axles: medium strength, can be hardened' },
+  '12L14': { fam: '12', famName: 'Free-machining (sulphur, phosphorus, + lead)', c: 14, comp: { C: .1, Mn: 1, S: .3, Pb: .25 }, use: 'Machined bushings, fittings, screw-machine parts: not for welding' },
+  '4140': { fam: '41', famName: 'Chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .875, Si: .225, Cr: .95, Mo: .2 }, use: 'Shafts, gears, studs, pins: hardens deeper' },
+  '4340': { fam: '43', famName: 'Nickel-chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .7, Si: .25, Cr: .8, Ni: 1.825, Mo: .25 }, use: 'Heavy shafts, gears, crankshafts: tough and through-hardening' }
+};
+A.GRADE_KEYS = ['1018', '1045', '12L14', '4140', '4340'];
+A.ELEMENT = {
+  C: { dose: .4, up: ['strength', 'hardness', 'hardenability'], down: ['toughness', 'weldability', 'machinability'], line: 'Carbon: the big one for strength and hardness. More carbon, harder to weld and less tough.' },
+  Mn: { dose: 1, up: ['strength', 'hardenability'], down: [], line: 'Manganese: more hardenability and strength, and it ties up sulphur so hot steel does not crack.' },
+  Si: { dose: 1.5, up: ['strength'], down: [], line: 'Silicon: cleans oxygen out of the melt and adds strength. Spring steels carry more of it.' },
+  Cr: { dose: 1, up: ['hardenability', 'strength', 'hardness', 'corrosion'], down: ['weldability'], line: 'Chromium: deeper hardening and better wear. At 10.5 % or more it makes stainless steel.' },
+  Ni: { dose: 2, up: ['toughness', 'strength', 'hardenability'], down: [], line: 'Nickel: toughness, even when cold. It adds strength without losing much ductility.' },
+  Mo: { dose: .3, up: ['hardenability', 'strength', 'toughness'], down: ['weldability'], line: 'Molybdenum: a little goes a long way for hardenability and strength when hot, and it fights temper brittleness.' },
+  V: { dose: .2, up: ['strength', 'toughness', 'hardness'], down: [], line: 'Vanadium: keeps the grain fine and adds hard carbides for wear.' },
+  S: { dose: .3, up: ['machinability'], down: ['toughness', 'weldability'], line: 'Sulphur and lead: chips break off short, so it machines fast. But it is weaker across the grain and poor to weld.' }
+};
+A.ELEMENT_KEYS = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S'];
+A.PROPS = ['strength', 'hardness', 'toughness', 'hardenability', 'corrosion', 'weldability', 'machinability'];
+A.PROP_NAME = { strength: 'Strength', hardness: 'Hardness it can reach', toughness: 'Toughness', hardenability: 'Hardenability (depth)', corrosion: 'Corrosion resistance', weldability: 'Weldability', machinability: 'Machinability' };
+A.mix = function (grade, el, dose) {
+  const c = Object.assign({}, A.GRADES[grade].comp);
+  if (el && dose > 0) {
+    const d = A.ELEMENT[el].dose * dose;
+    if (el === 'S') { c.S = (c.S || 0) + d; c.Pb = (c.Pb || 0) + d * .8; }
+    else c[el] = (c[el] || 0) + d;
+  }
+  return c;
+};
+const g = (c, k) => c[k] || 0;
+A.CE = c => g(c, 'C') + g(c, 'Mn') / 6 + (g(c, 'Cr') + g(c, 'Mo') + g(c, 'V')) / 5 + (g(c, 'Cu') + g(c, 'Ni')) / 15;
+A.CE_BANDS = [[.35, 'Excellent'], [.40, 'Very good'], [.45, 'Good'], [.50, 'Fair'], [9, 'Poor']];
+A.ceBand = ce => A.CE_BANDS.find(b => ce <= b[0] + 1e-9)[1];
+A.preheat = ce => ce > .60 ? 'Preheat required' : ce > .40 ? 'May need preheat' : 'Usually no preheat';
+A.props = function (c) {
+  const C = g(c, 'C'), Mn = g(c, 'Mn'), Si = g(c, 'Si'), Cr = g(c, 'Cr'), Ni = g(c, 'Ni'), Mo = g(c, 'Mo'), V = g(c, 'V'), S = g(c, 'S'), Pb = g(c, 'Pb');
+  const ce = A.CE(c), cl = v => MD.clamp(v, .04, 1);
+  return {
+    strength: cl(.18 + .85 * C + .1 * Mn + .08 * Si + .1 * Cr + .06 * Ni + .4 * Mo + .8 * V),
+    hardness: cl(.12 + 1.05 * C + .04 * Cr + .1 * Mo + .5 * V),
+    toughness: cl(.78 - .7 * C + .12 * Ni + .25 * Mo + .8 * V - .9 * S - .2 * Pb),
+    hardenability: cl(.06 + .3 * C + .22 * Mn + .28 * Cr + .1 * Ni + 1.1 * Mo + .3 * V),
+    corrosion: cl(.08 + .06 * Cr + .02 * Ni + .05 * Mo),
+    weldability: cl(1.25 - 1.3 * ce - 1.2 * S - 1.2 * Pb),
+    machinability: cl(.62 - .55 * C - .05 * Ni - .03 * Cr + 1.1 * S + .8 * Pb)
+  };
+};
+A.R = 25;
+A.hardDepth = function (c, medium) {
+  const C = g(c, 'C');
+  if (C < .28) return 0;
+  const hi = A.props(c).hardenability, k = medium === 'water' ? 1.5 : 1;
+  return MD.clamp((hi - .3) * k * 36, 0, A.R);
+};
+A.weldCracks = (c, preheat) => (A.CE(c) > .5 && !preheat) || g(c, 'Pb') > 0 || g(c, 'S') > .1;
+A.SS = {
+  '304': { fam: 'Austenitic', ser: '300', cr: '18–20', ni: '8–10.5', mo: '0', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#c9ced1',
+    use: 'General purpose: food equipment, tanks, indoor and fresh water', salt: .45 },
+  '316': { fam: 'Austenitic', ser: '300', cr: '16–18', ni: '10–14', mo: '2–3', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#cfd4d6',
+    use: 'Salt water, chlorides, chemicals: boat fittings, food and chemical plant', salt: .15 },
+  '430': { fam: 'Ferritic', ser: '400', cr: '16–18', ni: '0', mo: '0', mag: true, hard: 'No', ys: 310, ts: 483, col: '#bfc4c7',
+    use: 'Trim, appliance panels, mild indoor service', salt: .7 },
+  '410': { fam: 'Martensitic', ser: '400', cr: '11.5–13.5', ni: '0', mo: '0', mag: true, hard: 'Yes (quench and temper)', ys: 275, ts: 480, col: '#b7bcbf',
+    use: 'Bolts, shafts, pump and valve parts that must be hard', salt: .8 },
+  '440C': { fam: 'Martensitic', ser: '400', cr: '16–18', ni: '0', mo: '0.75 max', mag: true, hard: 'Yes, to about 60 HRC', ys: null, ts: null, col: '#b2b7ba',
+    use: 'Stainless bearings, valve parts: the hardest stainless', salt: .6 }
+};
+A.SS_KEYS = ['304', '316', '430', '410', '440C'];
+A.CU = {
+  copper: { n: 'Copper (C11000)', short: 'Copper', fam: 'Pure copper', make: '99.9 % copper', iacs: 101, ts: [210, 310], col: '#c47a4a',
+    use: 'Bus bars, wire, tubing, gaskets', bear: 'poor', ksi: [30, 45] },
+  brass: { n: 'Free-cutting brass (C36000)', short: 'Brass', fam: 'Brass', make: 'Copper + zinc + 2.5–3 % lead', iacs: 26, ts: [380, 380], col: '#cfae55',
+    use: 'Valve parts, fittings, machined parts', bear: 'fair', ksi: [55, 55] },
+  phos: { n: 'Phosphor bronze (C51000)', short: 'Phosphor bronze', fam: 'Bronze', make: 'Copper + 4–6 % tin + a little phosphorus', iacs: 15, ts: [415, 790], col: '#b98a4e',
+    use: 'Springs, sleeve bushings, lock washers', bear: 'good', ksi: [60, 115] },
+  sae660: { n: 'Bearing bronze (C93200, SAE 660)', short: 'Bearing bronze', fam: 'Bronze', make: 'Copper + 7 % tin + 7 % lead + 3 % zinc', iacs: 12, ts: [241, 241], col: '#a8763f',
+    use: 'Bushings, bearings, thrust washers', bear: 'best (lead helps)', ksi: [35, 35] },
+  albz: { n: 'Aluminium bronze (C95400)', short: 'Aluminium bronze', fam: 'Bronze', make: 'Copper + 10–11.5 % aluminium + iron', iacs: 13, ts: [586, 586], col: '#c9a35a',
+    use: 'Heavy bushings, gears, wear plates, marine parts', bear: 'good, heavy loads', ksi: [85, 85] },
+  sibz: { n: 'Silicon bronze (C65500)', short: 'Silicon bronze', fam: 'Bronze', make: 'Copper + about 3 % silicon', iacs: 7, ts: [400, 538], col: '#b07d4c',
+    use: 'Marine hardware, bolts, nuts, propeller shafts', bear: 'fair', ksi: [58, 78] }
+};
+A.CU_KEYS = ['copper', 'brass', 'phos', 'sae660', 'albz', 'sibz'];
+root.MDA = A;
+})(typeof window !== 'undefined' ? window : globalThis);</script><script>(function (root) {
 'use strict';
 const MD = root.MD;
 const H = {};
@@ -537,8 +655,18 @@ H.PARTS = {
   brass: { n: 'Brass bushing', short: 'Brass', mat: 'brass', hrb: 60, eqC: -8, hb: 105, col: '#cfae55' },
   iron:  { n: 'Grey cast iron pump casing', short: 'Cast iron', mat: 'cast', hrb: 92, eqC: 11, hb: 200, col: '#6d6f70' },
   alu:   { n: 'Aluminium bracket', short: 'Aluminium', mat: 'alum', hrb: 50, eqC: -20, hb: 90, col: '#c9cfd6' },
-  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' }
+  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' },
+  ann:   { n: '4140, annealed (as bought soft)', short: '4140 annealed', mat: 'steel', hrb: 92, eqC: 13, hb: 197, col: '#9aa2a8' },
+  hq:    { n: '4140, quenched in oil, not tempered', short: '4140 quenched', mat: 'tool', hrc: 55, hb: 560, col: '#7c858b' },
+  qt:    { n: '4140, quenched and tempered', short: '4140 tempered', mat: 'steel', hrc: 30, hb: 286, col: '#8f979d' }
 };
+H.SOFT = { label: 'Mild steel, annealed steel', hb: [120, 200], hrb: '65–92', note: 'B scale or Brinell' };
+H.LADDER = [
+  ['Q&T shafts (4140HT)', 28, 32, 'shaft'], ['Springs', 44, 50, 'spring'], ['Hammer faces, chisel edges', 50, 58, 'hammer'],
+  ['Bearings, files, HSS tools', 57, 66, 'hard']];
+H.FILE_HRC = [62, 65];
+H.HARD_TURN = 55;
+H.band = function (hrc) { const b = H.LADDER.filter(r => hrc >= r[1] - .01 && hrc <= r[2] + .01); return b.length ? b.map(r => r[0]).join(' / ') : null; };
 H.trueHR = function (part, sc) {
   const p = H.PARTS[part];
   if (sc === 'C') return p.hrc != null ? p.hrc : p.eqC;
@@ -765,6 +893,7 @@ MK.vbar = function (x, y, w, h, v, lo, hi, col, marks = [], id = '') {
   marks.forEach(([mv, lab, mc]) => { const my = yy(mv); s += `<line x1="${f(x - 6)}" y1="${f(my)}" x2="${f(x + w + 6)}" y2="${f(my)}" stroke="${mc || C.muted}" stroke-width="2.5"/>` + (lab ? `<text class="lm halo" x="${f(x + w + 12)}" y="${f(my + 7)}" style="fill:${mc || C.muted}">${lab}</text>` : ''); });
   return s + '</g>';
 };
+MK.wrap2 = function (t, n) { t = String(t); if (t.length <= n) return [t]; const w = t.split(' '); let a = ''; while (w.length && (a + ' ' + w[0]).trim().length <= n) a = (a + ' ' + w.shift()).trim(); return [a, w.join(' ')]; };
 root.MK = MK;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 
@@ -908,8 +1037,8 @@ window.CFScenes['lb-grease'] = function () {
   function tempCard(S, o, x, y, w, h) {
     const col = o.temp >= 95 ? C.bad : o.temp >= 80 ? C.warn : C.ok;
     let s = MK.card(x, y, w, h, 'BEARING TEMPERATURE (IR GUN)', 'c-temp');
-    s += `<text id="temp-read" class="la" x="${x + 22}" y="${y + 90}" style="fill:${col};font-size:44px">${MD.fT(o.temp, S.units)}</text>`;
-    s += `<text class="lm" x="${x + 22}" y="${y + 124}">normal running ${MD.fT(S.bT, S.units)}${S.run ? '' : ' · fan stopped'}</text>`;
+    s += `<text id="temp-read" class="la" x="${x + 22}" y="${y + 90}" style="fill:${col};font-size:44px">${MD.fT2(o.temp, S.units)[0]}<tspan x="${x + 22}" dy="38" style="font-size:32px"> ${MD.fT2(o.temp, S.units)[1]}</tspan></text>`;
+    s += `<text class="lm" x="${x + 22}" y="${y + 160}">normal running</text><text class="lm" x="${x + 22}" y="${y + 186}">${MD.fT(S.bT, S.units)}${S.run ? '' : ' · fan stopped'}</text>`;
     const px = x + 300, pw = w - 330, py = y + 50, ph = h - 80, ty = t => py + ph - ph * MD.clamp((t - 20) / 110, 0, 1);
     s += `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#191714" stroke="#3a3530"/>`;
     s += `<line x1="${px}" y1="${f(ty(S.bT))}" x2="${px + pw}" y2="${f(ty(S.bT))}" stroke="${C.muted}" stroke-dasharray="6 5"/>`;
@@ -950,13 +1079,14 @@ window.CFScenes['lb-grease'] = function () {
     s += `<text class="lm" x="${x + 22}" y="${yy + 22}">14,000,000 ÷ (n√d)</text><rect id="int-base" x="${bx}" y="${yy}" width="${f(bl(o.base))}" height="28" rx="4" fill="#5e8fb0"/><text class="lb halo" x="${f(bx + 8)}" y="${yy + 23}">${MD.n0(o.base)}</text>`;
     s += `<text class="lm" x="${x + 22}" y="${yy + 64}">− 4 × d (${o.b.d} mm)</text><rect id="int-minus" x="${f(bx + bl(o.base) - bl(o.minus))}" y="${yy + 42}" width="${f(bl(o.minus))}" height="28" rx="4" fill="${C.bad}" opacity=".85"/><text class="lb halo" x="${f(bx + bl(o.base) - bl(o.minus) - 8)}" y="${yy + 65}" text-anchor="end">${MD.n0(o.minus)}</text>`;
     s += `<text class="lm" x="${x + 22}" y="${yy + 108}">× K (${o.btype === 'ball' ? 'ball' : o.btype === 'cyl' ? 'cyl. roller' : 'spherical roller'})</text><text class="lb" x="${bx}" y="${yy + 108}">× ${o.K}</text>`;
-    s += `<text class="lm" x="${x + 22}" y="${yy + 146}">× temperature (${MD.fT(S.bT, S.units)})</text><text class="lb" x="${bx}" y="${yy + 146}" style="fill:${o.fT < 1 ? C.warn : C.text}">× ${MD.n2(o.fT)}${o.fT < 1 ? '  halves every 15 °C over 70 °C' : '  (70 °C or less)'}</text>`;
-    s += `<text id="int-val" class="la" x="${x + 22}" y="${yy + 188}" style="font-size:38px;fill:${o.tooFast ? C.bad : C.acc}">${o.tooFast ? 'negative: grease will not do, use oil' : '= ' + MD.n0(Math.round(o.tf / 10) * 10) + ' hours'}</text>`;
-    if (!o.tooFast) s += `<text class="lm" x="${x + 22}" y="${yy + 220}">running 24 h a day: about ${o.tf >= 8760 ? MD.n1(o.years) + ' years' : MD.n0(o.tf / 730) + ' months'} · n = ${MD.n0(S.n)} rpm, d = bore</text>`;
+    s += `<text class="lm" x="${x + 22}" y="${yy + 146}">× temperature factor</text><text class="lb" x="${bx}" y="${yy + 146}" style="fill:${o.fT < 1 ? C.warn : C.text}">× ${MD.n2(o.fT)}</text>`;
+    s += `<text id="int-temp" class="lm" x="${x + 22}" y="${yy + 166}">at ${MD.fT(S.bT, S.units)}: ${o.fT < 1 ? 'halves every 15\u00a0°C (27\u00a0°F) over 70\u00a0°C (158\u00a0°F)' : 'no cut at 70\u00a0°C (158\u00a0°F) or less'}</text>`;
+    s += `<text id="int-val" class="la" x="${x + 22}" y="${yy + 200}" style="font-size:38px;fill:${o.tooFast ? C.bad : C.acc}">${o.tooFast ? 'negative: grease will not do, use oil' : '= ' + MD.n0(Math.round(o.tf / 10) * 10) + ' hours'}</text>`;
+    if (!o.tooFast) s += `<text class="lm" x="${x + 22}" y="${yy + 228}">running 24 h a day: about ${o.tf >= 8760 ? MD.n1(o.years) + ' years' : MD.n0(o.tf / 730) + ' months'} · n = ${MD.n0(S.n)} rpm, d = bore</text>`;
     return s + '</g>';
   }
   function nlgiCard(S, o, x, y, w, h) {
-    let s = MK.card(x, y, w, h, 'NLGI GRADE: HOW FAR A CONE SINKS IN 5 s AT 25 °C', 'c-nlgi');
+    let s = MK.card(x, y, w, h, 'NLGI GRADE: HOW FAR A CONE SINKS IN 5 s AT 25 °C (77 °F)', 'c-nlgi');
     const cx = x + 150, cupT = y + 76, cupW = 200, cupH = 170, depth = o.pen * .42 * MD.clamp(coneT / 1.2, 0, 1);
     s += `<path d="M${cx - cupW / 2} ${cupT} L${cx - cupW / 2} ${cupT + cupH} L${cx + cupW / 2} ${cupT + cupH} L${cx + cupW / 2} ${cupT}" fill="none" stroke="#9aa2a8" stroke-width="5"/>`;
     s += `<rect x="${cx - cupW / 2 + 3}" y="${cupT + 6}" width="${cupW - 6}" height="${cupH - 9}" fill="#c9a54a" opacity="${f(.55 + .05 * S.grade)}"/>`;
@@ -1048,7 +1178,7 @@ window.MetAdapter = function (C, PC) {
     else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
   }
   window.PAGE_SCENE = A;
-  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, short: (PC.short || {})[label], id: String(i) }));
   A.caption = (s, o) => (sc.caption && document.body.classList.contains('phone')) ? sc.caption(s, o) : null;
   A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
   function bboxOf(id) {
@@ -1116,8 +1246,8 @@ window.MetAdapter = function (C, PC) {
     const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
     if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
     const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
-    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
-    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+    if (c.game) return { game: true, setup, q: c.q, ref: c.ref, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, ref: c.ref, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
   };
   return A;
 };
@@ -1136,6 +1266,7 @@ const ch = (t, why) => (why ? { t, why } : { t });
 const shuffle = (rng, choices, answer) => { const idx = choices.map((c, i) => i).sort(() => rng() - .5); return { choices: idx.map(i => choices[i]), answer: idx.indexOf(answer) }; };
 const kcol = o => o.level === 'ok' ? C.ok : o.level === 'thin' ? C.warn : C.bad;
 const fT = (c, S) => MD.fT(c, S.units);
+const TF = c => Math.round(c * 9 / 5 + 32);
 const g = (S, o) => S.units === 'imp' ? MD.n2(o.Goz) + ' oz' : MD.n1(o.Gp) + ' g';
 const r10 = v => MD.n0(Math.round(v / 10) * 10);
 
@@ -1151,37 +1282,37 @@ const RC = (S, o) => [['ISO 4406 code', o.iso, o.clean ? C.ok : o.over >= 3 ? C.
   ['Water', MD.n0(S.ppm) + ' ppm', o.water === 'clear' ? C.ok : o.water === 'hazy' ? C.warn : C.bad], ['Breather', S.vent === 'open' ? 'Open vent cap' : 'Desiccant']];
 
 /* ---------------- reference tables shown with a challenge (instructor 2026-11-15: charts go in the question) */
-const VG_NOTE = 'Petro-Canada HYDREX AW / ENDURATEX EP typical data at 40 and 100 °C, Walther equation (ASTM D341).';
-const vgRef = (T, grades) => ({ title: `Typical viscosity at ${T} °C`, columns: ['Grade', `cSt at ${T} °C`], rows: grades.map(gg => ['VG ' + gg, MD.n1(L.visc(gg, T))]), note: VG_NOTE });
-const nlgiRef = i => ({ title: 'NLGI consistency grades (worked penetration at 25 °C, tenths of a mm)', columns: ['NLGI grade', 'Penetration'],
+const VG_NOTE = 'Petro-Canada HYDREX AW / ENDURATEX EP typical data at 40 °C (104 °F) and 100 °C (212 °F), Walther equation (ASTM D341).';
+const vgRef = (T, grades) => ({ title: `Typical viscosity at ${T} °C (${TF(T)} °F)`, columns: ['Grade', `cSt at ${T} °C (${TF(T)} °F)`], rows: grades.map(gg => ['VG ' + gg, MD.n1(L.visc(gg, T))]), note: VG_NOTE });
+const nlgiRef = i => ({ title: 'NLGI consistency grades (worked penetration at 25 °C (77 °F), tenths of a mm)', columns: ['NLGI grade', 'Penetration'],
   rows: L.NLGI.filter((x, j) => Math.abs(j - i) <= 2).map(x => [x[0], `${x[1]}–${x[2]}`]), note: 'ASTM D217 (cited by number); ranges as published by NLGI and Mobil.' });
 const isoRef = c => ({ title: 'ISO 4406 range numbers (particles per mL)', columns: ['Range number', 'More than', 'Up to'],
   rows: L.ISO.filter(r => Math.abs(r[0] - c) <= 1).map(r => [String(r[0]), MD.n0(r[1]), MD.n0(r[2])]), note: 'ISO 4406 range table (Wix Filters ISO cleanliness code bulletin).' });
 const intRef = (b, B) => ({ title: 'Relubrication interval', rows: [['Bearing', `${b}, ${B.type === 'ball' ? 'ball' : B.type === 'sph' ? 'spherical roller' : 'cylindrical roller'}`], ['Bore d', `${B.d} mm`], ['K', String(L.KTYPE[B.type])]],
-  note: 't = K × (14,000,000 ÷ (n√d) − 4d) hours; over 70 °C, halve t for every 15 °C. GfT interval formula; SKF temperature rule.' });
+  note: 't = K × (14,000,000 ÷ (n√d) − 4d) hours; over 70 °C (158 °F), halve t for every 15 °C (27 °F). GfT interval formula; SKF temperature rule.' });
 
 /* ---------------- challenges (computed with the same formulas the sim uses) */
 function kappaQ(rng) {
   const vg = pick(rng, [32, 46, 68, 100]), T = pick(rng, [50, 60, 70, 80]), nu1 = pick(rng, [10, 12, 13, 15, 20]);
   const nu = L.visc(vg, T), k = nu / nu1;
-  const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C, not at ${T} °C. Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
+  const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C (104 °F), not at ${T} °C (${TF(T)} °F). Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
   const sh = shuffle(rng, [ch(MD.n2(k))].concat(wrong.map(([v, w]) => ch(MD.n2(v), w))), 0);
-  return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
+  return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C (${TF(T)} °F)**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
     ref: vgRef(T, L.GRADES.filter(gg => Math.abs(L.GRADES.indexOf(gg) - L.GRADES.indexOf(vg)) <= 1)),
-    choices: sh.choices, answer: sh.answer, explain: `At ${T} °C VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
+    choices: sh.choices, answer: sh.answer, explain: `At ${T} °C (${TF(T)} °F) VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
 }
 function regimeQ(rng) {
   const n = pick(rng, [0, 300, 900, 1800, 3000]), nu = L.visc(68, 60), k = n > 0 ? nu / (13 * Math.sqrt(1800 / n)) : 0;
   const r = k >= 1 ? 'Full film' : k >= .4 ? 'Mixed film' : 'Boundary (metal touches)';
   const all = ['Full film', 'Mixed film', 'Boundary (metal touches)'];
   const why = { 'Full film': 'Run it at that speed and read κ: full film needs κ of 1 or more.', 'Mixed film': 'Read κ at that speed: mixed is between about 0.4 and 1.', 'Boundary (metal touches)': 'Boundary is at a standstill, starting, or very slow.' };
-  return { setup: { view: 'film', n, vg: 68, T: 60, oil: 1 }, q: `VG 68 oil at 60 °C. The shaft turns at **${MD.n0(n)} rpm**. What kind of lubrication does the bearing get?`,
+  return { setup: { view: 'film', n, vg: 68, T: 60, oil: 1 }, q: `VG 68 oil at 60 °C (140 °F). The shaft turns at **${MD.n0(n)} rpm**. What kind of lubrication does the bearing get?`,
     choices: all.map(t => t === r ? ch(t) : ch(t, why[t])), answer: all.indexOf(r), explain: `At ${MD.n0(n)} rpm κ is ${MD.n2(k)}: **${r.toLowerCase()}**. Speed builds the oil wedge; starting and stopping are when the surfaces touch.` };
 }
 function nlgiQ(rng) {
   const i = pick(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8]), r = L.NLGI[i], others = L.NLGI.filter((x, j) => Math.abs(j - i) === 1 || Math.abs(j - i) === 2).slice(0, 3);
   const sh = shuffle(rng, [ch('NLGI ' + r[0])].concat(others.map(x => ch('NLGI ' + x[0], `NLGI ${x[0]} is ${x[1]}–${x[2]} tenths of a mm.`))), 0);
-  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C. Which NLGI grade?`, ref: nlgiRef(i), choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C (77 °F). Which NLGI grade?`, ref: nlgiRef(i), choices: sh.choices, answer: sh.answer,
     explain: `${r[1]}–${r[2]} is **NLGI ${r[0]}** (${r[3]}). Set the grade on the card to check.` };
 }
 function gpQ(rng) {
@@ -1195,9 +1326,9 @@ function intQ(rng) {
   const b = pick(rng, ['6205', '6309', '22220']), B = L.BRG[b], n = pick(rng, [900, 1200, 1800, 3000]), T = pick(rng, [60, 70, 85, 100]);
   const t = L.interval(B.type, n, B.d, T), t0 = L.interval0(B.type, n, B.d);
   if (t <= 0) return gpQ(rng);
-  const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C, halve it for every 15 °C.' : 'At 70 °C or less the temperature factor is 1.'),
+  const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C (158 °F), halve it for every 15 °C (27 °F).' : 'At 70 °C (158 °F) or less the temperature factor is 1.'),
     ch(r10(L.KTYPE[B.type] * L.base(n, B.d)) + ' h', 'You forgot to take away 4 × d.'), ch(r10(t * 10) + ' h', 'Check K and the decimal.')], 0);
-  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C**, be regreased?`, ref: intRef(b, B), choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C (${TF(T)} °F)**, be regreased?`, ref: intRef(b, B), choices: sh.choices, answer: sh.answer,
     explain: `t = ${L.KTYPE[B.type]} × (14,000,000 ÷ (${MD.n0(n)} × √${B.d}) − 4 × ${B.d}) × ${MD.n2(L.tempFactor(T))} = about **${r10(t)} hours**.` };
 }
 function fillQ(rng) {
@@ -1218,10 +1349,10 @@ function gearQ(rng) {
   const T = pick(rng, [60, 70, 80, 90]), nu1 = pick(rng, [20, 25, 30]), gs = [68, 100, 150, 220, 320];
   const ok = gs.find(gg => L.visc(gg, T) / nu1 >= 1);
   if (!ok) return kappaQ(rng);
-  const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C.`));
+  const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C (${TF(T)} °F).`));
   const sh = shuffle(rng, [ch('VG ' + ok)].concat(wrongs), 0);
-  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, ref: vgRef(T, gs), choices: sh.choices, answer: sh.answer,
-    explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C: κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
+  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C (${TF(T)} °F)**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, ref: vgRef(T, gs), choices: sh.choices, answer: sh.answer,
+    explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C (${TF(T)} °F): κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
 }
 
 window.LESSON_CODE = window.LESSON_CODE || {};
@@ -1274,7 +1405,7 @@ window.LESSON_CODE['lubrication'] = {
        normalize(state)           after any change, before calc()
        callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
        fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
-   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(), retray(),
      step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
 
    Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
@@ -1298,11 +1429,34 @@ window.LESSON_CODE['lubrication'] = {
      while it matches), points [..] (teach: a short list), hint2 on question variants.
    Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
      or "fn:name" for the whole goal.
+   Level 2 additions (2026-11-21, design L2-B1 9.3; every one is off unless the lesson, page or step uses its field):
+     step {type:'reflect', prompt (or text), model, chips?: [t | {t, model?, page?}], line?: true, tag?}: a text box (or the chips;
+       line:true adds the box beside them), never marked and never sent to Moodle (the text is not even logged, only the chip
+       and the length); "Show the model answer", then the model (and a "Go to page n" button for a chip with page) and Next.
+       Skip works as on any step. Voice clips: s<i> = the prompt, s<i>after = the model.
+     predict {confidence: true}: after the pick, before the reveal: Guess / Fairly sure / Certain (44 px chips). Logged
+       {type:'confidence', key:'p<n>s<i>', level 0-2, right} and kept per lesson in localStorage ('<lesson id>:conf').
+     teach {text: 'fn:calibration', calText?: "... {n} ... {m} ...", calNone?}: how often 'Certain' was right (this lesson's
+       predicts; scene.fns.calibration overrides it). Any teach text / note may be a 'fn:name'.
+     question choice {replay: {set, dur, hold?}}: when that choice's wrong-pick feedback shows, sim.set(set, dur) plays, holds
+       (default 1200 ms of shell time), then the keys it moved are tweened back (700 ms).
+     page {quiz: {pass: 80, pool: [item], draw: 7, byOutcome: true, second: {perOutcome: 3, maxMiss: 1}, badge, outcomes: {O1: {label, page}}}}
+       with a step {type:'quiz', text (intro), tag?}. item = {outcome, q, choices:[{t, why, replay?}], answer, explain, hint?,
+       ref?, setup?, show?, screen?: {page, label}}. Draws `draw` items balanced across outcomes, scores first picks, shows the
+       result (never the word 'failed'), a link to the screen for every outcome with a miss (passed or not), and a second draw
+       (perOutcome items for each missed outcome, unused ones first; pass = at most maxMiss misses). The first draw's items
+       report to CFHost.answer(page, 900 + k, right) (lesson_pages.question_keys adds those keys); second draws never score.
+     step solve as a LIST of sets ([{nClos:'Z'}, {nClos:'ZZ'}], solveGap ms apart, default 1000): Show me plays them one after another (chip rows, number builds).
+     lesson {streak: true}: '<n> in a row' beside the step label on question and quiz steps once n >= 3 (first picks only,
+       kept in localStorage); no points, no sound.
    Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1327,10 +1481,19 @@ function start(C, S) {
   const KEY = 'cf-lp:' + C.lesson.id;
   const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
   let muted = !!prefs.muted, rate = prefs.rate || 1;
+  /* Level 2 additions: small per-lesson memory (confidence taps, the streak). Off unless a page uses the field. */
+  const LS = (k, d) => { try { return JSON.parse(store && store.getItem(KEY + ':' + k) || 'null') || d; } catch (e) { return d; } };
+  const LSET = (k, v) => { try { store && store.setItem(KEY + ':' + k, JSON.stringify(v)); } catch (e) {} };
+  const CONF = ['Guess', 'Fairly sure', 'Certain'], WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const STREAK = !!C.lesson.streak, sk = STREAK ? LS('streak', { n: 0, seen: {} }) : null;
+  const streakNote = (key, right) => { if (!STREAK || key in sk.seen) return; sk.seen[key] = 1; sk.n = right ? sk.n + 1 : 0; LSET('streak', sk); };
+  const streakHTML = () => STREAK && sk.n >= 3 ? `<span class="streak" title="Questions right on the first pick, in a row">${sk.n} in a row</span>` : '';
+  let reflected = {}, qzAsked = {}, qz = null, replayJob = null, solveSeq = null;   // solveSeq: a step's solve given as a list of sets, played one after another (Show me on a chip row or a number build)
+  const qzc = C.quiz || null;
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1375,7 +1538,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1444,7 +1607,9 @@ function start(C, S) {
     applyState(next);
   }
   function advance(ms) {
-    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+    stepTweens(ms); if (replayJob && (replayJob.t -= ms) <= 0) { const b = replayJob.back; replayJob = null; set(b, 700); }
+    if (solveSeq && (solveSeq.t += ms) >= solveSeq.gap) { solveSeq.t = 0; const nx = solveSeq.list.shift(); if (nx) set(nx, 500); if (!solveSeq.list.length) solveSeq = null; renderTray(); }
+    S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
   }
   function checkGame(ms) {
     const c = challenge; if (!c || !c.game || c.result || !free) return;
@@ -1456,6 +1621,7 @@ function start(C, S) {
   const api = {
     input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
     get: full, redraw() { dirty = true; },
+    retray() { renderTray(); },      // a scene whose chip lists depend on state (fits inch | mm) asks for the tray to be redrawn
     step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
   };
   S.mount(svg, api);
@@ -1467,7 +1633,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -1484,7 +1658,18 @@ function start(C, S) {
     drawSpot(); syncTray(); liveLine();
   }
   /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
-  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function fn(v) {
+    if (typeof v !== 'string' || !v.startsWith('fn:')) return false;
+    const f = S.fns && S.fns[v.slice(3)]; if (f) return f;
+    return v === 'fn:calibration' ? () => calib(steps[idx]) : false;     // built in: how often 'Certain' was right
+  }
+  function calib(st) {
+    const all = Object.assign({}, LS('conf', {})); log.forEach(e => { if (e.type === 'confidence') all[e.key] = [e.level, e.right ? 1 : 0]; });
+    let n = 0, m = 0; for (const k in all) if (all[k][0] === 2) { n++; if (all[k][1]) m++; }
+    if (!n) return (st && st.calNone) || "You did not tap 'Certain' on any prediction this time.";
+    return ((st && st.calText) || "You tapped 'Certain' {n} times, and you were right on {m} of them.").replace(/\{n\}/g, n).replace(/\{m\}/g, m);
+  }
+  const tx = v => fn(v) ? md(tpl(v)) : md(v);
   function tpl(t) {
     const f = fn(t); if (f) return String(f(state, out));
     const st = full();
@@ -1606,7 +1791,7 @@ function start(C, S) {
     speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
-    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    stopVoice(); stopReplay(); solveSeq = null; free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
     const st = steps[idx];
     if (!opts.noSetup) {
       if (st.setup) set(st.setup, 0);
@@ -1619,8 +1804,8 @@ function start(C, S) {
     spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
   }
   function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
-  function stepHead(label) {
-    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  function stepHead(label, extra) {
+    return `<div class="sh"><b>${label}${extra ? ' ' + extra : ''}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
   }
   function wireHead() {
     const p = $('#b-sprev'), n = $('#b-snext');
@@ -1639,11 +1824,11 @@ function start(C, S) {
   function renderStep() {
     if (free) return renderFree();
     const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
-    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
-    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    card.className = 'card step' + (st.type === 'question' || st.type === 'quiz' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'quiz' ? `QUIZ · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab, st.type === 'question' || st.type === 'quiz' ? streakHTML() : '');
     const ctrls = st.controls || [];
     if (st.type === 'teach') {
-      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+      h += `<p>${tx(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${tx(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
     } else if (st.type === 'do' || st.type === 'fail') {
       if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
@@ -1652,7 +1837,11 @@ function start(C, S) {
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
       if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
-      else {
+      else if (qState === 'rate') {      // confidence tap (predict {confidence: true}): after the pick, before the reveal
+        h += `<button class="opt picked" disabled>${String.fromCharCode(65 + predPick)}. ${md(st.choices[predPick])}</button>` +
+          `<p class="rateq">How sure are you?</p><div class="chips conf" role="group" aria-label="How sure are you?">${CONF.map((t, i) => `<button class="chip" data-conf="${i}" aria-pressed="false">${t}</button>`).join('')}</div>` +
+          `<div class="note">Pick one, then see what happens. It is not marked.</div>`;
+      } else {
         // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
         h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
@@ -1668,15 +1857,34 @@ function start(C, S) {
         `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
       else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
         `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    } else if (st.type === 'reflect') {
+      const rf = reflected[idx], chips = st.chips ? st.chips.map(c => typeof c === 'string' ? { t: c } : c) : null;
+      h += `<p>${md(st.prompt || st.text)}</p>`;
+      if (!rf) {
+        if (chips) h += `<div class="chips refl" role="group" aria-label="Pick one">${chips.map((c, i) => `<button class="chip" data-rc="${i}" aria-pressed="false">${md(c.t)}</button>`).join('')}</div>`;
+        if (!chips || st.line) h += `<textarea id="reflect-t" rows="3" maxlength="400" aria-label="Your own words" placeholder="Type it in your own words. Not marked, not sent anywhere."></textarea>`;
+        h += `<div class="row"><button class="btn pri" id="b-model">Show the model answer</button><button class="skip" id="b-skip">Skip this step</button></div>`;
+      } else {
+        const c = rf.chip != null && chips ? chips[rf.chip] : null, m = (c && c.model) || st.model || 'Thanks. Say it back to yourself in your own words.';
+        h += `<div class="good"><b>${st.modelLabel || 'One way to say it.'}</b> ${md(m)}</div>` +
+          `<div class="row">${c && c.page ? `<button class="btn qgo" data-p="${c.page}">Go to page ${c.page}</button>` : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+      }
+    } else if (st.type === 'quiz') {
+      h += quizHTML(st);
     }
     card.innerHTML = h; wireHead();
-    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    renderTray(st.type === 'question' || st.type === 'quiz' ? (st.controls || []) : ctrls);
     const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
     const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
     const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
     const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
     const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    card.querySelectorAll('.chip[data-conf]').forEach(b => b.onclick = () => rateConf(+b.dataset.conf));
+    card.querySelectorAll('.chip[data-rc]').forEach(b => b.onclick = () => { card.querySelectorAll('.chip[data-rc]').forEach(x => { const on = x === b && !x.classList.contains('on'); x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); }); });
+    const mb = $('#b-model'); if (mb) mb.onclick = () => reveal();
+    card.querySelectorAll('.qgo').forEach(b => b.onclick = () => { const d = +b.dataset.p - PN; L('goto', { page: +b.dataset.p }); if (d) go(d); else enter(0); });
+    if (st.type === 'quiz') wireQuiz();
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
     // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
@@ -1687,8 +1895,11 @@ function start(C, S) {
   function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
   function choose(i) {
     const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'quiz') return quizPick(i);
     if (st.type === 'predict') {
-      if (qState) return; predPick = i; qState = 'answered';
+      if (qState) return; predPick = i;
+      if (st.confidence) { qState = 'rate'; renderStep(); return; }     // the reveal waits for the confidence tap
+      qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
       renderStep(); speak('s' + idx + 'after'); return;
@@ -1698,11 +1909,122 @@ function start(C, S) {
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
     if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
+    streakNote(`p${PN}s${idx}`, qState === 'right');
     renderStep();
+    if (qState === 'wrong') playReplay(v.choices[i].replay);
+  }
+  /* confidence tap: the reveal that choose() held back, once the learner has rated the pick */
+  function rateConf(lvl) {
+    const st = steps[idx]; if (!st || st.type !== 'predict' || qState !== 'rate' || !(lvl >= 0 && lvl < 3)) return;
+    const right = predPick === st.answer, key = `p${PN}s${idx}`, c = LS('conf', {}); c[key] = [lvl, right ? 1 : 0]; LSET('conf', c);
+    L('confidence', { step: idx, key, level: lvl, right }); qState = 'answered';
+    if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+    if (!st.goal) done.add(idx);
+    renderStep(); speak('s' + idx + 'after');
+  }
+  /* reflect: never marked, never sent to the host; only the chip and the length of the text are logged */
+  function reveal() {
+    const st = steps[idx]; if (!st || st.type !== 'reflect' || reflected[idx]) return;
+    const on = card.querySelector('.chip[data-rc].on'), t = card.querySelector('#reflect-t');
+    reflected[idx] = { chip: on ? +on.dataset.rc : null, chars: t ? t.value.trim().length : 0 };
+    done.add(idx); L('reflect', { step: idx, chip: reflected[idx].chip, chars: reflected[idx].chars }); renderStep(); speak('s' + idx + 'after');
+  }
+  /* replay on a wrong pick: play the short set, hold, then put back the keys it moved */
+  function playReplay(r) {
+    stopReplay(); if (!r || !r.set || CAPTURE) return;
+    const back = {}, src = r.set.snap ? state : r.set; for (const k in src) if (k !== 'snap') back[k] = state[k];
+    set(r.set, r.dur || 1200); replayJob = { back, t: (r.dur || 1200) + (r.hold != null ? r.hold : 1200) }; L('replay', { step: idx });
+  }
+  function stopReplay() {
+    if (!replayJob) return; const b = replayJob.back; replayJob = null;
+    tweens.forEach(T => { for (const k in b) delete T.tw[k]; }); set(b, 0);
+  }
+
+  /* ---------------------------------------------------------------- quiz page (design L2-B1 6.5) */
+  function qzIdsFor(round, missed) {
+    const pool = qzc.pool, rn = rng(PN * 1000 + (Q.get('seed') | 0) + 4001 + round * 131);
+    const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rn() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const all = pool.map((_, i) => i), unused = all.filter(i => !qzAsked[i]);
+    if (round === 0) {
+      const n = Math.min(qzc.draw || pool.length, pool.length);
+      if (qzc.byOutcome === false) return shuf(unused).slice(0, n);
+      const by = {}, order = []; unused.forEach(i => { const o = pool[i].outcome || ''; if (!by[o]) { by[o] = []; order.push(o); } by[o].push(i); });
+      order.forEach(o => { by[o] = shuf(by[o]); });
+      const res = []; while (res.length < n && order.some(o => by[o].length)) order.forEach(o => { if (res.length < n && by[o].length) res.push(by[o].shift()); });
+      return res;
+    }
+    const per = (qzc.second && qzc.second.perOutcome) || 3, res = [];
+    missed.forEach(o => { const ids = all.filter(i => (pool[i].outcome || '') === o); res.push(...shuf(ids.filter(i => !qzAsked[i])).concat(shuf(ids.filter(i => qzAsked[i]))).slice(0, per)); });
+    return shuf(res);
+  }
+  function quizStart(round, missed) {
+    qz = { round, ids: qzIdsFor(round, missed || []), k: 0, picks: [], state: null, phase: 'ask', result: null };
+    qz.ids.forEach(i => { qzAsked[i] = 1; }); hintLvl = 0; quizItemSetup(); L('quiz', { start: round, n: qz.ids.length }); renderStep();
+  }
+  const quizItem = () => qzc.pool[qz.ids[qz.k]];
+  function quizItemSetup() { const it = quizItem(); if (it && it.setup) set(it.setup, 0); }
+  function quizPick(i) {
+    if (!qz || qz.phase !== 'ask' || qz.state) return;
+    const it = quizItem(), right = i === it.answer; qz.state = right ? 'right' : 'wrong';
+    qz.picks.push({ id: qz.ids[qz.k], outcome: it.outcome || '', right, i }); if (right && it.show) set(it.show, 1200);
+    if (qz.round === 0 && host && host.answer) host.answer(PN, 900 + qz.k, right);
+    streakNote(`p${PN}q${qz.round}.${qz.k}`, right); L('quiz', { k: qz.k, i, right, round: qz.round });
+    renderStep(); if (!right) playReplay(it.choices[i].replay);
+  }
+  function quizShow() {
+    if (!qz || qz.phase !== 'ask' || qz.state) return; const it = quizItem(); helped.add(idx); L('showme', { step: idx, quiz: qz.k });
+    qz.state = 'shown'; qz.picks.push({ id: qz.ids[qz.k], outcome: it.outcome || '', right: false, i: -1 });
+    if (qz.round === 0 && host && host.answer) host.answer(PN, 900 + qz.k, false);
+    streakNote(`p${PN}q${qz.round}.${qz.k}`, false); if (it.show) set(it.show, 1200); renderStep();
+  }
+  function quizNext() {
+    if (!qz || !qz.state) return; stopReplay(); qz.k++; qz.state = null; hintLvl = 0;
+    if (qz.k >= qz.ids.length) { quizResult(); return; }
+    quizItemSetup(); renderStep();
+  }
+  function quizResult() {
+    const n = qz.ids.length, right = qz.picks.filter(p => p.right).length, pct = n ? Math.round(100 * right / n) : 0, miss = n - right;
+    const second = qzc.second || {}, passed = qz.round === 0 ? pct >= (qzc.pass != null ? qzc.pass : 80) : miss <= (second.maxMiss != null ? second.maxMiss : 1);
+    const missed = []; qz.picks.forEach(p => { if (!p.right && !missed.includes(p.outcome)) missed.push(p.outcome); });
+    qz.phase = 'result'; qz.result = { n, right, pct, passed, missed }; done.add(idx); L('quiz', { result: qz.round, right, n, passed });
+    renderStep();
+  }
+  function quizHTML(st) {
+    if (!qz) return `<p>${tx(st.text)}</p><div class="note">${Math.min(qzc.draw || qzc.pool.length, qzc.pool.length)} questions. Pass at ${qzc.pass != null ? qzc.pass : 80} %. Nothing locks: a miss shows you which page to go back to.</div><div class="row"><button class="btn pri" id="b-qstart">Start the quiz</button></div>`;
+    if (qz.phase === 'result') {
+      const r = qz.result, oc = qzc.outcomes || {}, per = (qzc.second && qzc.second.perOutcome) || 3;
+      let h = `<div class="qscore"><b>${r.right} of ${r.n} right (${r.pct} %)</b></div>`;
+      h += r.passed ? `<div class="good"><b>${esc(qzc.badge || 'Quiz passed')}.</b> ${r.missed.length ? 'These outcomes still had a miss, so each has a page to revisit.' : 'Every outcome came out right.'}</div>`
+        : `<div class="bad"><b>${WORDS[r.missed.length] || r.missed.length} outcome${r.missed.length === 1 ? '' : 's'} need${r.missed.length === 1 ? 's' : ''} another pass.</b> Go back to the page named, then try the second quiz.</div>`;
+      r.missed.forEach(o => {
+        const items = qz.picks.filter(p => !p.right && p.outcome === o).map(p => qzc.pool[p.id]), links = [];
+        items.forEach(it => { const sc = it.screen || oc[o] || {}; if (sc.page && !links.some(l => l.page === sc.page)) links.push({ page: sc.page, label: sc.label || (oc[o] && oc[o].label) || o }); });
+        h += `<div class="qo"><span>${esc((oc[o] && oc[o].label) || o)}</span>${links.map(l => `<button class="btn qgo" data-p="${l.page}">${esc(l.label)}: page ${l.page}</button>`).join('')}</div>`;
+      });
+      return h + `<div class="row">${r.missed.length ? `<button class="btn pri" id="b-q2">Second quiz: ${per * r.missed.length} questions on ${r.missed.length === 1 ? 'that outcome' : 'those outcomes'}</button>` : ''}<button class="btn${r.missed.length ? '' : ' pri'}" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    const it = quizItem(), ord = perm(it.choices.length, PN * 1000 + qz.ids[qz.k] * 37 + qz.round * 7 + 3), last = qz.k >= qz.ids.length - 1;
+    let h = `<div class="qn">${qz.round ? 'Second quiz · ' : ''}Question ${qz.k + 1} of ${qz.ids.length}</div><h3>${md(it.q)}</h3>` + refHtml(it.ref);
+    if (!qz.state) return h + opts(it.choices, ord, () => '', true) + hintBlock({ hint: it.hint || 'Look at the drawing and read the question again.' }) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+    const pick = qz.picks[qz.picks.length - 1].i;
+    h += opts(it.choices, ord, j => qz.state === 'right' ? (j === it.answer ? 'right' : '') : j === pick ? 'wrong' : j === it.answer ? 'ans' : '');
+    h += qz.state === 'wrong' ? `<div class="bad"><b>Not quite.</b> ${md(it.choices[pick].why)}</div><div class="good"><b>The answer.</b> ${md(it.explain)}</div>` : `<div class="good"><b>${qz.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(it.explain)}</div>`;
+    return h + `<div class="row"><button class="btn pri" id="b-qnext">${last ? 'See the result' : 'Next question'} &#9654;</button></div>`;
+  }
+  function wireQuiz() {
+    const a = $('#b-qstart'); if (a) a.onclick = () => quizStart(0);
+    const n = $('#b-qnext'); if (n) n.onclick = () => quizNext();
+    const t = $('#b-q2'); if (t) t.onclick = () => quizStart(qz.round + 1, qz.result.missed);
+  }
+  function quizState() {
+    if (!qz) return { phase: 'intro' };
+    const it = qz.phase === 'ask' ? quizItem() : null, r = qz.result;
+    return { phase: qz.phase, round: qz.round, k: qz.k, n: qz.ids.length, state: qz.state, answer: it ? it.answer : null, outcomes: qz.ids.map(i => qzc.pool[i].outcome || ''), ids: qz.ids.slice(),
+      right: qz.picks.filter(p => p.right).length, result: r ? Object.assign({}, r) : null };
   }
   function newQuestion() {
     if (challenge) { return nextChallenge(); }
-    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    stopReplay(); const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
     const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
     L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
   }
@@ -1714,9 +2036,11 @@ function start(C, S) {
   }
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
-    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
-    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    const st = steps[idx]; if (st.type === 'quiz') return quizShow();
+    L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); streakNote(`p${PN}s${idx}`, false); renderStep(); return; }
+    if (Array.isArray(st.solve)) { solveSeq = { list: st.solve.slice(), t: 0, gap: st.solveGap || 1000 }; set(solveSeq.list.shift(), 500); if (!solveSeq.list.length) solveSeq = null; renderTray(); }
+    else if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
 
@@ -1790,11 +2114,13 @@ function start(C, S) {
   /* test / run-through API */
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
-      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+      qState, ...(qzc ? { quiz: quizState() } : {}), ...(replayJob ? { replay: true } : {}), variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, rate: rateConf, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();
 </script>
-<script>(function(){const C={"n":3,"file":"03-grease.html","title":"Grease and NLGI","scene":"lb-grease","capture":"stage","start":{"card":"nlgi","brg":"6309","grade":1,"thick":"li","added":0,"base":30,"wiped":true,"drain":false,"run":true},"what":"A fan's **pillow block**, cut through the shaft and drawn to scale around a **6309** ball bearing, with lithium grease in the free space. Top right: the **cone penetration test** that gives a grease its **NLGI grade**. Bottom right: which greases mix with the **lithium** grease already in this housing (Mobil's compatibility chart).","steps":[{"type":"teach","tag":"On the job","spot":["bearing"],"text":"You're greasing a fan pillow block, and the tube in the crib isn't the one already in the housing. Grease is grease, so you load it and pump. Maybe fine, maybe not. Two things decide it: how **firm** the grease is, and what it's **thickened** with. Let's look at both."},{"type":"teach","text":"Grease is oil held in a **thickener**, like water in a sponge. The base oil is most of it, typically 80 to 97 % (Mobil), and it does the lubricating. The **thickener** (lithium, lithium complex, polyurea, calcium sulfonate, clay...) holds it in place. **Additives** do the rest: rust and oxidation inhibitors, extreme pressure (EP), anti-wear.","spot":["grease"]},{"type":"teach","text":"Grease is used where oil won't stay put: sealed bearings, slow or vertical shafts, places that are hard to reach. It also helps seal out dirt. It does **not** carry heat away like circulating oil.","spot":["bearing"]},{"type":"teach","text":"**NLGI grade** = how firm the grease is. A standard cone drops into grease worked 60 strokes, at 25 °C, for 5 seconds (ASTM D217). The depth in tenths of a mm sets the grade: **000** almost fluid to **6** block. Deeper = softer.","spot":["c-nlgi"]},{"type":"predict","text":"Most rolling bearings use **NLGI 2**. The card shows a soft NLGI 00 now. Make a call: in the firmer NLGI 2, does the cone sink deeper or not as deep?","controls":["grade"],"goal":{"grade":4},"solve":{"grade":4},"hint":"Tap 2 on NLGI grade.","ok":"It stops at **265 to 295** tenths of a mm, about 28 mm: far less than the 400 or more of NLGI 00. That's because a firmer grease pushes back harder on the cone. Bigger grade number, firmer grease, less sink.","choices":["Deeper","Not as deep","The same: the grade is just a label"],"answer":1,"thinkHint":"Push a spoon into soft butter, then into cold butter. Which one lets it in further?","after":"Let's find out.","doText":"Tap **2** on **NLGI grade**. Watch how far the cone sinks into the cup."},{"type":"do","text":"Now pick **NLGI 0**, a soft grease used in centralized lube systems. Watch the cone.","controls":["grade"],"goal":{"grade":2},"solve":{"grade":2},"hint":"Tap 0 (not 000 or 00).","ok":"Deeper: **355 to 385** tenths of a mm. That's because NLGI 0 is softer, so the cone meets less push-back. Soft grease flows down the small lines of a central system. The grade comes from the thickener, not the oil's viscosity."},{"type":"teach","tag":"Now you know","spot":["c-nlgi"],"setup":{"grade":4},"text":"Now you know the NLGI number is how firm the grease is, not how thick its oil is. So when you pick a grease, you can decide: NLGI 2 for most bearings, softer for a centralized system, and always the grade the machine maker calls for."},{"type":"teach","tag":"On the job","spot":["c-compat"],"text":"Now the tube you grabbed. The housing is full of **lithium** grease. Your gun has **clay** grease in it. It's the right NLGI grade, so it should be fine. Before you pump, look at the mixing card."},{"type":"predict","setup":{"grade":4},"text":"The gun is loaded with a **clay (non-soap)** grease. The housing is full of lithium grease. What happens when you pump it in?","choices":["They blend fine: grease is grease","The mix can soften and bleed oil","It sets hard at once and stops all flow"],"answer":1,"reveal":{"set":{"thick":"clay","added":12.5},"dur":600},"after":"Mobil's chart rates clay with lithium as **incompatible**: see the banner. That's because the two thickeners don't hold oil the same way. Mixed, they can soften, harden or bleed oil, worse when hot. Never do this on the job: use the same grease, a compatible one, or purge the old out fully."},{"type":"do","setup":{"added":0,"thick":"clay"},"text":"Load the gun with a grease the chart rates **compatible** with lithium.","controls":["thick"],"goal":{"thick":{"in":["li","lic","pus"]}},"solve":{"thick":"lic"},"hint":"Read the green rows on the mixing card.","ok":"Compatible on the chart. That's because Mobil's chart rates these thickeners as holding together when mixed. Mobil still says to test in a lab when you change products, and check the maker's grease (base oil, grade) too."},{"type":"teach","tag":"Now you know","spot":["c-compat"],"text":"Now you know grade and thickener both matter. So when the tube in the crib doesn't match the housing, you can decide: use the same grease, check the maker's chart for a compatible one, or purge the old grease out fully. Don't just pump and hope."},{"type":"question","variants":[{"q":"What does the **NLGI grade** of a grease tell you?","choices":[{"t":"How firm it is (cone penetration)"},{"t":"The base oil's viscosity","why":"That is a separate number on the data sheet."},{"t":"The highest temperature","why":"That is the dropping point / operating range."},{"t":"Which thickener it has","why":"The thickener is named separately."}],"answer":0,"explain":"NLGI grade = **consistency**: how far a standard cone sinks into worked grease at 25 °C. 000 fluid to 6 block."},{"q":"A cone sinks **265 to 295** tenths of a mm into a worked grease. What NLGI grade is it?","choices":[{"t":"NLGI 2"},{"t":"NLGI 1","why":"NLGI 1 is 310–340: deeper, so softer."},{"t":"NLGI 3","why":"NLGI 3 is 220–250: shallower, so firmer."},{"t":"NLGI 00","why":"00 is 400–430: almost fluid."}],"answer":0,"explain":"265–295 is **NLGI 2**, the common bearing grade.","ref":{"title":"NLGI consistency grades (worked penetration at 25 °C, tenths of a mm)","columns":["NLGI grade","Penetration"],"rows":[["0","355–385"],["1","310–340"],["2","265–295"],["3","220–250"]],"note":"NLGI grades, ASTM D217 (cited by number); ranges as published by NLGI and Mobil's grease technical topic."}},{"q":"Which grease is the softest?","choices":[{"t":"NLGI 000"},{"t":"NLGI 6","why":"6 is block grease, the firmest."},{"t":"NLGI 2","why":"NLGI 2 is in the middle of the scale."},{"t":"NLGI 3","why":"NLGI 3 is firmer than NLGI 2."}],"answer":0,"explain":"Lower number = softer. **000** is semi-fluid."},{"q":"In a grease, what does the actual lubricating?","choices":[{"t":"The base oil"},{"t":"The thickener","why":"The thickener holds the oil like a sponge."},{"t":"The dye","why":"Dye is colour only; it does no lubricating."},{"t":"The NLGI number","why":"That is a measurement, not an ingredient."}],"answer":0,"explain":"The **base oil** (80 to 97 %) lubricates; the thickener holds it in place."}]},{"type":"question","variants":[{"q":"A bearing has lithium grease. Your new tube is a **polyurea (shear stable)** grease. Mobil's chart rates the pair compatible*. What else should you do?","choices":[{"t":"Check it with the maker or a lab test before changing over"},{"t":"Nothing: the chart is a guarantee","why":"Mobil calls its chart a general guide only."},{"t":"Mix in some clay grease to help","why":"Clay and lithium are rated incompatible."},{"t":"Double the amount","why":"Amount has nothing to do with compatibility."}],"answer":0,"explain":"The chart is a **general guide**: Mobil recommends a lab test when changing greases. Base oils and additives matter too."},{"q":"What can happen when two **incompatible** greases mix?","choices":[{"t":"The mix softens or hardens and can bleed oil"},{"t":"They lubricate better together","why":"Incompatible means the mix performs worse."},{"t":"Nothing at all","why":"The thickeners react with each other."},{"t":"The NLGI grade doubles","why":"The grade can change, but not like that."}],"answer":0,"explain":"Incompatible mixtures can **soften, harden or bleed oil**, worse at high temperature and shear (Mobil)."},{"q":"You must change a bearing from lithium to a grease the chart rates **incompatible**. Best practice?","choices":[{"t":"Purge the old grease out completely before running on the new one"},{"t":"Pump the new one in on top","why":"That makes exactly the incompatible mix."},{"t":"Use half of each","why":"Half and half is still an incompatible mix."},{"t":"Pick a softer grade of the new grease","why":"The grade doesn't fix compatibility."}],"answer":0,"explain":"Remove or purge out **all** the old grease (or clean and repack), then run on the new grease only."},{"q":"Grease colour is…","choices":[{"t":"A dye: it doesn't tell you the type or grade"},{"t":"A code for the NLGI grade","why":"There is no colour code for grades."},{"t":"A code for the thickener","why":"Read the label, not the colour."},{"t":"A sign of quality","why":"Colour has nothing to do with lubrication."}],"answer":0,"explain":"Mobil: dyes and pigments add **colour only**. Read the label and the data sheet."}]}],"free":"Everything is unlocked. Change the NLGI grade and watch the cone; load different greases into the gun and pump them in to see what the chart says. Try a challenge.","lesson":{"id":"lubrication","title":"Lubrication","episode":"073-lubrication","done":"You finished **Lubrication: viscosity, grease and intervals**. Now you can pick an oil for its running temperature, choose grease and mix it safely, work out how much and how often, and keep it clean and dry. So on the job you can decide, not guess. Print the summary sheet, and always follow the maker's lube chart, the data sheet and your site's procedures.","sheet":"lubrication-summary.pdf","footer":"Exam prep, not a procedure: on the job, follow the machine maker's lube chart and manual, the lubricant data sheet and SDS, and your site procedures. Lock out before reaching past a guard (WorkSafeBC OHS Regulation s. 12.6 asks for guards that allow lubrication without removal, where practicable). Check your province's rules.","summary":{"title":"Lubrication: viscosity, grease and intervals","pic":{"page":5,"state":{"base":50,"added":25,"drain":true,"wiped":true}},"rules":["A lubricant separates the surfaces, carries heat away and keeps out rust and dirt. Motion drags oil into the narrowing gap (oil wedge); stopped or starting = boundary lubrication.<br><i><b>Why:<\/b> no motion, no wedge: wear happens at start and stop. <b>Decide:<\/b> slow or stop-start machines need the right grade; check levels every round.<\/i>","Viscosity = resistance to flow, in cSt (mm²/s). ISO VG = cSt at 40 °C ±10 % (VG 68 = 61.2 to 74.8). Oil thins as it heats: read the viscosity at the running temperature.<br><i><b>Why:<\/b> the drum's VG is only true at 40 °C. <b>Decide:<\/b> pick the grade at the running temperature; never top up with a handy wrong oil.<\/i>","κ = ν ÷ ν1 (oil you have ÷ oil the bearing needs, from the maker's chart): aim for about 1 to 4. Under 1 the peaks touch.<br><i><b>Why:<\/b> κ compares the film to what the bearing needs. <b>Decide:<\/b> under 1, go heavier or cool it.<\/i>","Grease = base oil (80 to 97 %) + thickener + additives. NLGI grade = cone penetration at 25 °C (000 fluid to 6 block); NLGI 2 for most bearings. Don't mix incompatible thickeners (check the maker's chart).<br><i><b>Why:<\/b> mixed thickeners can soften or bleed oil. <b>Decide:<\/b> same grease, a compatible one, or purge the old out.<\/i>","How much (side relubrication, SKF): Gp = 0.005 × D × B (g, mm) = 0.114 × D × B (oz, in). 6309: 12.5 g. Weigh ten strokes to know your gun.<br><i><b>Why:<\/b> a charge is a weight, not a feeling. <b>Decide:<\/b> work out the strokes for your gun before you start.<\/i>","How often: t = K × (14,000,000 ÷ (n√d) − 4d) h; K = 10 ball, 5 cylindrical roller, 1 spherical / tapered roller; halve for every 15 °C over 70 °C. 6309 at 1,800 rpm, 60 °C: about 9,790 h.<br><i><b>Why:<\/b> speed and heat use up grease faster. <b>Decide:<\/b> shorten the interval for hot or fast bearings, and find out why it's hot.<\/i>","Right way: wipe the fitting, drain plug out, one charge, run to purge, plug back in. Fill the free space about 30 to 50 %: packed housings churn, overheat and blow seals.<br><i><b>Why:<\/b> packed grease churns, heats and blows seals. <b>Decide:<\/b> plug out, one charge; hot after greasing = suspect too much.<\/i>","ISO 4406 = particles per mL at 4 / 6 / 14 µm as range numbers; each step doubles. Films are about 0.1 to 3 µm, so particles dent and scratch. Sealed labelled containers, filtered top-ups, desiccant breathers. Milky oil = free water.<br><i><b>Why:<\/b> particles are bigger than the film. <b>Decide:<\/b> sealed cans, filter carts, breathers; milky oil = find the leak first.<\/i>"]},"pages":[{"file":"01-why-lubricate.html","title":"The oil film"},{"file":"02-viscosity-grades.html","title":"Viscosity grades"},{"file":"03-grease.html","title":"Grease and NLGI"},{"file":"04-how-much-how-often.html","title":"How much, how often"},{"file":"05-over-greasing.html","title":"Over-greasing"},{"file":"06-contamination.html","title":"Dirt and water"},{"file":"07-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p3-what-a6b264a0.mp3","s0":"p3-s0-1f5eeb2d.mp3","s1":"p3-s1-0a2f489b.mp3","s2":"p3-s2-5acc739a.mp3","s3":"p3-s3-f47dd5a6.mp3","s4":"p3-s4-d2d8ece5.mp3","s4after":"p3-s4after-39e6e841.mp3","s4ok":"p3-s4ok-fac59334.mp3","s5":"p3-s5-15fb3395.mp3","s5ok":"p3-s5ok-526077f0.mp3","s6":"p3-s6-0a07ef3a.mp3","s7":"p3-s7-51ecb61b.mp3","s8":"p3-s8-8cdfdce2.mp3","s8after":"p3-s8after-539d5b13.mp3","s9":"p3-s9-7a0264e1.mp3","s9ok":"p3-s9ok-fa850274.mp3","s10":"p3-s10-17f9b6bb.mp3","s11v0":"p3-s11v0-50d95a5e.mp3","s11v1":"p3-s11v1-189d1bbe.mp3","s11v2":"p3-s11v2-81a9894d.mp3","s11v3":"p3-s11v3-746ad5ec.mp3","s12v0":"p3-s12v0-9d311240.mp3","s12v1":"p3-s12v1-ecb453b7.mp3","s12v2":"p3-s12v2-5b8b6fcf.mp3","s12v3":"p3-s12v3-ff837162.mp3","free":"p3-free-c260a113.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["lubrication"][C.n]));})();</script>
+<script>(function(){const C={"n":3,"file":"03-grease.html","title":"Grease and NLGI","scene":"lb-grease","capture":"stage","start":{"card":"nlgi","brg":"6309","grade":1,"thick":"li","added":0,"base":30,"wiped":true,"drain":false,"run":true},"what":"A fan's **pillow block**, cut through the shaft and drawn to scale around a **6309** ball bearing, with lithium grease in the free space. Top right: the **cone penetration test** that gives a grease its **NLGI grade**. Bottom right: which greases mix with the **lithium** grease already in this housing (Mobil's compatibility chart).","steps":[{"type":"teach","tag":"On the job","spot":["bearing"],"text":"You're greasing a fan pillow block, and the tube in the crib isn't the one already in the housing. Grease is grease, so you load it and pump. Maybe fine, maybe not. Two things decide it: how **firm** the grease is, and what it's **thickened** with. Let's look at both."},{"type":"teach","text":"Grease is oil held in a **thickener**, like water in a sponge. The base oil is most of it, typically 80 to 97 % (Mobil), and it does the lubricating. The **thickener** (lithium, lithium complex, polyurea, calcium sulfonate, clay...) holds it in place. **Additives** do the rest: rust and oxidation inhibitors, extreme pressure (EP), anti-wear.","spot":["grease"]},{"type":"teach","text":"Grease is used where oil won't stay put: sealed bearings, slow or vertical shafts, places that are hard to reach. It also helps seal out dirt. It does **not** carry heat away like circulating oil.","spot":["bearing"]},{"type":"teach","text":"**NLGI grade** = how firm the grease is. A standard cone drops into grease worked 60 strokes, at 25 °C (77 °F), for 5 seconds (ASTM D217). The depth in tenths of a mm sets the grade: **000** almost fluid to **6** block. Deeper = softer.","spot":["c-nlgi"]},{"type":"predict","text":"Most rolling bearings use **NLGI 2**. The card shows a soft NLGI 00 now. Make a call: in the firmer NLGI 2, does the cone sink deeper or not as deep?","controls":["grade"],"goal":{"grade":4},"solve":{"grade":4},"hint":"Tap 2 on NLGI grade.","ok":"It stops at **265 to 295** tenths of a mm, about 28 mm: far less than the 400 or more of NLGI 00. That's because a firmer grease pushes back harder on the cone. Bigger grade number, firmer grease, less sink.","choices":["Deeper","Not as deep","The same: the grade is just a label"],"answer":1,"thinkHint":"Push a spoon into soft butter, then into cold butter. Which one lets it in further?","after":"Let's find out.","doText":"Tap **2** on **NLGI grade**. Watch how far the cone sinks into the cup."},{"type":"do","text":"Now pick **NLGI 0**, a soft grease used in centralized lube systems. Watch the cone.","controls":["grade"],"goal":{"grade":2},"solve":{"grade":2},"hint":"Tap 0 (not 000 or 00).","ok":"Deeper: **355 to 385** tenths of a mm. That's because NLGI 0 is softer, so the cone meets less push-back. Soft grease flows down the small lines of a central system. The grade comes from the thickener, not the oil's viscosity."},{"type":"teach","tag":"Now you know","spot":["c-nlgi"],"setup":{"grade":4},"text":"Now you know the NLGI number is how firm the grease is, not how thick its oil is. So when you pick a grease, you can decide: NLGI 2 for most bearings, softer for a centralized system, and always the grade the machine maker calls for."},{"type":"teach","tag":"On the job","spot":["c-compat"],"text":"Now the tube you grabbed. The housing is full of **lithium** grease. Your gun has **clay** grease in it. It's the right NLGI grade, so it should be fine. Before you pump, look at the mixing card."},{"type":"predict","setup":{"grade":4},"text":"The gun is loaded with a **clay (non-soap)** grease. The housing is full of lithium grease. What happens when you pump it in?","choices":["They blend fine: grease is grease","The mix can soften and bleed oil","It sets hard at once and stops all flow"],"answer":1,"reveal":{"set":{"thick":"clay","added":12.5},"dur":600},"after":"Mobil's chart rates clay with lithium as **incompatible**: see the banner. That's because the two thickeners don't hold oil the same way. Mixed, they can soften, harden or bleed oil, worse when hot. Never do this on the job: use the same grease, a compatible one, or purge the old out fully."},{"type":"do","setup":{"added":0,"thick":"clay"},"text":"Load the gun with a grease the chart rates **compatible** with lithium.","controls":["thick"],"goal":{"thick":{"in":["li","lic","pus"]}},"solve":{"thick":"lic"},"hint":"Read the green rows on the mixing card.","ok":"Compatible on the chart. That's because Mobil's chart rates these thickeners as holding together when mixed. Mobil still says to test in a lab when you change products, and check the maker's grease (base oil, grade) too."},{"type":"teach","tag":"Now you know","spot":["c-compat"],"text":"Now you know grade and thickener both matter. So when the tube in the crib doesn't match the housing, you can decide: use the same grease, check the maker's chart for a compatible one, or purge the old grease out fully. Don't just pump and hope."},{"type":"question","variants":[{"q":"What does the **NLGI grade** of a grease tell you?","choices":[{"t":"How firm it is (cone penetration)"},{"t":"The base oil's viscosity","why":"That is a separate number on the data sheet."},{"t":"The highest temperature","why":"That is the dropping point / operating range."},{"t":"Which thickener it has","why":"The thickener is named separately."}],"answer":0,"explain":"NLGI grade = **consistency**: how far a standard cone sinks into worked grease at 25 °C (77 °F). 000 fluid to 6 block."},{"q":"A cone sinks **265 to 295** tenths of a mm into a worked grease. What NLGI grade is it?","choices":[{"t":"NLGI 2"},{"t":"NLGI 1","why":"NLGI 1 is 310–340: deeper, so softer."},{"t":"NLGI 3","why":"NLGI 3 is 220–250: shallower, so firmer."},{"t":"NLGI 00","why":"00 is 400–430: almost fluid."}],"answer":0,"explain":"265–295 is **NLGI 2**, the common bearing grade.","ref":{"title":"NLGI consistency grades (worked penetration at 25 °C (77 °F), tenths of a mm)","columns":["NLGI grade","Penetration"],"rows":[["0","355–385"],["1","310–340"],["2","265–295"],["3","220–250"]],"note":"NLGI grades, ASTM D217 (cited by number); ranges as published by NLGI and Mobil's grease technical topic."}},{"q":"Which grease is the softest?","choices":[{"t":"NLGI 000"},{"t":"NLGI 6","why":"6 is block grease, the firmest."},{"t":"NLGI 2","why":"NLGI 2 is in the middle of the scale."},{"t":"NLGI 3","why":"NLGI 3 is firmer than NLGI 2."}],"answer":0,"explain":"Lower number = softer. **000** is semi-fluid."},{"q":"In a grease, what does the actual lubricating?","choices":[{"t":"The base oil"},{"t":"The thickener","why":"The thickener holds the oil like a sponge."},{"t":"The dye","why":"Dye is colour only; it does no lubricating."},{"t":"The NLGI number","why":"That is a measurement, not an ingredient."}],"answer":0,"explain":"The **base oil** (80 to 97 %) lubricates; the thickener holds it in place."}]},{"type":"question","variants":[{"q":"A bearing has lithium grease. Your new tube is a **polyurea (shear stable)** grease. Mobil's chart rates the pair compatible*. What else should you do?","choices":[{"t":"Check it with the maker or a lab test before changing over"},{"t":"Nothing: the chart is a guarantee","why":"Mobil calls its chart a general guide only."},{"t":"Mix in some clay grease to help","why":"Clay and lithium are rated incompatible."},{"t":"Double the amount","why":"Amount has nothing to do with compatibility."}],"answer":0,"explain":"The chart is a **general guide**: Mobil recommends a lab test when changing greases. Base oils and additives matter too."},{"q":"What can happen when two **incompatible** greases mix?","choices":[{"t":"The mix softens or hardens and can bleed oil"},{"t":"They lubricate better together","why":"Incompatible means the mix performs worse."},{"t":"Nothing at all","why":"The thickeners react with each other."},{"t":"The NLGI grade doubles","why":"The grade can change, but not like that."}],"answer":0,"explain":"Incompatible mixtures can **soften, harden or bleed oil**, worse at high temperature and shear (Mobil)."},{"q":"You must change a bearing from lithium to a grease the chart rates **incompatible**. Best practice?","choices":[{"t":"Purge the old grease out completely before running on the new one"},{"t":"Pump the new one in on top","why":"That makes exactly the incompatible mix."},{"t":"Use half of each","why":"Half and half is still an incompatible mix."},{"t":"Pick a softer grade of the new grease","why":"The grade doesn't fix compatibility."}],"answer":0,"explain":"Remove or purge out **all** the old grease (or clean and repack), then run on the new grease only."},{"q":"Grease colour is…","choices":[{"t":"A dye: it doesn't tell you the type or grade"},{"t":"A code for the NLGI grade","why":"There is no colour code for grades."},{"t":"A code for the thickener","why":"Read the label, not the colour."},{"t":"A sign of quality","why":"Colour has nothing to do with lubrication."}],"answer":0,"explain":"Mobil: dyes and pigments add **colour only**. Read the label and the data sheet."}]}],"free":"Everything is unlocked. Change the NLGI grade and watch the cone; load different greases into the gun and pump them in to see what the chart says. Try a challenge.","lesson":{"id":"lubrication","title":"Lubrication","episode":"073-lubrication","done":"You finished **Lubrication: viscosity, grease and intervals**. Now you can pick an oil for its running temperature, choose grease and mix it safely, work out how much and how often, and keep it clean and dry. So on the job you can decide, not guess. Print the summary sheet, and always follow the maker's lube chart, the data sheet and your site's procedures.","sheet":"lubrication-summary.pdf","footer":"Exam prep, not a procedure: on the job, follow the machine maker's lube chart and manual, the lubricant data sheet and SDS, and your site procedures. Lock out before reaching past a guard (WorkSafeBC OHS Regulation s. 12.6 asks for guards that allow lubrication without removal, where practicable). Check your province's rules.","summary":{"title":"Lubrication: viscosity, grease and intervals","pic":{"page":5,"state":{"base":50,"added":25,"drain":true,"wiped":true}},"rules":["A lubricant separates the surfaces, carries heat away and keeps out rust and dirt. Motion drags oil into the narrowing gap (oil wedge); stopped or starting = boundary lubrication.<br><i><b>Why:<\/b> no motion, no wedge: wear happens at start and stop. <b>Decide:<\/b> slow or stop-start machines need the right grade; check levels every round.<\/i>","Viscosity = resistance to flow, in cSt (mm²/s). ISO VG = cSt at 40 °C (104 °F) ±10 % (VG 68 = 61.2 to 74.8). Oil thins as it heats: read the viscosity at the running temperature.<br><i><b>Why:<\/b> the drum's VG is only true at 40 °C (104 °F). <b>Decide:<\/b> pick the grade at the running temperature; never top up with a handy wrong oil.<\/i>","κ = ν ÷ ν1 (oil you have ÷ oil the bearing needs, from the maker's chart): aim for about 1 to 4. Under 1 the peaks touch.<br><i><b>Why:<\/b> κ compares the film to what the bearing needs. <b>Decide:<\/b> under 1, go heavier or cool it.<\/i>","Grease = base oil (80 to 97 %) + thickener + additives. NLGI grade = cone penetration at 25 °C (77 °F) (000 fluid to 6 block); NLGI 2 for most bearings. Don't mix incompatible thickeners (check the maker's chart).<br><i><b>Why:<\/b> mixed thickeners can soften or bleed oil. <b>Decide:<\/b> same grease, a compatible one, or purge the old out.<\/i>","How much (side relubrication, SKF): Gp = 0.005 × D × B (g, mm) = 0.114 × D × B (oz, in). 6309: 12.5 g. Weigh ten strokes to know your gun.<br><i><b>Why:<\/b> a charge is a weight, not a feeling. <b>Decide:<\/b> work out the strokes for your gun before you start.<\/i>","How often: t = K × (14,000,000 ÷ (n√d) − 4d) h; K = 10 ball, 5 cylindrical roller, 1 spherical / tapered roller; halve for every 15 °C (27 °F) over 70 °C (158 °F). 6309 at 1,800 rpm, 60 °C (140 °F): about 9,790 h.<br><i><b>Why:<\/b> speed and heat use up grease faster. <b>Decide:<\/b> shorten the interval for hot or fast bearings, and find out why it's hot.<\/i>","Right way: wipe the fitting, drain plug out, one charge, run to purge, plug back in. Fill the free space about 30 to 50 %: packed housings churn, overheat and blow seals.<br><i><b>Why:<\/b> packed grease churns, heats and blows seals. <b>Decide:<\/b> plug out, one charge; hot after greasing = suspect too much.<\/i>","ISO 4406 = particles per mL at 4 / 6 / 14 µm as range numbers; each step doubles. Films are about 0.1 to 3 µm, so particles dent and scratch. Sealed labelled containers, filtered top-ups, desiccant breathers. Milky oil = free water.<br><i><b>Why:<\/b> particles are bigger than the film. <b>Decide:<\/b> sealed cans, filter carts, breathers; milky oil = find the leak first.<\/i>"]},"pages":[{"file":"01-why-lubricate.html","title":"The oil film"},{"file":"02-viscosity-grades.html","title":"Viscosity grades"},{"file":"03-grease.html","title":"Grease and NLGI"},{"file":"04-how-much-how-often.html","title":"How much, how often"},{"file":"05-over-greasing.html","title":"Over-greasing"},{"file":"06-contamination.html","title":"Dirt and water"},{"file":"07-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p3-what-a6b264a0.mp3","s0":"p3-s0-1f5eeb2d.mp3","s1":"p3-s1-0a2f489b.mp3","s2":"p3-s2-5acc739a.mp3","s3":"p3-s3-4f45f450.mp3","s4":"p3-s4-d2d8ece5.mp3","s4after":"p3-s4after-39e6e841.mp3","s4ok":"p3-s4ok-fac59334.mp3","s5":"p3-s5-15fb3395.mp3","s5ok":"p3-s5ok-526077f0.mp3","s6":"p3-s6-0a07ef3a.mp3","s7":"p3-s7-51ecb61b.mp3","s8":"p3-s8-8cdfdce2.mp3","s8after":"p3-s8after-539d5b13.mp3","s9":"p3-s9-7a0264e1.mp3","s9ok":"p3-s9ok-fa850274.mp3","s10":"p3-s10-17f9b6bb.mp3","s11v0":"p3-s11v0-50d95a5e.mp3","s11v1":"p3-s11v1-189d1bbe.mp3","s11v2":"p3-s11v2-81a9894d.mp3","s11v3":"p3-s11v3-746ad5ec.mp3","s12v0":"p3-s12v0-9d311240.mp3","s12v1":"p3-s12v1-ecb453b7.mp3","s12v2":"p3-s12v2-5b8b6fcf.mp3","s12v3":"p3-s12v3-ff837162.mp3","free":"p3-free-c260a113.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["lubrication"][C.n]));})();</script>
 </body></html>

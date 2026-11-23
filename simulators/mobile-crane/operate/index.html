@@ -3197,6 +3197,9 @@ function reportScore(final){
 /* ---------- observability for run-through agents ---------- */
 const LOG=[]; const T0=now();
 function log(action,detail){const st=STEPS[P.i];LOG.push({t:now()-T0,step:practice?'practice':st?st.id:'finish',action,...(detail||{})});}
+/* voice hook (mentor pattern 2026-11-15): a page that has narration listens for 'cf-lesson-voice' {key}: <step id> on
+   entering a step, <step id>after on a predict pick, <step id>ok when a do / fail-demo / predict goal is met. */
+const voice=key=>{try{document.dispatchEvent(new CustomEvent('cf-lesson-voice',{detail:{key}}));}catch(e){}};
 
 /* ---------- dock + spotlight DOM ---------- */
 document.documentElement.classList.add('lesson-on'); document.body.classList.add('lesson-on');
@@ -3396,7 +3399,7 @@ function enter(i,how){
   markKeep(); layout();
   if(spotIds[0])scrollToTarget(spotIds[0]);
   log('enter',{type:st.type,how});
-  save(); render();
+  save(); render(); voice(st.type==='check'&&P.rt===1&&P.rv>0?'':st.id);
 }
 function spotFor(st){
   if(st.spot===false)return [];
@@ -3433,7 +3436,7 @@ function picture(st){
 function render(){
   if(practice)return renderPractice();
   head();
-  const st0=STEPS[P.i], st=eff(st0), tg=TAG[st.type]||TAG.teach;
+  const st0=STEPS[P.i], st=eff(st0), tg0=TAG[st.type]||TAG.teach, tg=st.tag?[String(st.tag).toUpperCase(),tg0[1]]:tg0;
   let h=`<span class="lz-tag ${tg[1]}">${tg[0]}</span><h2>${esc(tpl(st.title||''))}</h2>`;
   if(st.type==='fail-demo')h+=`<div class="lz-never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
   h+=rich(st.text)+picture(st);
@@ -3472,7 +3475,8 @@ function feedback(){
       :`<p><b>Not quite.</b>${why?' '+inline(tpl(why)):''}</p>`;
     fb(ok?'ok':a&&a[2]?'hint':'no',lead+rich(st.explain),true);return;}
   if(st.type==='predict'&&cur.phase==='done'){const right=st.answer==null||cur.choice===st.answer;
-    fb(right?'ok':'warn',`<p><b>${right?'Good call.':'Not what you predicted.'}</b></p>`+rich(st.after),true);return;}
+    // a predict with a goal ("ask, then find out") ends on its ok: the "that's because..." for what the learner just did
+    fb(right?'ok':'warn',`<p><b>${right?'Good call.':'Not what you predicted.'}</b></p>`+(st.goal?(cur.okHTML||rich(st.ok||'Done.')):rich(st.after)),true);return;}
   if(st.type==='predict'&&cur.phase==='reveal'){fb('hint',rich(st.doText||'Now do it in the simulator.'),true);return;}
   if((st.type==='do'||st.type==='fail-demo')&&done(st)&&cur.okHTML){fb(st.type==='fail-demo'?'fail':st.okTone||'ok',cur.okHTML,true);return;}
   if(cur.hintHTML)fb('hint',cur.hintHTML,true);
@@ -3515,7 +3519,7 @@ function commitPredict(){
   const st=STEPS[P.i]; P.a[st.id]=[cur.choice,st.answer==null||cur.choice===st.answer?1:0]; log('predict',{choice:cur.choice});
   if(st.goal){cur.phase='reveal';cur.t0=now();cur.hints=0;cur.tries=0;cur.hintHTML='';lockAll(st.unlock);spotIds=spotFor({...st,type:'do'});markKeep();layout();if(spotIds[0])scrollToTarget(spotIds[0]);}
   else{cur.phase='done';if(st.reveal)window.sim.set(st.reveal.set||st.reveal,st.reveal.dur||1500);markDone(st);}
-  save(); render();
+  save(); render(); voice(st.id+'after');
 }
 function submitCheck(shown){
   const st=eff(STEPS[P.i]); let val, ok;
@@ -3538,11 +3542,11 @@ function hint(){
   const st=eff(STEPS[P.i]); if(cur.demo||cur.skipping)return;
   const doLike=st.type==='do'||st.type==='fail-demo'||(st.type==='predict'&&cur.phase==='reveal');
   if(cur.hints>=3&&doLike){log('skip');cur.helped=true;cur.skipping=true;HINT.disabled=true;const so=solveOf(st);if(so)window.sim.set(so,800);
-    setTimeout(()=>{markDone(st,true);cur.okHTML=rich(st.ok||'Done.')+'<p><i>Step skipped. Try it in practice later.</i></p>';
+    setTimeout(()=>{markDone(st,true);if(!cur||cur.id!==st.id)return;cur.okHTML=rich(st.ok||'Done.')+'<p><i>Step skipped. Try it in practice later.</i></p>';
       if(st.type==='predict'){cur.phase='done';}render();},st.type==='fail-demo'?1600:900);return;}
   cur.hints++; log('hint',{level:cur.hints});
   if(st.type==='predict'&&cur.phase==='main'){
-    cur.hintHTML=cur.hints===1?rich(st.hint||'There is no wrong guess here. Pick the answer you think is most likely.')
+    cur.hintHTML=cur.hints===1?rich(st.thinkHint||st.hint||'There is no wrong guess here. Pick the answer you think is most likely.')
       :'<p>Any answer is fine. This one is not marked. Pick one and lock it in.</p>';
     if(cur.hints>=2&&cur.choice==null){cur.choice=st.answer??0;}
     cur.hints=Math.min(cur.hints,2); render(); return;}
@@ -3595,6 +3599,7 @@ function poll(){
         if(wEl)wEl.innerHTML='';
         if(st.type==='predict'){cur.phase='done';markDone(st);render();}
         else{markDone(st,cur.helped);arrowFor=null;render();GO.classList.add('pulse');}
+        voice(st.id+'ok');
       }
     } else if(!done(st)){
       // authored "wrong way" messages always show (above any hint) while they apply

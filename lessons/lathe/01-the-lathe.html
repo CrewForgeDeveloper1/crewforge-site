@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -422,11 +432,11 @@ K.dim = function (x0, y0, x1, y1, text, o = {}) {
 };
 K.inset = function (refId, sx, sy, mag, cx, cy, r, title, sub, id) {
   const rs = r / mag, d = Math.hypot(cx - sx, cy - sy) || 1, ux = (cx - sx) / d, uy = (cy - sy) / d, cid = 'ci' + Math.round(cx) + '_' + Math.round(cy);
-  let s = `<g${id ? ` id="${id}"` : ''}><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  let s = `<g><circle cx="${f(sx)}" cy="${f(sy)}" r="${f(rs)}" fill="none" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
   s += `<line x1="${f(sx + ux * rs)}" y1="${f(sy + uy * rs)}" x2="${f(cx - ux * r)}" y2="${f(cy - uy * r)}" stroke="${C.text}" stroke-width="2" stroke-dasharray="5 4"/>`;
   s += `<clipPath id="${cid}"><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}"/></clipPath><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r + 5)}" fill="#1F1D1A"/>`;
-  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g>`;
-  s += `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
+  s += `<g clip-path="url(#${cid})"><rect x="${f(cx - r)}" y="${f(cy - r)}" width="${f(2 * r)}" height="${f(2 * r)}" fill="#26231f"/><use href="#${refId}" transform="translate(${f(cx)} ${f(cy)}) scale(${mag}) translate(${f(-sx)} ${f(-sy)})"/></g></g>`;
+  s += `<g${id ? ` id="${id}"` : ''}><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r)}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
   if (title) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy - r - 14)}" text-anchor="middle" style="font-weight:800;letter-spacing:.08em">${title}</text>`;
   if (sub) s += `<text class="lm halo" x="${f(cx)}" y="${f(cy + r + 30)}" text-anchor="middle">${sub}</text>`;
   return s + '</g>';
@@ -442,12 +452,22 @@ K.plate = function (x, y, w, rows, o = {}) {
   });
   return s + '</g>';
 };
-K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
-  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
-  const x = (K.W - w) / 2;
-  return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
-    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
-    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+K.wrap = function (text, maxCh) {
+  const out = []; let line = '';
+  for (const w of String(text).split(' ')) { if (line && (line + ' ' + w).length > maxCh) { out.push(line); line = w; } else line = line ? line + ' ' + w : w; }
+  if (line) out.push(line);
+  return out;
+};
+K.banner = function (text, sub, col = C.bad, id = 'fail-card', o = {}) {
+  const x0 = o.x0 != null ? o.x0 : (K.W - 1500) / 2, x1 = o.x1 != null ? o.x1 : (K.W + 1500) / 2, y = o.y != null ? o.y : 18;
+  const fs = o.fs || 26, fs2 = Math.round(fs * .77), cw = fs * (o.cw || .6), cw2 = fs2 * .6, avail = x1 - x0 - 40;
+  const L1 = K.wrap(text, Math.floor(avail / cw)), L2 = sub ? K.wrap(sub, Math.floor(avail / cw2)) : [];
+  const w = Math.min(x1 - x0, 40 + Math.max(...L1.map(l => l.length * cw), ...L2.map(l => l.length * cw2)));
+  const cx = (x0 + x1) / 2, lh1 = fs * 1.2, lh2 = fs2 * 1.3, h = 22 + L1.length * lh1 + L2.length * lh2 + (L2.length ? 4 : 0);
+  let s = `<g id="${id}" class="pcOnly"><rect x="${f(cx - w / 2)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>`;
+  L1.forEach((l, i) => { s += `<text class="bt" x="${f(cx)}" y="${f(y + 10 + fs + i * lh1)}" text-anchor="middle" style="font:800 ${fs}px ${K.FONT};fill:${col}">${l}</text>`; });
+  L2.forEach((l, i) => { s += `<text class="bs" x="${f(cx)}" y="${f(y + 14 + L1.length * lh1 + fs2 + i * lh2)}" text-anchor="middle" style="font:700 ${fs2}px ${K.FONT};fill:${C.text}">${l}</text>`; });
+  return s + '</g>';
 };
 K.dust = (cx, y, t, w = 160) => {
   if (t < 0 || t > 1.6) return '';
@@ -1074,7 +1094,7 @@ window.CFScenes['la-lathe'] = function () {
       cross: () => lab('cross', f(cX + 120), f(BT - 120), [cX + 2 * k, BT - 34]),
       comp: () => lab('comp', f(cX + 150), f(CY - 120), [cX + 1.4 * k, CY - 2 * k]),
       tail: () => lab('tail', 1200, 120, [TX + 100, CY - 4.6 * k + 6]),
-      lead: () => lab('lead', 1200, f(FL - 120), [1100, yL]),
+      lead: () => lab('lead', 1010, f(FL - 120), [1100, yL]),
       bed: () => lab('bed', 1200, f(BT + 40), [1150, BT + 30])
     };
     if (S.sel === 'none') s += L.head() + L.chuck() + L.carr() + L.tail() + L.bed();
@@ -1123,15 +1143,18 @@ window.MachAdapter = function (C, PC) {
     else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
   }
   window.PAGE_SCENE = A;
-  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, short: (PC.short || {})[label], id: String(i) }));
   const CAP = new URLSearchParams(location.search).has('capture');
   A.caption = (s, o) => {
     if (CAP || !(document.body.classList.contains('phone') || sc.captionAlways)) return null;
     if (sc.caption) return sc.caption(s, o);
     const card = g && (g.querySelector('#fail-card') || g.querySelector('#ok-card'));
     if (!card) return null;
-    const t = [...card.querySelectorAll('text')].map(e => e.textContent.trim()).filter(Boolean);
-    return t.length ? { kind: card.id === 'fail-card' ? 'fail' : 'warn', title: K.esc(t[0]), text: K.esc(t.slice(1).join(' · ')) } : null;
+    const tx = sel => [...card.querySelectorAll(sel)].map(e => e.textContent.trim()).filter(Boolean);
+    const kind = card.id === 'fail-card' ? 'fail' : 'warn';
+    if (card.querySelector('text.bt')) return { kind, title: K.esc(tx('text.bt').join(' ')), text: K.esc(tx('text.bs').join(' ')) };
+    const t = tx('text');
+    return t.length ? { kind, title: K.esc(t[0]), text: K.esc(t.slice(1).join(' · ')) } : null;
   };
   A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
   function bboxOf(id) {
@@ -1176,6 +1199,7 @@ window.MachAdapter = function (C, PC) {
     if (document.body.classList.contains('phone')) {
       const m = svg.getScreenCTM(), k = m ? m.a : 1;
       g.querySelectorAll('text').forEach(t => { if (parseFloat(getComputedStyle(t).fontSize) * k < 11) t.style.display = 'none'; });
+      g.querySelectorAll('g[id^="lbl-"]').forEach(l => { const ts = l.querySelectorAll('text'); if (ts.length && Array.from(ts).every(t => t.style.display === 'none')) l.style.display = 'none'; });
     }
   };
   function toSvg(e) { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
@@ -1199,8 +1223,8 @@ window.MachAdapter = function (C, PC) {
     const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
     if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
     const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
-    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
-    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+    if (c.game) return { game: true, setup, q: c.q, ref: c.ref, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, ref: c.ref, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
   };
   return A;
 };
@@ -1248,6 +1272,7 @@ function depthQ(rng) {
 window.LESSON_CODE = window.LESSON_CODE || {};
 window.LESSON_CODE['lathe'] = {
   1: {
+    short: {'Carriage, tool to chuck': 'To chuck'},   // phone labels for long readout names
     readouts: (S, o) => [['Part', S.sel === 'none' ? 'Main parts' : PARTS[S.sel]], ['Carriage, tool to chuck', K.n1(S.carr) + ' in'], ['Spindle', S.run ? 'running (shown slowed)' : 'stopped', S.run ? C.acc : undefined]],
     challenge: (rng) => {
       const qs = [['Which part holds the spindle and the speed gears?', 'head'], ['Which part moves the tool in and out, square to the work?', 'cross'], ['Which part swivels for short tapers and chamfers?', 'comp'],
@@ -1369,7 +1394,10 @@ window.LESSON_CODE['lathe'] = {
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1397,7 +1425,7 @@ function start(C, S) {
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1442,7 +1470,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1534,7 +1562,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -1858,7 +1894,9 @@ function start(C, S) {
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
       qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();

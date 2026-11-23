@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -442,12 +452,13 @@ K.plate = function (x, y, w, rows, o = {}) {
   });
   return s + '</g>';
 };
+K.BANNER_X = [36, 1134];
 K.banner = function (text, sub, col = C.bad, id = 'fail-card') {
-  const w = Math.min(1500, 40 + Math.max(text.length * 15.5, (sub || '').length * 12));
-  const x = (K.W - w) / 2;
+  const [x0, x1] = K.BANNER_X, cx = (x0 + x1) / 2, need = 40 + Math.max(text.length * 15.5, (sub || '').length * 12);
+  const w = Math.min(x1 - x0, need), z = Math.min(1, (x1 - x0) / need), x = cx - w / 2;
   return `<g id="${id}" class="pcOnly"><rect x="${f(x)}" y="18" width="${f(w)}" height="${sub ? 82 : 52}" rx="10" fill="#1F1D1A" stroke="${col}" stroke-width="3" opacity=".96"/>` +
-    `<text x="800" y="52" text-anchor="middle" style="font:800 26px ${K.FONT};fill:${col}">${text}</text>` +
-    (sub ? `<text x="800" y="84" text-anchor="middle" style="font:700 20px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
+    `<text x="${f(cx)}" y="52" text-anchor="middle" style="font:800 ${f(26 * z)}px ${K.FONT};fill:${col}">${text}</text>` +
+    (sub ? `<text x="${f(cx)}" y="84" text-anchor="middle" style="font:700 ${f(20 * z)}px ${K.FONT};fill:${C.text}">${sub}</text>` : '') + '</g>';
 };
 K.dust = (cx, y, t, w = 160) => {
   if (t < 0 || t > 1.6) return '';
@@ -1059,14 +1070,16 @@ function table(x, y, widths, rows, o = {}) {
   return s + '</g>';
 }
 function projSymbol(x, y, h, angle, o = {}) {
-  const col = o.col || INK, R = h / 2, r = h * 0.3, L = h * 1.1, gap = h * 0.45;
-  const trap = (x0, bigLeft) => { const yb = R, ys = r; return bigLeft ? [[x0, y - yb], [x0 + L, y - ys], [x0 + L, y + ys], [x0, y + yb]] : [[x0, y - ys], [x0 + L, y - yb], [x0 + L, y + yb], [x0, y + ys]]; };
-  let s = `<g${o.id ? ` id="${o.id}"` : ''}>`, tx, cx;
-  if (angle === 'third') { tx = x; cx = x + L + gap + R; s += `<path d="${G.pd(trap(tx, true), true)}" fill="none" stroke="${col}" stroke-width="2"/>`; }
-  else { cx = x + R; tx = x + 2 * R + gap; s += `<path d="${G.pd(trap(tx, true), true)}" fill="none" stroke="${col}" stroke-width="2"/>`; }
-  s += `<circle cx="${f(cx)}" cy="${f(y)}" r="${f(R)}" fill="none" stroke="${col}" stroke-width="2"/><circle cx="${f(cx)}" cy="${f(y)}" r="${f(r)}" fill="none" stroke="${col}" stroke-width="2"/>`;
+  const col = o.col || INK, R = h / 2, r = h * 0.25, L = h * 0.95, gap = h * 0.6, ov = h * 0.18;
+  const trap = x0 => [[x0, y - r], [x0 + L, y - R], [x0 + L, y + R], [x0, y + r]];
+  let tx, cx;
+  if (angle === 'third') { cx = x + R; tx = x + 2 * R + gap; }
+  else { tx = x; cx = x + L + gap + R; }
+  let s = `<g${o.id ? ` id="${o.id}"` : ''} data-angle="${angle === 'third' ? 'third' : 'first'}">`;
+  s += `<path class="ps-cone" data-x0="${f(tx)}" d="${G.pd(trap(tx), true)}" fill="none" stroke="${col}" stroke-width="2"/>`;
+  s += `<circle class="ps-outer" cx="${f(cx)}" cy="${f(y)}" r="${f(R)}" fill="none" stroke="${col}" stroke-width="2"/><circle class="ps-inner" cx="${f(cx)}" cy="${f(y)}" r="${f(r)}" fill="none" stroke="${col}" stroke-width="2"/>`;
   const cl = G.DASH.centre.split(' ').map(v => v * .35).join(' ');
-  s += `<path d="M${f(Math.min(tx, cx - R) - 6)} ${f(y)}H${f(Math.max(tx + L, cx + R) + 6)}M${f(cx)} ${f(y - R - 6)}V${f(y + R + 6)}" stroke="${col}" stroke-width="1" stroke-dasharray="${cl}"/>`;
+  s += `<path class="ps-centre" d="M${f(tx - ov)} ${f(y)}H${f(tx + L + ov)}M${f(cx - R - ov)} ${f(y)}H${f(cx + R + ov)}M${f(cx)} ${f(y - R - ov)}V${f(y + R + ov)}" stroke="${col}" stroke-width="1" stroke-dasharray="${cl}"/>`;
   return s + '</g>';
 }
 function titleBlock(x, y, w, o) {
@@ -1489,7 +1502,7 @@ window.DrawAdapter = function (C, PC) {
   window.PAGE_SCENE = A;
   A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
   A.caption = () => null;
-  A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
+  A.phoneViewBox = (s, asp) => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur), asp) : A.viewBox;
   function bboxOf(id) {
     const el = svg && svg.querySelector('#' + CSS.escape(id)); if (!el || !el.getBBox) return null;
     let b; try { b = el.getBBox(); } catch (e) { return null; }
@@ -1555,8 +1568,8 @@ window.DrawAdapter = function (C, PC) {
     const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
     if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
     const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
-    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
-    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+    if (c.game) return { game: true, setup, q: c.q, ref: c.ref, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, ref: c.ref, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
   };
   return A;
 };
@@ -1654,7 +1667,10 @@ window.LESSON_CODE.projection = {
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1682,7 +1698,7 @@ function start(C, S) {
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1727,7 +1743,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1819,7 +1835,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -2143,10 +2167,12 @@ function start(C, S) {
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
       qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();
 </script>
-<script>(function(){const C={"n":4,"file":"04-which-angle.html","title":"Which angle is it?","scene":"projection","capture":"stage","start":{"mode":"sheet","angle":"first","part":"bracket","hidden":true,"hiView":"none","symbol":true,"read":"same"},"what":"A drawing that came with an imported machine. It is drawn in **first angle**. The symbol in the title block says so: **circles on the left**, the cone on the right. Read it the wrong way and you make the wrong part.","steps":[{"type":"teach","tag":"On the job","text":"You're making a mounting bracket from the print that came with an imported machine. You're in a hurry, and the shortcut is to read it like every Canadian print: third angle. Here's what happens when the print is really **first angle**."},{"type":"teach","text":"The first-angle symbol: the two **circles are on the left** and the cone's large end faces them. Third angle is the other way round: cone on the left, its small end pointing at the circles on the right.","callout":[{"id":"proj-symbol","text":"First-angle symbol","pos":"left"}]},{"type":"teach","text":"The layout agrees: the top view is **below** the front view and the right side view is on the **left**. When the symbol is missing, the layout and the part's features are your clues.","callout":[{"id":"v-top","text":"Top view below: first angle","pos":"right"}]},{"type":"predict","text":"Before you try it: read this first-angle sheet as third angle. What part comes out?","choices":["The same part","A mirror image of the part","A part twice the size"],"answer":1,"hint":"The side views trade places between the two systems.","after":"A **mirror image**. Not a mess you'd spot right away: a believable part, built backwards. Let's watch it happen."},{"type":"fail","text":"Now read this first-angle sheet **as if it were third angle**. Switch Read it as to The other projection and watch the part that comes out.","controls":["read"],"goal":"fn:misread","solve":{"read":"other"},"hold":900,"hint":"Tap The other projection under Read it as.","ok":"The right side view was read as a left side view, so the upright moved from the back to the front: a mirror image. That's because the views are on opposite sides in the two systems. On the job, that's a scrapped part or a guard that won't fit."},{"type":"teach","tag":"Now you know","text":"Now you know a wrong guess gives a mirror image that still looks right. So when a print has no symbol, you can decide what to do: use the layout and the part's features as clues, and if you're still not sure, ask for a print with the symbol before you cut."},{"type":"question","setup":{"read":"same"},"variants":[{"q":"A drawing's title block shows **two circles on the left and a cone on the right**. Which projection is it?","choices":[{"t":"First angle"},{"t":"Third angle","why":"Third angle has the cone on the left, small end pointing at the circles on the right."},{"t":"Isometric","why":"Isometric is a picture, not a projection symbol."},{"t":"Not enough information","why":"The symbol is the information."}],"answer":0,"explain":"Circles on the left: **first angle**."},{"q":"A title block symbol shows a **trapezoid on the left with its small end pointing at two circles** on the right. Which projection?","choices":[{"t":"Third angle"},{"t":"First angle","why":"First angle has the circles on the left."},{"t":"Oblique","why":"Oblique is a pictorial, not a symbol."},{"t":"Auxiliary","why":"An auxiliary is a view, not a projection system."}],"answer":0,"explain":"Cone on the left, circles on the right: **third angle**."},{"q":"You read a first-angle drawing as if it were third angle. What happens?","choices":[{"t":"You can build a mirror image of the part"},{"t":"Nothing: the views are identical","why":"The views look alike, but their places swap. Read them in the wrong places and left and right swap too."},{"t":"The part comes out twice as big","why":"Projection does not change the scale."},{"t":"Only the hidden lines change","why":"The whole layout swaps, so features end up on the wrong side."}],"answer":0,"explain":"The side view gets read as the opposite side: features move to the wrong side. A mirror image."},{"q":"A sheet has no projection symbol. The top view is **below** the front view. What do you do?","choices":[{"t":"Treat it as first angle and confirm with the drafter or the part"},{"t":"Assume third angle because you are in Canada","why":"Where you are does not change how the drawing was made. The layout says first angle."},{"t":"Ignore the top view","why":"You need every view to read the shape."},{"t":"Flip the sheet upside down","why":"That just turns every view upside down."}],"answer":0,"explain":"Top below the front = first angle. Then confirm: ask, or check a feature on the real part."}]}],"free":"Switch the projection, hide the symbol, and try reading it both ways.","freeControls":["angle","read","hiView","part"],"lesson":{"id":"projection","title":"Orthographic projection: first and third angle","episode":"061-mechanical-drawings","done":"You finished **Orthographic projection: first and third angle**. Print the summary sheet. On the job, check the projection symbol in the title block before you read any view.","sheet":"projection-summary.pdf","summary":{"title":"Orthographic projection: first and third angle","pic":{"page":1,"state":{"mode":"box","angle":"third","part":"bracket","hidden":true,"unfold":0.45,"spin":0}},"rules":["A multiview drawing shows a part as flat views, each looking straight at one side. Front, top and right side are the usual three.","Glass box: the part sits in a box of glass. Each view is the picture on one face. Unfold the box and the faces become the layout of the drawing.","THIRD angle (Canada, the U.S.): you look through the glass at the part. Top view ABOVE the front view; right side view to the RIGHT.","FIRST angle (Europe, most of Asia): the part sits between you and the plane. Top view BELOW the front view; right side view on the LEFT.","The ISO 5456-2 symbol in the title block tells you which. Third angle: the cone (trapezoid) on the left, its small end pointing at the circles. First angle: circles on the left.","Views line up: the top view shares widths with the front view; the side view shares heights with it; top and side share depth.","Read a first-angle drawing as third angle and you make a mirror image of the part. Never guess: check the symbol.","<b>Why:<\/b> the views of a first-angle print look just like a third-angle one, so a wrong guess makes a believable mirror-image part. <b>Decide:<\/b> symbol first; no symbol, use the layout and features, and ask before you cut."]},"pages":[{"file":"01-glass-box.html","title":"The glass box"},{"file":"02-third-angle-sheet.html","title":"Reading a third-angle drawing"},{"file":"03-first-angle.html","title":"First-angle projection"},{"file":"04-which-angle.html","title":"Which angle is it?"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p4-what-9abc5033.mp3","s0":"p4-s0-3f49b10d.mp3","s1":"p4-s1-a145eef5.mp3","s2":"p4-s2-f7179a37.mp3","s3":"p4-s3-fb216c00.mp3","s3after":"p4-s3after-9ed1d815.mp3","s4":"p4-s4-73ae68a0.mp3","s4ok":"p4-s4ok-af2c9612.mp3","s5":"p4-s5-bb142741.mp3","s6v0":"p4-s6v0-85428746.mp3","s6v1":"p4-s6v1-705848a0.mp3","s6v2":"p4-s6v2-ee0128c0.mp3","s6v3":"p4-s6v3-e9361622.mp3","free":"p4-free-4e1bea9e.mp3"},"audioBase":"audio/"};CFShell.start(C, DrawAdapter(C, window.LESSON_CODE["projection"][C.n] || {}));})();</script>
+<script>(function(){const C={"n":4,"file":"04-which-angle.html","title":"Which angle is it?","scene":"projection","capture":"stage","start":{"mode":"sheet","angle":"first","part":"bracket","hidden":true,"hiView":"none","symbol":true,"read":"same"},"what":"A drawing that came with an imported machine. It is drawn in **first angle**. The symbol in the title block says so: the cone on the left, **circles on the right**. Read it the wrong way and you make the wrong part.","steps":[{"type":"teach","tag":"On the job","text":"You're making a mounting bracket from the print that came with an imported machine. You're in a hurry, and the shortcut is to read it like every Canadian print: third angle. Here's what happens when the print is really **first angle**."},{"type":"teach","text":"The first-angle symbol: the cone is on the left and the two **circles are on the right**, so the cone's large end faces them. Third angle is the other way round: circles on the left, the cone on the right with its small end pointing at them.","callout":[{"id":"proj-symbol","text":"First-angle symbol","pos":"left"}]},{"type":"teach","text":"The layout agrees: the top view is **below** the front view and the right side view is on the **left**. When the symbol is missing, the layout and the part's features are your clues.","callout":[{"id":"v-top","text":"Top view below: first angle","pos":"right"}]},{"type":"predict","text":"Before you try it: read this first-angle sheet as third angle. What part comes out?","choices":["The same part","A mirror image of the part","A part twice the size"],"answer":1,"hint":"The side views trade places between the two systems.","after":"A **mirror image**. Not a mess you'd spot right away: a believable part, built backwards. Let's watch it happen."},{"type":"fail","text":"Now read this first-angle sheet **as if it were third angle**. Switch Read it as to The other projection and watch the part that comes out.","controls":["read"],"goal":"fn:misread","solve":{"read":"other"},"hold":900,"hint":"Tap The other projection under Read it as.","ok":"The right side view was read as a left side view, so the upright moved from the back to the front: a mirror image. That's because the views are on opposite sides in the two systems. On the job, that's a scrapped part or a guard that won't fit."},{"type":"teach","tag":"Now you know","text":"Now you know a wrong guess gives a mirror image that still looks right. So when a print has no symbol, you can decide what to do: use the layout and the part's features as clues, and if you're still not sure, ask for a print with the symbol before you cut."},{"type":"question","setup":{"read":"same"},"variants":[{"q":"A drawing's title block shows **a cone on the left and two circles on the right**, the cone's large end facing the circles. Which projection is it?","choices":[{"t":"First angle"},{"t":"Third angle","why":"Third angle has the circles on the left and the cone on the right, small end pointing at the circles."},{"t":"Isometric","why":"Isometric is a picture, not a projection symbol."},{"t":"Not enough information","why":"The symbol is the information."}],"answer":0,"explain":"Cone on the left, circles on the right: **first angle**."},{"q":"A title block symbol shows **two circles on the left** and a trapezoid on the right, its small end pointing at the circles. Which projection?","choices":[{"t":"Third angle"},{"t":"First angle","why":"First angle has the circles on the right."},{"t":"Oblique","why":"Oblique is a pictorial, not a symbol."},{"t":"Auxiliary","why":"An auxiliary is a view, not a projection system."}],"answer":0,"explain":"Circles on the left, cone on the right: **third angle**."},{"q":"You read a first-angle drawing as if it were third angle. What happens?","choices":[{"t":"You can build a mirror image of the part"},{"t":"Nothing: the views are identical","why":"The views look alike, but their places swap. Read them in the wrong places and left and right swap too."},{"t":"The part comes out twice as big","why":"Projection does not change the scale."},{"t":"Only the hidden lines change","why":"The whole layout swaps, so features end up on the wrong side."}],"answer":0,"explain":"The side view gets read as the opposite side: features move to the wrong side. A mirror image."},{"q":"A sheet has no projection symbol. The top view is **below** the front view. What do you do?","choices":[{"t":"Treat it as first angle and confirm with the drafter or the part"},{"t":"Assume third angle because you are in Canada","why":"Where you are does not change how the drawing was made. The layout says first angle."},{"t":"Ignore the top view","why":"You need every view to read the shape."},{"t":"Flip the sheet upside down","why":"That just turns every view upside down."}],"answer":0,"explain":"Top below the front = first angle. Then confirm: ask, or check a feature on the real part."}]}],"free":"Switch the projection, hide the symbol, and try reading it both ways.","freeControls":["angle","read","hiView","part"],"lesson":{"id":"projection","title":"Orthographic projection: first and third angle","episode":"061-mechanical-drawings","done":"You finished **Orthographic projection: first and third angle**. Print the summary sheet. On the job, check the projection symbol in the title block before you read any view.","sheet":"projection-summary.pdf","summary":{"title":"Orthographic projection: first and third angle","pic":{"page":1,"state":{"mode":"box","angle":"third","part":"bracket","hidden":true,"unfold":0.45,"spin":0}},"rules":["A multiview drawing shows a part as flat views, each looking straight at one side. Front, top and right side are the usual three.","Glass box: the part sits in a box of glass. Each view is the picture on one face. Unfold the box and the faces become the layout of the drawing.","THIRD angle (Canada, the U.S.): you look through the glass at the part. Top view ABOVE the front view; right side view to the RIGHT.","FIRST angle (Europe, most of Asia): the part sits between you and the plane. Top view BELOW the front view; right side view on the LEFT.","The ISO 5456-2 symbol in the title block tells you which. The cone (a trapezoid) always has its small end on the left. Third angle: circles on the left, the cone on the right, its small end pointing at the circles. First angle: the cone on the left, circles on the right.","Views line up: the top view shares widths with the front view; the side view shares heights with it; top and side share depth.","Read a first-angle drawing as third angle and you make a mirror image of the part. Never guess: check the symbol.","<b>Why:<\/b> the views of a first-angle print look just like a third-angle one, so a wrong guess makes a believable mirror-image part. <b>Decide:<\/b> symbol first; no symbol, use the layout and features, and ask before you cut."]},"pages":[{"file":"01-glass-box.html","title":"The glass box"},{"file":"02-third-angle-sheet.html","title":"Reading a third-angle drawing"},{"file":"03-first-angle.html","title":"First-angle projection"},{"file":"04-which-angle.html","title":"Which angle is it?"},{"file":"05-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p4-what-3596dfe6.mp3","s0":"p4-s0-3f49b10d.mp3","s1":"p4-s1-36bcc60d.mp3","s2":"p4-s2-f7179a37.mp3","s3":"p4-s3-fb216c00.mp3","s3after":"p4-s3after-9ed1d815.mp3","s4":"p4-s4-73ae68a0.mp3","s4ok":"p4-s4ok-af2c9612.mp3","s5":"p4-s5-bb142741.mp3","s6v0":"p4-s6v0-2c3450e7.mp3","s6v1":"p4-s6v1-0ef02dd9.mp3","s6v2":"p4-s6v2-ee0128c0.mp3","s6v3":"p4-s6v3-e9361622.mp3","free":"p4-free-4e1bea9e.mp3"},"audioBase":"audio/"};CFShell.start(C, DrawAdapter(C, window.LESSON_CODE["projection"][C.n] || {}));})();</script>
 </body></html>

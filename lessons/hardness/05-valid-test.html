@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -505,13 +515,107 @@ const n0 = v => Math.round(v).toLocaleString('en-CA');
 const n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 MD.n0 = n0; MD.n1 = n1; MD.n2 = n2;
-MD.fT = (c, units, both) => units === 'imp' ? n0(Math.round(MD.toF(c) / 5) * 5) + ' °F' : n0(c) + ' °C' + (both ? ` (${n0(Math.round(MD.toF(c) / 5) * 5)} °F)` : '');
-MD.fTexact = (c, units) => units === 'imp' ? n0(MD.toF(c)) + ' °F' : n0(c) + ' °C';
+MD.fT = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? `${n0(fh)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fh)}\u00a0°F)`; };
+MD.fT2 = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? [`${n0(fh)}\u00a0°F`, `(${n0(r)}\u00a0°C)`] : [`${n0(r)}\u00a0°C`, `(${n0(fh)}\u00a0°F)`]; };
+MD.fTexact = MD.fT;
+MD.dT = (d, units) => { const r = Math.round(d), fd = Math.round(d * 9 / 5); return units === 'imp' ? `${n0(fd)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fd)}\u00a0°F)`; };
 MD.fLen = (mm, units, dec = 1) => units === 'imp' ? (mm / 25.4).toFixed(dec + 2) + ' in' : (dec ? (Math.round(mm * 10 ** dec) / 10 ** dec).toFixed(dec) : n0(mm)) + ' mm';
 MD.fMass = (g, units) => units === 'imp' ? n2(g / 28.3495) + ' oz' : n1(g) + ' g';
 root.MD = MD;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 <script>(function (root) {
+'use strict';
+const MD = root.MD;
+const A = {};
+A.EL = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S', 'Pb'];
+A.EL_NAME = { C: 'Carbon', Mn: 'Manganese', Si: 'Silicon', Cr: 'Chromium', Ni: 'Nickel', Mo: 'Molybdenum', V: 'Vanadium', S: 'Sulphur', Pb: 'Lead' };
+A.EL_COL = { C: '#f2f2f2', Mn: '#c58cff', Si: '#7fd1c7', Cr: '#5fc3ff', Ni: '#3ddc84', Mo: '#F2C230', V: '#ff8fb1', S: '#e8d26a', Pb: '#9aa3ab' };
+A.GRADES = {
+  '1018': { fam: '10', famName: 'Plain carbon steel', c: 18, comp: { C: .175, Mn: .75 }, use: 'Brackets, plate, weld-on parts, low-strength pins' },
+  '1045': { fam: '10', famName: 'Plain carbon steel', c: 45, comp: { C: .46, Mn: .75 }, use: 'Shafts, pins, axles: medium strength, can be hardened' },
+  '12L14': { fam: '12', famName: 'Free-machining (sulphur, phosphorus, + lead)', c: 14, comp: { C: .1, Mn: 1, S: .3, Pb: .25 }, use: 'Machined bushings, fittings, screw-machine parts: not for welding' },
+  '4140': { fam: '41', famName: 'Chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .875, Si: .225, Cr: .95, Mo: .2 }, use: 'Shafts, gears, studs, pins: hardens deeper' },
+  '4340': { fam: '43', famName: 'Nickel-chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .7, Si: .25, Cr: .8, Ni: 1.825, Mo: .25 }, use: 'Heavy shafts, gears, crankshafts: tough and through-hardening' }
+};
+A.GRADE_KEYS = ['1018', '1045', '12L14', '4140', '4340'];
+A.ELEMENT = {
+  C: { dose: .4, up: ['strength', 'hardness', 'hardenability'], down: ['toughness', 'weldability', 'machinability'], line: 'Carbon: the big one for strength and hardness. More carbon, harder to weld and less tough.' },
+  Mn: { dose: 1, up: ['strength', 'hardenability'], down: [], line: 'Manganese: more hardenability and strength, and it ties up sulphur so hot steel does not crack.' },
+  Si: { dose: 1.5, up: ['strength'], down: [], line: 'Silicon: cleans oxygen out of the melt and adds strength. Spring steels carry more of it.' },
+  Cr: { dose: 1, up: ['hardenability', 'strength', 'hardness', 'corrosion'], down: ['weldability'], line: 'Chromium: deeper hardening and better wear. At 10.5 % or more it makes stainless steel.' },
+  Ni: { dose: 2, up: ['toughness', 'strength', 'hardenability'], down: [], line: 'Nickel: toughness, even when cold. It adds strength without losing much ductility.' },
+  Mo: { dose: .3, up: ['hardenability', 'strength', 'toughness'], down: ['weldability'], line: 'Molybdenum: a little goes a long way for hardenability and strength when hot, and it fights temper brittleness.' },
+  V: { dose: .2, up: ['strength', 'toughness', 'hardness'], down: [], line: 'Vanadium: keeps the grain fine and adds hard carbides for wear.' },
+  S: { dose: .3, up: ['machinability'], down: ['toughness', 'weldability'], line: 'Sulphur and lead: chips break off short, so it machines fast. But it is weaker across the grain and poor to weld.' }
+};
+A.ELEMENT_KEYS = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S'];
+A.PROPS = ['strength', 'hardness', 'toughness', 'hardenability', 'corrosion', 'weldability', 'machinability'];
+A.PROP_NAME = { strength: 'Strength', hardness: 'Hardness it can reach', toughness: 'Toughness', hardenability: 'Hardenability (depth)', corrosion: 'Corrosion resistance', weldability: 'Weldability', machinability: 'Machinability' };
+A.mix = function (grade, el, dose) {
+  const c = Object.assign({}, A.GRADES[grade].comp);
+  if (el && dose > 0) {
+    const d = A.ELEMENT[el].dose * dose;
+    if (el === 'S') { c.S = (c.S || 0) + d; c.Pb = (c.Pb || 0) + d * .8; }
+    else c[el] = (c[el] || 0) + d;
+  }
+  return c;
+};
+const g = (c, k) => c[k] || 0;
+A.CE = c => g(c, 'C') + g(c, 'Mn') / 6 + (g(c, 'Cr') + g(c, 'Mo') + g(c, 'V')) / 5 + (g(c, 'Cu') + g(c, 'Ni')) / 15;
+A.CE_BANDS = [[.35, 'Excellent'], [.40, 'Very good'], [.45, 'Good'], [.50, 'Fair'], [9, 'Poor']];
+A.ceBand = ce => A.CE_BANDS.find(b => ce <= b[0] + 1e-9)[1];
+A.preheat = ce => ce > .60 ? 'Preheat required' : ce > .40 ? 'May need preheat' : 'Usually no preheat';
+A.props = function (c) {
+  const C = g(c, 'C'), Mn = g(c, 'Mn'), Si = g(c, 'Si'), Cr = g(c, 'Cr'), Ni = g(c, 'Ni'), Mo = g(c, 'Mo'), V = g(c, 'V'), S = g(c, 'S'), Pb = g(c, 'Pb');
+  const ce = A.CE(c), cl = v => MD.clamp(v, .04, 1);
+  return {
+    strength: cl(.18 + .85 * C + .1 * Mn + .08 * Si + .1 * Cr + .06 * Ni + .4 * Mo + .8 * V),
+    hardness: cl(.12 + 1.05 * C + .04 * Cr + .1 * Mo + .5 * V),
+    toughness: cl(.78 - .7 * C + .12 * Ni + .25 * Mo + .8 * V - .9 * S - .2 * Pb),
+    hardenability: cl(.06 + .3 * C + .22 * Mn + .28 * Cr + .1 * Ni + 1.1 * Mo + .3 * V),
+    corrosion: cl(.08 + .06 * Cr + .02 * Ni + .05 * Mo),
+    weldability: cl(1.25 - 1.3 * ce - 1.2 * S - 1.2 * Pb),
+    machinability: cl(.62 - .55 * C - .05 * Ni - .03 * Cr + 1.1 * S + .8 * Pb)
+  };
+};
+A.R = 25;
+A.hardDepth = function (c, medium) {
+  const C = g(c, 'C');
+  if (C < .28) return 0;
+  const hi = A.props(c).hardenability, k = medium === 'water' ? 1.5 : 1;
+  return MD.clamp((hi - .3) * k * 36, 0, A.R);
+};
+A.weldCracks = (c, preheat) => (A.CE(c) > .5 && !preheat) || g(c, 'Pb') > 0 || g(c, 'S') > .1;
+A.SS = {
+  '304': { fam: 'Austenitic', ser: '300', cr: '18–20', ni: '8–10.5', mo: '0', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#c9ced1',
+    use: 'General purpose: food equipment, tanks, indoor and fresh water', salt: .45 },
+  '316': { fam: 'Austenitic', ser: '300', cr: '16–18', ni: '10–14', mo: '2–3', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#cfd4d6',
+    use: 'Salt water, chlorides, chemicals: boat fittings, food and chemical plant', salt: .15 },
+  '430': { fam: 'Ferritic', ser: '400', cr: '16–18', ni: '0', mo: '0', mag: true, hard: 'No', ys: 310, ts: 483, col: '#bfc4c7',
+    use: 'Trim, appliance panels, mild indoor service', salt: .7 },
+  '410': { fam: 'Martensitic', ser: '400', cr: '11.5–13.5', ni: '0', mo: '0', mag: true, hard: 'Yes (quench and temper)', ys: 275, ts: 480, col: '#b7bcbf',
+    use: 'Bolts, shafts, pump and valve parts that must be hard', salt: .8 },
+  '440C': { fam: 'Martensitic', ser: '400', cr: '16–18', ni: '0', mo: '0.75 max', mag: true, hard: 'Yes, to about 60 HRC', ys: null, ts: null, col: '#b2b7ba',
+    use: 'Stainless bearings, valve parts: the hardest stainless', salt: .6 }
+};
+A.SS_KEYS = ['304', '316', '430', '410', '440C'];
+A.CU = {
+  copper: { n: 'Copper (C11000)', short: 'Copper', fam: 'Pure copper', make: '99.9 % copper', iacs: 101, ts: [210, 310], col: '#c47a4a',
+    use: 'Bus bars, wire, tubing, gaskets', bear: 'poor', ksi: [30, 45] },
+  brass: { n: 'Free-cutting brass (C36000)', short: 'Brass', fam: 'Brass', make: 'Copper + zinc + 2.5–3 % lead', iacs: 26, ts: [380, 380], col: '#cfae55',
+    use: 'Valve parts, fittings, machined parts', bear: 'fair', ksi: [55, 55] },
+  phos: { n: 'Phosphor bronze (C51000)', short: 'Phosphor bronze', fam: 'Bronze', make: 'Copper + 4–6 % tin + a little phosphorus', iacs: 15, ts: [415, 790], col: '#b98a4e',
+    use: 'Springs, sleeve bushings, lock washers', bear: 'good', ksi: [60, 115] },
+  sae660: { n: 'Bearing bronze (C93200, SAE 660)', short: 'Bearing bronze', fam: 'Bronze', make: 'Copper + 7 % tin + 7 % lead + 3 % zinc', iacs: 12, ts: [241, 241], col: '#a8763f',
+    use: 'Bushings, bearings, thrust washers', bear: 'best (lead helps)', ksi: [35, 35] },
+  albz: { n: 'Aluminium bronze (C95400)', short: 'Aluminium bronze', fam: 'Bronze', make: 'Copper + 10–11.5 % aluminium + iron', iacs: 13, ts: [586, 586], col: '#c9a35a',
+    use: 'Heavy bushings, gears, wear plates, marine parts', bear: 'good, heavy loads', ksi: [85, 85] },
+  sibz: { n: 'Silicon bronze (C65500)', short: 'Silicon bronze', fam: 'Bronze', make: 'Copper + about 3 % silicon', iacs: 7, ts: [400, 538], col: '#b07d4c',
+    use: 'Marine hardware, bolts, nuts, propeller shafts', bear: 'fair', ksi: [58, 78] }
+};
+A.CU_KEYS = ['copper', 'brass', 'phos', 'sae660', 'albz', 'sibz'];
+root.MDA = A;
+})(typeof window !== 'undefined' ? window : globalThis);</script><script>(function (root) {
 'use strict';
 const MD = root.MD;
 const H = {};
@@ -537,8 +641,18 @@ H.PARTS = {
   brass: { n: 'Brass bushing', short: 'Brass', mat: 'brass', hrb: 60, eqC: -8, hb: 105, col: '#cfae55' },
   iron:  { n: 'Grey cast iron pump casing', short: 'Cast iron', mat: 'cast', hrb: 92, eqC: 11, hb: 200, col: '#6d6f70' },
   alu:   { n: 'Aluminium bracket', short: 'Aluminium', mat: 'alum', hrb: 50, eqC: -20, hb: 90, col: '#c9cfd6' },
-  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' }
+  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' },
+  ann:   { n: '4140, annealed (as bought soft)', short: '4140 annealed', mat: 'steel', hrb: 92, eqC: 13, hb: 197, col: '#9aa2a8' },
+  hq:    { n: '4140, quenched in oil, not tempered', short: '4140 quenched', mat: 'tool', hrc: 55, hb: 560, col: '#7c858b' },
+  qt:    { n: '4140, quenched and tempered', short: '4140 tempered', mat: 'steel', hrc: 30, hb: 286, col: '#8f979d' }
 };
+H.SOFT = { label: 'Mild steel, annealed steel', hb: [120, 200], hrb: '65–92', note: 'B scale or Brinell' };
+H.LADDER = [
+  ['Q&T shafts (4140HT)', 28, 32, 'shaft'], ['Springs', 44, 50, 'spring'], ['Hammer faces, chisel edges', 50, 58, 'hammer'],
+  ['Bearings, files, HSS tools', 57, 66, 'hard']];
+H.FILE_HRC = [62, 65];
+H.HARD_TURN = 55;
+H.band = function (hrc) { const b = H.LADDER.filter(r => hrc >= r[1] - .01 && hrc <= r[2] + .01); return b.length ? b.map(r => r[0]).join(' / ') : null; };
 H.trueHR = function (part, sc) {
   const p = H.PARTS[part];
   if (sc === 'C') return p.hrc != null ? p.hrc : p.eqC;
@@ -765,6 +879,7 @@ MK.vbar = function (x, y, w, h, v, lo, hi, col, marks = [], id = '') {
   marks.forEach(([mv, lab, mc]) => { const my = yy(mv); s += `<line x1="${f(x - 6)}" y1="${f(my)}" x2="${f(x + w + 6)}" y2="${f(my)}" stroke="${mc || C.muted}" stroke-width="2.5"/>` + (lab ? `<text class="lm halo" x="${f(x + w + 12)}" y="${f(my + 7)}" style="fill:${mc || C.muted}">${lab}</text>` : ''); });
   return s + '</g>';
 };
+MK.wrap2 = function (t, n) { t = String(t); if (t.length <= n) return [t]; const w = t.split(' '); let a = ''; while (w.length && (a + ' ' + w[0]).trim().length <= n) a = (a + ' ' + w.shift()).trim(); return [a, w.join(' ')]; };
 root.MK = MK;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 
@@ -808,7 +923,7 @@ window.CFScenes['hd-rules'] = function () {
     s += K.dim(X0 + w - 40, YT, X0 + w - 40, yb, '', { id: 'dim-t' }) + `<text class="lb halo" x="${X0 + w - 52}" y="${f((YT + yb) / 2 + 8)}" text-anchor="end" style="fill:${o.thickOK ? C.text : C.bad}">t = ${L(S.thick, S, 1)}</text>`;
     s += K.dim(X0 + 20, YT - 90, ex, YT - 90, 'edge ' + L(S.edge, S, 1), { id: 'dim-edge', fill: o.edgeOK ? C.text : C.bad });
     s += `<text class="lm halo" x="${X0 + 20}" y="${YT - 150}">${o.what}: depth ${L(o.h, S, 3)}, indent ${L(o.dia, S, 2)} across</text>`;
-    s += `<text class="lm halo" x="${X0 + 20}" y="${f(Math.min(780, yb + 80))}" style="fill:${ZC}">dashed zone: 10 × depth deep, 2.5 × d each side</text>`;
+    s += `<text class="lm halo" x="${X0 + 20 + w}" y="${f(Math.min(780, yb + 80))}" text-anchor="end" style="fill:${ZC}">dashed zone: 10 × depth deep, 2.5 × d each side</text>`;
     return s;
   }
   function chart(S, o) {
@@ -877,7 +992,7 @@ window.MetAdapter = function (C, PC) {
     else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
   }
   window.PAGE_SCENE = A;
-  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, short: (PC.short || {})[label], id: String(i) }));
   A.caption = (s, o) => (sc.caption && document.body.classList.contains('phone')) ? sc.caption(s, o) : null;
   A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
   function bboxOf(id) {
@@ -945,8 +1060,8 @@ window.MetAdapter = function (C, PC) {
     const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
     if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
     const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
-    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
-    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+    if (c.game) return { game: true, setup, q: c.q, ref: c.ref, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, ref: c.ref, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
   };
   return A;
 };
@@ -983,6 +1098,7 @@ window.LESSON_CODE = window.LESSON_CODE || {};
 window.LESSON_CODE['hardness'] = {
   /* ---------------- page 1: test files */
   1: {
+    short: {'File in hand': 'In hand', 'Files tried': 'Tried', 'This file': 'File'},   // phone labels for long readout names
     readouts: (S, o) => [['File in hand', S.file + ' HRC'], ['This file', o.current || 'not tried', o.current === 'bites' ? C.ok : o.current === 'skates' ? C.warn : C.muted], ['Files tried', String(o.tried.length)], ['Bracket', o.bracket, o.closed ? C.acc : C.text]],
     challenge: (rng) => {
       const lo = pick(rng, [40, 45, 50, 55, 60]), hi = lo + 5;
@@ -1048,14 +1164,28 @@ window.LESSON_CODE['hardness'] = {
     fns: { ok_all: (S, o) => o.ok, thick_ok: (S, o) => o.thickOK, edge_ok: (S, o) => o.edgeOK && o.thickOK,
       rules_live: (S, o) => `t ${S.thick.toFixed(1)} mm (needs ${o.minT.toFixed(1)}) · edge ${S.edge.toFixed(1)} mm (needs ${o.minE.toFixed(1)})` }
   },
-  /* ---------------- page 6: putting it together */
+  /* ---------------- page 6: heat treatment and what the number means (ladder; same 4140 annealed / quenched / tempered) */
   6: {
+    readouts: (S, o) => RR(S, o).filter(r => !/^(Depth|Load)/.test(r[0])).concat([['On the ladder', S.read && !o.ball ? (S.sc === 'B' || o.HR < 20 ? 'soft: mild / annealed' : (H.band(o.HR) || 'between bands')) : '—', C.acc]]),
+    short: { 'On the ladder': 'Ladder', 'Load on the piece': 'Load', 'Depth h (minor load)': 'Depth', 'Depth now': 'Depth' },
+    challenge: (rng) => {
+      const hrc = pick(rng, [30, 46, 54, 60, 63]), right = H.band(hrc).split(' / ').pop();
+      const all = H.LADDER.map(r => r[0]), wrong = all.filter(x => x !== right).sort(() => rng() - .5).slice(0, 3);
+      const sh = shuffle(rng, [ch(right)].concat(wrong.map(x => { const r = H.LADDER.find(y => y[0] === x); return ch(x, `${x}: typically ${r[1]}–${r[2]} HRC.`); })), 0);
+      return { q: `A part reads **${hrc} HRC**. Which kind of part is that typical of?`, ref: { title: 'What hardness numbers mean (typical)', columns: ['Part', 'HRC'], rows: H.LADDER.map(r => [r[0], r[1] + '–' + r[2]]), note: 'Typical bands: check the drawing.' },
+        choices: sh.choices, answer: sh.answer, explain: `${hrc} HRC is in the **${right.toLowerCase()}** band.` };
+    },
+    fns: { p6_ann: (S, o) => S.part === 'ann' && S.sc === 'B' && S.read, p6_hq: (S, o) => S.part === 'hq' && S.sc === 'C' && S.read, p6_qt: (S, o) => S.part === 'qt' && S.sc === 'C' && S.read,
+      p6_live: (S, o) => S.read ? (o.valid ? `**${MD.n1(o.HR)} ${S.sc === 'C' ? 'HRC' : 'HRB'}** · ${H.PARTS[S.part].short}` : 'not a valid reading') : S.auto ? 'Testing…' : `${H.PARTS[S.part].short} · ${S.sc} scale · ready` }
+  },
+  /* ---------------- page 7: putting it together */
+  7: {
     readouts: RR,
     challenge: (rng) => {
       const lo = pick(rng, [24, 28, 32, 36]), hi = lo + 4, HR = pick(rng, [lo - 3, lo + 1, lo + 2, hi + 2]), h = (100 - HR) * H.DIV, ok = HR >= lo && HR <= hi;
       const sh = shuffle(rng, [ch('Accept: it is in the spec'), ch('Reject: it is outside the spec')], ok ? 0 : 1);
       sh.choices.forEach(c => { if (!c.why && !(c.t.startsWith('Accept') === ok)) c.why = `${HR} HRC is ${ok ? 'inside' : 'outside'} ${lo} to ${hi}.`; });
-      return { q: `Spec **${lo} to ${hi} HRC**. The C-scale depth is **${h.toFixed(3)} mm**. Accept or reject?`, choices: sh.choices, answer: sh.answer, explain: `100 − ${h.toFixed(3)} ÷ 0.002 = **${HR} HRC**: ${ok ? 'inside the spec, accept' : 'outside the spec, reject'}.` };
+      return { q: `Spec **${lo} to ${hi} HRC**. The C-scale depth is **${h.toFixed(3)} mm**. Accept or reject? (HRC = 100 − h ÷ 0.002)`, choices: sh.choices, answer: sh.answer, explain: `100 − ${h.toFixed(3)} ÷ 0.002 = **${HR} HRC**: ${ok ? 'inside the spec, accept' : 'outside the spec, reject'}.` };
     },
     fns: { hr_ok: hrOk, job_done: (S, o) => S.read && S.sc === 'C' && S.part === 'spec' }
   }
@@ -1085,7 +1215,7 @@ window.LESSON_CODE['hardness'] = {
        normalize(state)           after any change, before calc()
        callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
        fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
-   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(), retray(),
      step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
 
    Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
@@ -1113,7 +1243,10 @@ window.LESSON_CODE['hardness'] = {
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1141,7 +1274,7 @@ function start(C, S) {
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1186,7 +1319,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1267,6 +1400,7 @@ function start(C, S) {
   const api = {
     input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
     get: full, redraw() { dirty = true; },
+    retray() { renderTray(); },      // a scene whose chip lists depend on state (fits inch | mm) asks for the tray to be redrawn
     step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
   };
   S.mount(svg, api);
@@ -1278,7 +1412,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -1602,10 +1744,12 @@ function start(C, S) {
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
       qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();
 </script>
-<script>(function(){const C={"n":5,"file":"05-valid-test.html","title":"Valid tests and conversions","scene":"hd-rules","capture":"stage","what":"A **test piece in section** on the anvil, drawn to scale, with a hardness dent in its top face. The **dashed zone** is the metal the dent works on: 10 times the dent's depth down, 2.5 dent widths out to each side. On the right: the **HRC to Brinell to tensile** table for steel, as a chart.","start":{"test":"C","hrc":30,"thick":6,"edge":6},"steps":[{"type":"teach","tag":"On the job","spot":"piece","text":"You've got a hardness number. Is it real? Two shortcuts catch people. One: testing a thin piece, or right by an edge, because that's where the flat spot was. Two: looking up another scale on a chart and treating it as exact. Let's see both."},{"type":"teach","text":"The chart turns one hardness scale into another, and into an **approximate tensile strength**, for **steel only**. Conversions are a guide (ASTM E140 tables). The spec tells you which scale to test on: report that one.","spot":["c-chart"]},{"type":"predict","controls":["hrc"],"text":"Make a call: as steel gets **harder**, what happens to its **tensile strength**, how hard it is to pull apart?","choices":["It goes up","It goes down","There's no link"],"answer":0,"thinkHint":"Think about a hardened bolt and a mild steel one.","after":"Let's find out.","doText":"Slide **Hardness** to **40 HRC**. Watch the **dot on the chart**: the Brinell number and the tensile strength.","goal":{"hrc":40},"solve":{"hrc":40},"hint":"Drag Hardness to 40.","ok":"40 HRC ≈ **371 HB** ≈ 1,255 MPa (182 ksi). Both went up. That's because for steel, metal that resists denting also resists being pulled apart. But the chart is a guide built from typical steels: approximate, and steel only."},{"type":"teach","setup":{"test":"HB","hrc":30,"thick":4,"edge":10},"text":"Now a Brinell dent in a **4 mm** plate. The dashed zone runs **through** the bottom: the anvil is holding the metal up and the number comes out wrong. A mark or bulge shows on the underside.","points":["Thickness: at least 10 × the depth","Centre to edge: at least 2.5 d","Dents: at least 3 d apart"]},{"type":"do","text":"Make the piece **thick enough** for this test. Watch the **dashed zone** and the live line.","controls":["thick"],"goal":"fn:thick_ok","solve":{"thick":7},"live":"fn:rules_live","hint":"Drag Piece thickness up past the minimum.","ok":"The zone ends inside the metal, so the anvil no longer props up the dent. That's the **10 times the depth** rule: this Brinell dent is about 0.67 mm deep, so the piece needs about 6.7 mm."},{"type":"predict","setup":{"edge":5},"controls":["edge"],"text":"The dent is **5 mm** from the edge. Make a call: what does the metal near an edge do when the ball pushes in?","choices":["It bulges out sideways","Nothing: 5 mm is plenty","It gets harder"],"answer":0,"thinkHint":"Look at the dashed zone. Does it fit inside the piece?","after":"Let's find out.","doText":"Drag **Centre to edge** in until the zone fits. Watch the **edge** and the live line.","goal":"fn:edge_ok","solve":{"edge":9.5},"live":"fn:rules_live","hint":"Drag Centre to edge up.","ok":"Past **2.5 dent widths** the zone fits and the edge stops bulging. That's because there's no metal past an edge to hold the dent in. The side gives way, the dent changes shape, and the reading is wrong."},{"type":"teach","tag":"Now you know","spot":"c-rules","text":"Now you know a hardness number is only as good as the spot you tested. So when you pick a spot, you can check it: thick enough (10 times the depth), far enough from an edge (2.5 dent widths) and from the last dent (3 widths). And you report the scale you tested on, not a conversion."},{"type":"question","variants":[{"q":"Rockwell C reads **30 HRC** (depth 0.140 mm). Thinnest valid piece?","choices":[{"t":"1.4 mm"},{"t":"0.14 mm","why":"That is the depth. Ten times it."},{"t":"0.7 mm","why":"The rule is ten times the depth, not five."},{"t":"14 mm","why":"One factor of 10 only."}],"answer":0,"explain":"10 × 0.140 = **1.4 mm** (0.055 in)."},{"q":"Rockwell B reads **80 HRB** (depth 0.100 mm). Thinnest valid piece?","choices":[{"t":"1.0 mm"},{"t":"0.1 mm","why":"That is the dent depth. The piece must be ten times it."},{"t":"0.5 mm","why":"The rule is ten times the depth, not five."},{"t":"10 mm","why":"Only one factor of 10: ten times the depth."}],"answer":0,"explain":"10 × 0.100 = **1.0 mm** (0.039 in)."},{"q":"A Brinell dent is **0.67 mm** deep. Thinnest valid piece?","choices":[{"t":"6.7 mm"},{"t":"0.67 mm","why":"That is the dent depth. The piece must be ten times it."},{"t":"3.4 mm","why":"The rule is ten times the depth, not five."},{"t":"67 mm","why":"Only one factor of 10: ten times the depth."}],"answer":0,"explain":"10 × 0.67 = **6.7 mm** (about 1/4 in)."},{"q":"Brinell dent **d = 3.6 mm**. Closest the centre may be to the edge?","choices":[{"t":"9 mm (2.5 × d)"},{"t":"3.6 mm","why":"That puts the edge right at the dent's rim."},{"t":"1.8 mm","why":"That is the dent radius: the rule is 2.5 × d."},{"t":"36 mm","why":"The edge rule is 2.5 × d, not 10 × d."}],"answer":0,"explain":"2.5 × 3.6 = **9 mm**."}]},{"type":"question","variants":[{"q":"A drawing calls for **286 HB**. Your shop tester is Rockwell C. About what HRC?","choices":[{"t":"About 30 HRC"},{"t":"About 50 HRC","why":"Read across the chart: 286 HB is about 30 HRC."},{"t":"286 HRC","why":"Different scales: convert."},{"t":"About 20 HRC","why":"20 HRC is about 222 HB."}],"answer":0,"explain":"286 HB ≈ **30 HRC** (approximate, steel).","ref":{"title":"Hardness conversion, steel (approximate)","columns":["HRC","HB (10 mm, 3,000 kgf)"],"rows":[["28","271"],["29","279"],["30","286"],["31","294"],["32","301"]],"note":"Gordon England equivalence table (ASTM E140 is the standard). Steel only."}},{"q":"About what Brinell number is **40 HRC**?","choices":[{"t":"About 371 HB"},{"t":"About 40 HB","why":"Different scales: use the table."},{"t":"About 222 HB","why":"About 222 HB is 20 HRC; read across at 40."},{"t":"About 654 HB","why":"About 654 HB is 60 HRC; read across at 40."}],"answer":0,"explain":"40 HRC ≈ **371 HB** ≈ 182 ksi (1,255 MPa).","ref":{"title":"Hardness conversion, steel (approximate)","columns":["HRC","HB (10 mm, 3,000 kgf)"],"rows":[["38","353"],["39","362"],["40","371"],["41","381"],["42","390"]],"note":"Gordon England equivalence table (ASTM E140 is the standard). Steel only."}},{"q":"Can you use the steel HRC-HB table to convert a **brass** reading?","choices":[{"t":"No: the tables are for one material; brass needs its own"},{"t":"Yes: hardness is hardness","why":"Conversions depend on the material."},{"t":"Yes, if you add 30","why":"There is no such rule: brass needs its own table."},{"t":"Only above 100 HB","why":"It is the material that matters."}],"answer":0,"explain":"Conversion tables are **material-specific and approximate** (ASTM E140)."}]}],"free":"Try each test at different hardness: harder steel makes smaller, shallower dents, so thinner pieces and closer edges are OK. Tap **Give me a challenge** for a thickness question.","freeControls":["test","hrc","thick","edge","units"],"lesson":{"id":"hardness","title":"Hardness testing","episode":"069-hardness-testing","done":"Now you can check hardness three ways, pick the right test and scale, and tell a valid reading from a bad one. So on the job you can decide on facts whether a part goes in or gets tagged out. Print the summary sheet for the formulas and the rules, and follow the tester maker's manual, the drawing or spec, and your work plan.","sheet":"hardness-summary.pdf","summary":{"title":"Hardness testing","pic":{"page":2,"state":{"placed":1,"lift":1,"zero":1,"lever":"trip"}},"rules":["Hardness = how well a metal resists being dented. Harder steel wears less but is more brittle; heat treatment changes it. Check parts against the drawing or spec.<br><i><b>Why:<\/b> too soft wears and frets; too hard can be brittle. <b>Decide:<\/b> check it against the drawing before it goes in.<\/i>","Test files (40 to 65 HRC): a file that bites is harder than the piece; one that skates is not. The answer is a bracket (\"between 55 and 60 HRC\"), a check, not a measurement.<br><i><b>Why:<\/b> each file only says which side of it the part is on. <b>Decide:<\/b> a quick check; narrow spec band, use Rockwell.<\/i>","Rockwell: minor load 10 kgf sets zero, the major load pushes the indenter in, release back to the minor load and read the depth that stayed. HR = N − h ÷ 0.002 mm (one point = 0.002 mm).<br><i><b>Why:<\/b> the minor load sets a firm zero; springback doesn't count. <b>Decide:<\/b> run the steps in order, read with the minor load on.<\/i>","C scale: diamond cone, 150 kgf total, N = 100, black numbers: hardened steel. B scale: 1/16 in ball, 100 kgf total, N = 130, red numbers: soft steel, brass, aluminium.<br><i><b>Why:<\/b> each indenter and load suits one hardness range. <b>Decide:<\/b> cone for hardened steel, ball for soft metal.<\/i>","Under HRC 20 or over HRB 100 the reading is not valid: change scales. Never put the ball on hardened steel: the reading is wrong and a steel ball can flatten.<br><i><b>Why:<\/b> past the ends a scale isn't reliable. <b>Decide:<\/b> change scales and test a new spot.<\/i>","Brinell: 10 mm ball, 3,000 kgf for steel and cast iron (500 or 1,000 kgf for soft metals), hold 10 to 15 s, read d twice at 90°. HB = 2F ÷ (π D (D − √(D² − d²))). Valid d: 2.40 to 6.00 mm.<br><i><b>Why:<\/b> a big dent covers coarse metal; a short hold reads hard. <b>Decide:<\/b> force to suit the metal, d inside 2.40 to 6.00 mm.<\/i>","Valid test: piece at least 10 × the indent depth thick, centre at least 2.5 d from an edge, indents at least 3 d apart, flat, clean surface square to the indenter.<br><i><b>Why:<\/b> the anvil or an open edge changes the dent. <b>Decide:<\/b> a thick, flat spot away from edges and old dents.<\/i>","HRC ↔ HB ↔ tensile tables (ASTM E140) are approximate and for steel only: report the scale you tested on (e.g. 30 HRC ≈ 286 HB ≈ 965 MPa / 140 ksi).<br><i><b>Why:<\/b> conversions are approximate. <b>Decide:<\/b> report the scale you tested on.<\/i>"]},"footer":"Exam prep, not a procedure: on the job, follow the tester maker's manual, the drawing or spec, and your site procedures. ASTM E18 (Rockwell), ASTM E10 / ISO 6506-1 (Brinell) and ASTM E140 (conversions) are cited by number.","pages":[{"file":"01-file-test.html","title":"Hardness and the file test"},{"file":"02-rockwell-c.html","title":"Rockwell C, step by step"},{"file":"03-rockwell-b.html","title":"Rockwell B and picking the scale"},{"file":"04-brinell.html","title":"Brinell: a big ball and a microscope"},{"file":"05-valid-test.html","title":"Valid tests and conversions"},{"file":"06-putting-it-together.html","title":"Putting it together: check a shaft"}]},"audio":{"what":"p5-what-c10d97a2.mp3","s0":"p5-s0-ec2a5be0.mp3","s1":"p5-s1-2533dcd1.mp3","s2":"p5-s2-e906d226.mp3","s2after":"p5-s2after-9a3d1239.mp3","s2ok":"p5-s2ok-3f611efd.mp3","s3":"p5-s3-7ea65c84.mp3","s4":"p5-s4-f6ae864d.mp3","s4ok":"p5-s4ok-f5b6ca45.mp3","s5":"p5-s5-d815e59a.mp3","s5after":"p5-s5after-7ab2928c.mp3","s5ok":"p5-s5ok-82107ee3.mp3","s6":"p5-s6-981beb35.mp3","s7v0":"p5-s7v0-77251752.mp3","s7v1":"p5-s7v1-976ff1e6.mp3","s7v2":"p5-s7v2-27ef2cc3.mp3","s7v3":"p5-s7v3-7dae48e1.mp3","s8v0":"p5-s8v0-de182688.mp3","s8v1":"p5-s8v1-1bd31fa4.mp3","s8v2":"p5-s8v2-5c3c7179.mp3","free":"p5-free-b6f03378.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["hardness"][C.n]));})();</script>
+<script>(function(){const C={"n":5,"file":"05-valid-test.html","title":"Valid tests and conversions","scene":"hd-rules","capture":"stage","what":"A **test piece in section** on the anvil, drawn to scale, with a hardness dent in its top face. The **dashed zone** is the metal the dent works on: 10 times the dent's depth down, 2.5 dent widths out to each side. On the right: the **HRC to Brinell to tensile** table for steel, as a chart.","start":{"test":"C","hrc":30,"thick":6,"edge":6},"steps":[{"type":"teach","tag":"On the job","spot":"piece","text":"You've got a hardness number. Is it real? Two shortcuts catch people. One: testing a thin piece, or right by an edge, because that's where the flat spot was. Two: looking up another scale on a chart and treating it as exact. Let's see both."},{"type":"teach","text":"The chart turns one hardness scale into another, and into an **approximate tensile strength**, for **steel only**. Conversions are a guide (ASTM E140 tables). The spec tells you which scale to test on: report that one.","spot":["c-chart"]},{"type":"predict","controls":["hrc"],"text":"Make a call: as steel gets **harder**, what happens to its **tensile strength**, how hard it is to pull apart?","choices":["It goes up","It goes down","There's no link"],"answer":0,"thinkHint":"Think about a hardened bolt and a mild steel one.","after":"Let's find out.","doText":"Slide **Hardness** to **40 HRC**. Watch the **dot on the chart**: the Brinell number and the tensile strength.","goal":{"hrc":40},"solve":{"hrc":40},"hint":"Drag Hardness to 40.","ok":"40 HRC ≈ **371 HB** ≈ 1,255 MPa (182 ksi). Both went up. That's because for steel, metal that resists denting also resists being pulled apart. But the chart is a guide built from typical steels: approximate, and steel only."},{"type":"teach","setup":{"test":"HB","hrc":30,"thick":4,"edge":10},"text":"Now a Brinell dent in a **4 mm** plate. The dashed zone runs **through** the bottom: the anvil is holding the metal up and the number comes out wrong. A mark or bulge shows on the underside.","points":["Thickness: at least 10 × the depth","Centre to edge: at least 2.5 d","Dents: at least 3 d apart"]},{"type":"do","text":"Make the piece **thick enough** for this test. Watch the **dashed zone** and the live line.","controls":["thick"],"goal":"fn:thick_ok","solve":{"thick":7},"live":"fn:rules_live","hint":"Drag Piece thickness up past the minimum.","ok":"The zone ends inside the metal, so the anvil no longer props up the dent. That's the **10 times the depth** rule: this Brinell dent is about 0.67 mm deep, so the piece needs about 6.7 mm."},{"type":"predict","setup":{"edge":5},"controls":["edge"],"text":"The dent is **5 mm** from the edge. Make a call: what does the metal near an edge do when the ball pushes in?","choices":["It bulges out sideways","Nothing: 5 mm is plenty","It gets harder"],"answer":0,"thinkHint":"Look at the dashed zone. Does it fit inside the piece?","after":"Let's find out.","doText":"Drag **Centre to edge** in until the zone fits. Watch the **edge** and the live line.","goal":"fn:edge_ok","solve":{"edge":9.5},"live":"fn:rules_live","hint":"Drag Centre to edge up.","ok":"Past **2.5 dent widths** the zone fits and the edge stops bulging. That's because there's no metal past an edge to hold the dent in. The side gives way, the dent changes shape, and the reading is wrong."},{"type":"teach","tag":"Now you know","spot":"c-rules","text":"Now you know a hardness number is only as good as the spot you tested. So when you pick a spot, you can check it: thick enough (10 times the depth), far enough from an edge (2.5 dent widths) and from the last dent (3 widths). And you report the scale you tested on, not a conversion."},{"type":"question","variants":[{"q":"Rockwell C reads **30 HRC** (depth 0.140 mm). Thinnest valid piece?","choices":[{"t":"1.4 mm"},{"t":"0.14 mm","why":"That is the depth. Ten times it."},{"t":"0.7 mm","why":"The rule is ten times the depth, not five."},{"t":"14 mm","why":"One factor of 10 only."}],"answer":0,"explain":"10 × 0.140 = **1.4 mm** (0.055 in)."},{"q":"Rockwell B reads **80 HRB** (depth 0.100 mm). Thinnest valid piece?","choices":[{"t":"1.0 mm"},{"t":"0.1 mm","why":"That is the dent depth. The piece must be ten times it."},{"t":"0.5 mm","why":"The rule is ten times the depth, not five."},{"t":"10 mm","why":"Only one factor of 10: ten times the depth."}],"answer":0,"explain":"10 × 0.100 = **1.0 mm** (0.039 in)."},{"q":"A Brinell dent is **0.67 mm** deep. Thinnest valid piece?","choices":[{"t":"6.7 mm"},{"t":"0.67 mm","why":"That is the dent depth. The piece must be ten times it."},{"t":"3.4 mm","why":"The rule is ten times the depth, not five."},{"t":"67 mm","why":"Only one factor of 10: ten times the depth."}],"answer":0,"explain":"10 × 0.67 = **6.7 mm** (about 1/4 in)."},{"q":"Brinell dent **d = 3.6 mm**. Closest the centre may be to the edge?","choices":[{"t":"9 mm (2.5 × d)"},{"t":"3.6 mm","why":"That puts the edge right at the dent's rim."},{"t":"1.8 mm","why":"That is the dent radius: the rule is 2.5 × d."},{"t":"36 mm","why":"The edge rule is 2.5 × d, not 10 × d."}],"answer":0,"explain":"2.5 × 3.6 = **9 mm**."}]},{"type":"question","variants":[{"q":"A drawing calls for **286 HB**. Your shop tester is Rockwell C. About what HRC?","choices":[{"t":"About 30 HRC"},{"t":"About 50 HRC","why":"Read across the chart: 286 HB is about 30 HRC."},{"t":"286 HRC","why":"Different scales: convert."},{"t":"About 20 HRC","why":"20 HRC is about 222 HB."}],"answer":0,"explain":"286 HB ≈ **30 HRC** (approximate, steel).","ref":{"title":"Hardness conversion, steel (approximate)","columns":["HRC","HB (10 mm, 3,000 kgf)"],"rows":[["28","271"],["29","279"],["30","286"],["31","294"],["32","301"]],"note":"Gordon England equivalence table (ASTM E140 is the standard). Steel only."}},{"q":"About what Brinell number is **40 HRC**?","choices":[{"t":"About 371 HB"},{"t":"About 40 HB","why":"Different scales: use the table."},{"t":"About 222 HB","why":"About 222 HB is 20 HRC; read across at 40."},{"t":"About 654 HB","why":"About 654 HB is 60 HRC; read across at 40."}],"answer":0,"explain":"40 HRC ≈ **371 HB** ≈ 182 ksi (1,255 MPa).","ref":{"title":"Hardness conversion, steel (approximate)","columns":["HRC","HB (10 mm, 3,000 kgf)"],"rows":[["38","353"],["39","362"],["40","371"],["41","381"],["42","390"]],"note":"Gordon England equivalence table (ASTM E140 is the standard). Steel only."}},{"q":"Can you use the steel HRC-HB table to convert a **brass** reading?","choices":[{"t":"No: the tables are for one material; brass needs its own"},{"t":"Yes: hardness is hardness","why":"Conversions depend on the material."},{"t":"Yes, if you add 30","why":"There is no such rule: brass needs its own table."},{"t":"Only above 100 HB","why":"It is the material that matters."}],"answer":0,"explain":"Conversion tables are **material-specific and approximate** (ASTM E140)."}]}],"free":"Try each test at different hardness: harder steel makes smaller, shallower dents, so thinner pieces and closer edges are OK. Tap **Give me a challenge** for a thickness question.","freeControls":["test","hrc","thick","edge","units"],"lesson":{"id":"hardness","title":"Hardness testing","episode":"069-hardness-testing","done":"Now you can check hardness three ways, pick the right test and scale, and tell a valid reading from a bad one. So on the job you can decide on facts whether a part goes in or gets tagged out. Print the summary sheet for the formulas and the rules, and follow the tester maker's manual, the drawing or spec, and your work plan.","sheet":"hardness-summary.pdf","summary":{"title":"Hardness testing","pic":{"page":2,"state":{"placed":1,"lift":1,"zero":1,"lever":"trip"}},"rules":["Hardness = how well a metal resists being dented. Harder steel wears less but is more brittle; heat treatment changes it. Check parts against the drawing or spec.<br><i><b>Why:<\/b> too soft wears and frets; too hard can be brittle. <b>Decide:<\/b> check it against the drawing before it goes in.<\/i>","Test files (40 to 65 HRC): a file that bites is harder than the piece; one that skates is not. The answer is a bracket (\"between 55 and 60 HRC\"), a check, not a measurement.<br><i><b>Why:<\/b> each file only says which side of it the part is on. <b>Decide:<\/b> a quick check; narrow spec band, use Rockwell.<\/i>","Rockwell: minor load 10 kgf sets zero, the major load pushes the indenter in, release back to the minor load and read the depth that stayed. HR = N − h ÷ 0.002 mm (one point = 0.002 mm).<br><i><b>Why:<\/b> the minor load sets a firm zero; springback doesn't count. <b>Decide:<\/b> run the steps in order, read with the minor load on.<\/i>","C scale: diamond cone, 150 kgf total, N = 100, black numbers: hardened steel. B scale: 1/16 in ball, 100 kgf total, N = 130, red numbers: soft steel, brass, aluminium.<br><i><b>Why:<\/b> each indenter and load suits one hardness range. <b>Decide:<\/b> cone for hardened steel, ball for soft metal.<\/i>","Under HRC 20 or over HRB 100 the reading is not valid: change scales. Never put the ball on hardened steel: the reading is wrong and a steel ball can flatten.<br><i><b>Why:<\/b> past the ends a scale isn't reliable. <b>Decide:<\/b> change scales and test a new spot.<\/i>","Brinell: 10 mm ball, 3,000 kgf for steel and cast iron (500 or 1,000 kgf for soft metals), hold 10 to 15 s, read d twice at 90°. HB = 2F ÷ (π D (D − √(D² − d²))). Valid d: 2.40 to 6.00 mm.<br><i><b>Why:<\/b> a big dent covers coarse metal; a short hold reads hard. <b>Decide:<\/b> force to suit the metal, d inside 2.40 to 6.00 mm.<\/i>","Valid test: piece at least 10 × the indent depth thick, centre at least 2.5 d from an edge, indents at least 3 d apart, flat, clean surface square to the indenter.<br><i><b>Why:<\/b> the anvil or an open edge changes the dent. <b>Decide:<\/b> a thick, flat spot away from edges and old dents.<\/i>","HRC ↔ HB ↔ tensile tables (ASTM E140) are approximate and for steel only: report the scale you tested on (e.g. 30 HRC ≈ 286 HB ≈ 965 MPa / 140 ksi).<br><i><b>Why:<\/b> conversions are approximate. <b>Decide:<\/b> report the scale you tested on.<\/i>","What the number means (typical, check the drawing): mild/annealed 120–200 HB (B scale); Q&T shafts 28–32 HRC; springs 44–50; hammer faces, chisel edges 50–58; bearings, files, HSS 57–66. Same 4140: annealed about 92 HRB, oil quenched 53–57 HRC, quenched and tempered 28–32 HRC. A file (62–65 HRC) skates at or above its own hardness; over about 55 HRC use CBN or grind.<br><i><b>Why:<\/b> heat treatment moves the number, and the number tells you the condition. <b>Decide:<\/b> a Q&T part reading in the 50s missed its temper.<\/i>"]},"footer":"Exam prep, not a procedure: on the job, follow the tester maker's manual, the drawing or spec, and your site procedures. ASTM E18 (Rockwell), ASTM E10 / ISO 6506-1 (Brinell) and ASTM E140 (conversions) are cited by number.","pages":[{"file":"01-file-test.html","title":"Hardness and the file test"},{"file":"02-rockwell-c.html","title":"Rockwell C, step by step"},{"file":"03-rockwell-b.html","title":"Rockwell B and picking the scale"},{"file":"04-brinell.html","title":"Brinell: a big ball and a microscope"},{"file":"05-valid-test.html","title":"Valid tests and conversions"},{"file":"06-what-the-number-means.html","title":"What the number means"},{"file":"07-putting-it-together.html","title":"Putting it together: check a shaft"}]},"audio":{"what":"p5-what-c10d97a2.mp3","s0":"p5-s0-ec2a5be0.mp3","s1":"p5-s1-2533dcd1.mp3","s2":"p5-s2-e906d226.mp3","s2after":"p5-s2after-9a3d1239.mp3","s2ok":"p5-s2ok-3f611efd.mp3","s3":"p5-s3-7ea65c84.mp3","s4":"p5-s4-f6ae864d.mp3","s4ok":"p5-s4ok-f5b6ca45.mp3","s5":"p5-s5-d815e59a.mp3","s5after":"p5-s5after-7ab2928c.mp3","s5ok":"p5-s5ok-82107ee3.mp3","s6":"p5-s6-981beb35.mp3","s7v0":"p5-s7v0-77251752.mp3","s7v1":"p5-s7v1-976ff1e6.mp3","s7v2":"p5-s7v2-27ef2cc3.mp3","s7v3":"p5-s7v3-7dae48e1.mp3","s8v0":"p5-s8v0-de182688.mp3","s8v1":"p5-s8v1-1bd31fa4.mp3","s8v2":"p5-s8v2-5c3c7179.mp3","free":"p5-free-b6f03378.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["hardness"][C.n]));})();</script>
 </body></html>

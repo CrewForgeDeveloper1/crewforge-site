@@ -31,10 +31,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:10px 18px 14px;min-height:0}
 .stage{background:#24211d;border:1px solid var(--line);border-radius:12px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .stage svg{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+/* readout strip: big enough to read at 1080p and on a phone (2026-11-18 review, 042 item 7; was 11 / 22 px), wraps on a phone */
 .read{display:flex;gap:10px;padding:8px 12px;border-top:1px solid var(--line)}
-.ro{flex:1;background:var(--panel);border-radius:8px;padding:6px 10px;min-width:0}
-.ro small{display:block;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ro>span{font-size:22px;font-weight:800;white-space:nowrap}
+.ro{flex:1;background:var(--panel);border-radius:8px;padding:8px 14px;min-width:0}
+.ro small{display:block;color:var(--muted);font-size:15px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro>span{font-size:28px;font-weight:800;white-space:nowrap}
 .ro.ok>span{color:var(--ok)}.ro.warn>span{color:var(--warn)}.ro.bad>span{color:var(--bad)}
 .caption{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:86%;padding:10px 16px;border-radius:10px;
   background:rgba(23,21,18,.94);border:2px solid var(--bad);font-weight:700;font-size:16px;text-align:center;display:none;z-index:3}
@@ -43,6 +44,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .caption.on{display:block}
 .caption[data-at=bottom]{top:auto;bottom:96px}
 .side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+/* a step or challenge carrying reference tables scrolls inside its own card so the control tray stays on screen */
+.side:has(#stepcard .ref)>#stepcard{min-height:160px;overflow:auto;flex:0 1 auto}
+.side:has(#stepcard .ref)>#tray{flex:0 0 auto}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .step .sh{display:flex;align-items:center;gap:8px}
 .step .sh b{color:var(--muted);font-size:12px;letter-spacing:.12em;flex:1}
@@ -100,8 +104,9 @@ body.phone .step p{font-size:15.5px;margin:2px 0 6px}
 body.phone .step .note,body.phone .step .hint,body.phone .step .good,body.phone .step .bad{font-size:13.5px;padding:6px 8px;margin:4px 0}
 body.phone .q h3{font-size:15px;margin:2px 0 4px}
 body.phone .opt{padding:6px 10px;margin:4px 0;font-size:14px}
-body.phone .read{padding:4px 6px;gap:4px}
-body.phone .ro{padding:3px 6px}body.phone .ro small{font-size:10.5px;letter-spacing:.04em}body.phone .ro>span{font-size:15px}
+body.phone .read{padding:3px 5px;gap:2px 3px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* phone: two readouts per row, label and value on one line (a long label shortens with …), so each extra row costs ~21 px and the drawing keeps its size */
+body.phone .ro{padding:1px 7px;flex:1 1 auto;display:flex;align-items:baseline;justify-content:space-between;gap:6px}body.phone .ro small{display:block;min-width:0;flex:1 1 auto;font-size:12px;letter-spacing:.02em;line-height:1.2}body.phone .ro>span{font-size:15.5px;line-height:1.1;flex:0 0 auto}
 body.phone .ctrl .lab{width:70px;font-size:13px}
 body.phone .chip{padding:6px 9px;font-size:13px}
 body.phone .chipwrap .lab{font-size:13px;margin-bottom:3px}
@@ -121,6 +126,11 @@ body.phone .caption{top:auto;bottom:58px;max-width:94%;font-size:12.5px}
 /* phone: keep the drawing big (>= ~45 % of the height): the step box and the tray scroll inside themselves */
 body.phone .step{max-height:35vh;max-height:35dvh;overflow:auto}
 body.phone .ctrlcard{max-height:19vh;max-height:19dvh;overflow:auto}
+/* five or more readouts take a third row: the step box and the tray (both scroll inside themselves) give back that row */
+body.phone:has(#read .ro:nth-child(5)) .ctrlcard{max-height:16vh;max-height:16dvh}
+body.phone:has(#read .ro:nth-child(5)) .step{max-height:29vh;max-height:29dvh}
+/* ...and the failure caption sits above the three-row strip instead of over its first row (tool-safety p2, grinding p1, 2026-11-20) */
+body.phone:has(#read .ro:nth-child(5)) .caption{bottom:80px}
 body.phone .chips{flex-wrap:nowrap;overflow-x:auto}
 body.phone .chip{flex:none}
 body.phone .chipwrap{display:flex;align-items:center;gap:8px}
@@ -142,8 +152,8 @@ body.phone .btn.hold{min-height:48px}
 body.capture .bar,body.capture .what,body.capture .side,body.capture #start,body.capture .caption{display:none!important}
 body.capture .app{grid-template-rows:minmax(0,1fr)}
 body.capture .main{grid-template-columns:1fr;padding:10px 12px}
-body.capture .read{padding:10px 12px}
-body.capture .ro{padding:7px 10px}
+body.capture .read{padding:12px 14px;gap:14px}
+body.capture .ro{padding:10px 18px}body.capture .ro small{font-size:22px;letter-spacing:.04em}body.capture .ro>span{font-size:40px}
 
 /* reference table / chart given in a question (CLAUDE.md: reference data goes in the question) */
 .card .ref{margin:4px 0 8px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.03)}
@@ -157,6 +167,20 @@ body.capture .ro{padding:7px 10px}
 .ref .rs{font-size:11px;color:var(--muted);margin-top:3px}
 body.phone .ref table{font-size:13px}
 body.phone .ref th,body.phone .ref td{padding:3px 6px}
+
+/* Level 2 additions (design L2-B1 9.3): confidence tap, reflect, quiz page, streak marker. Unused by Level 1 lessons. */
+.step .chips.conf,.step .chips.refl{margin:6px 0 8px}
+.step .chips.conf .chip{flex:1 1 0;min-width:44px}
+.step .rateq{font-size:16px;margin:8px 0 4px}
+.opt.picked{border-color:var(--accent)}
+.step textarea{display:block;width:100%;min-height:76px;margin:6px 0 10px;padding:9px 12px;border-radius:10px;border:2px solid var(--line);background:#171512;color:var(--text);font:inherit;font-size:15.5px;resize:vertical}
+.step textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.step .streak{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;border:1px solid var(--accent);color:var(--accent);font-size:11px;letter-spacing:.06em;font-weight:800}
+.step .qn{color:var(--muted);font-size:12px;letter-spacing:.1em;font-weight:800;text-transform:uppercase}
+.step .qscore{font-size:20px;margin:4px 0 6px}
+.step .qo{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:6px 0;font-size:15px;font-weight:600}
+.step .qo>span{flex:1 1 100%}
+body.phone .step .qscore{font-size:17px}
 </style></head>
 <body><noscript>This lesson needs JavaScript.</noscript>
 <script>(function (root) {
@@ -505,13 +529,107 @@ const n0 = v => Math.round(v).toLocaleString('en-CA');
 const n1 = v => (Math.round(v * 10) / 10).toLocaleString('en-CA', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 MD.n0 = n0; MD.n1 = n1; MD.n2 = n2;
-MD.fT = (c, units, both) => units === 'imp' ? n0(Math.round(MD.toF(c) / 5) * 5) + ' °F' : n0(c) + ' °C' + (both ? ` (${n0(Math.round(MD.toF(c) / 5) * 5)} °F)` : '');
-MD.fTexact = (c, units) => units === 'imp' ? n0(MD.toF(c)) + ' °F' : n0(c) + ' °C';
+MD.fT = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? `${n0(fh)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fh)}\u00a0°F)`; };
+MD.fT2 = (c, units) => { const r = Math.round(c), fh = Math.round(MD.toF(r)); return units === 'imp' ? [`${n0(fh)}\u00a0°F`, `(${n0(r)}\u00a0°C)`] : [`${n0(r)}\u00a0°C`, `(${n0(fh)}\u00a0°F)`]; };
+MD.fTexact = MD.fT;
+MD.dT = (d, units) => { const r = Math.round(d), fd = Math.round(d * 9 / 5); return units === 'imp' ? `${n0(fd)}\u00a0°F (${n0(r)}\u00a0°C)` : `${n0(r)}\u00a0°C (${n0(fd)}\u00a0°F)`; };
 MD.fLen = (mm, units, dec = 1) => units === 'imp' ? (mm / 25.4).toFixed(dec + 2) + ' in' : (dec ? (Math.round(mm * 10 ** dec) / 10 ** dec).toFixed(dec) : n0(mm)) + ' mm';
 MD.fMass = (g, units) => units === 'imp' ? n2(g / 28.3495) + ' oz' : n1(g) + ' g';
 root.MD = MD;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 <script>(function (root) {
+'use strict';
+const MD = root.MD;
+const A = {};
+A.EL = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S', 'Pb'];
+A.EL_NAME = { C: 'Carbon', Mn: 'Manganese', Si: 'Silicon', Cr: 'Chromium', Ni: 'Nickel', Mo: 'Molybdenum', V: 'Vanadium', S: 'Sulphur', Pb: 'Lead' };
+A.EL_COL = { C: '#f2f2f2', Mn: '#c58cff', Si: '#7fd1c7', Cr: '#5fc3ff', Ni: '#3ddc84', Mo: '#F2C230', V: '#ff8fb1', S: '#e8d26a', Pb: '#9aa3ab' };
+A.GRADES = {
+  '1018': { fam: '10', famName: 'Plain carbon steel', c: 18, comp: { C: .175, Mn: .75 }, use: 'Brackets, plate, weld-on parts, low-strength pins' },
+  '1045': { fam: '10', famName: 'Plain carbon steel', c: 45, comp: { C: .46, Mn: .75 }, use: 'Shafts, pins, axles: medium strength, can be hardened' },
+  '12L14': { fam: '12', famName: 'Free-machining (sulphur, phosphorus, + lead)', c: 14, comp: { C: .1, Mn: 1, S: .3, Pb: .25 }, use: 'Machined bushings, fittings, screw-machine parts: not for welding' },
+  '4140': { fam: '41', famName: 'Chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .875, Si: .225, Cr: .95, Mo: .2 }, use: 'Shafts, gears, studs, pins: hardens deeper' },
+  '4340': { fam: '43', famName: 'Nickel-chromium-molybdenum steel', c: 40, comp: { C: .405, Mn: .7, Si: .25, Cr: .8, Ni: 1.825, Mo: .25 }, use: 'Heavy shafts, gears, crankshafts: tough and through-hardening' }
+};
+A.GRADE_KEYS = ['1018', '1045', '12L14', '4140', '4340'];
+A.ELEMENT = {
+  C: { dose: .4, up: ['strength', 'hardness', 'hardenability'], down: ['toughness', 'weldability', 'machinability'], line: 'Carbon: the big one for strength and hardness. More carbon, harder to weld and less tough.' },
+  Mn: { dose: 1, up: ['strength', 'hardenability'], down: [], line: 'Manganese: more hardenability and strength, and it ties up sulphur so hot steel does not crack.' },
+  Si: { dose: 1.5, up: ['strength'], down: [], line: 'Silicon: cleans oxygen out of the melt and adds strength. Spring steels carry more of it.' },
+  Cr: { dose: 1, up: ['hardenability', 'strength', 'hardness', 'corrosion'], down: ['weldability'], line: 'Chromium: deeper hardening and better wear. At 10.5 % or more it makes stainless steel.' },
+  Ni: { dose: 2, up: ['toughness', 'strength', 'hardenability'], down: [], line: 'Nickel: toughness, even when cold. It adds strength without losing much ductility.' },
+  Mo: { dose: .3, up: ['hardenability', 'strength', 'toughness'], down: ['weldability'], line: 'Molybdenum: a little goes a long way for hardenability and strength when hot, and it fights temper brittleness.' },
+  V: { dose: .2, up: ['strength', 'toughness', 'hardness'], down: [], line: 'Vanadium: keeps the grain fine and adds hard carbides for wear.' },
+  S: { dose: .3, up: ['machinability'], down: ['toughness', 'weldability'], line: 'Sulphur and lead: chips break off short, so it machines fast. But it is weaker across the grain and poor to weld.' }
+};
+A.ELEMENT_KEYS = ['C', 'Mn', 'Si', 'Cr', 'Ni', 'Mo', 'V', 'S'];
+A.PROPS = ['strength', 'hardness', 'toughness', 'hardenability', 'corrosion', 'weldability', 'machinability'];
+A.PROP_NAME = { strength: 'Strength', hardness: 'Hardness it can reach', toughness: 'Toughness', hardenability: 'Hardenability (depth)', corrosion: 'Corrosion resistance', weldability: 'Weldability', machinability: 'Machinability' };
+A.mix = function (grade, el, dose) {
+  const c = Object.assign({}, A.GRADES[grade].comp);
+  if (el && dose > 0) {
+    const d = A.ELEMENT[el].dose * dose;
+    if (el === 'S') { c.S = (c.S || 0) + d; c.Pb = (c.Pb || 0) + d * .8; }
+    else c[el] = (c[el] || 0) + d;
+  }
+  return c;
+};
+const g = (c, k) => c[k] || 0;
+A.CE = c => g(c, 'C') + g(c, 'Mn') / 6 + (g(c, 'Cr') + g(c, 'Mo') + g(c, 'V')) / 5 + (g(c, 'Cu') + g(c, 'Ni')) / 15;
+A.CE_BANDS = [[.35, 'Excellent'], [.40, 'Very good'], [.45, 'Good'], [.50, 'Fair'], [9, 'Poor']];
+A.ceBand = ce => A.CE_BANDS.find(b => ce <= b[0] + 1e-9)[1];
+A.preheat = ce => ce > .60 ? 'Preheat required' : ce > .40 ? 'May need preheat' : 'Usually no preheat';
+A.props = function (c) {
+  const C = g(c, 'C'), Mn = g(c, 'Mn'), Si = g(c, 'Si'), Cr = g(c, 'Cr'), Ni = g(c, 'Ni'), Mo = g(c, 'Mo'), V = g(c, 'V'), S = g(c, 'S'), Pb = g(c, 'Pb');
+  const ce = A.CE(c), cl = v => MD.clamp(v, .04, 1);
+  return {
+    strength: cl(.18 + .85 * C + .1 * Mn + .08 * Si + .1 * Cr + .06 * Ni + .4 * Mo + .8 * V),
+    hardness: cl(.12 + 1.05 * C + .04 * Cr + .1 * Mo + .5 * V),
+    toughness: cl(.78 - .7 * C + .12 * Ni + .25 * Mo + .8 * V - .9 * S - .2 * Pb),
+    hardenability: cl(.06 + .3 * C + .22 * Mn + .28 * Cr + .1 * Ni + 1.1 * Mo + .3 * V),
+    corrosion: cl(.08 + .06 * Cr + .02 * Ni + .05 * Mo),
+    weldability: cl(1.25 - 1.3 * ce - 1.2 * S - 1.2 * Pb),
+    machinability: cl(.62 - .55 * C - .05 * Ni - .03 * Cr + 1.1 * S + .8 * Pb)
+  };
+};
+A.R = 25;
+A.hardDepth = function (c, medium) {
+  const C = g(c, 'C');
+  if (C < .28) return 0;
+  const hi = A.props(c).hardenability, k = medium === 'water' ? 1.5 : 1;
+  return MD.clamp((hi - .3) * k * 36, 0, A.R);
+};
+A.weldCracks = (c, preheat) => (A.CE(c) > .5 && !preheat) || g(c, 'Pb') > 0 || g(c, 'S') > .1;
+A.SS = {
+  '304': { fam: 'Austenitic', ser: '300', cr: '18–20', ni: '8–10.5', mo: '0', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#c9ced1',
+    use: 'General purpose: food equipment, tanks, indoor and fresh water', salt: .45 },
+  '316': { fam: 'Austenitic', ser: '300', cr: '16–18', ni: '10–14', mo: '2–3', mag: false, magCW: true, hard: 'No (cold work only)', ys: 205, ts: 515, col: '#cfd4d6',
+    use: 'Salt water, chlorides, chemicals: boat fittings, food and chemical plant', salt: .15 },
+  '430': { fam: 'Ferritic', ser: '400', cr: '16–18', ni: '0', mo: '0', mag: true, hard: 'No', ys: 310, ts: 483, col: '#bfc4c7',
+    use: 'Trim, appliance panels, mild indoor service', salt: .7 },
+  '410': { fam: 'Martensitic', ser: '400', cr: '11.5–13.5', ni: '0', mo: '0', mag: true, hard: 'Yes (quench and temper)', ys: 275, ts: 480, col: '#b7bcbf',
+    use: 'Bolts, shafts, pump and valve parts that must be hard', salt: .8 },
+  '440C': { fam: 'Martensitic', ser: '400', cr: '16–18', ni: '0', mo: '0.75 max', mag: true, hard: 'Yes, to about 60 HRC', ys: null, ts: null, col: '#b2b7ba',
+    use: 'Stainless bearings, valve parts: the hardest stainless', salt: .6 }
+};
+A.SS_KEYS = ['304', '316', '430', '410', '440C'];
+A.CU = {
+  copper: { n: 'Copper (C11000)', short: 'Copper', fam: 'Pure copper', make: '99.9 % copper', iacs: 101, ts: [210, 310], col: '#c47a4a',
+    use: 'Bus bars, wire, tubing, gaskets', bear: 'poor', ksi: [30, 45] },
+  brass: { n: 'Free-cutting brass (C36000)', short: 'Brass', fam: 'Brass', make: 'Copper + zinc + 2.5–3 % lead', iacs: 26, ts: [380, 380], col: '#cfae55',
+    use: 'Valve parts, fittings, machined parts', bear: 'fair', ksi: [55, 55] },
+  phos: { n: 'Phosphor bronze (C51000)', short: 'Phosphor bronze', fam: 'Bronze', make: 'Copper + 4–6 % tin + a little phosphorus', iacs: 15, ts: [415, 790], col: '#b98a4e',
+    use: 'Springs, sleeve bushings, lock washers', bear: 'good', ksi: [60, 115] },
+  sae660: { n: 'Bearing bronze (C93200, SAE 660)', short: 'Bearing bronze', fam: 'Bronze', make: 'Copper + 7 % tin + 7 % lead + 3 % zinc', iacs: 12, ts: [241, 241], col: '#a8763f',
+    use: 'Bushings, bearings, thrust washers', bear: 'best (lead helps)', ksi: [35, 35] },
+  albz: { n: 'Aluminium bronze (C95400)', short: 'Aluminium bronze', fam: 'Bronze', make: 'Copper + 10–11.5 % aluminium + iron', iacs: 13, ts: [586, 586], col: '#c9a35a',
+    use: 'Heavy bushings, gears, wear plates, marine parts', bear: 'good, heavy loads', ksi: [85, 85] },
+  sibz: { n: 'Silicon bronze (C65500)', short: 'Silicon bronze', fam: 'Bronze', make: 'Copper + about 3 % silicon', iacs: 7, ts: [400, 538], col: '#b07d4c',
+    use: 'Marine hardware, bolts, nuts, propeller shafts', bear: 'fair', ksi: [58, 78] }
+};
+A.CU_KEYS = ['copper', 'brass', 'phos', 'sae660', 'albz', 'sibz'];
+root.MDA = A;
+})(typeof window !== 'undefined' ? window : globalThis);</script><script>(function (root) {
 'use strict';
 const MD = root.MD;
 const H = {};
@@ -537,8 +655,18 @@ H.PARTS = {
   brass: { n: 'Brass bushing', short: 'Brass', mat: 'brass', hrb: 60, eqC: -8, hb: 105, col: '#cfae55' },
   iron:  { n: 'Grey cast iron pump casing', short: 'Cast iron', mat: 'cast', hrb: 92, eqC: 11, hb: 200, col: '#6d6f70' },
   alu:   { n: 'Aluminium bracket', short: 'Aluminium', mat: 'alum', hrb: 50, eqC: -20, hb: 90, col: '#c9cfd6' },
-  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' }
+  spec:  { n: 'Shaft, spec 28 to 32 HRC', short: 'Job shaft', mat: 'steel', hrc: 26, hb: 258, col: '#8f979d' },
+  ann:   { n: '4140, annealed (as bought soft)', short: '4140 annealed', mat: 'steel', hrb: 92, eqC: 13, hb: 197, col: '#9aa2a8' },
+  hq:    { n: '4140, quenched in oil, not tempered', short: '4140 quenched', mat: 'tool', hrc: 55, hb: 560, col: '#7c858b' },
+  qt:    { n: '4140, quenched and tempered', short: '4140 tempered', mat: 'steel', hrc: 30, hb: 286, col: '#8f979d' }
 };
+H.SOFT = { label: 'Mild steel, annealed steel', hb: [120, 200], hrb: '65–92', note: 'B scale or Brinell' };
+H.LADDER = [
+  ['Q&T shafts (4140HT)', 28, 32, 'shaft'], ['Springs', 44, 50, 'spring'], ['Hammer faces, chisel edges', 50, 58, 'hammer'],
+  ['Bearings, files, HSS tools', 57, 66, 'hard']];
+H.FILE_HRC = [62, 65];
+H.HARD_TURN = 55;
+H.band = function (hrc) { const b = H.LADDER.filter(r => hrc >= r[1] - .01 && hrc <= r[2] + .01); return b.length ? b.map(r => r[0]).join(' / ') : null; };
 H.trueHR = function (part, sc) {
   const p = H.PARTS[part];
   if (sc === 'C') return p.hrc != null ? p.hrc : p.eqC;
@@ -765,6 +893,7 @@ MK.vbar = function (x, y, w, h, v, lo, hi, col, marks = [], id = '') {
   marks.forEach(([mv, lab, mc]) => { const my = yy(mv); s += `<line x1="${f(x - 6)}" y1="${f(my)}" x2="${f(x + w + 6)}" y2="${f(my)}" stroke="${mc || C.muted}" stroke-width="2.5"/>` + (lab ? `<text class="lm halo" x="${f(x + w + 12)}" y="${f(my + 7)}" style="fill:${mc || C.muted}">${lab}</text>` : ''); });
   return s + '</g>';
 };
+MK.wrap2 = function (t, n) { t = String(t); if (t.length <= n) return [t]; const w = t.split(' '); let a = ''; while (w.length && (a + ' ' + w[0]).trim().length <= n) a = (a + ' ' + w.shift()).trim(); return [a, w.join(' ')]; };
 root.MK = MK;
 })(typeof window !== 'undefined' ? window : globalThis);</script>
 
@@ -800,7 +929,7 @@ window.CFScenes['lb-contam'] = function () {
     const k = 1 - Math.exp(-dt / 2);
     const base = [S.c4, S.c6, S.c14], e = base.map((c, i) => c * mul[i]);
     for (let i = 0; i < 3; i++) {
-      if (S.vent === 'open' && S.run) e[i] += (L.DIRTY[i] * 1.6 - e[i]) * dt * .02;
+      if (S.vent === 'open' && S.run) e[i] += (L.DIRTY[i] * 1.6 - e[i]) * dt * .004;
       if (S.cart) e[i] += (L.CLEAN[i] * .5 - e[i]) * k;
     }
     if (S.pour) { pourT += dt; if (pourT >= .5) { pourT = 0; const m = S.can === 'pail' ? 1.3 : 1.0; for (let i = 0; i < 3; i++) e[i] *= m; } } else pourT = 0;
@@ -872,7 +1001,7 @@ window.CFScenes['lb-contam'] = function () {
     if (o.water !== 'clear') for (let i = 0; i < 8; i++) s += `<circle cx="${f(cx - r + ((t * 40 + i * 41) % (2 * r)))}" cy="${f(cy + (MD.hash(i, 17) - .5) * 8)}" r="${o.water === 'milky' ? 6 : 4}" fill="#e8f2f8" opacity=".85"/>`;
     s += `</g><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${C.text}" stroke-width="2.5"/>`;
     s += `<text class="lm halo" x="${cx}" y="${cy - r - 14}" text-anchor="middle" style="font-weight:800;letter-spacing:.06em">GEAR MESH, MAGNIFIED</text>`;
-    s += `<text class="lm halo" x="${cx}" y="${cy + r + 30}" text-anchor="middle">film about 0.1–1 µm: every counted particle is bigger</text>`;
+    s += `<text class="lm halo" x="${cx}" y="${cy + r + 30}" text-anchor="middle">film 0.1–1 µm in gears, 0.1–3 µm in bearings: every counted particle is bigger</text>`;
     s += `<text id="wear-read" class="lb halo" x="${cx}" y="${cy + r + 62}" text-anchor="middle" style="fill:${o.wear > .6 ? C.bad : o.wear > .2 ? C.warn : C.ok}">${o.wear > .6 ? 'Teeth scratched and pitted' : o.wear > .2 ? 'Scratches starting' : 'Surfaces like new'}</text>`;
     return s + '</g>';
   }
@@ -945,7 +1074,7 @@ window.MetAdapter = function (C, PC) {
     else if (c.type === 'custom') A.controls[k] = { type: 'custom', label: c.label, html: s => c.html(s) };
   }
   window.PAGE_SCENE = A;
-  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, id: String(i) }));
+  A.readouts = (s, o) => (PC.readouts ? PC.readouts(s, o) : []).map(([label, value, color], i) => ({ label, value, color, short: (PC.short || {})[label], id: String(i) }));
   A.caption = (s, o) => (sc.caption && document.body.classList.contains('phone')) ? sc.caption(s, o) : null;
   A.phoneViewBox = s => sc.phoneVB ? sc.phoneVB(s || cur, outOf(s || cur)) : A.viewBox;
   function bboxOf(id) {
@@ -1013,8 +1142,8 @@ window.MetAdapter = function (C, PC) {
     const c = PC.challenge ? PC.challenge(rng, cur, outOf(cur)) : null;
     if (!c) return { q: 'Try any setting.', choices: [{ t: 'OK' }], answer: 0, explain: '' };
     const setup = c.setup ? Object.assign({ snap: true }, c.setup) : null;
-    if (c.game) return { game: true, setup, q: c.q, goal: c.goal, controls: c.controls };
-    return { setup, q: c.q, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
+    if (c.game) return { game: true, setup, q: c.q, ref: c.ref, goal: c.goal, controls: c.controls };
+    return { setup, q: c.q, ref: c.ref, choices: c.choices, answer: c.answer, explain: c.explain, hint: c.hint || 'Set it up on the simulator and read the numbers under the drawing.' };
   };
   return A;
 };
@@ -1033,6 +1162,7 @@ const ch = (t, why) => (why ? { t, why } : { t });
 const shuffle = (rng, choices, answer) => { const idx = choices.map((c, i) => i).sort(() => rng() - .5); return { choices: idx.map(i => choices[i]), answer: idx.indexOf(answer) }; };
 const kcol = o => o.level === 'ok' ? C.ok : o.level === 'thin' ? C.warn : C.bad;
 const fT = (c, S) => MD.fT(c, S.units);
+const TF = c => Math.round(c * 9 / 5 + 32);
 const g = (S, o) => S.units === 'imp' ? MD.n2(o.Goz) + ' oz' : MD.n1(o.Gp) + ' g';
 const r10 = v => MD.n0(Math.round(v / 10) * 10);
 
@@ -1048,37 +1178,37 @@ const RC = (S, o) => [['ISO 4406 code', o.iso, o.clean ? C.ok : o.over >= 3 ? C.
   ['Water', MD.n0(S.ppm) + ' ppm', o.water === 'clear' ? C.ok : o.water === 'hazy' ? C.warn : C.bad], ['Breather', S.vent === 'open' ? 'Open vent cap' : 'Desiccant']];
 
 /* ---------------- reference tables shown with a challenge (instructor 2026-11-15: charts go in the question) */
-const VG_NOTE = 'Petro-Canada HYDREX AW / ENDURATEX EP typical data at 40 and 100 °C, Walther equation (ASTM D341).';
-const vgRef = (T, grades) => ({ title: `Typical viscosity at ${T} °C`, columns: ['Grade', `cSt at ${T} °C`], rows: grades.map(gg => ['VG ' + gg, MD.n1(L.visc(gg, T))]), note: VG_NOTE });
-const nlgiRef = i => ({ title: 'NLGI consistency grades (worked penetration at 25 °C, tenths of a mm)', columns: ['NLGI grade', 'Penetration'],
+const VG_NOTE = 'Petro-Canada HYDREX AW / ENDURATEX EP typical data at 40 °C (104 °F) and 100 °C (212 °F), Walther equation (ASTM D341).';
+const vgRef = (T, grades) => ({ title: `Typical viscosity at ${T} °C (${TF(T)} °F)`, columns: ['Grade', `cSt at ${T} °C (${TF(T)} °F)`], rows: grades.map(gg => ['VG ' + gg, MD.n1(L.visc(gg, T))]), note: VG_NOTE });
+const nlgiRef = i => ({ title: 'NLGI consistency grades (worked penetration at 25 °C (77 °F), tenths of a mm)', columns: ['NLGI grade', 'Penetration'],
   rows: L.NLGI.filter((x, j) => Math.abs(j - i) <= 2).map(x => [x[0], `${x[1]}–${x[2]}`]), note: 'ASTM D217 (cited by number); ranges as published by NLGI and Mobil.' });
 const isoRef = c => ({ title: 'ISO 4406 range numbers (particles per mL)', columns: ['Range number', 'More than', 'Up to'],
   rows: L.ISO.filter(r => Math.abs(r[0] - c) <= 1).map(r => [String(r[0]), MD.n0(r[1]), MD.n0(r[2])]), note: 'ISO 4406 range table (Wix Filters ISO cleanliness code bulletin).' });
 const intRef = (b, B) => ({ title: 'Relubrication interval', rows: [['Bearing', `${b}, ${B.type === 'ball' ? 'ball' : B.type === 'sph' ? 'spherical roller' : 'cylindrical roller'}`], ['Bore d', `${B.d} mm`], ['K', String(L.KTYPE[B.type])]],
-  note: 't = K × (14,000,000 ÷ (n√d) − 4d) hours; over 70 °C, halve t for every 15 °C. GfT interval formula; SKF temperature rule.' });
+  note: 't = K × (14,000,000 ÷ (n√d) − 4d) hours; over 70 °C (158 °F), halve t for every 15 °C (27 °F). GfT interval formula; SKF temperature rule.' });
 
 /* ---------------- challenges (computed with the same formulas the sim uses) */
 function kappaQ(rng) {
   const vg = pick(rng, [32, 46, 68, 100]), T = pick(rng, [50, 60, 70, 80]), nu1 = pick(rng, [10, 12, 13, 15, 20]);
   const nu = L.visc(vg, T), k = nu / nu1;
-  const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C, not at ${T} °C. Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
+  const wrong = [[nu1 / nu, 'Upside down: κ = oil viscosity ÷ needed viscosity.'], [vg / nu1, `${vg} cSt is the viscosity at 40 °C (104 °F), not at ${T} °C (${TF(T)} °F). Read the curve at the running temperature.`], [Math.max(.01, nu - nu1), 'κ is a ratio: divide, do not subtract.']];
   const sh = shuffle(rng, [ch(MD.n2(k))].concat(wrong.map(([v, w]) => ch(MD.n2(v), w))), 0);
-  return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
+  return { setup: { view: 'grade', vg, T, n: 1800, oil: 1, fail: false }, q: `VG ${vg} oil runs at **${T} °C (${TF(T)} °F)**. Read its viscosity off the curve. The bearing maker's chart says it needs **${nu1} cSt**. What is κ?`,
     ref: vgRef(T, L.GRADES.filter(gg => Math.abs(L.GRADES.indexOf(gg) - L.GRADES.indexOf(vg)) <= 1)),
-    choices: sh.choices, answer: sh.answer, explain: `At ${T} °C VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
+    choices: sh.choices, answer: sh.answer, explain: `At ${T} °C (${TF(T)} °F) VG ${vg} is about ${MD.n1(nu)} cSt. κ = ${MD.n1(nu)} ÷ ${nu1} = **${MD.n2(k)}**. ${k >= 1 ? 'At least 1: the film separates the surfaces.' : 'Under 1: the peaks touch. Pick a heavier grade or cool the oil.'}` };
 }
 function regimeQ(rng) {
   const n = pick(rng, [0, 300, 900, 1800, 3000]), nu = L.visc(68, 60), k = n > 0 ? nu / (13 * Math.sqrt(1800 / n)) : 0;
   const r = k >= 1 ? 'Full film' : k >= .4 ? 'Mixed film' : 'Boundary (metal touches)';
   const all = ['Full film', 'Mixed film', 'Boundary (metal touches)'];
   const why = { 'Full film': 'Run it at that speed and read κ: full film needs κ of 1 or more.', 'Mixed film': 'Read κ at that speed: mixed is between about 0.4 and 1.', 'Boundary (metal touches)': 'Boundary is at a standstill, starting, or very slow.' };
-  return { setup: { view: 'film', n, vg: 68, T: 60, oil: 1 }, q: `VG 68 oil at 60 °C. The shaft turns at **${MD.n0(n)} rpm**. What kind of lubrication does the bearing get?`,
+  return { setup: { view: 'film', n, vg: 68, T: 60, oil: 1 }, q: `VG 68 oil at 60 °C (140 °F). The shaft turns at **${MD.n0(n)} rpm**. What kind of lubrication does the bearing get?`,
     choices: all.map(t => t === r ? ch(t) : ch(t, why[t])), answer: all.indexOf(r), explain: `At ${MD.n0(n)} rpm κ is ${MD.n2(k)}: **${r.toLowerCase()}**. Speed builds the oil wedge; starting and stopping are when the surfaces touch.` };
 }
 function nlgiQ(rng) {
   const i = pick(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8]), r = L.NLGI[i], others = L.NLGI.filter((x, j) => Math.abs(j - i) === 1 || Math.abs(j - i) === 2).slice(0, 3);
   const sh = shuffle(rng, [ch('NLGI ' + r[0])].concat(others.map(x => ch('NLGI ' + x[0], `NLGI ${x[0]} is ${x[1]}–${x[2]} tenths of a mm.`))), 0);
-  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C. Which NLGI grade?`, ref: nlgiRef(i), choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'nlgi', grade: 4 }, q: `A cone sinks **${r[1]} to ${r[2]}** tenths of a mm into worked grease at 25 °C (77 °F). Which NLGI grade?`, ref: nlgiRef(i), choices: sh.choices, answer: sh.answer,
     explain: `${r[1]}–${r[2]} is **NLGI ${r[0]}** (${r[3]}). Set the grade on the card to check.` };
 }
 function gpQ(rng) {
@@ -1092,9 +1222,9 @@ function intQ(rng) {
   const b = pick(rng, ['6205', '6309', '22220']), B = L.BRG[b], n = pick(rng, [900, 1200, 1800, 3000]), T = pick(rng, [60, 70, 85, 100]);
   const t = L.interval(B.type, n, B.d, T), t0 = L.interval0(B.type, n, B.d);
   if (t <= 0) return gpQ(rng);
-  const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C, halve it for every 15 °C.' : 'At 70 °C or less the temperature factor is 1.'),
+  const sh = shuffle(rng, [ch(r10(t) + ' h'), ch(r10(t0 * (T > 70 ? 1 : 2)) + ' h', T > 70 ? 'Over 70 °C (158 °F), halve it for every 15 °C (27 °F).' : 'At 70 °C (158 °F) or less the temperature factor is 1.'),
     ch(r10(L.KTYPE[B.type] * L.base(n, B.d)) + ' h', 'You forgot to take away 4 × d.'), ch(r10(t * 10) + ' h', 'Check K and the decimal.')], 0);
-  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C**, be regreased?`, ref: intRef(b, B), choices: sh.choices, answer: sh.answer,
+  return { setup: { card: 'gp', brg: b, n, bT: T }, q: `About how often should a **${b}** at **${MD.n0(n)} rpm**, running at **${T} °C (${TF(T)} °F)**, be regreased?`, ref: intRef(b, B), choices: sh.choices, answer: sh.answer,
     explain: `t = ${L.KTYPE[B.type]} × (14,000,000 ÷ (${MD.n0(n)} × √${B.d}) − 4 × ${B.d}) × ${MD.n2(L.tempFactor(T))} = about **${r10(t)} hours**.` };
 }
 function fillQ(rng) {
@@ -1115,10 +1245,10 @@ function gearQ(rng) {
   const T = pick(rng, [60, 70, 80, 90]), nu1 = pick(rng, [20, 25, 30]), gs = [68, 100, 150, 220, 320];
   const ok = gs.find(gg => L.visc(gg, T) / nu1 >= 1);
   if (!ok) return kappaQ(rng);
-  const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C.`));
+  const wrongs = gs.filter(gg => gg !== ok).slice(0, 3).map(gg => ch('VG ' + gg, L.visc(gg, T) / nu1 >= 1 ? 'That works, but it is heavier than needed.' : `VG ${gg} is only ${MD.n1(L.visc(gg, T))} cSt at ${T} °C (${TF(T)} °F).`));
   const sh = shuffle(rng, [ch('VG ' + ok)].concat(wrongs), 0);
-  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, ref: vgRef(T, gs), choices: sh.choices, answer: sh.answer,
-    explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C: κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
+  return { setup: { card: 'job', gT: T, gvg: 100 }, q: `A gearbox runs at **${T} °C (${TF(T)} °F)**; its bearings need **${nu1} cSt** (maker's chart). Lightest grade with κ ≥ 1? (Read the bars, or work it out.)`, ref: vgRef(T, gs), choices: sh.choices, answer: sh.answer,
+    explain: `VG ${ok} gives ${MD.n1(L.visc(ok, T))} cSt at ${T} °C (${TF(T)} °F): κ = ${MD.n2(L.visc(ok, T) / nu1)}.` };
 }
 
 window.LESSON_CODE = window.LESSON_CODE || {};
@@ -1171,7 +1301,7 @@ window.LESSON_CODE['lubrication'] = {
        normalize(state)           after any change, before calc()
        callout(id, text, o) / clear()   the scene draws video callouts itself (return false to fall back to spot())
        fns {name: (state, out) => any}  step fields given as "fn:name": goal, live, ok
-   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(),
+   api passed to mount: input(partial) (learner change: onSet + tries), get() (state + out), redraw(), retray(),
      step() -> {idx, type, step, free} (e.g. which drawing parts may be dragged now).
 
    Controls (the tray shows only the step's `controls`; free play shows content `freeControls` or all of them):
@@ -1195,11 +1325,34 @@ window.LESSON_CODE['lubrication'] = {
      while it matches), points [..] (teach: a short list), hint2 on question variants.
    Goal matchers per key (state key or out.* path): value · [min, max] · {in} · {gte|lte|gt|lt} · {near, tol} · {not};
      or "fn:name" for the whole goal.
+   Level 2 additions (2026-11-21, design L2-B1 9.3; every one is off unless the lesson, page or step uses its field):
+     step {type:'reflect', prompt (or text), model, chips?: [t | {t, model?, page?}], line?: true, tag?}: a text box (or the chips;
+       line:true adds the box beside them), never marked and never sent to Moodle (the text is not even logged, only the chip
+       and the length); "Show the model answer", then the model (and a "Go to page n" button for a chip with page) and Next.
+       Skip works as on any step. Voice clips: s<i> = the prompt, s<i>after = the model.
+     predict {confidence: true}: after the pick, before the reveal: Guess / Fairly sure / Certain (44 px chips). Logged
+       {type:'confidence', key:'p<n>s<i>', level 0-2, right} and kept per lesson in localStorage ('<lesson id>:conf').
+     teach {text: 'fn:calibration', calText?: "... {n} ... {m} ...", calNone?}: how often 'Certain' was right (this lesson's
+       predicts; scene.fns.calibration overrides it). Any teach text / note may be a 'fn:name'.
+     question choice {replay: {set, dur, hold?}}: when that choice's wrong-pick feedback shows, sim.set(set, dur) plays, holds
+       (default 1200 ms of shell time), then the keys it moved are tweened back (700 ms).
+     page {quiz: {pass: 80, pool: [item], draw: 7, byOutcome: true, second: {perOutcome: 3, maxMiss: 1}, badge, outcomes: {O1: {label, page}}}}
+       with a step {type:'quiz', text (intro), tag?}. item = {outcome, q, choices:[{t, why, replay?}], answer, explain, hint?,
+       ref?, setup?, show?, screen?: {page, label}}. Draws `draw` items balanced across outcomes, scores first picks, shows the
+       result (never the word 'failed'), a link to the screen for every outcome with a miss (passed or not), and a second draw
+       (perOutcome items for each missed outcome, unused ones first; pass = at most maxMiss misses). The first draw's items
+       report to CFHost.answer(page, 900 + k, right) (lesson_pages.question_keys adds those keys); second draws never score.
+     step solve as a LIST of sets ([{nClos:'Z'}, {nClos:'ZZ'}], solveGap ms apart, default 1000): Show me plays them one after another (chip rows, number builds).
+     lesson {streak: true}: '<n> in a row' beside the step label on question and quiz steps once n >= 3 (first picks only,
+       kept in localStorage); no points, no sound.
    Video contract (?capture=1): window.sim.set / callout / clear / advance / isIdle / ready / get / onChange.
      sim.set({snap: true, ...}) resets to the page defaults first (no tweens), then applies the rest. */
 (function () {
 'use strict';
-const Q = new URLSearchParams(location.search), CAPTURE = Q.has('capture');
+/* ?walk=1 (YouTube format v3 walkthrough recorder, crewforgepipe/walk.js): the full lesson page exactly as a learner sees
+   it (dialog, What you're looking at, spotlight; the kits see no ?capture so they draw their lesson look), but on the
+   virtual clock like a video: no voice, no start overlay, sim.advance drives time, never idle. */
+const Q = new URLSearchParams(location.search), WALK = Q.has('walk'), CAPTURE = Q.has('capture') || WALK;
 const $ = (s, r = document) => r.querySelector(s), el = (t, a = {}, h = '') => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (h) e.innerHTML = h; return e; };
 const md = s => String(s == null ? '' : s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n\n/g, '<br><br>');
 const NS = 'http://www.w3.org/2000/svg';
@@ -1224,10 +1377,19 @@ function start(C, S) {
   const KEY = 'cf-lp:' + C.lesson.id;
   const prefs = (() => { try { return JSON.parse(store && store.getItem('cf-voice') || '{}'); } catch (e) { return {}; } })();
   let muted = !!prefs.muted, rate = prefs.rate || 1;
+  /* Level 2 additions: small per-lesson memory (confidence taps, the streak). Off unless a page uses the field. */
+  const LS = (k, d) => { try { return JSON.parse(store && store.getItem(KEY + ':' + k) || 'null') || d; } catch (e) { return d; } };
+  const LSET = (k, v) => { try { store && store.setItem(KEY + ':' + k, JSON.stringify(v)); } catch (e) {} };
+  const CONF = ['Guess', 'Fairly sure', 'Certain'], WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const STREAK = !!C.lesson.streak, sk = STREAK ? LS('streak', { n: 0, seen: {} }) : null;
+  const streakNote = (key, right) => { if (!STREAK || key in sk.seen) return; sk.seen[key] = 1; sk.n = right ? sk.n + 1 : 0; LSET('streak', sk); };
+  const streakHTML = () => STREAK && sk.n >= 3 ? `<span class="streak" title="Questions right on the first pick, in a row">${sk.n} in a row</span>` : '';
+  let reflected = {}, qzAsked = {}, qz = null, replayJob = null, solveSeq = null;   // solveSeq: a step's solve given as a list of sets, played one after another (Show me on a chip row or a number build)
+  const qzc = C.quiz || null;
 
   /* ---------------------------------------------------------------- layout */
   document.body.innerHTML = '';
-  const STAGE_ONLY = CAPTURE && C.capture === 'stage';
+  const STAGE_ONLY = CAPTURE && !WALK && C.capture === 'stage';
   if (STAGE_ONLY) document.body.classList.add('capture');
   const app = el('div', { class: 'app' });
   const dots = C.lesson.pages.map((p, i) => `<i class="${i + 1 < PN ? 'done' : i + 1 === PN ? 'on' : ''}" title="${p.title}"></i>`).join('');
@@ -1272,7 +1434,7 @@ function start(C, S) {
     if (target < 1) return;
     if (target > N) { finish(); return; }
     L('page', { to: target });
-    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (CAPTURE ? '?capture=1' : '');
+    if (host && host.go) host.go(target); else location.href = C.lesson.pages[target - 1].file + (WALK ? '?walk=1' : CAPTURE ? '?capture=1' : '');
   };
   $('#b-back').onclick = () => go(-1); $('#b-next').onclick = () => go(1);
   if (PN === 1) $('#b-back').disabled = true;
@@ -1341,7 +1503,9 @@ function start(C, S) {
     applyState(next);
   }
   function advance(ms) {
-    stepTweens(ms); S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
+    stepTweens(ms); if (replayJob && (replayJob.t -= ms) <= 0) { const b = replayJob.back; replayJob = null; set(b, 700); }
+    if (solveSeq && (solveSeq.t += ms) >= solveSeq.gap) { solveSeq.t = 0; const nx = solveSeq.list.shift(); if (nx) set(nx, 500); if (!solveSeq.list.length) solveSeq = null; renderTray(); }
+    S.advance(ms, state); out = S.calc(state); dirty = true; render(); checkGoal(ms); checkGame(ms);
   }
   function checkGame(ms) {
     const c = challenge; if (!c || !c.game || c.result || !free) return;
@@ -1353,6 +1517,7 @@ function start(C, S) {
   const api = {
     input(partial) { applyState(partial, true); L('input', partial); markTry(); },   // the tray follows via syncTray (never rebuilt under a finger)
     get: full, redraw() { dirty = true; },
+    retray() { renderTray(); },      // a scene whose chip lists depend on state (fits inch | mm) asks for the tray to be redrawn
     step: () => ({ idx, type: free ? 'free' : steps[idx] && steps[idx].type, step: free ? null : steps[idx], free }),
   };
   S.mount(svg, api);
@@ -1364,7 +1529,15 @@ function start(C, S) {
     get: full, advance, isIdle: () => !CAPTURE && !tweens.length && !(S.busy && S.busy()),   // capture: never idle (renderer reuses idle frames) ready: false,
     onChange: fn => listeners.push(fn),
     callout(id, text, o = {}) { if (S.callout && S.callout(id, text, o) !== false) return; const p = S.spot && S.spot(id); if (!p) return; const [x, y, r] = p, pos = o.pos || 'right', dx = pos === 'left' ? -r - 30 : r + 30;
-      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`; },
+      calloutG.innerHTML = `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#F08A2B" stroke-width="4" stroke-dasharray="8 6"/><text x="${x + dx}" y="${y + 8}" text-anchor="${pos === 'left' ? 'end' : 'start'}" class="la halo">${text}</text>`;
+      // 2026-11-17 (render review: 042/044/045 labels cut off at the frame edge): keep the label inside the drawing.
+      // Too far right -> put it on the left of the ring; still out -> clamp it against the edge.
+      const t = calloutG.querySelector('text'), svg = calloutG.ownerSVGElement, vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (t && text && vb && vb.width) {
+        const M = 16, fits = () => { const b = t.getBBox(); return b.x >= vb.x + M && b.x + b.width <= vb.x + vb.width - M; };
+        if (!fits()) { const left = pos !== 'left'; t.setAttribute('x', left ? x - r - 30 : x + r + 30); t.setAttribute('text-anchor', left ? 'end' : 'start'); }
+        if (!fits()) { const b = t.getBBox(); t.setAttribute('text-anchor', 'start'); t.setAttribute('x', Math.max(vb.x + M, Math.min(b.x, vb.x + vb.width - M - b.width))); }
+      } },
     clear() { calloutG.innerHTML = ''; S.clear && S.clear(); },
   };
 
@@ -1381,7 +1554,18 @@ function start(C, S) {
     drawSpot(); syncTray(); liveLine();
   }
   /* step text that follows the simulator: "fn:name" (scene.fns) or a template {key:dec} / {out.x:0} / {out.util:%} */
-  function fn(v) { return typeof v === 'string' && v.startsWith('fn:') && S.fns && S.fns[v.slice(3)]; }
+  function fn(v) {
+    if (typeof v !== 'string' || !v.startsWith('fn:')) return false;
+    const f = S.fns && S.fns[v.slice(3)]; if (f) return f;
+    return v === 'fn:calibration' ? () => calib(steps[idx]) : false;     // built in: how often 'Certain' was right
+  }
+  function calib(st) {
+    const all = Object.assign({}, LS('conf', {})); log.forEach(e => { if (e.type === 'confidence') all[e.key] = [e.level, e.right ? 1 : 0]; });
+    let n = 0, m = 0; for (const k in all) if (all[k][0] === 2) { n++; if (all[k][1]) m++; }
+    if (!n) return (st && st.calNone) || "You did not tap 'Certain' on any prediction this time.";
+    return ((st && st.calText) || "You tapped 'Certain' {n} times, and you were right on {m} of them.").replace(/\{n\}/g, n).replace(/\{m\}/g, m);
+  }
+  const tx = v => fn(v) ? md(tpl(v)) : md(v);
   function tpl(t) {
     const f = fn(t); if (f) return String(f(state, out));
     const st = full();
@@ -1503,7 +1687,7 @@ function start(C, S) {
     speak('s' + idx + 'ok');           // the mentor's "that's because..." (mentor pattern)
   }
   function enter(i, opts = {}) {
-    stopVoice(); free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
+    stopVoice(); stopReplay(); solveSeq = null; free = false; challenge = null; idx = Math.max(0, Math.min(steps.length - 1, i)); hintLvl = 0; tries = 0; goalSince = null; qState = null;
     const st = steps[idx];
     if (!opts.noSetup) {
       if (st.setup) set(st.setup, 0);
@@ -1516,8 +1700,8 @@ function start(C, S) {
     spot([], []); renderStep(); if (!opts.quiet) speak(curKey());
   }
   function nextStep() { if (idx < steps.length - 1) enter(idx + 1); else enterFree(); }
-  function stepHead(label) {
-    return `<div class="sh"><b>${label}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
+  function stepHead(label, extra) {
+    return `<div class="sh"><b>${label}${extra ? ' ' + extra : ''}</b><button class="nav" id="b-sprev" aria-label="Previous step">&#8249;</button><button class="nav" id="b-snext" aria-label="Next step">&#8250;</button></div>`;
   }
   function wireHead() {
     const p = $('#b-sprev'), n = $('#b-snext');
@@ -1536,11 +1720,11 @@ function start(C, S) {
   function renderStep() {
     if (free) return renderFree();
     const st = steps[idx], isDone = done.has(idx), lab = (st.tag ? `<span class="tg">${esc(st.tag).toUpperCase()}</span> · ` : '') + `STEP ${idx + 1} OF ${steps.length}`;
-    card.className = 'card step' + (st.type === 'question' ? ' q' : '');
-    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab);
+    card.className = 'card step' + (st.type === 'question' || st.type === 'quiz' ? ' q' : '');
+    let h = stepHead(st.type === 'question' ? `QUESTION · ${lab}` : st.type === 'quiz' ? `QUIZ · ${lab}` : st.type === 'fail' ? `FAILURE · ${lab}` : lab, st.type === 'question' || st.type === 'quiz' ? streakHTML() : '');
     const ctrls = st.controls || [];
     if (st.type === 'teach') {
-      h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${md(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
+      h += `<p>${tx(st.text)}</p>` + refHtml(st.ref) + (st.points ? `<ul class="points">${st.points.map(x => `<li>${md(x)}</li>`).join('')}</ul>` : '') + (st.note ? `<div class="note">${tx(st.note)}</div>` : '') + `<div class="row"><button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Got it: free play' : 'Got it'} &#9654;</button></div>`;
     } else if (st.type === 'do' || st.type === 'fail') {
       if (st.type === 'fail') h += `<div class="never">SIMULATION ONLY · NEVER DO THIS ON THE JOB</div>`;
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref) + (st.live || st.wrong ? '<div class="note" id="live"></div>' : '');
@@ -1549,7 +1733,11 @@ function start(C, S) {
     } else if (st.type === 'predict') {
       h += `<p>${md(st.text)}</p>` + refHtml(st.ref);
       if (!qState) h += st.choices.map((c, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('') + hintBlock(st.thinkHint ? { hint: st.thinkHint } : st) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button></div>`;
-      else {
+      else if (qState === 'rate') {      // confidence tap (predict {confidence: true}): after the pick, before the reveal
+        h += `<button class="opt picked" disabled>${String.fromCharCode(65 + predPick)}. ${md(st.choices[predPick])}</button>` +
+          `<p class="rateq">How sure are you?</p><div class="chips conf" role="group" aria-label="How sure are you?">${CONF.map((t, i) => `<button class="chip" data-conf="${i}" aria-pressed="false">${t}</button>`).join('')}</div>` +
+          `<div class="note">Pick one, then see what happens. It is not marked.</div>`;
+      } else {
         // answered: keep only the right choice and the learner's pick, so the explanation and the tray stay on screen
         h += st.choices.map((c, i) => i !== st.answer && i !== predPick ? '' : `<button class="opt ${i === st.answer ? 'right' : 'wrong'}" disabled>${String.fromCharCode(65 + i)}. ${md(c)}</button>`).join('');
         h += `<div class="${predPick === st.answer ? 'good' : 'bad'}"><b>${predPick === st.answer ? 'Right.' : 'Watch.'}</b> ${md(st.after)}</div>`;
@@ -1565,15 +1753,34 @@ function start(C, S) {
         `<div class="bad"><b>Not quite.</b> ${md(v.choices[qPick].why)}</div><div class="row"><button class="btn pri" id="b-newq">Try a new question &#9654;</button></div>`;
       else h += opts(v.choices, ord, i => i === v.answer ? (qState === 'right' ? 'right' : 'ans') : '') +
         `<div class="good"><b>${qState === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(v.explain)}</div><div class="row">${qState === 'shown' ? '<button class="btn" id="b-newq">Try a new question</button>' : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    } else if (st.type === 'reflect') {
+      const rf = reflected[idx], chips = st.chips ? st.chips.map(c => typeof c === 'string' ? { t: c } : c) : null;
+      h += `<p>${md(st.prompt || st.text)}</p>`;
+      if (!rf) {
+        if (chips) h += `<div class="chips refl" role="group" aria-label="Pick one">${chips.map((c, i) => `<button class="chip" data-rc="${i}" aria-pressed="false">${md(c.t)}</button>`).join('')}</div>`;
+        if (!chips || st.line) h += `<textarea id="reflect-t" rows="3" maxlength="400" aria-label="Your own words" placeholder="Type it in your own words. Not marked, not sent anywhere."></textarea>`;
+        h += `<div class="row"><button class="btn pri" id="b-model">Show the model answer</button><button class="skip" id="b-skip">Skip this step</button></div>`;
+      } else {
+        const c = rf.chip != null && chips ? chips[rf.chip] : null, m = (c && c.model) || st.model || 'Thanks. Say it back to yourself in your own words.';
+        h += `<div class="good"><b>${st.modelLabel || 'One way to say it.'}</b> ${md(m)}</div>` +
+          `<div class="row">${c && c.page ? `<button class="btn qgo" data-p="${c.page}">Go to page ${c.page}</button>` : ''}<button class="btn pri" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+      }
+    } else if (st.type === 'quiz') {
+      h += quizHTML(st);
     }
     card.innerHTML = h; wireHead();
-    renderTray(st.type === 'question' ? (st.controls || []) : ctrls);
+    renderTray(st.type === 'question' || st.type === 'quiz' ? (st.controls || []) : ctrls);
     const ok = $('#b-ok'); if (ok) ok.onclick = () => { if (st.type === 'teach') { done.add(idx); L('done', { step: idx, how: 'read' }); } nextStep(); };
     const hb = $('#b-hint'); if (hb) hb.onclick = () => hint();
     const sb = $('#b-show'); if (sb) sb.onclick = () => showMe();
     const kb = $('#b-skip'); if (kb) kb.onclick = () => { L('skip', { step: idx }); helped.add(idx); nextStep(); };
     const nq = $('#b-newq'); if (nq) nq.onclick = () => newQuestion();
     card.querySelectorAll('.opt[data-i]').forEach(b => b.onclick = () => choose(+b.dataset.i));
+    card.querySelectorAll('.chip[data-conf]').forEach(b => b.onclick = () => rateConf(+b.dataset.conf));
+    card.querySelectorAll('.chip[data-rc]').forEach(b => b.onclick = () => { card.querySelectorAll('.chip[data-rc]').forEach(x => { const on = x === b && !x.classList.contains('on'); x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); }); });
+    const mb = $('#b-model'); if (mb) mb.onclick = () => reveal();
+    card.querySelectorAll('.qgo').forEach(b => b.onclick = () => { const d = +b.dataset.p - PN; L('goto', { page: +b.dataset.p }); if (d) go(d); else enter(0); });
+    if (st.type === 'quiz') wireQuiz();
     if (st.spot && !free) spot(Array.isArray(st.spot) ? st.spot : [st.spot], []);
     lastLive = ''; liveLine();
     // phone: the step box scrolls inside itself; bring the newest explanation (the mentor's "that's because") into view
@@ -1584,8 +1791,11 @@ function start(C, S) {
   function opts(ch, ord, cls, live) { return ord.map((j, p) => `<button class="opt ${cls(j)}" ${live ? `data-i="${j}"` : 'disabled'}>${String.fromCharCode(65 + p)}. ${md(ch[j].t)}</button>`).join(''); }
   function choose(i) {
     const st = steps[idx]; L('choose', { step: idx, i });
+    if (st.type === 'quiz') return quizPick(i);
     if (st.type === 'predict') {
-      if (qState) return; predPick = i; qState = 'answered';
+      if (qState) return; predPick = i;
+      if (st.confidence) { qState = 'rate'; renderStep(); return; }     // the reveal waits for the confidence tap
+      qState = 'answered';
       if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
       if (!st.goal) done.add(idx);
       renderStep(); speak('s' + idx + 'after'); return;
@@ -1595,11 +1805,122 @@ function start(C, S) {
     if (i === v.answer) { qState = 'right'; done.add(idx); if (v.show) set(v.show, 1200); }
     else qState = 'wrong';
     if (host && host.answer) host.answer(PN, idx, qState === 'right');    // Moodle score: the host keeps the first result
+    streakNote(`p${PN}s${idx}`, qState === 'right');
     renderStep();
+    if (qState === 'wrong') playReplay(v.choices[i].replay);
+  }
+  /* confidence tap: the reveal that choose() held back, once the learner has rated the pick */
+  function rateConf(lvl) {
+    const st = steps[idx]; if (!st || st.type !== 'predict' || qState !== 'rate' || !(lvl >= 0 && lvl < 3)) return;
+    const right = predPick === st.answer, key = `p${PN}s${idx}`, c = LS('conf', {}); c[key] = [lvl, right ? 1 : 0]; LSET('conf', c);
+    L('confidence', { step: idx, key, level: lvl, right }); qState = 'answered';
+    if (st.reveal) set(st.reveal.set, st.reveal.dur || 1500);
+    if (!st.goal) done.add(idx);
+    renderStep(); speak('s' + idx + 'after');
+  }
+  /* reflect: never marked, never sent to the host; only the chip and the length of the text are logged */
+  function reveal() {
+    const st = steps[idx]; if (!st || st.type !== 'reflect' || reflected[idx]) return;
+    const on = card.querySelector('.chip[data-rc].on'), t = card.querySelector('#reflect-t');
+    reflected[idx] = { chip: on ? +on.dataset.rc : null, chars: t ? t.value.trim().length : 0 };
+    done.add(idx); L('reflect', { step: idx, chip: reflected[idx].chip, chars: reflected[idx].chars }); renderStep(); speak('s' + idx + 'after');
+  }
+  /* replay on a wrong pick: play the short set, hold, then put back the keys it moved */
+  function playReplay(r) {
+    stopReplay(); if (!r || !r.set || CAPTURE) return;
+    const back = {}, src = r.set.snap ? state : r.set; for (const k in src) if (k !== 'snap') back[k] = state[k];
+    set(r.set, r.dur || 1200); replayJob = { back, t: (r.dur || 1200) + (r.hold != null ? r.hold : 1200) }; L('replay', { step: idx });
+  }
+  function stopReplay() {
+    if (!replayJob) return; const b = replayJob.back; replayJob = null;
+    tweens.forEach(T => { for (const k in b) delete T.tw[k]; }); set(b, 0);
+  }
+
+  /* ---------------------------------------------------------------- quiz page (design L2-B1 6.5) */
+  function qzIdsFor(round, missed) {
+    const pool = qzc.pool, rn = rng(PN * 1000 + (Q.get('seed') | 0) + 4001 + round * 131);
+    const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rn() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const all = pool.map((_, i) => i), unused = all.filter(i => !qzAsked[i]);
+    if (round === 0) {
+      const n = Math.min(qzc.draw || pool.length, pool.length);
+      if (qzc.byOutcome === false) return shuf(unused).slice(0, n);
+      const by = {}, order = []; unused.forEach(i => { const o = pool[i].outcome || ''; if (!by[o]) { by[o] = []; order.push(o); } by[o].push(i); });
+      order.forEach(o => { by[o] = shuf(by[o]); });
+      const res = []; while (res.length < n && order.some(o => by[o].length)) order.forEach(o => { if (res.length < n && by[o].length) res.push(by[o].shift()); });
+      return res;
+    }
+    const per = (qzc.second && qzc.second.perOutcome) || 3, res = [];
+    missed.forEach(o => { const ids = all.filter(i => (pool[i].outcome || '') === o); res.push(...shuf(ids.filter(i => !qzAsked[i])).concat(shuf(ids.filter(i => qzAsked[i]))).slice(0, per)); });
+    return shuf(res);
+  }
+  function quizStart(round, missed) {
+    qz = { round, ids: qzIdsFor(round, missed || []), k: 0, picks: [], state: null, phase: 'ask', result: null };
+    qz.ids.forEach(i => { qzAsked[i] = 1; }); hintLvl = 0; quizItemSetup(); L('quiz', { start: round, n: qz.ids.length }); renderStep();
+  }
+  const quizItem = () => qzc.pool[qz.ids[qz.k]];
+  function quizItemSetup() { const it = quizItem(); if (it && it.setup) set(it.setup, 0); }
+  function quizPick(i) {
+    if (!qz || qz.phase !== 'ask' || qz.state) return;
+    const it = quizItem(), right = i === it.answer; qz.state = right ? 'right' : 'wrong';
+    qz.picks.push({ id: qz.ids[qz.k], outcome: it.outcome || '', right, i }); if (right && it.show) set(it.show, 1200);
+    if (qz.round === 0 && host && host.answer) host.answer(PN, 900 + qz.k, right);
+    streakNote(`p${PN}q${qz.round}.${qz.k}`, right); L('quiz', { k: qz.k, i, right, round: qz.round });
+    renderStep(); if (!right) playReplay(it.choices[i].replay);
+  }
+  function quizShow() {
+    if (!qz || qz.phase !== 'ask' || qz.state) return; const it = quizItem(); helped.add(idx); L('showme', { step: idx, quiz: qz.k });
+    qz.state = 'shown'; qz.picks.push({ id: qz.ids[qz.k], outcome: it.outcome || '', right: false, i: -1 });
+    if (qz.round === 0 && host && host.answer) host.answer(PN, 900 + qz.k, false);
+    streakNote(`p${PN}q${qz.round}.${qz.k}`, false); if (it.show) set(it.show, 1200); renderStep();
+  }
+  function quizNext() {
+    if (!qz || !qz.state) return; stopReplay(); qz.k++; qz.state = null; hintLvl = 0;
+    if (qz.k >= qz.ids.length) { quizResult(); return; }
+    quizItemSetup(); renderStep();
+  }
+  function quizResult() {
+    const n = qz.ids.length, right = qz.picks.filter(p => p.right).length, pct = n ? Math.round(100 * right / n) : 0, miss = n - right;
+    const second = qzc.second || {}, passed = qz.round === 0 ? pct >= (qzc.pass != null ? qzc.pass : 80) : miss <= (second.maxMiss != null ? second.maxMiss : 1);
+    const missed = []; qz.picks.forEach(p => { if (!p.right && !missed.includes(p.outcome)) missed.push(p.outcome); });
+    qz.phase = 'result'; qz.result = { n, right, pct, passed, missed }; done.add(idx); L('quiz', { result: qz.round, right, n, passed });
+    renderStep();
+  }
+  function quizHTML(st) {
+    if (!qz) return `<p>${tx(st.text)}</p><div class="note">${Math.min(qzc.draw || qzc.pool.length, qzc.pool.length)} questions. Pass at ${qzc.pass != null ? qzc.pass : 80} %. Nothing locks: a miss shows you which page to go back to.</div><div class="row"><button class="btn pri" id="b-qstart">Start the quiz</button></div>`;
+    if (qz.phase === 'result') {
+      const r = qz.result, oc = qzc.outcomes || {}, per = (qzc.second && qzc.second.perOutcome) || 3;
+      let h = `<div class="qscore"><b>${r.right} of ${r.n} right (${r.pct} %)</b></div>`;
+      h += r.passed ? `<div class="good"><b>${esc(qzc.badge || 'Quiz passed')}.</b> ${r.missed.length ? 'These outcomes still had a miss, so each has a page to revisit.' : 'Every outcome came out right.'}</div>`
+        : `<div class="bad"><b>${WORDS[r.missed.length] || r.missed.length} outcome${r.missed.length === 1 ? '' : 's'} need${r.missed.length === 1 ? 's' : ''} another pass.</b> Go back to the page named, then try the second quiz.</div>`;
+      r.missed.forEach(o => {
+        const items = qz.picks.filter(p => !p.right && p.outcome === o).map(p => qzc.pool[p.id]), links = [];
+        items.forEach(it => { const sc = it.screen || oc[o] || {}; if (sc.page && !links.some(l => l.page === sc.page)) links.push({ page: sc.page, label: sc.label || (oc[o] && oc[o].label) || o }); });
+        h += `<div class="qo"><span>${esc((oc[o] && oc[o].label) || o)}</span>${links.map(l => `<button class="btn qgo" data-p="${l.page}">${esc(l.label)}: page ${l.page}</button>`).join('')}</div>`;
+      });
+      return h + `<div class="row">${r.missed.length ? `<button class="btn pri" id="b-q2">Second quiz: ${per * r.missed.length} questions on ${r.missed.length === 1 ? 'that outcome' : 'those outcomes'}</button>` : ''}<button class="btn${r.missed.length ? '' : ' pri'}" id="b-ok">${idx === steps.length - 1 ? 'Free play' : 'Next step'} &#9654;</button></div>`;
+    }
+    const it = quizItem(), ord = perm(it.choices.length, PN * 1000 + qz.ids[qz.k] * 37 + qz.round * 7 + 3), last = qz.k >= qz.ids.length - 1;
+    let h = `<div class="qn">${qz.round ? 'Second quiz · ' : ''}Question ${qz.k + 1} of ${qz.ids.length}</div><h3>${md(it.q)}</h3>` + refHtml(it.ref);
+    if (!qz.state) return h + opts(it.choices, ord, () => '', true) + hintBlock({ hint: it.hint || 'Look at the drawing and read the question again.' }) + `<div class="row"><button class="btn" id="b-hint">&#128161; Hint</button><button class="btn" id="b-show">&#9654; Show me</button></div>`;
+    const pick = qz.picks[qz.picks.length - 1].i;
+    h += opts(it.choices, ord, j => qz.state === 'right' ? (j === it.answer ? 'right' : '') : j === pick ? 'wrong' : j === it.answer ? 'ans' : '');
+    h += qz.state === 'wrong' ? `<div class="bad"><b>Not quite.</b> ${md(it.choices[pick].why)}</div><div class="good"><b>The answer.</b> ${md(it.explain)}</div>` : `<div class="good"><b>${qz.state === 'right' ? 'Right.' : 'Here is how.'}</b> ${md(it.explain)}</div>`;
+    return h + `<div class="row"><button class="btn pri" id="b-qnext">${last ? 'See the result' : 'Next question'} &#9654;</button></div>`;
+  }
+  function wireQuiz() {
+    const a = $('#b-qstart'); if (a) a.onclick = () => quizStart(0);
+    const n = $('#b-qnext'); if (n) n.onclick = () => quizNext();
+    const t = $('#b-q2'); if (t) t.onclick = () => quizStart(qz.round + 1, qz.result.missed);
+  }
+  function quizState() {
+    if (!qz) return { phase: 'intro' };
+    const it = qz.phase === 'ask' ? quizItem() : null, r = qz.result;
+    return { phase: qz.phase, round: qz.round, k: qz.k, n: qz.ids.length, state: qz.state, answer: it ? it.answer : null, outcomes: qz.ids.map(i => qzc.pool[i].outcome || ''), ids: qz.ids.slice(),
+      right: qz.picks.filter(p => p.right).length, result: r ? Object.assign({}, r) : null };
   }
   function newQuestion() {
     if (challenge) { return nextChallenge(); }
-    const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
+    stopReplay(); const st = steps[idx]; qv[idx] = (qv[idx] || 0) + 1; qState = null; qPick = null; hintLvl = 0;
     const v = st.variants[qv[idx] % st.variants.length]; if (v.setup) set(v.setup, 0);
     L('newq', { step: idx, v: qv[idx] % st.variants.length }); renderStep(); speak(curKey());
   }
@@ -1611,9 +1932,11 @@ function start(C, S) {
   }
   function showMe() {
     if (challenge) { challenge.shown = true; renderFree(); return; }
-    const st = steps[idx]; L('showme', { step: idx }); helped.add(idx);
-    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); renderStep(); return; }
-    if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
+    const st = steps[idx]; if (st.type === 'quiz') return quizShow();
+    L('showme', { step: idx }); helped.add(idx);
+    if (st.type === 'question') { qState = 'shown'; if (host && host.answer) host.answer(PN, idx, false); streakNote(`p${PN}s${idx}`, false); renderStep(); return; }
+    if (Array.isArray(st.solve)) { solveSeq = { list: st.solve.slice(), t: 0, gap: st.solveGap || 1000 }; set(solveSeq.list.shift(), 500); if (!solveSeq.list.length) solveSeq = null; renderTray(); }
+    else if (st.solve) { set(fn(st.solve) ? fn(st.solve)(state, out) : st.solve, st.solveDur || 1600); renderTray(); }
     renderStep(); spot(st.spot ? [].concat(st.spot) : [], st.controls || []);
   }
 
@@ -1687,11 +2010,13 @@ function start(C, S) {
   /* test / run-through API */
   window.lessonPage = {
     log, state: () => ({ page: PN, pages: N, idx, type: steps[idx] && steps[idx].type, steps: steps.length, done: Array.from(done), helped: Array.from(helped), free, challenge: challenge ? { state: challenge.state, answer: challenge.answer, game: !!challenge.game, result: challenge.result || null } : null,
-      qState, variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
-    defaults: () => Object.assign({}, S.defaults), enter, nextStep, hint, showMe, choose, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
+      qState, ...(qzc ? { quiz: quizState() } : {}), ...(replayJob ? { replay: true } : {}), variant: qv[idx] || 0, answer: steps[idx] && steps[idx].type === 'question' ? steps[idx].variants[(qv[idx] || 0) % steps[idx].variants.length].answer : steps[idx] && steps[idx].answer, finished, voiceOK, muted, rate, sim: full() }),
+    defaults: () => Object.assign({}, S.defaults),
+    challengeData: () => challenge ? { q: challenge.q, choices: (challenge.choices || []).map(c => c.t || c.text || c), explain: challenge.explain || '', ref: challenge.ref || null, game: !!challenge.game } : null,
+    enter, nextStep, hint, showMe, choose, rate: rateConf, newQuestion, enterFree, reset, nextChallenge, finish, startVoice: () => { const b = $('#b-quiet'); if (b) b.click(); },
   };
 }
 })();
 </script>
-<script>(function(){const C={"n":6,"file":"06-contamination.html","title":"Dirt and water","scene":"lb-contam","capture":"stage","start":{"vent":"open","can":"pail","c4":4500,"c6":1200,"c14":150,"ppm":100,"cart":0,"pour":0,"run":true},"what":"A **helical gear reducer** on its plinth, with a sight glass, a breather on top, the oil used to top it up and a **filter cart**. The circle magnifies the gear mesh. The card counts particles the way an oil lab does: the **ISO 4406** cleanliness code, against a target (an example value: your oil-analysis program sets it).","steps":[{"type":"teach","tag":"On the job","spot":["reducer"],"text":"Topping up a gear reducer looks like the easiest job in the plant: grab oil, pour it in, done. But the oil can be dirty before it reaches the box, and the box breathes in dust and damp air on its own. You can't see any of it. Let's count it."},{"type":"teach","text":"An oil lab counts the particles in each mL at **4, 6 and 14 µm** and up, and gives each count a range number (ISO 4406). **19/17/14** means 2,500 to 5,000 of 4 µm and up, 640 to 1,300 of 6 µm, and 80 to 160 of 14 µm. Each step up **doubles** the count.","spot":["c-iso"]},{"type":"teach","text":"The oil film in a gear mesh or a rolling bearing is only about 0.1 to 3 µm thick (Machinery's Handbook). Particles bigger than the film get trapped between the surfaces and dent and scratch them. A hair is about 70 µm.","spot":["mesh-inset"]},{"type":"teach","spot":["c-iso"],"text":"Read the card. This box is at **19/17/14**. The target is **16/14/11**. That's three steps over on each number, and each step doubles: 2 × 2 × 2 = **8 times** too many particles."},{"type":"do","text":"Start at the top. The open vent cap breathes shop dust and damp air. Swap it for a **desiccant breather**.","controls":["vent"],"goal":{"vent":"desic"},"solve":{"vent":"desic"},"hint":"Tap Desiccant breather.","ok":"That's because the box breathes in and out as it warms and cools. An open cap pulls in shop air, dust and all. The breather filters that air, and its gel soaks up water. The gel changes colour when it's used up: change the cartridge then."},{"type":"predict","text":"Now the oil already in the box. It's 8 times too dirty. Make a call: what will clean it up?","controls":["cart"],"goal":"fn:p6_clean","solve":{"c4":300,"c6":80,"c14":12},"hint":"Press and hold the filter cart button. Watch the bars drop under the dashed lines.","ok":"At target. That's because the cart runs a kidney loop: oil out of the drain, through a fine filter, back in the top. Each pass catches more particles, so the bars keep dropping. No need to dump good oil.","live":"fn:p6_live","choices":["Only an oil change","A filter cart can bring it to target","Nothing: the dirt settles out"],"answer":1,"thinkHint":"The cart pumps the oil through a fine filter and back into the box, over and over.","after":"Let's find out.","doText":"Hold the **filter cart** button until the code is at or under **16/14/11**. Watch the three bars drop under the dashed lines."},{"type":"predict","text":"Here's the shortcut. The box is a bit low, and there's an **open pail** of the right oil sitting on the floor. Same oil, so why not? Make a call: what happens to the code when you top up from it?","choices":["It goes up: the pail adds dirt","It stays the same: new oil is clean","It goes down: new oil dilutes the dirt"],"answer":0,"reveal":{"set":{"c4":9000,"c6":2600,"c14":330},"dur":1500},"after":"That's because an open pail collects dust from the floor and the air, and new oil from a drum often isn't clean enough either. Look at the bars: the top-up put that dirt straight into the box. The cart's work, undone.","tag":"On the job"},{"type":"do","text":"Do it right: top up from the **sealed, labelled can**, then run the **filter cart** back to target.","controls":["can","pour","cart"],"goal":"fn:p6_right","solve":{"can":"sealed","c4":300,"c6":80,"c14":12},"hint":"Tap Sealed can, then hold the filter cart.","ok":"Back on target. That's because a sealed, labelled can (one oil, one can) keeps dust and the wrong oil out, and the cart filters whatever is left. With the desiccant breather on, the box stays clean between samples.","live":"fn:p6_live"},{"type":"teach","tag":"Now you know","spot":["c-iso"],"text":"Now you know the dirt you can't see is bigger than the oil film. So when you top up a box, you can decide: sealed, labelled can, filtered transfer, a desiccant breather, and check the next sample against the target code."},{"type":"teach","tag":"On the job","spot":["sight-glass"],"text":"One more. A box near a washdown area. The level in the sight glass looks fine, so the oil must be fine. But a leaking hose or seal can put water in. Let's see what that looks like."},{"type":"do","text":"Raise the water to **1,000 ppm**. Watch the sight glass and the water card.","controls":["ppm"],"goal":{"ppm":{"gte":1000}},"solve":{"ppm":1000},"hint":"Drag Water in the oil to the right.","ok":"Milky oil: free water. That's because past a point the oil can't hold the water dissolved, so it hangs in tiny drops and clouds the glass. Water rusts parts, weakens the film and ages the oil. (The hazy and milky points here are example values.)"},{"type":"teach","tag":"Now you know","spot":["sight-glass"],"text":"Now you know milky oil means free water. So when you see it in the sight glass, you can decide: find the leak first, then dry or change the oil. Topping up won't fix it."},{"type":"question","setup":{"ppm":100},"variants":[{"q":"An oil sample comes back **19/17/14** (ISO 4406). What does the last number tell you?","choices":[{"t":"80 to 160 particles of 14 µm and larger in each mL"},{"t":"14 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 14 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"80 to 160 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 14 = more than 80, up to 160. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["13","40","80"],["14","80","160"],["15","160","320"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **18/16/13** (ISO 4406). What does the last number tell you?","choices":[{"t":"40 to 80 particles of 14 µm and larger in each mL"},{"t":"13 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 13 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"40 to 80 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 13 = more than 40, up to 80. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["12","20","40"],["13","40","80"],["14","80","160"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **21/19/16** (ISO 4406). What does the last number tell you?","choices":[{"t":"320 to 640 particles of 14 µm and larger in each mL"},{"t":"16 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 16 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"320 to 640 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 16 = more than 320, up to 640. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["15","160","320"],["16","320","640"],["17","640","1,300"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **16/14/11** (ISO 4406). What does the last number tell you?","choices":[{"t":"10 to 20 particles of 14 µm and larger in each mL"},{"t":"11 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 11 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"10 to 20 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 11 = more than 10, up to 20. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["10","5","10"],["11","10","20"],["12","20","40"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}}]},{"type":"question","variants":[{"q":"An oil sample goes from **18/16/13** to **19/17/14**. Roughly how many more particles?","choices":[{"t":"About twice as many in each size"},{"t":"One more particle per mL","why":"The numbers are range codes, not counts."},{"t":"About 10 % more","why":"Each step up doubles the count, not 10 %."},{"t":"Ten times as many","why":"One step is about double, not ten times."}],"answer":0,"explain":"Each step up in an ISO 4406 range number **doubles** the count."},{"q":"Which is the best way to top up a gearbox?","choices":[{"t":"From a sealed, labelled container, through a filter"},{"t":"From an open bucket kept by the machine","why":"Open buckets collect dust and water."},{"t":"Straight from any drum with a funnel","why":"Funnels and drums carry dirt; and the wrong oil goes in."},{"t":"Use whatever oil is closest","why":"Use the oil on the lube chart."}],"answer":0,"explain":"Sealed, labelled, one-oil containers and **filtered** transfer keep the dirt out."},{"q":"What does a **desiccant breather** do?","choices":[{"t":"Filters dust out of the air going in and soaks up its moisture"},{"t":"Lets oil out when it gets hot","why":"It is for the air going in, not the oil."},{"t":"Cools the oil","why":"It doesn't cool the oil; it cleans and dries the air."},{"t":"Adds additive to the oil","why":"No: a breather adds nothing to the oil."}],"answer":0,"explain":"It filters incoming air and its desiccant **dries** it. Change it when the gel changes colour."},{"q":"Gearbox oil in the sight glass looks **milky**. What does it tell you?","choices":[{"t":"There is free water in the oil: find the source and dry or change the oil"},{"t":"The oil is new","why":"New oil is clear, not milky."},{"t":"The oil is too thick","why":"Milky means water, not viscosity."},{"t":"It is normal at start-up","why":"Milky oil is never normal: it means water."}],"answer":0,"explain":"**Milky** = free water. It rusts parts and weakens the film. Fix the leak, then dry or change the oil."}]}],"free":"Everything is unlocked. Try the open vent, the open pail, the cart and the water slider, and watch the code and the gear mesh.","lesson":{"id":"lubrication","title":"Lubrication","episode":"073-lubrication","done":"You finished **Lubrication: viscosity, grease and intervals**. Now you can pick an oil for its running temperature, choose grease and mix it safely, work out how much and how often, and keep it clean and dry. So on the job you can decide, not guess. Print the summary sheet, and always follow the maker's lube chart, the data sheet and your site's procedures.","sheet":"lubrication-summary.pdf","footer":"Exam prep, not a procedure: on the job, follow the machine maker's lube chart and manual, the lubricant data sheet and SDS, and your site procedures. Lock out before reaching past a guard (WorkSafeBC OHS Regulation s. 12.6 asks for guards that allow lubrication without removal, where practicable). Check your province's rules.","summary":{"title":"Lubrication: viscosity, grease and intervals","pic":{"page":5,"state":{"base":50,"added":25,"drain":true,"wiped":true}},"rules":["A lubricant separates the surfaces, carries heat away and keeps out rust and dirt. Motion drags oil into the narrowing gap (oil wedge); stopped or starting = boundary lubrication.<br><i><b>Why:<\/b> no motion, no wedge: wear happens at start and stop. <b>Decide:<\/b> slow or stop-start machines need the right grade; check levels every round.<\/i>","Viscosity = resistance to flow, in cSt (mm²/s). ISO VG = cSt at 40 °C ±10 % (VG 68 = 61.2 to 74.8). Oil thins as it heats: read the viscosity at the running temperature.<br><i><b>Why:<\/b> the drum's VG is only true at 40 °C. <b>Decide:<\/b> pick the grade at the running temperature; never top up with a handy wrong oil.<\/i>","κ = ν ÷ ν1 (oil you have ÷ oil the bearing needs, from the maker's chart): aim for about 1 to 4. Under 1 the peaks touch.<br><i><b>Why:<\/b> κ compares the film to what the bearing needs. <b>Decide:<\/b> under 1, go heavier or cool it.<\/i>","Grease = base oil (80 to 97 %) + thickener + additives. NLGI grade = cone penetration at 25 °C (000 fluid to 6 block); NLGI 2 for most bearings. Don't mix incompatible thickeners (check the maker's chart).<br><i><b>Why:<\/b> mixed thickeners can soften or bleed oil. <b>Decide:<\/b> same grease, a compatible one, or purge the old out.<\/i>","How much (side relubrication, SKF): Gp = 0.005 × D × B (g, mm) = 0.114 × D × B (oz, in). 6309: 12.5 g. Weigh ten strokes to know your gun.<br><i><b>Why:<\/b> a charge is a weight, not a feeling. <b>Decide:<\/b> work out the strokes for your gun before you start.<\/i>","How often: t = K × (14,000,000 ÷ (n√d) − 4d) h; K = 10 ball, 5 cylindrical roller, 1 spherical / tapered roller; halve for every 15 °C over 70 °C. 6309 at 1,800 rpm, 60 °C: about 9,790 h.<br><i><b>Why:<\/b> speed and heat use up grease faster. <b>Decide:<\/b> shorten the interval for hot or fast bearings, and find out why it's hot.<\/i>","Right way: wipe the fitting, drain plug out, one charge, run to purge, plug back in. Fill the free space about 30 to 50 %: packed housings churn, overheat and blow seals.<br><i><b>Why:<\/b> packed grease churns, heats and blows seals. <b>Decide:<\/b> plug out, one charge; hot after greasing = suspect too much.<\/i>","ISO 4406 = particles per mL at 4 / 6 / 14 µm as range numbers; each step doubles. Films are about 0.1 to 3 µm, so particles dent and scratch. Sealed labelled containers, filtered top-ups, desiccant breathers. Milky oil = free water.<br><i><b>Why:<\/b> particles are bigger than the film. <b>Decide:<\/b> sealed cans, filter carts, breathers; milky oil = find the leak first.<\/i>"]},"pages":[{"file":"01-why-lubricate.html","title":"The oil film"},{"file":"02-viscosity-grades.html","title":"Viscosity grades"},{"file":"03-grease.html","title":"Grease and NLGI"},{"file":"04-how-much-how-often.html","title":"How much, how often"},{"file":"05-over-greasing.html","title":"Over-greasing"},{"file":"06-contamination.html","title":"Dirt and water"},{"file":"07-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p6-what-d77007ae.mp3","s0":"p6-s0-12bb8966.mp3","s1":"p6-s1-1a8c7223.mp3","s2":"p6-s2-29aa8d6b.mp3","s3":"p6-s3-2f7dedb2.mp3","s4":"p6-s4-109d144a.mp3","s4ok":"p6-s4ok-45a52dfc.mp3","s5":"p6-s5-862f75c8.mp3","s5after":"p6-s5after-cc3f1269.mp3","s5ok":"p6-s5ok-6029612a.mp3","s6":"p6-s6-738a26d0.mp3","s6after":"p6-s6after-00aec507.mp3","s7":"p6-s7-368f6a41.mp3","s7ok":"p6-s7ok-dfd84517.mp3","s8":"p6-s8-29baeca9.mp3","s9":"p6-s9-e207ed2b.mp3","s10":"p6-s10-79cd8c1b.mp3","s10ok":"p6-s10ok-600aad63.mp3","s11":"p6-s11-b61641cf.mp3","s12v0":"p6-s12v0-b43f4a58.mp3","s12v1":"p6-s12v1-99eb1826.mp3","s12v2":"p6-s12v2-c727da56.mp3","s12v3":"p6-s12v3-521fd85b.mp3","s13v0":"p6-s13v0-5eb86739.mp3","s13v1":"p6-s13v1-af751cea.mp3","s13v2":"p6-s13v2-25334ad8.mp3","s13v3":"p6-s13v3-6c660e7a.mp3","free":"p6-free-626e4a07.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["lubrication"][C.n]));})();</script>
+<script>(function(){const C={"n":6,"file":"06-contamination.html","title":"Dirt and water","scene":"lb-contam","capture":"stage","start":{"vent":"open","can":"pail","c4":2700,"c6":700,"c14":90,"ppm":100,"cart":0,"pour":0,"run":true},"what":"A **helical gear reducer** on its plinth, with a sight glass, a breather on top, the oil used to top it up and a **filter cart**. The circle magnifies the gear mesh. The card counts particles the way an oil lab does: the **ISO 4406** cleanliness code, against a target (an example value: your oil-analysis program sets it).","steps":[{"type":"teach","tag":"On the job","spot":["reducer"],"text":"Topping up a gear reducer looks like the easiest job in the plant: grab oil, pour it in, done. But the oil can be dirty before it reaches the box, and the box breathes in dust and damp air on its own. You can't see any of it. Let's count it."},{"type":"teach","text":"An oil lab counts the particles in each mL at **4, 6 and 14 µm** and up, and gives each count a range number (ISO 4406). **19/17/14** means 2,500 to 5,000 of 4 µm and up, 640 to 1,300 of 6 µm, and 80 to 160 of 14 µm. Each step up **doubles** the count.","spot":["c-iso"]},{"type":"teach","text":"The oil film in a gear mesh or a rolling bearing is only about 0.1 to 3 µm thick (Machinery's Handbook). Particles bigger than the film get trapped between the surfaces and dent and scratch them. A hair is about 70 µm.","spot":["mesh-inset"]},{"type":"teach","spot":["c-iso"],"text":"Read the card. This box is at **19/17/14**. The target is **16/14/11**. That's three steps over on each number, and each step doubles: 2 × 2 × 2 = **8 times** too many particles."},{"type":"do","text":"Start at the top. The open vent cap breathes shop dust and damp air. Swap it for a **desiccant breather**.","controls":["vent"],"goal":{"vent":"desic"},"solve":{"vent":"desic"},"hint":"Tap Desiccant breather.","ok":"That's because the box breathes in and out as it warms and cools. An open cap pulls in shop air, dust and all. The breather filters that air, and its gel soaks up water. The gel changes colour when it's used up: change the cartridge then."},{"type":"predict","text":"Now the oil already in the box. It's 8 times too dirty. Make a call: what will clean it up?","controls":["cart"],"goal":"fn:p6_clean","solve":{"c4":300,"c6":80,"c14":12},"hint":"Press and hold the filter cart button. Watch the bars drop under the dashed lines.","ok":"At target. That's because the cart runs a kidney loop: oil out of the drain, through a fine filter, back in the top. Each pass catches more particles, so the bars keep dropping. No need to dump good oil.","live":"fn:p6_live","choices":["Only an oil change","A filter cart can bring it to target","Nothing: the dirt settles out"],"answer":1,"thinkHint":"The cart pumps the oil through a fine filter and back into the box, over and over.","after":"Let's find out.","doText":"Hold the **filter cart** button until the code is at or under **16/14/11**. Watch the three bars drop under the dashed lines."},{"type":"predict","text":"Here's the shortcut. The box is a bit low, and there's an **open pail** of the right oil sitting on the floor. Same oil, so why not? Make a call: what happens to the code when you top up from it?","choices":["It goes up: the pail adds dirt","It stays the same: new oil is clean","It goes down: new oil dilutes the dirt"],"answer":0,"reveal":{"set":{"c4":9000,"c6":2600,"c14":330},"dur":1500},"after":"That's because an open pail collects dust from the floor and the air, and new oil from a drum often isn't clean enough either. Look at the bars: the top-up put that dirt straight into the box. The cart's work, undone.","tag":"On the job"},{"type":"do","text":"Do it right: top up from the **sealed, labelled can**, then run the **filter cart** back to target.","controls":["can","pour","cart"],"goal":"fn:p6_right","solve":{"can":"sealed","c4":300,"c6":80,"c14":12},"hint":"Tap Sealed can, then hold the filter cart.","ok":"Back on target. That's because a sealed, labelled can (one oil, one can) keeps dust and the wrong oil out, and the cart filters whatever is left. With the desiccant breather on, the box stays clean between samples.","live":"fn:p6_live"},{"type":"teach","tag":"Now you know","spot":["c-iso"],"text":"Now you know the dirt you can't see is bigger than the oil film. So when you top up a box, you can decide: sealed, labelled can, filtered transfer, a desiccant breather, and check the next sample against the target code."},{"type":"teach","tag":"On the job","spot":["sight-glass"],"text":"One more. A box near a washdown area. The level in the sight glass looks fine, so the oil must be fine. But a leaking hose or seal can put water in. Let's see what that looks like."},{"type":"do","text":"Raise the water to **1,000 ppm**. Watch the sight glass and the water card.","controls":["ppm"],"goal":{"ppm":{"gte":1000}},"solve":{"ppm":1000},"hint":"Drag Water in the oil to the right.","ok":"Milky oil: free water. That's because past a point the oil can't hold the water dissolved, so it hangs in tiny drops and clouds the glass. Water rusts parts, weakens the film and ages the oil. (The hazy and milky points here are example values.)"},{"type":"teach","tag":"Now you know","spot":["sight-glass"],"text":"Now you know milky oil means free water. So when you see it in the sight glass, you can decide: find the leak first, then dry or change the oil. Topping up won't fix it."},{"type":"question","setup":{"ppm":100},"variants":[{"q":"An oil sample comes back **19/17/14** (ISO 4406). What does the last number tell you?","choices":[{"t":"80 to 160 particles of 14 µm and larger in each mL"},{"t":"14 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 14 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"80 to 160 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 14 = more than 80, up to 160. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["13","40","80"],["14","80","160"],["15","160","320"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **18/16/13** (ISO 4406). What does the last number tell you?","choices":[{"t":"40 to 80 particles of 14 µm and larger in each mL"},{"t":"13 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 13 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"40 to 80 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 13 = more than 40, up to 80. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["12","20","40"],["13","40","80"],["14","80","160"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **21/19/16** (ISO 4406). What does the last number tell you?","choices":[{"t":"320 to 640 particles of 14 µm and larger in each mL"},{"t":"16 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 16 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"320 to 640 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 16 = more than 320, up to 640. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["15","160","320"],["16","320","640"],["17","640","1,300"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}},{"q":"An oil sample comes back **16/14/11** (ISO 4406). What does the last number tell you?","choices":[{"t":"10 to 20 particles of 14 µm and larger in each mL"},{"t":"11 particles per mL in total","why":"It is a range number from the ISO table, not a count."},{"t":"Particles 11 µm across","why":"The size is fixed: the third number is for 14 µm and up."},{"t":"10 to 20 particles of 4 µm and larger","why":"4 µm and up is the first number."}],"answer":0,"explain":"Third number = particles **≥ 14 µm per mL**: range 11 = more than 10, up to 20. Each step up doubles the count.","ref":{"title":"ISO 4406 range numbers (particles per mL)","columns":["Range number","More than","Up to"],"rows":[["10","5","10"],["11","10","20"],["12","20","40"]],"note":"ISO 4406 range table as printed in the Wix Filters ISO cleanliness code bulletin."}}]},{"type":"question","variants":[{"q":"An oil sample goes from **18/16/13** to **19/17/14**. Roughly how many more particles?","choices":[{"t":"About twice as many in each size"},{"t":"One more particle per mL","why":"The numbers are range codes, not counts."},{"t":"About 10 % more","why":"Each step up doubles the count, not 10 %."},{"t":"Ten times as many","why":"One step is about double, not ten times."}],"answer":0,"explain":"Each step up in an ISO 4406 range number **doubles** the count."},{"q":"Which is the best way to top up a gearbox?","choices":[{"t":"From a sealed, labelled container, through a filter"},{"t":"From an open bucket kept by the machine","why":"Open buckets collect dust and water."},{"t":"Straight from any drum with a funnel","why":"Funnels and drums carry dirt; and the wrong oil goes in."},{"t":"Use whatever oil is closest","why":"Use the oil on the lube chart."}],"answer":0,"explain":"Sealed, labelled, one-oil containers and **filtered** transfer keep the dirt out."},{"q":"What does a **desiccant breather** do?","choices":[{"t":"Filters dust out of the air going in and soaks up its moisture"},{"t":"Lets oil out when it gets hot","why":"It is for the air going in, not the oil."},{"t":"Cools the oil","why":"It doesn't cool the oil; it cleans and dries the air."},{"t":"Adds additive to the oil","why":"No: a breather adds nothing to the oil."}],"answer":0,"explain":"It filters incoming air and its desiccant **dries** it. Change it when the gel changes colour."},{"q":"Gearbox oil in the sight glass looks **milky**. What does it tell you?","choices":[{"t":"There is free water in the oil: find the source and dry or change the oil"},{"t":"The oil is new","why":"New oil is clear, not milky."},{"t":"The oil is too thick","why":"Milky means water, not viscosity."},{"t":"It is normal at start-up","why":"Milky oil is never normal: it means water."}],"answer":0,"explain":"**Milky** = free water. It rusts parts and weakens the film. Fix the leak, then dry or change the oil."}]}],"free":"Everything is unlocked. Try the open vent, the open pail, the cart and the water slider, and watch the code and the gear mesh.","lesson":{"id":"lubrication","title":"Lubrication","episode":"073-lubrication","done":"You finished **Lubrication: viscosity, grease and intervals**. Now you can pick an oil for its running temperature, choose grease and mix it safely, work out how much and how often, and keep it clean and dry. So on the job you can decide, not guess. Print the summary sheet, and always follow the maker's lube chart, the data sheet and your site's procedures.","sheet":"lubrication-summary.pdf","footer":"Exam prep, not a procedure: on the job, follow the machine maker's lube chart and manual, the lubricant data sheet and SDS, and your site procedures. Lock out before reaching past a guard (WorkSafeBC OHS Regulation s. 12.6 asks for guards that allow lubrication without removal, where practicable). Check your province's rules.","summary":{"title":"Lubrication: viscosity, grease and intervals","pic":{"page":5,"state":{"base":50,"added":25,"drain":true,"wiped":true}},"rules":["A lubricant separates the surfaces, carries heat away and keeps out rust and dirt. Motion drags oil into the narrowing gap (oil wedge); stopped or starting = boundary lubrication.<br><i><b>Why:<\/b> no motion, no wedge: wear happens at start and stop. <b>Decide:<\/b> slow or stop-start machines need the right grade; check levels every round.<\/i>","Viscosity = resistance to flow, in cSt (mm²/s). ISO VG = cSt at 40 °C (104 °F) ±10 % (VG 68 = 61.2 to 74.8). Oil thins as it heats: read the viscosity at the running temperature.<br><i><b>Why:<\/b> the drum's VG is only true at 40 °C (104 °F). <b>Decide:<\/b> pick the grade at the running temperature; never top up with a handy wrong oil.<\/i>","κ = ν ÷ ν1 (oil you have ÷ oil the bearing needs, from the maker's chart): aim for about 1 to 4. Under 1 the peaks touch.<br><i><b>Why:<\/b> κ compares the film to what the bearing needs. <b>Decide:<\/b> under 1, go heavier or cool it.<\/i>","Grease = base oil (80 to 97 %) + thickener + additives. NLGI grade = cone penetration at 25 °C (77 °F) (000 fluid to 6 block); NLGI 2 for most bearings. Don't mix incompatible thickeners (check the maker's chart).<br><i><b>Why:<\/b> mixed thickeners can soften or bleed oil. <b>Decide:<\/b> same grease, a compatible one, or purge the old out.<\/i>","How much (side relubrication, SKF): Gp = 0.005 × D × B (g, mm) = 0.114 × D × B (oz, in). 6309: 12.5 g. Weigh ten strokes to know your gun.<br><i><b>Why:<\/b> a charge is a weight, not a feeling. <b>Decide:<\/b> work out the strokes for your gun before you start.<\/i>","How often: t = K × (14,000,000 ÷ (n√d) − 4d) h; K = 10 ball, 5 cylindrical roller, 1 spherical / tapered roller; halve for every 15 °C (27 °F) over 70 °C (158 °F). 6309 at 1,800 rpm, 60 °C (140 °F): about 9,790 h.<br><i><b>Why:<\/b> speed and heat use up grease faster. <b>Decide:<\/b> shorten the interval for hot or fast bearings, and find out why it's hot.<\/i>","Right way: wipe the fitting, drain plug out, one charge, run to purge, plug back in. Fill the free space about 30 to 50 %: packed housings churn, overheat and blow seals.<br><i><b>Why:<\/b> packed grease churns, heats and blows seals. <b>Decide:<\/b> plug out, one charge; hot after greasing = suspect too much.<\/i>","ISO 4406 = particles per mL at 4 / 6 / 14 µm as range numbers; each step doubles. Films are about 0.1 to 3 µm, so particles dent and scratch. Sealed labelled containers, filtered top-ups, desiccant breathers. Milky oil = free water.<br><i><b>Why:<\/b> particles are bigger than the film. <b>Decide:<\/b> sealed cans, filter carts, breathers; milky oil = find the leak first.<\/i>"]},"pages":[{"file":"01-why-lubricate.html","title":"The oil film"},{"file":"02-viscosity-grades.html","title":"Viscosity grades"},{"file":"03-grease.html","title":"Grease and NLGI"},{"file":"04-how-much-how-often.html","title":"How much, how often"},{"file":"05-over-greasing.html","title":"Over-greasing"},{"file":"06-contamination.html","title":"Dirt and water"},{"file":"07-putting-it-together.html","title":"Putting it together"}]},"audio":{"what":"p6-what-d77007ae.mp3","s0":"p6-s0-12bb8966.mp3","s1":"p6-s1-1a8c7223.mp3","s2":"p6-s2-29aa8d6b.mp3","s3":"p6-s3-2f7dedb2.mp3","s4":"p6-s4-109d144a.mp3","s4ok":"p6-s4ok-45a52dfc.mp3","s5":"p6-s5-862f75c8.mp3","s5after":"p6-s5after-cc3f1269.mp3","s5ok":"p6-s5ok-6029612a.mp3","s6":"p6-s6-738a26d0.mp3","s6after":"p6-s6after-00aec507.mp3","s7":"p6-s7-368f6a41.mp3","s7ok":"p6-s7ok-dfd84517.mp3","s8":"p6-s8-29baeca9.mp3","s9":"p6-s9-e207ed2b.mp3","s10":"p6-s10-79cd8c1b.mp3","s10ok":"p6-s10ok-600aad63.mp3","s11":"p6-s11-b61641cf.mp3","s12v0":"p6-s12v0-b43f4a58.mp3","s12v1":"p6-s12v1-99eb1826.mp3","s12v2":"p6-s12v2-c727da56.mp3","s12v3":"p6-s12v3-521fd85b.mp3","s13v0":"p6-s13v0-5eb86739.mp3","s13v1":"p6-s13v1-af751cea.mp3","s13v2":"p6-s13v2-25334ad8.mp3","s13v3":"p6-s13v3-6c660e7a.mp3","free":"p6-free-626e4a07.mp3"},"audioBase":"audio/"};CFShell.start(C, MetAdapter(C, window.LESSON_CODE["lubrication"][C.n]));})();</script>
 </body></html>
