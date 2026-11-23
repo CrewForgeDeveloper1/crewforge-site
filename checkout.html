@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checkout · CrewForge</title><meta name="description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then continue to secure checkout on CrewForge Learn.">
-<meta property="og:title" content="Checkout · CrewForge"><meta property="og:description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then continue to secure checkout on CrewForge Learn.">
+<title>Checkout · CrewForge</title><meta name="description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then enter your email and pay.">
+<meta property="og:title" content="Checkout · CrewForge"><meta property="og:description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then enter your email and pay.">
 <meta name="robots" content="noindex"><link rel="canonical" href="https://crewforge.ca/checkout.html">
 <meta property="og:type" content="website"><meta property="og:url" content="https://crewforge.ca/checkout.html"><meta property="og:site_name" content="CrewForge">
 <meta property="og:locale" content="en_CA"><meta property="og:image" content="https://crewforge.ca/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Checkout · CrewForge">
-<meta name="twitter:description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then continue to secure checkout on CrewForge Learn."><meta name="twitter:image" content="https://crewforge.ca/assets/og.jpg">
+<meta name="twitter:description" content="Start your CrewForge early access: confirm where you&#x27;re located, read the terms of sale, then enter your email and pay."><meta name="twitter:image" content="https://crewforge.ca/assets/og.jpg">
 <link rel="icon" href="assets/crewforge_favicon_32.png"><link rel="stylesheet" href="assets/site.css?v=badac323">
 </head><body data-signup-endpoint="" data-blocked-regions="New Brunswick">
 <header class="site">
@@ -48,17 +48,17 @@
 <main>
 <!--sales-only--><!--noindex-->
 <!--title: Checkout · CrewForge-->
-<!--description: Start your CrewForge early access: confirm where you're located, read the terms of sale, then continue to secure checkout on CrewForge Learn.-->
+<!--description: Start your CrewForge early access: confirm where you're located, read the terms of sale, then enter your email and pay.-->
 <!-- Built only when tools/site_topics.py SALES_OPEN is True. The "checkout:" markers become the Moodle enrolment URLs
-     (learn.crewforge.ca/enrol/index.php?id=<course id>, enrol_fee + PayPal) from CHECKOUT_COURSE_IDS.
+     (learn.crewforge.ca/local/cfshop/buy.php?p=l1|full: pay first, account made after payment) via site_topics.checkout_url.
      The location gate is the same as the launch list (BLOCKED_REGIONS in tools/build_site.py, gate in assets/site.js);
-     Moodle's sign-up form blocks New Brunswick again (ops/moodle/storefront/01_site_setup.php).
+     The buy page blocks New Brunswick again (ops/moodle/local_cfshop).
      LAWYER TO CONFIRM: the agreement line above the checkout buttons. -->
 <section class="page checkout"><div class="wrap">
   <div class="kicker">Checkout</div>
   <h1>Start your early access</h1>
-  <p class="lead" style="margin-top:14px">Three steps: tell us where you're located, then create your CrewForge Learn account
-    and pay securely with PayPal (card or PayPal account). Your course opens as soon as the payment goes through.</p>
+  <p class="lead" style="margin-top:14px">Enter your email and pay. Your account is created for you. Pay securely with
+    PayPal or a card, and your course opens as soon as the payment goes through.</p>
 
   <div class="two offers">
     <div class="card offer" id="full"><div class="num">FULL PROGRAM · EARLY ACCESS</div>
@@ -90,10 +90,10 @@
       <p style="margin-top:22px"><b>2. Read the terms.</b> By continuing you agree to the
         <a href="terms-of-sale.html">terms of sale</a>, the <a href="refund-policy.html">refund policy</a> and the
         <a href="terms.html">terms of use</a>. Prices in Canadian dollars. GST/HST is included in the price.</p>
-      <p style="margin-top:18px"><b>3. Continue to CrewForge Learn.</b> You'll create your account (or sign in), confirm
-        your email, then pay with PayPal.</p>
-      <p style="margin-top:14px" id="go-full"><a class="btn primary to-moodle" href="https://learn.crewforge.ca/enrol/index.php?id=3">Pay for Full Program early access · $199</a></p>
-      <p style="margin-top:10px" id="go-l1"><a class="btn ghost to-moodle" href="https://learn.crewforge.ca/enrol/index.php?id=2">Pay for Level 1 early access · $44</a></p>
+      <p style="margin-top:18px"><b>3. Continue to payment.</b> On the next page you enter your email and pay with PayPal
+        or a card. There is no sign-up form: we create your account after you pay and email you a link to set a password.</p>
+      <p style="margin-top:14px" id="go-full"><a class="btn primary to-moodle" href="https://learn.crewforge.ca/local/cfshop/buy.php?p=full">Pay for Full Program early access · $199</a></p>
+      <p style="margin-top:10px" id="go-l1"><a class="btn ghost to-moodle" href="https://learn.crewforge.ca/local/cfshop/buy.php?p=l1">Pay for Level 1 early access · $44</a></p>
       <p class="small muted" style="margin-top:14px">Our promise: if Level 1 isn't complete by March 31, 2027,
         you can ask for a full refund until April 30, 2027.</p>
     </div>
